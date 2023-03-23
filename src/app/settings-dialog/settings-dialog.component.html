@@ -1,0 +1,45 @@
+<h1 mat-dialog-title>Settings</h1>
+<div mat-dialog-content>
+    <form [formGroup]="settingsForm" (ngSubmit)="submitLoginForm()" novalidate>
+        <mat-form-field>
+            <mat-label>Web Socket URL</mat-label>
+            <input matInput formControlName="websocketAddress" name="websocketAddress" required />
+            <mat-error *ngIf="(settingsFormErrors$ | async)?.websocketAddress?.required"
+                >URL is required</mat-error
+            >
+            <mat-error *ngIf="(settingsFormErrors$ | async)?.websocketAddress?.pattern"
+                >Invalid URL</mat-error
+            >
+        </mat-form-field>
+        <mat-form-field>
+            <mat-label>Log Level</mat-label>
+            <mat-select name="logLevel" placeholder="Select log level" formControlName="logLevel" required>
+                <mat-option *ngFor="let logLevel of LogLevel | enumToArray" [value]="logLevel.key">{{
+                    logLevel.value
+                }}</mat-option>
+            </mat-select>
+            <mat-error *ngIf="(settingsFormErrors$ | async)?.logLevel?.required"
+                >Log level is required</mat-error
+            >
+            <mat-error
+                *ngIf="
+                    (settingsFormErrors$ | async)?.logLevel?.min ||
+                    (settingsFormErrors$ | async)?.logLevel?.max
+                "
+                >Invalid value</mat-error
+            >
+        </mat-form-field>
+    </form>
+</div>
+<div mat-dialog-actions align="end">
+    <button
+        type="submit"
+        (click)="submitLoginForm()"
+        mat-raised-button
+        mat-dialog-close
+        [disabled]="settingsForm.invalid"
+    >
+        Save
+    </button>
+    <button mat-raised-button mat-dialog-close>Cancel</button>
+</div>

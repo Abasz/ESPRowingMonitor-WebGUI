@@ -1,0 +1,21 @@
+mat-toolbar {
+    display: grid;
+    align-items: center;
+    justify-content: center;
+    grid-template-columns: repeat(6, max-content) 1fr max-content;
+
+    > div {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-width: 48px;
+    }
+
+    > .time-of-day {
+        justify-self: center;
+    }
+
+    > .title {
+        justify-self: self-end;
+    }
+}

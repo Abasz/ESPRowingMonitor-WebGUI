@@ -1,0 +1,33 @@
+mat-card {
+    height: 100%;
+    justify-content: center;
+}
+
+.metric {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: calc(16px + (60 - 16) * ((100vw - 300px) / (1920 - 300)));
+    padding: 0.5em 0.5em 0 0.5em;
+}
+
+mat-icon {
+    font-size: 150%;
+    height: 100%;
+    width: 100%;
+    text-align: center;
+}
+
+.title {
+    text-align: center;
+}
+
+.value {
+    font-size: 150%;
+    padding-top: 24px;
+    text-align: center;
+
+    .unit {
+        font-size: 50%;
+    }
+}
