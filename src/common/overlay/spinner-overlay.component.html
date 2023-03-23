@@ -1,0 +1,8 @@
+<div
+    class="overlay-content"
+    [@fade]="animationState"
+    (@fade.start)="onAnimationStart($event)"
+    (@fade.done)="onAnimationDone($event)"
+>
+    <mat-progress-spinner color="primary" strokeWidth="8" mode="indeterminate"> </mat-progress-spinner>
+</div>
