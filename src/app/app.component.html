@@ -12,7 +12,7 @@
     ></app-metric>
     <app-metric
         icon="speed"
-        [value]="(500 / ((rowingData$ | async)?.speed ?? 0) | secondsToTime : 'pace') ?? '--'"
+        [value]="500 / ((rowingData$ | async)?.speed ?? 0) | secondsToTime : 'pace'"
         unit="/500m"
     ></app-metric>
     <app-metric
@@ -26,10 +26,7 @@
         unit="/min"
     ></app-metric>
     <app-metric icon="timer" [value]="((elapseTime$ | async) ?? 0 | date : 'mm:ss') ?? '00:00'"></app-metric>
-    <app-force-curve
-        style="grid-row: span 2; grid-column: span 2"
-        [handleForces]="(rowingData$ | async)?.handleForces ?? []"
-    ></app-force-curve>
+    <app-force-curve [handleForces]="(rowingData$ | async)?.handleForces ?? []"></app-force-curve>
     <app-metric
         icon="route"
         [value]="((rowingData$ | async)?.distPerStroke ?? 0 | number : '0.0-1') ?? '--'"
@@ -39,5 +36,15 @@
     <app-metric
         title="Drag Factor"
         [value]="(rowingData$ | async)?.dragFactor ?? 0 | roundNumber"
+    ></app-metric>
+    <app-metric
+        title="Drive"
+        [value]="(rowingData$ | async)?.driveDuration ?? 0 | roundNumber : 2"
+        unit="sec"
+    ></app-metric>
+    <app-metric
+        title="Recovery"
+        [value]="(rowingData$ | async)?.recoveryDuration ?? 0 | roundNumber : 2"
+        unit="sec"
     ></app-metric>
 </div>

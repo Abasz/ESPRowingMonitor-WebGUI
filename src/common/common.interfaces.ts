@@ -14,6 +14,8 @@ export interface IMediaQuery {
 }
 
 export interface IRowerDataDto {
+    driveDuration: number;
+    recoveryDuration: number;
     batteryLevel: number;
     bleServiceFlag: BleServiceFlag;
     logLevel: LogLevel;

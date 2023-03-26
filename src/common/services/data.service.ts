@@ -35,10 +35,12 @@ export class DataService {
                 const rowerData: IRowerData = {
                     bleServiceFlag: rowerDataDto.bleServiceFlag,
                     logLevel: rowerDataDto.logLevel,
+                    driveDuration: rowerDataDto.driveDuration / 1e6,
+                    recoveryDuration: rowerDataDto.recoveryDuration / 1e6,
                     avgStrokePower: rowerDataDto.avgStrokePower,
                     distance: rowerDataDto.distance - this.activityStartDistance,
                     batteryLevel: rowerDataDto.batteryLevel,
-                    dragFactor: rowerDataDto.dragFactor * 1e6,
+                    dragFactor: rowerDataDto.dragFactor,
                     strokeCount: rowerDataDto.strokeCount - this.activityStartStrokeCount,
                     handleForces: rowerDataDto.handleForces,
                     peakForce: Math.max(...rowerDataDto.handleForces),
@@ -74,6 +76,7 @@ export class DataService {
                 this.lastDistance = rowerDataDto.distance;
                 this.batteryLevel = rowerDataDto.batteryLevel;
                 this.bleServiceFlag = rowerDataDto.bleServiceFlag;
+                this.logLevel = rowerDataDto.logLevel;
 
                 return rowerData;
             }),
@@ -95,6 +98,8 @@ export class DataService {
         this.dataRecorder.reset();
 
         this.resetSubject.next({
+            driveDuration: 0,
+            recoveryDuration: 0,
             avgStrokePower: 0,
             distance: this.lastDistance,
             batteryLevel: this.batteryLevel,

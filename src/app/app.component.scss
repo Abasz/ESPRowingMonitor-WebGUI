@@ -21,3 +21,10 @@
     height: calc(100% - 80px);
     margin: 10px;
 }
+
+app-metric[title="Drive"],
+app-metric[title="Recovery"] {
+    @media (max-width: 959px) {
+        display: none;
+    }
+}
