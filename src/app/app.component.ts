@@ -26,7 +26,7 @@ export class AppComponent {
 
             return interval(1000).pipe(
                 startWith(0),
-                map((): number => Date.now() - this.activityStartTime)
+                map((): number => (Date.now() - this.activityStartTime) / 1000)
             );
         })
     );

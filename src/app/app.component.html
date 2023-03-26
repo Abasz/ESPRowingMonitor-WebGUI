@@ -25,7 +25,7 @@
         [value]="(rowingData$ | async)?.strokeRate ?? 0 | roundNumber"
         unit="/min"
     ></app-metric>
-    <app-metric icon="timer" [value]="((elapseTime$ | async) ?? 0 | date : 'mm:ss') ?? '00:00'"></app-metric>
+    <app-metric icon="timer" [value]="(elapseTime$ | async) ?? 0 | secondsToTime : 'pace'"></app-metric>
     <app-force-curve [handleForces]="(rowingData$ | async)?.handleForces ?? []"></app-force-curve>
     <app-metric
         icon="route"
