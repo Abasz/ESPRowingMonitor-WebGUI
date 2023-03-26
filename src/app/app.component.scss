@@ -15,8 +15,8 @@
 
 .dashboard {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(3, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
     gap: 10px;
     height: calc(100% - 80px);
     margin: 10px;

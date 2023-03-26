@@ -3,6 +3,7 @@ mat-toolbar {
     align-items: center;
     justify-content: center;
     grid-template-columns: repeat(6, max-content) 1fr max-content;
+    font-size: 0.7em;
 
     > div {
         display: flex;
