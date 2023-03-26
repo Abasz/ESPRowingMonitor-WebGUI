@@ -13,8 +13,8 @@ import { NgChartsModule } from "ng2-charts";
 
 import { SpinnerOverlayModule } from "./overlay/spinner-overlay.module";
 import { BatteryLevelPipe } from "./utils/battery-level.pipe";
-import { CustomNumberPipe } from "./utils/custom-number.pipe";
 import { EnumToArrayPipe } from "./utils/enum-to-array.pipe";
+import { RoundNumberPipe } from "./utils/round-number.pipe";
 import { SecondsToTimePipe } from "./utils/seconds-to-time.pipe";
 
 const MODULES = [
@@ -32,7 +32,7 @@ const MODULES = [
     NgChartsModule,
 ];
 
-const DECLARATIONS = [SecondsToTimePipe, CustomNumberPipe, BatteryLevelPipe, EnumToArrayPipe];
+const DECLARATIONS = [SecondsToTimePipe, RoundNumberPipe, BatteryLevelPipe, EnumToArrayPipe];
 
 @NgModule({
     imports: MODULES,

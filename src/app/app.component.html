@@ -22,7 +22,7 @@
     ></app-metric>
     <app-metric
         icon="rowing"
-        [value]="(rowingData$ | async)?.strokeRate ?? 0 | customNumber"
+        [value]="(rowingData$ | async)?.strokeRate ?? 0 | roundNumber"
         unit="/min"
     ></app-metric>
     <app-metric icon="timer" [value]="((elapseTime$ | async) ?? 0 | date : 'mm:ss') ?? '00:00'"></app-metric>
@@ -38,6 +38,6 @@
     <app-metric title="Total Strokes" [value]="(rowingData$ | async)?.strokeCount ?? 0"></app-metric>
     <app-metric
         title="Drag Factor"
-        [value]="(rowingData$ | async)?.dragFactor ?? 0 | customNumber"
+        [value]="(rowingData$ | async)?.dragFactor ?? 0 | roundNumber"
     ></app-metric>
 </div>
