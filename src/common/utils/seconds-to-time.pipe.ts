@@ -63,7 +63,7 @@ export class SecondsToTimePipe implements PipeTransform {
     private formatPace(): string {
         if (this.seconds === Infinity || isNaN(this.seconds)) return "--";
         if (this.hours > 0) {
-            return `${this.hours}:${this.mins.toString().padStart(2, "0")}:${this.seconds
+            return `${this.hours}:${this.mins.toString().padStart(2, "0")}:${(Math.round(this.seconds) % 60)
                 .toString()
                 .padStart(2, "0")}`;
         } else {

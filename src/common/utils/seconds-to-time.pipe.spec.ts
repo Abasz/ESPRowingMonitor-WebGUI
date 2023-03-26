@@ -21,4 +21,8 @@ describe("SecondsToTime pipe", (): void => {
     it("should return 0 if input is 0", (): void => {
         expect(sut.transform(0)).toBe("0");
     });
+
+    fit("should correctly format pace with big numbers", (): void => {
+        expect(sut.transform(7000.13184, "pace")).toBe("1:56:40");
+    });
 });
