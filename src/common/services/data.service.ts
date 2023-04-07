@@ -45,20 +45,14 @@ export class DataService {
                     handleForces: rowerDataDto.handleForces,
                     peakForce: Math.max(...rowerDataDto.handleForces),
                     strokeRate:
-                        this.lastStrokeCount === 0
-                            ? 0
-                            : ((rowerDataDto.strokeCount - this.lastStrokeCount) /
-                                  ((rowerDataDto.strokeTime - this.lastStrokeTime) / 1e6)) *
-                              60,
+                        ((rowerDataDto.strokeCount - this.lastStrokeCount) /
+                            ((rowerDataDto.strokeTime - this.lastStrokeTime) / 1e6)) *
+                        60,
                     speed:
-                        this.lastRevCount === 0
-                            ? 0
-                            : (distance - this.lastRevCount) /
-                              100 /
-                              ((rowerDataDto.revTime - this.lastRevTime) / 1e6),
+                        (distance - this.lastRevCount) /
+                        100 /
+                        ((rowerDataDto.revTime - this.lastRevTime) / 1e6),
                     distPerStroke:
-                        this.lastStrokeCount === 0 ||
-                        this.lastRevCount === 0 ||
                         Math.round(rowerDataDto.distance) === this.lastRevCount
                             ? 0
                             : (distance - this.lastRevCount) /
