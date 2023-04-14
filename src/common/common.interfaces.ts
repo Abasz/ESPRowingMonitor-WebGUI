@@ -40,7 +40,7 @@ export enum BleServiceFlag {
 }
 
 export class Config {
-    webSocketAddress: string = "ws://localhost";
+    webSocketAddress: string = `ws://${window.location.host}/ws`;
 }
 
 export type IConfig = Config;
