@@ -5,10 +5,13 @@ body {
 body {
     margin: 0px;
     font-family: Roboto, "Helvetica Neue", sans-serif;
-    font-size: calc(16px + (50 - 16) * ((100vw - 300px) / (1920 - 300)));
 
-    @media screen and (max-height: 499px) {
-        font-size: calc(16px + (40 - 16) * ((100vw - 300px) / (1920 - 300)));
+    app-root {
+        font-size: calc(16px + (50 - 16) * ((100vw - 300px) / (1920 - 300)));
+
+        @media screen and (max-height: 499px) {
+            font-size: calc(16px + (40 - 16) * ((100vw - 300px) / (1920 - 300)));
+        }
     }
 }
 

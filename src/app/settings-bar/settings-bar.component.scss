@@ -19,4 +19,12 @@ mat-toolbar {
     > .title {
         justify-self: self-end;
     }
+
+}
+
+@media screen and (max-height: 400px) {
+    .mat-toolbar-row,
+    .mat-toolbar-single-row {
+        height: 48px;
+    }
 }
