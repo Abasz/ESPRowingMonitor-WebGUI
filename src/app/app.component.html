@@ -43,8 +43,23 @@
         unit="sec"
     ></app-metric>
     <app-metric
+        *ngIf="(heartRateData$ | async)?.contactDetected !== true"
         title="Recovery"
         [value]="(rowingData$ | async)?.recoveryDuration ?? 0 | roundNumber : 2"
         unit="sec"
     ></app-metric>
+    <app-metric
+        *ngIf="(heartRateData$ | async)?.contactDetected === true"
+        icon="favorite"
+        [value]="
+            ((heartRateData$ | async)?.contactDetected === true
+                ? (heartRateData$ | async)?.heartRate ?? 0
+                : 0
+            ) | roundNumber
+        "
+        unit="bpm"
+        ><mat-icon *ngIf="(heartRateData$ | async)?.batteryLevel as batteryLevel">{{
+            batteryLevel | batteryLevel
+        }}</mat-icon></app-metric
+    >
 </div>

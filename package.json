@@ -20,6 +20,8 @@
         "@angular/platform-browser": "^15.2.0",
         "@angular/platform-browser-dynamic": "^15.2.0",
         "@angular/router": "^15.2.0",
+        "@manekinekko/angular-web-bluetooth": "^15.0.0",
+        "@types/web-bluetooth": "^0.0.17",
         "chart.js": "^4.2.1",
         "chartjs-plugin-datalabels": "^2.2.0",
         "ng2-charts": "^4.1.1",

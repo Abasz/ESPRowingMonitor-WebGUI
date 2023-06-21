@@ -1,1 +1,1 @@
-export type ButtonClickedTargets = "settings" | "reset" | "download" | "bluetooth";
+export type ButtonClickedTargets = "settings" | "reset" | "download" | "heartRate" | "bluetooth";

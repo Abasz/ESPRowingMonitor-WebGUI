@@ -1,4 +1,7 @@
-<mat-toolbar color="primary">
+<mat-toolbar
+    color="primary"
+    [ngClass]="{ 'show-heart-rate-monitor': (configManager.config$ | async)?.heartRateMonitor !== 'off' }"
+>
     <div>
         <mat-icon>{{ batteryLevel | batteryLevel }}</mat-icon>
     </div>
@@ -13,6 +16,13 @@
     </button>
     <button (click)="click('download')" mat-icon-button>
         <mat-icon>download</mat-icon>
+    </button>
+    <button
+        *ngIf="(configManager.config$ | async)?.heartRateMonitor !== 'off'"
+        (click)="click('heartRate')"
+        mat-icon-button
+    >
+        <mat-icon>favorite</mat-icon>
     </button>
     <div>
         <button (click)="click('bluetooth')" mat-icon-button>

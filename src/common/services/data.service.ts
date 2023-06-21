@@ -1,9 +1,10 @@
 import { Injectable } from "@angular/core";
-import { map, merge, Observable, shareReplay, Subject } from "rxjs";
+import { map, merge, Observable, shareReplay, Subject, withLatestFrom } from "rxjs";
 
-import { BleServiceFlag, IRowerData, IRowerDataDto, LogLevel } from "../common.interfaces";
+import { BleServiceFlag, IHeartRate, IRowerData, IRowerDataDto, LogLevel } from "../common.interfaces";
 
 import { DataRecorderService } from "./data-recorder.service";
+import { HeartRateService } from "./heart-rate.service";
 import { WebSocketService } from "./websocket.service";
 
 @Injectable({
@@ -15,6 +16,8 @@ export class DataService {
 
     private batteryLevel: number = 0;
     private bleServiceFlag: BleServiceFlag = BleServiceFlag.CpsService;
+
+    private heartRateData$: Observable<IHeartRate | undefined>;
 
     private lastDistance: number = 0;
     private lastRevCount: number = 0;
@@ -28,9 +31,16 @@ export class DataService {
 
     private rowingData$: Observable<IRowerData>;
 
-    constructor(private webSocketService: WebSocketService, private dataRecorder: DataRecorderService) {
+    constructor(
+        private webSocketService: WebSocketService,
+        private dataRecorder: DataRecorderService,
+        private heartRateService: HeartRateService
+    ) {
+        this.heartRateData$ = this.heartRateService.streamHeartRate();
+
         this.rowingData$ = merge(this.webSocketService.data(), this.resetSubject).pipe(
-            map((rowerDataDto: IRowerDataDto): IRowerData => {
+            withLatestFrom(this.heartRateData$),
+            map(([rowerDataDto, heartRateData]: [IRowerDataDto, IHeartRate | undefined]): IRowerData => {
                 const distance = Math.round(rowerDataDto.distance);
                 const rowerData: IRowerData = {
                     bleServiceFlag: rowerDataDto.bleServiceFlag,
@@ -60,7 +70,10 @@ export class DataService {
                               (rowerDataDto.strokeCount - this.lastStrokeCount),
                 };
 
-                this.dataRecorder.add(rowerData);
+                this.dataRecorder.add({
+                    ...rowerData,
+                    heartRate: heartRateData?.contactDetected ? heartRateData : undefined,
+                });
                 this.dataRecorder.addRaw(rowerDataDto);
 
                 this.lastRevTime = rowerDataDto.revTime;
@@ -84,6 +97,10 @@ export class DataService {
 
     getLogLevel(): LogLevel {
         return this.logLevel;
+    }
+
+    heartRateData(): Observable<IHeartRate | undefined> {
+        return this.heartRateData$;
     }
 
     reset(): void {

@@ -9,9 +9,12 @@ import { DataService } from "../../common/services/data.service";
 import { WebSocketService } from "../../common/services/websocket.service";
 import { getValidationErrors } from "../../common/utils/utility.functions";
 
+import { HeartRateMonitorMode } from "./../../common/common.interfaces";
+
 type SettingsFormGroup = FormGroup<{
     websocketAddress: FormControl<string>;
     logLevel: FormControl<LogLevel>;
+    heartRateMonitor: FormControl<HeartRateMonitorMode>;
 }>;
 
 @Component({
@@ -22,6 +25,8 @@ type SettingsFormGroup = FormGroup<{
 })
 export class SettingsDialogComponent {
     LogLevel: typeof LogLevel = LogLevel;
+
+    isSecureContext: boolean = isSecureContext;
 
     settingsForm: SettingsFormGroup = this.fb.group({
         websocketAddress: [
@@ -34,6 +39,10 @@ export class SettingsDialogComponent {
             ],
         ],
         logLevel: [this.dataService.getLogLevel(), [Validators.min(0), Validators.max(6)]],
+        heartRateMonitor: [
+            this.configManager.getItem("heartRateMonitor") as HeartRateMonitorMode,
+            Validators.pattern(/^(off|ble|ant)$/),
+        ],
     });
 
     settingsFormErrors$: Observable<ValidationErrors | null> = this.settingsForm.statusChanges.pipe(
@@ -51,6 +60,10 @@ export class SettingsDialogComponent {
 
     submitLoginForm(): void {
         this.configManager.setItem("webSocketAddress", this.settingsForm.value.websocketAddress as string);
+        this.configManager.setItem(
+            "heartRateMonitor",
+            this.settingsForm.value.heartRateMonitor as HeartRateMonitorMode
+        );
         this.webSocketService.changeLogLevel(this.settingsForm.value.logLevel as LogLevel);
         this.dialogRef.close();
     }

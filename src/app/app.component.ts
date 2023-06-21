@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component } from "@angular/core";
 import { MatDialog } from "@angular/material/dialog";
 import { interval, map, Observable, startWith, switchMap, take } from "rxjs";
 
-import { BleServiceFlag, IRowerData } from "../common/common.interfaces";
+import { BleServiceFlag, IHeartRate, IRowerData } from "../common/common.interfaces";
+import { BLEHeartRateService } from "../common/services/ble-heart-rate.service";
 import { DataRecorderService } from "../common/services/data-recorder.service";
 import { DataService } from "../common/services/data.service";
 import { WebSocketService } from "../common/services/websocket.service";
@@ -31,6 +32,7 @@ export class AppComponent {
         })
     );
 
+    heartRateData$: Observable<IHeartRate | undefined>;
     isConnected$: Observable<boolean>;
     rowingData$: Observable<IRowerData>;
 
@@ -40,8 +42,10 @@ export class AppComponent {
         private dataService: DataService,
         private dataRecorder: DataRecorderService,
         private webSocketService: WebSocketService,
-        private dialog: MatDialog
+        private dialog: MatDialog,
+        private bleService: BLEHeartRateService
     ) {
+        this.heartRateData$ = this.dataService.heartRateData();
         this.rowingData$ = this.dataService.rowingData();
         this.isConnected$ = this.webSocketService.connectionStatus();
     }
@@ -61,6 +65,10 @@ export class AppComponent {
         if ($event === "download") {
             this.dataRecorder.download();
             this.dataRecorder.downloadRaw();
+        }
+
+        if ($event === "heartRate") {
+            this.bleService.discover$().subscribe();
         }
 
         if ($event === "bluetooth") {

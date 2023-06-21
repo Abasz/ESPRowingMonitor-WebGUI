@@ -22,9 +22,19 @@
     margin: 10px;
 }
 
+app-metric[icon="favorite"],
 app-metric[title="Drive"],
 app-metric[title="Recovery"] {
     @media (max-width: 959px) {
         display: none;
     }
+}
+
+app-metric[icon="favorite"] mat-icon {
+    width: 1.1em;
+    height: 1.1em;
+    font-size: 1.1em;
+    position: absolute;
+    bottom: 0.3em;
+    right: 0.2em;
 }

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from 
 import { interval, map, Observable, startWith } from "rxjs";
 
 import { BleServiceFlag } from "../../common/common.interfaces";
+import { ConfigManagerService } from "../../common/services/config-manager.service";
 
 import { ButtonClickedTargets } from "./settings-bar.interfaces";
 
@@ -25,6 +26,8 @@ export class SettingsBarComponent {
         startWith(Date.now()),
         map((): number => Date.now())
     );
+
+    constructor(public configManager: ConfigManagerService) {}
 
     click(target: ButtonClickedTargets): void {
         this.buttonClicked.emit(target);

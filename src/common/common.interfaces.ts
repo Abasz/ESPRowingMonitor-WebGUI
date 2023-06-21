@@ -32,14 +32,40 @@ export interface IRowerData extends Omit<IRowerDataDto, "revTime" | "strokeTime"
     strokeRate: number;
     peakForce: number;
     distPerStroke: number;
+    heartRate?: IHeartRate;
 }
 
+export interface ISessionData extends IRowerData {
+    heartRate?: IHeartRate;
+}
+
+export interface IHeartRate {
+    heartRate: number;
+    contactDetected: boolean;
+    rrIntervals?: Array<number>;
+    energyExpended?: number;
+    batteryLevel?: number;
+}
+
+export const HEART_RATE_CHARACTERISTIC = "heart_rate_measurement";
+export const HEART_RATE_SERVICE = "heart_rate";
+export const BATTERY_LEVEL_CHARACTERISTIC = "battery_level";
+export const BATTERY_LEVEL_SERVICE = "battery_service";
+
+export interface ServiceOptions<T> {
+    characteristic: string;
+    service: string;
+    decoder(value: DataView): T;
+}
 export enum BleServiceFlag {
     CpsService,
     CscService,
 }
 
+export type HeartRateMonitorMode = "ant" | "ble" | "off";
+
 export class Config {
+    heartRateMonitor: HeartRateMonitorMode = "off";
     webSocketAddress: string = `ws://${window.location.host}/ws`;
 }
 

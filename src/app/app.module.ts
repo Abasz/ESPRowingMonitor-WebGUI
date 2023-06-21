@@ -2,6 +2,7 @@ import { HTTP_INTERCEPTORS } from "@angular/common/http";
 import { NgModule } from "@angular/core";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
+import { BrowserWebBluetooth, WebBluetoothModule } from "@manekinekko/angular-web-bluetooth";
 
 import { CoreModule } from "../common/core.module";
 import { ErrorInterceptor } from "../common/services/error.interceptor.service";
@@ -13,6 +14,16 @@ import { MetricComponent } from "./metric/metric.component";
 import { SettingsBarComponent } from "./settings-bar/settings-bar.component";
 import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.component";
 
+const webBluetooth = [];
+
+if (isSecureContext) {
+    webBluetooth.push(
+        WebBluetoothModule.forRoot({
+            enableTracing: true, // or false, this will enable logs in the browser's console
+        }),
+    );
+}
+
 @NgModule({
     declarations: [
         AppComponent,
@@ -22,8 +33,24 @@ import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.compo
         ForceCurveComponent,
         SettingsDialogComponent,
     ],
-    imports: [BrowserModule, BrowserAnimationsModule, CoreModule],
-    providers: [{ provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true }],
+    imports: [BrowserModule, BrowserAnimationsModule, CoreModule, webBluetooth],
+    providers: [
+        { provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true },
+        {
+            provide: BrowserWebBluetooth,
+            useFactory: (): BrowserWebBluetooth => {
+                if (isSecureContext) {
+                    return new BrowserWebBluetooth();
+                }
+
+                return {
+                    requestDevice: (): Promise<BluetoothDevice> => {
+                        throw Error("Bluetooth API is not available");
+                    },
+                } as unknown as BrowserWebBluetooth;
+            },
+        },
+    ],
     bootstrap: [AppComponent],
 })
 export class AppModule {}

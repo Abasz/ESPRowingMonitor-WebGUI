@@ -11,6 +11,25 @@
                 >Invalid URL</mat-error
             >
         </mat-form-field>
+        <mat-form-field *ngIf="isSecureContext">
+            <mat-label>Heart Rate Monitor</mat-label>
+            <mat-select
+                name="heartRateMonitor"
+                placeholder="Select heart rate monitor mode"
+                formControlName="heartRateMonitor"
+                required
+            >
+                <mat-option value="off">off</mat-option>
+                <mat-option value="ble">ble</mat-option>
+                <mat-option value="ant">ant</mat-option>
+            </mat-select>
+            <mat-error *ngIf="(settingsFormErrors$ | async)?.heartRateMonitor?.required"
+                >Heart rate monitor mode is required</mat-error
+            >
+            <mat-error *ngIf="(settingsFormErrors$ | async)?.heartRateMonitor?.patter"
+                >Invalid value</mat-error
+            >
+        </mat-form-field>
         <mat-form-field>
             <mat-label>Log Level</mat-label>
             <mat-select name="logLevel" placeholder="Select log level" formControlName="logLevel" required>
