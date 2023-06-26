@@ -1,3 +1,6 @@
+import { Observable } from "rxjs";
+import { HeartRateSensor } from "web-ant-plus";
+
 export interface IValidationErrors {
     [key: string]: Array<{ message: string; validatorKey: string }>;
 }
@@ -45,6 +48,19 @@ export interface IHeartRate {
     rrIntervals?: Array<number>;
     energyExpended?: number;
     batteryLevel?: number;
+}
+
+export interface IHeartRateService {
+    disconnectDevice(): Promise<void> | void;
+    discover$(): Observable<Array<Observable<never> | BluetoothRemoteGATTCharacteristic> | HeartRateSensor>;
+    streamHRMonitorBatteryLevel$(): Observable<number | undefined>;
+    streamHeartRate$(): Observable<IHeartRate | undefined>;
+}
+
+export interface ISupportedVendors {
+    vendor: number;
+    product: number;
+    name: string;
 }
 
 export const HEART_RATE_CHARACTERISTIC = "heart_rate_measurement";

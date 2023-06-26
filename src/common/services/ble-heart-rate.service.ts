@@ -28,12 +28,13 @@ import {
     HEART_RATE_CHARACTERISTIC,
     HEART_RATE_SERVICE,
     IHeartRate,
+    IHeartRateService,
 } from "../common.interfaces";
 
 @Injectable({
     providedIn: "root",
 })
-export class BLEHeartRateService {
+export class BLEHeartRateService implements IHeartRateService {
     private batteryCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
     private heartRateCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =

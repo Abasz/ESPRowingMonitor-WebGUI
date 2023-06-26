@@ -3,9 +3,9 @@ import { MatDialog } from "@angular/material/dialog";
 import { interval, map, Observable, startWith, switchMap, take } from "rxjs";
 
 import { BleServiceFlag, IHeartRate, IRowerData } from "../common/common.interfaces";
-import { BLEHeartRateService } from "../common/services/ble-heart-rate.service";
 import { DataRecorderService } from "../common/services/data-recorder.service";
 import { DataService } from "../common/services/data.service";
+import { HeartRateService } from "../common/services/heart-rate.service";
 import { WebSocketService } from "../common/services/websocket.service";
 
 import { ButtonClickedTargets } from "./settings-bar/settings-bar.interfaces";
@@ -43,7 +43,7 @@ export class AppComponent {
         private dataRecorder: DataRecorderService,
         private webSocketService: WebSocketService,
         private dialog: MatDialog,
-        private bleService: BLEHeartRateService
+        private heartRateService: HeartRateService
     ) {
         this.heartRateData$ = this.dataService.heartRateData();
         this.rowingData$ = this.dataService.rowingData();
@@ -68,7 +68,7 @@ export class AppComponent {
         }
 
         if ($event === "heartRate") {
-            this.bleService.discover$().subscribe();
+            this.heartRateService.discover$().subscribe();
         }
 
         if ($event === "bluetooth") {

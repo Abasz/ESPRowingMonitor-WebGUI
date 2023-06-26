@@ -36,7 +36,15 @@ Option 1 is generally easier to setup but more cumbersome as the dev server need
 
 A more robust and permanent solution to this is to implement/move to a web server library on the ESP32 that supports tls/ssl. This may happen in the future but for now due to lack of resources this is not planned (help though would be appreciated)
 
+## Experimental ANT+ Heart Rate Monitor Support
+
+Added experimental ANT+ HR support that can be enabled in the setting. Once that is done a heart icon will show up on the toolbar that enables connecting to the HR monitor (user needs to click and then select the device from the popup window). The implementation uses Web USB API. However currently there are several limitations:
+
+- Automatic connection to previously pared devices after page reload (or stick reinsert) is currently not implemented so the usb stick needs to be selected on every connect (this is WIP)
+- Same issue with the secure context as for [bluetooth](#experimental-ble-heart-rate-monitor-support)
+
+Also, the ANT+ stick needs a WinUSB driver (instead of generic libusb) otherwise itt will not work. This can be installed with [Zadig](https://zadig.akeo.ie/).
+
 ## Backlog
 
 - Add tooltips for icons
-- Review the feasibility of adding ANT+ Heart Rate monitor capabilities via accessing the Ant+ stick through WebUSB API
