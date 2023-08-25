@@ -58,7 +58,7 @@ export class AntHeartRateService implements IHeartRateService {
 
                 return merge(
                     fromEvent(this.stick, "startup").pipe(
-                        switchMap((): Observable<void> => from(hrSensor.attachSensor(0, 0)))
+                        switchMap((): Observable<void> => from(hrSensor.attachSensor(0, 0))),
                     ),
                     fromEvent(hrSensor, "detached").pipe(
                         switchMap((): Observable<void> => {
@@ -66,15 +66,15 @@ export class AntHeartRateService implements IHeartRateService {
                             this.heartRateSensorSubject.next(undefined);
 
                             return from(hrSensor.attachSensor(0, 0));
-                        })
+                        }),
                     ),
-                    from(this.stick.open())
+                    from(this.stick.open()),
                 ).pipe(
                     map((): HeartRateSensor => hrSensor),
-                    tap((hrSensor: HeartRateSensor): void => this.heartRateSensorSubject.next(hrSensor))
+                    tap((hrSensor: HeartRateSensor): void => this.heartRateSensorSubject.next(hrSensor)),
                 );
             }),
-            catchError((): Observable<never> => EMPTY)
+            catchError((): Observable<never> => EMPTY),
         );
     }
 
@@ -86,7 +86,7 @@ export class AntHeartRateService implements IHeartRateService {
         return this.heartRateSensorSubject.pipe(
             switchMap((hrSensor: HeartRateSensor | undefined): Observable<IHeartRate | undefined> => {
                 if (hrSensor !== undefined) {
-                    return fromEvent<HeartRateSensorState>(hrSensor, "hbData").pipe(
+                    return (fromEvent(hrSensor, "hbData") as Observable<HeartRateSensorState>).pipe(
                         map((data: HeartRateSensorState): IHeartRate => {
                             const batteryLevel =
                                 data.BatteryLevel ?? this.parseBatteryStatus(data.BatteryStatus) ?? 0;
@@ -98,18 +98,18 @@ export class AntHeartRateService implements IHeartRateService {
                                 heartRate: data.ComputedHeartRate ?? 0,
                                 batteryLevel,
                             };
-                        })
+                        }),
                     );
                 }
 
                 return of(undefined);
             }),
-            startWith(undefined as IHeartRate | undefined)
+            startWith(undefined as IHeartRate | undefined),
         );
     }
 
     private parseBatteryStatus(
-        batteryStatus: "New" | "Good" | "Ok" | "Low" | "Critical" | "Invalid" | undefined
+        batteryStatus: "New" | "Good" | "Ok" | "Low" | "Critical" | "Invalid" | undefined,
     ): number {
         switch (batteryStatus) {
             case "New":

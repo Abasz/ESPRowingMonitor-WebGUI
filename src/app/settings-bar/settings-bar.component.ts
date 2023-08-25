@@ -24,7 +24,7 @@ export class SettingsBarComponent {
 
     timeOfDay$: Observable<number> = interval(1000).pipe(
         startWith(Date.now()),
-        map((): number => Date.now())
+        map((): number => Date.now()),
     );
 
     constructor(public configManager: ConfigManagerService) {}

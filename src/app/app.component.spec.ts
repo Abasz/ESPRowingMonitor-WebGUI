@@ -20,7 +20,7 @@ describe("AppComponent", (): void => {
         fixture.detectChanges();
         const compiled = fixture.nativeElement as HTMLElement;
         expect(compiled.querySelector(".content span")?.textContent).toContain(
-            "esp-rowing-monitor-client app is running!"
+            "esp-rowing-monitor-client app is running!",
         );
     });
 });

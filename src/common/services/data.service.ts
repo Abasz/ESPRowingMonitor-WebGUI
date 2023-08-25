@@ -34,7 +34,7 @@ export class DataService {
     constructor(
         private webSocketService: WebSocketService,
         private dataRecorder: DataRecorderService,
-        private heartRateService: HeartRateService
+        private heartRateService: HeartRateService,
     ) {
         this.heartRateData$ = this.heartRateService.streamHeartRate();
 
@@ -87,7 +87,7 @@ export class DataService {
 
                 return rowerData;
             }),
-            shareReplay()
+            shareReplay(),
         );
     }
 

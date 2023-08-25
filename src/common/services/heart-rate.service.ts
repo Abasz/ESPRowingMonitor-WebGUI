@@ -17,7 +17,7 @@ export class HeartRateService {
     constructor(
         private configManager: ConfigManagerService,
         private ble: BLEHeartRateService,
-        private ant: AntHeartRateService
+        private ant: AntHeartRateService,
     ) {}
 
     discover$(): Observable<Array<Observable<never> | BluetoothRemoteGATTCharacteristic> | HeartRateSensor> {
@@ -48,7 +48,7 @@ export class HeartRateService {
                 }
             }),
             startWith(undefined),
-            shareReplay()
+            shareReplay(),
         );
     }
 }

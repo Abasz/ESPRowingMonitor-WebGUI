@@ -16,11 +16,14 @@ import { UtilsService } from "./utils.service";
 
 @Injectable()
 export class ErrorInterceptor implements HttpInterceptor {
-    constructor(private snackBar: MatSnackBar, private utils: UtilsService) {}
+    constructor(
+        private snackBar: MatSnackBar,
+        private utils: UtilsService,
+    ) {}
 
     intercept(
         req: HttpRequest<unknown>,
-        next: HttpHandler
+        next: HttpHandler,
     ): Observable<HttpEvent<HttpErrorResponse | IValidationErrors>> {
         return next.handle(req).pipe(
             catchError((error: HttpErrorResponse): Observable<never> => {
@@ -42,7 +45,7 @@ export class ErrorInterceptor implements HttpInterceptor {
                 }
 
                 return throwError((): HttpErrorResponse => error);
-            })
+            }),
         );
     }
 }

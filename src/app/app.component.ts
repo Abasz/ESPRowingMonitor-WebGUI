@@ -27,9 +27,9 @@ export class AppComponent {
 
             return interval(1000).pipe(
                 startWith(0),
-                map((): number => (Date.now() - this.activityStartTime) / 1000)
+                map((): number => (Date.now() - this.activityStartTime) / 1000),
             );
-        })
+        }),
     );
 
     heartRateData$: Observable<IHeartRate | undefined>;
@@ -43,7 +43,7 @@ export class AppComponent {
         private dataRecorder: DataRecorderService,
         private webSocketService: WebSocketService,
         private dialog: MatDialog,
-        private heartRateService: HeartRateService
+        private heartRateService: HeartRateService,
     ) {
         this.heartRateData$ = this.dataService.heartRateData();
         this.rowingData$ = this.dataService.rowingData();
@@ -75,7 +75,7 @@ export class AppComponent {
             this.webSocketService.changeBleServiceType(
                 this.dataService.getBleServiceFlag() === BleServiceFlag.CpsService
                     ? BleServiceFlag.CscService
-                    : BleServiceFlag.CpsService
+                    : BleServiceFlag.CpsService,
             );
         }
     }

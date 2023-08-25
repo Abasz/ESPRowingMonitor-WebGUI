@@ -40,7 +40,10 @@ export class BLEHeartRateService implements IHeartRateService {
     private heartRateCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
 
-    constructor(private snackBar: MatSnackBar, private ble: BluetoothCore) {}
+    constructor(
+        private snackBar: MatSnackBar,
+        private ble: BluetoothCore,
+    ) {}
 
     disconnectDevice(): void {
         if (
@@ -63,7 +66,7 @@ export class BLEHeartRateService implements IHeartRateService {
             .pipe(
                 concatMap(
                     (
-                        gatt: void | BluetoothRemoteGATTServer
+                        gatt: void | BluetoothRemoteGATTServer,
                     ): Observable<Array<Observable<never> | BluetoothRemoteGATTCharacteristic>> => {
                         if (gatt === undefined) {
                             return EMPTY;
@@ -75,13 +78,13 @@ export class BLEHeartRateService implements IHeartRateService {
                                     tap((): void => {
                                         this.snackBar.open("Getting battery info timed out", "Dismiss");
                                     }),
-                                    map((): Observable<never> => EMPTY)
+                                    map((): Observable<never> => EMPTY),
                                 ),
-                                this.connectToBattery(gatt)
+                                this.connectToBattery(gatt),
                             ),
                             this.connectToHearRate(gatt),
                         ]);
-                    }
+                    },
                 ),
                 tap({
                     error: (error: unknown): void => {
@@ -90,7 +93,7 @@ export class BLEHeartRateService implements IHeartRateService {
                         }
                     },
                 }),
-                catchError((): Observable<never> => EMPTY)
+                catchError((): Observable<never> => EMPTY),
             );
     }
 
@@ -98,15 +101,15 @@ export class BLEHeartRateService implements IHeartRateService {
         return this.batteryCharacteristic.pipe(
             filter(
                 (
-                    batteryCharacteristic: BluetoothRemoteGATTCharacteristic | undefined
+                    batteryCharacteristic: BluetoothRemoteGATTCharacteristic | undefined,
                 ): batteryCharacteristic is BluetoothRemoteGATTCharacteristic =>
-                    batteryCharacteristic !== undefined
+                    batteryCharacteristic !== undefined,
             ),
             switchMap(
                 (batteryCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<number | undefined> =>
-                    this.observeBattery(batteryCharacteristic)
+                    this.observeBattery(batteryCharacteristic),
             ),
-            startWith(undefined as number | undefined)
+            startWith(undefined as number | undefined),
         );
     }
 
@@ -114,16 +117,16 @@ export class BLEHeartRateService implements IHeartRateService {
         return this.heartRateCharacteristic.pipe(
             filter(
                 (
-                    heartRateCharacteristic: BluetoothRemoteGATTCharacteristic | undefined
+                    heartRateCharacteristic: BluetoothRemoteGATTCharacteristic | undefined,
                 ): heartRateCharacteristic is BluetoothRemoteGATTCharacteristic =>
-                    heartRateCharacteristic !== undefined
+                    heartRateCharacteristic !== undefined,
             ),
             switchMap(
                 (
-                    heartRateCharacteristic: BluetoothRemoteGATTCharacteristic
-                ): Observable<IHeartRate | undefined> => this.observeHeartRate(heartRateCharacteristic)
+                    heartRateCharacteristic: BluetoothRemoteGATTCharacteristic,
+                ): Observable<IHeartRate | undefined> => this.observeHeartRate(heartRateCharacteristic),
             ),
-            startWith(undefined as IHeartRate | undefined)
+            startWith(undefined as IHeartRate | undefined),
         );
     }
 
@@ -131,18 +134,18 @@ export class BLEHeartRateService implements IHeartRateService {
         return this.ble.getPrimaryService$(gatt, BATTERY_LEVEL_SERVICE).pipe(
             concatMap(
                 (
-                    primaryService: BluetoothRemoteGATTService
+                    primaryService: BluetoothRemoteGATTService,
                 ): Observable<void | BluetoothRemoteGATTCharacteristic> => {
                     return this.ble.getCharacteristic$(primaryService, BATTERY_LEVEL_CHARACTERISTIC).pipe(
                         tap((): void => {
                             this.snackBar.open("Battery service is available", "Dismiss");
-                        })
+                        }),
                     );
-                }
+                },
             ),
             concatMap(
                 (
-                    characteristic: void | BluetoothRemoteGATTCharacteristic
+                    characteristic: void | BluetoothRemoteGATTCharacteristic,
                 ): Observable<BluetoothRemoteGATTCharacteristic> => {
                     if (characteristic === undefined) {
                         return EMPTY;
@@ -150,31 +153,31 @@ export class BLEHeartRateService implements IHeartRateService {
                     this.batteryCharacteristic.next(characteristic);
 
                     return of(characteristic);
-                }
+                },
             ),
             catchError((): Observable<never> => EMPTY),
-            take(1)
+            take(1),
         );
     }
 
     private connectToHearRate(
-        gatt: BluetoothRemoteGATTServer
+        gatt: BluetoothRemoteGATTServer,
     ): Observable<BluetoothRemoteGATTCharacteristic> {
         return this.ble.getPrimaryService$(gatt, HEART_RATE_SERVICE).pipe(
             concatMap(
                 (
-                    primaryService: BluetoothRemoteGATTService
+                    primaryService: BluetoothRemoteGATTService,
                 ): Observable<void | BluetoothRemoteGATTCharacteristic> => {
                     return this.ble.getCharacteristic$(primaryService, HEART_RATE_CHARACTERISTIC).pipe(
                         tap((): void => {
                             this.snackBar.open("Heart Rate monitor is connected", "Dismiss");
-                        })
+                        }),
                     );
-                }
+                },
             ),
             concatMap(
                 (
-                    characteristic: void | BluetoothRemoteGATTCharacteristic
+                    characteristic: void | BluetoothRemoteGATTCharacteristic,
                 ): Observable<BluetoothRemoteGATTCharacteristic> => {
                     if (characteristic === undefined) {
                         return EMPTY;
@@ -182,20 +185,20 @@ export class BLEHeartRateService implements IHeartRateService {
                     this.heartRateCharacteristic.next(characteristic);
 
                     return of(characteristic);
-                }
+                },
             ),
             catchError((): Observable<never> => EMPTY),
-            take(1)
+            take(1),
         );
     }
 
     private observeBattery(
-        batteryCharacteristic: BluetoothRemoteGATTCharacteristic
+        batteryCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<number | undefined> {
         return concat(
             concat(
                 this.ble.readValue$(batteryCharacteristic),
-                this.ble.observeValue$(batteryCharacteristic)
+                this.ble.observeValue$(batteryCharacteristic),
             ).pipe(
                 map((value: DataView): number => value.getInt8(0)),
                 takeUntil(
@@ -205,16 +208,16 @@ export class BLEHeartRateService implements IHeartRateService {
                             this.heartRateCharacteristic.next(undefined);
                             this.batteryCharacteristic.next(undefined);
                         }),
-                        take(1)
-                    )
-                )
+                        take(1),
+                    ),
+                ),
             ),
-            of(undefined)
+            of(undefined),
         );
     }
 
     private observeHeartRate(
-        heartRateCharacteristic: BluetoothRemoteGATTCharacteristic
+        heartRateCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<IHeartRate | undefined> {
         return concat(
             this.ble
@@ -225,8 +228,8 @@ export class BLEHeartRateService implements IHeartRateService {
                         ([heartRateData, batteryLevel]: [DataView, number | undefined]): IHeartRate => ({
                             ...this.parseHeartRate(heartRateData),
                             batteryLevel,
-                        })
-                    )
+                        }),
+                    ),
                 )
                 .pipe(
                     takeUntil(
@@ -236,11 +239,11 @@ export class BLEHeartRateService implements IHeartRateService {
                                 this.heartRateCharacteristic.next(undefined);
                                 this.batteryCharacteristic.next(undefined);
                             }),
-                            take(1)
-                        )
-                    )
+                            take(1),
+                        ),
+                    ),
                 ),
-            of(undefined)
+            of(undefined),
         );
     }
 

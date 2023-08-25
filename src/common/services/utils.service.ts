@@ -20,17 +20,17 @@ export class UtilsService {
     constructor(
         private spinner: SpinnerOverlayService,
         private mediaMatcher: MediaMatcher,
-        private breakpointObserver: BreakpointObserver
+        private breakpointObserver: BreakpointObserver,
     ) {}
 
     breakpointHelper(breakPoints: Array<IMediaQuery>): Observable<{ [key: string]: boolean }> {
         breakPoints = breakPoints.map(
-            (query: IMediaQuery): IMediaQuery => [query[0], query[1] || "min", query[2] || "width"]
+            (query: IMediaQuery): IMediaQuery => [query[0], query[1] || "min", query[2] || "width"],
         );
 
         return this.breakpointObserver
             .observe(
-                breakPoints.map((query: IMediaQuery): string => `(${query[1]}-${query[2]}: ${query[0]}px)`)
+                breakPoints.map((query: IMediaQuery): string => `(${query[1]}-${query[2]}: ${query[0]}px)`),
             )
             .pipe(
                 map((result: BreakpointState): { [key: string]: boolean } =>
@@ -38,7 +38,7 @@ export class UtilsService {
                         (
                             acc: { [key: string]: boolean },
                             point: boolean,
-                            index: number
+                            index: number,
                         ): { [key: string]: boolean } => {
                             acc[
                                 `${breakPoints[index][1] || "min"}${
@@ -48,9 +48,9 @@ export class UtilsService {
 
                             return acc;
                         },
-                        {}
-                    )
-                )
+                        {},
+                    ),
+                ),
             );
     }
 

@@ -14,7 +14,7 @@ import { IValidationError, IValidationErrors } from "../common.interfaces";
 export function getValidationErrors<
     TControl extends {
         [K in keyof TControl]: FormControl | FormGroup | FormArray | FormRecord;
-    }
+    },
 >(controls: {
     [K in keyof TControl]: FormControl | FormGroup | FormArray | FormRecord;
 }): ValidationErrors {
@@ -27,7 +27,7 @@ export function getValidationErrors<
             validationErrors[controlName] = getValidationErrors(
                 control.controls as {
                     [key: string]: FormGroup | FormArray | FormRecord;
-                }
+                },
             );
 
             return;
@@ -41,7 +41,7 @@ export function getValidationErrors<
 
 export function parseErrors<TControl extends { [K in keyof TControl]: AbstractControl<unknown, unknown> }>(
     form: FormGroup<TControl> | NgForm,
-    errors: IValidationErrors
+    errors: IValidationErrors,
 ): void {
     Object.keys(errors).forEach((key: string): void => {
         errors[key].forEach((error: IValidationError): void => {

@@ -98,6 +98,7 @@ export enum LogLevel {
     Error = 2,
     Warning = 3,
     Info = 4,
+    // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
     Notice = 4,
     Trace = 5,
     Verbose = 6,

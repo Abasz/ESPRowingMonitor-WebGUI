@@ -33,7 +33,7 @@ export class WebSocketService {
 
                 return socket.pipe(retry({ delay: 5000 }));
             }),
-            shareReplay()
+            shareReplay(),
         );
 
         this.isConnected$ = merge(this.closeSubject, this.openSubject).pipe(
@@ -44,7 +44,7 @@ export class WebSocketService {
 
                 return true;
             }),
-            startWith(false)
+            startWith(false),
         );
     }
 

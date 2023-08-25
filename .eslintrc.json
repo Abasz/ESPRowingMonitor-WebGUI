@@ -1,11 +1,18 @@
 {
     "root": true,
-    "ignorePatterns": ["projects/**/*"],
+    "ignorePatterns": [
+        "projects/**/*"
+    ],
     "overrides": [
         {
-            "files": ["*.ts"],
+            "files": [
+                "*.ts"
+            ],
             "parserOptions": {
-                "project": ["tsconfig.json", "e2e/tsconfig.json"],
+                "project": [
+                    "tsconfig.json",
+                    "e2e/tsconfig.json"
+                ],
                 "createDefaultProgram": true
             },
             "extends": [
@@ -29,28 +36,39 @@
                 "@angular-eslint/component-class-suffix": [
                     "error",
                     {
-                        "suffixes": ["Component"]
+                        "suffixes": [
+                            "Component"
+                        ]
                     }
                 ],
                 "@angular-eslint/component-selector": [
                     "error",
                     {
                         "type": "element",
-                        "prefix": ["ngx", "test", "app"],
+                        "prefix": [
+                            "ngx",
+                            "test",
+                            "app"
+                        ],
                         "style": "kebab-case"
                     }
                 ],
                 "@angular-eslint/directive-class-suffix": [
                     "error",
                     {
-                        "suffixes": ["Directive"]
+                        "suffixes": [
+                            "Directive"
+                        ]
                     }
                 ],
                 "@angular-eslint/directive-selector": [
                     "error",
                     {
                         "type": "attribute",
-                        "prefix": ["ngx", "test"],
+                        "prefix": [
+                            "ngx",
+                            "test"
+                        ],
                         "style": "camelCase"
                     }
                 ],
@@ -93,7 +111,9 @@
                     "error",
                     {
                         "selector": "enumMember",
-                        "format": ["PascalCase"],
+                        "format": [
+                            "PascalCase"
+                        ],
                         "filter": {
                             "regex": "_",
                             "match": false
@@ -101,9 +121,20 @@
                     },
                     {
                         "selector": "variable",
-                        "types": ["boolean"],
-                        "format": ["PascalCase"],
-                        "prefix": ["is", "should", "has", "can", "did", "will"]
+                        "types": [
+                            "boolean"
+                        ],
+                        "format": [
+                            "PascalCase"
+                        ],
+                        "prefix": [
+                            "is",
+                            "should",
+                            "has",
+                            "can",
+                            "did",
+                            "will"
+                        ]
                     }
                 ],
                 "@typescript-eslint/no-inferrable-types": [
@@ -174,7 +205,9 @@
                     }
                 ],
                 "import/no-unresolved": "off",
-                "import/first": ["error"],
+                "import/first": [
+                    "error"
+                ],
                 "import/order": [
                     "error",
                     {
@@ -189,7 +222,9 @@
                 "import/no-unassigned-import": [
                     "error",
                     {
-                        "allow": ["zone.js/**"]
+                        "allow": [
+                            "zone.js/**"
+                        ]
                     }
                 ],
                 "rxjs/ban-observables": "error",
@@ -234,7 +269,9 @@
                 "rxjs-angular/prefer-takeuntil": [
                     "warn",
                     {
-                        "alias": ["untilDestroyed"],
+                        "alias": [
+                            "untilDestroyed"
+                        ],
                         "checkComplete": true,
                         "checkDestroy": true
                     }
@@ -246,8 +283,14 @@
                     }
                 ],
                 "deprecation/deprecation": "warn",
-                "arrow-parens": ["error", "always"],
-                "brace-style": ["error", "1tbs"],
+                "arrow-parens": [
+                    "error",
+                    "always"
+                ],
+                "brace-style": [
+                    "error",
+                    "1tbs"
+                ],
                 "capitalized-comments": [
                     "error",
                     "never",
@@ -261,7 +304,10 @@
                         }
                     }
                 ],
-	        "eqeqeq": ["error", "always"],
+                "eqeqeq": [
+                    "error",
+                    "always"
+                ],
                 "comma-dangle": [
                     "error",
                     {
@@ -285,12 +331,20 @@
                         "allowNamedFunctions": true
                     }
                 ],
-                "max-classes-per-file": ["error", 1],
-                "max-lines": ["error", 1500],
+                "max-classes-per-file": [
+                    "error",
+                    1
+                ],
+                "max-lines": [
+                    "error",
+                    1500
+                ],
                 "no-underscore-dangle": [
                     "error",
                     {
-                        "allow": ["_getHostElement"],
+                        "allow": [
+                            "_getHostElement"
+                        ],
                         "allowAfterThis": true
                     }
                 ],
@@ -321,14 +375,21 @@
                     }
                 ],
                 "sort-vars": "error",
-                "space-in-parens": ["off", "never"],
+                "space-in-parens": [
+                    "off",
+                    "never"
+                ],
                 "spaced-comment": "error",
                 "yoda": "error"
             }
         },
         {
-            "files": ["*.html"],
-            "extends": ["plugin:@angular-eslint/template/recommended"],
+            "files": [
+                "*.html"
+            ],
+            "extends": [
+                "plugin:@angular-eslint/template/recommended"
+            ],
             "rules": {
                 "@angular-eslint/template/no-call-expression": "error",
                 "@angular-eslint/template/no-autofocus": "error",

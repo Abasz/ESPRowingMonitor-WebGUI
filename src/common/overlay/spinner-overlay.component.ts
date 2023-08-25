@@ -22,7 +22,10 @@ export class SpinnerOverlayComponent {
     animationState: "void" | "enter" | "leave" = "enter";
     animationStateChanged: EventEmitter<AnimationEvent> = new EventEmitter<AnimationEvent>();
 
-    constructor(public dialogRef: SpinnerOverlayRef, private cd: ChangeDetectorRef) {}
+    constructor(
+        public dialogRef: SpinnerOverlayRef,
+        private cd: ChangeDetectorRef,
+    ) {}
 
     onAnimationDone(event: AnimationEvent): void {
         this.animationStateChanged.emit(event);

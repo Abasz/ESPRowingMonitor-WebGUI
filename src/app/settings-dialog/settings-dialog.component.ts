@@ -34,7 +34,7 @@ export class SettingsDialogComponent {
             [
                 Validators.required,
                 Validators.pattern(
-                    /^ws:\/\/[a-z0-9-]+(\.?[a-z0-9-])+(:[0-9]+)?([\/?][-a-zA-Z0-9+&@#\/%?=~_]*)?$/
+                    /^ws:\/\/[a-z0-9-]+(\.?[a-z0-9-])+(:[0-9]+)?([\/?][-a-zA-Z0-9+&@#\/%?=~_]*)?$/,
                 ),
             ],
         ],
@@ -47,7 +47,7 @@ export class SettingsDialogComponent {
 
     settingsFormErrors$: Observable<ValidationErrors | null> = this.settingsForm.statusChanges.pipe(
         startWith("INVALID"),
-        map((): IValidationErrors => getValidationErrors(this.settingsForm.controls))
+        map((): IValidationErrors => getValidationErrors(this.settingsForm.controls)),
     );
 
     constructor(
@@ -55,14 +55,14 @@ export class SettingsDialogComponent {
         private dataService: DataService,
         private webSocketService: WebSocketService,
         private fb: NonNullableFormBuilder,
-        private dialogRef: MatDialogRef<SettingsDialogComponent>
+        private dialogRef: MatDialogRef<SettingsDialogComponent>,
     ) {}
 
     submitLoginForm(): void {
         this.configManager.setItem("webSocketAddress", this.settingsForm.value.websocketAddress as string);
         this.configManager.setItem(
             "heartRateMonitor",
-            this.settingsForm.value.heartRateMonitor as HeartRateMonitorMode
+            this.settingsForm.value.heartRateMonitor as HeartRateMonitorMode,
         );
         this.webSocketService.changeLogLevel(this.settingsForm.value.logLevel as LogLevel);
         this.dialogRef.close();

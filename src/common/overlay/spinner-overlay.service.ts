@@ -33,7 +33,7 @@ export class SpinnerOverlayService {
 
     private attachDialogContainer(
         overlayRef: OverlayRef,
-        dialogRef: SpinnerOverlayRef
+        dialogRef: SpinnerOverlayRef,
     ): SpinnerOverlayComponent {
         const injector: Injector = Injector.create({
             providers: [{ provide: SpinnerOverlayRef, useValue: dialogRef }],
@@ -42,7 +42,7 @@ export class SpinnerOverlayService {
         const containerPortal: ComponentPortal<SpinnerOverlayComponent> = new ComponentPortal(
             SpinnerOverlayComponent,
             undefined,
-            injector
+            injector,
         );
         const containerRef: ComponentRef<SpinnerOverlayComponent> = overlayRef.attach(containerPortal);
 

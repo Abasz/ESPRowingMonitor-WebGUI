@@ -14,7 +14,7 @@ export class SpinnerOverlayRef {
             this.componentInstance.animationStateChanged
                 .pipe(
                     filter((event: AnimationEvent): boolean => event.phaseName === "start"),
-                    take(1)
+                    take(1),
                 )
                 .subscribe((): void => {
                     this.overlayRef.detachBackdrop();
@@ -25,9 +25,9 @@ export class SpinnerOverlayRef {
                 .pipe(
                     filter(
                         (event: AnimationEvent): boolean =>
-                            event.phaseName === "done" && event.toState === "leave"
+                            event.phaseName === "done" && event.toState === "leave",
                     ),
-                    take(1)
+                    take(1),
                 )
                 .subscribe((): void => {
                     this.overlayRef.dispose();
