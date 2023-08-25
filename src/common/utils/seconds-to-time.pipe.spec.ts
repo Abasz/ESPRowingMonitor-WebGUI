@@ -22,7 +22,11 @@ describe("SecondsToTime pipe", (): void => {
         expect(sut.transform(0)).toBe("0");
     });
 
-    fit("should correctly format pace with big numbers", (): void => {
+    it("should correctly format pace with big numbers", (): void => {
         expect(sut.transform(7000.13184, "pace")).toBe("1:56:40");
+    });
+
+    it("should correctly handle rounding", (): void => {
+        expect(sut.transform(119.9, "pace")).toBe("2:00");
     });
 });

@@ -16,10 +16,11 @@ export class SecondsToTimePipe implements PipeTransform {
          *
          * @param seconds The actual time in seconds.
          */
-        this.days = Math.floor(seconds / 86400);
-        this.hours = Math.floor((seconds % 86400) / 3600);
-        this.mins = Math.floor(((seconds % 86400) % 3600) / 60);
-        this.seconds = seconds;
+        const secondsRounded = Math.round(seconds);
+        this.days = Math.floor(secondsRounded / 86400);
+        this.hours = Math.floor((secondsRounded % 86400) / 3600);
+        this.mins = Math.floor(((secondsRounded % 86400) % 3600) / 60);
+        this.seconds = secondsRounded;
 
         if (format === "simple") {
             return this.formatSimple();
@@ -63,11 +64,11 @@ export class SecondsToTimePipe implements PipeTransform {
     private formatPace(): string {
         if (this.seconds === Infinity || isNaN(this.seconds)) return "--";
         if (this.hours > 0) {
-            return `${this.hours}:${this.mins.toString().padStart(2, "0")}:${(Math.round(this.seconds) % 60)
+            return `${this.hours}:${this.mins.toString().padStart(2, "0")}:${(this.seconds % 60)
                 .toString()
                 .padStart(2, "0")}`;
         } else {
-            return `${this.mins}:${(Math.round(this.seconds) % 60).toString().padStart(2, "0")}`;
+            return `${this.mins}:${(this.seconds % 60).toString().padStart(2, "0")}`;
         }
     }
 
