@@ -1,5 +1,4 @@
 import { Observable } from "rxjs";
-import { HeartRateSensor } from "web-ant-plus";
 
 export interface IValidationErrors {
     [key: string]: Array<{ message: string; validatorKey: string }>;
@@ -52,7 +51,8 @@ export interface IHeartRate {
 
 export interface IHeartRateService {
     disconnectDevice(): Promise<void> | void;
-    discover$(): Observable<Array<Observable<never> | BluetoothRemoteGATTCharacteristic> | HeartRateSensor>;
+    discover(): Promise<void>;
+    reconnect(): Promise<void>;
     streamHRMonitorBatteryLevel$(): Observable<number | undefined>;
     streamHeartRate$(): Observable<IHeartRate | undefined>;
 }
@@ -81,6 +81,7 @@ export enum BleServiceFlag {
 export type HeartRateMonitorMode = "ant" | "ble" | "off";
 
 export class Config {
+    bleDeviceId: string = "";
     heartRateMonitor: HeartRateMonitorMode = "off";
     webSocketAddress: string = `ws://${window.location.host}/ws`;
 }

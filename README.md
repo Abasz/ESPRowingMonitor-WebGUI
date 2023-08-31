@@ -38,12 +38,10 @@ A more robust and permanent solution to this is to implement/move to a web serve
 
 ## Experimental ANT+ Heart Rate Monitor Support
 
-Added experimental ANT+ HR support that can be enabled in the setting. Once that is done a heart icon will show up on the toolbar that enables connecting to the HR monitor (user needs to click and then select the device from the popup window). The implementation uses Web USB API. However currently there are several limitations:
+Added experimental ANT+ HR support that can be enabled in the setting. Once that is done a heart icon will show up on the toolbar that enables connecting to the HR monitor (user needs to click and then select the device from the popup window). The implementation uses Web USB API. However currently there are a few limitations:
 
-- Automatic connection to previously pared devices after page reload (or stick reinsert) is currently not implemented so the usb stick needs to be selected on every connect (this is WIP)
 - Same issue with the secure context as for [bluetooth](#experimental-ble-heart-rate-monitor-support)
-
-Also, the ANT+ stick needs a WinUSB driver (instead of generic libusb) otherwise itt will not work. This can be installed with [Zadig](https://zadig.akeo.ie/).
+- The ANT+ stick needs a WinUSB driver (instead of generic libusb) otherwise itt will not work. This can be installed with [Zadig](https://zadig.akeo.ie/).
 
 ## Backlog
 

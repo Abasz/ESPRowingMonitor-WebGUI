@@ -1,10 +1,12 @@
 import { HTTP_INTERCEPTORS } from "@angular/common/http";
 import { NgModule } from "@angular/core";
+import { MatSnackBar } from "@angular/material/snack-bar";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { BrowserWebBluetooth, WebBluetoothModule } from "@manekinekko/angular-web-bluetooth";
 
 import { CoreModule } from "../common/core.module";
+import { AntHeartRateService } from "../common/services/ant-heart-rate.service";
 import { ErrorInterceptor } from "../common/services/error.interceptor.service";
 import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-confirm.component";
 
@@ -49,6 +51,21 @@ if (isSecureContext) {
                     },
                 } as unknown as BrowserWebBluetooth;
             },
+        },
+        {
+            provide: AntHeartRateService,
+            useFactory: (snack: MatSnackBar): AntHeartRateService => {
+                if (isSecureContext) {
+                    return new AntHeartRateService(snack);
+                }
+
+                return {
+                    discover: (): Promise<void> => {
+                        throw Error("WebUSB API is not available");
+                    },
+                } as unknown as AntHeartRateService;
+            },
+            deps: [MatSnackBar],
         },
     ],
     bootstrap: [AppComponent],

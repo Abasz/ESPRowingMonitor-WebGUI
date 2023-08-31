@@ -50,7 +50,7 @@ export class AppComponent {
         this.isConnected$ = this.webSocketService.connectionStatus();
     }
 
-    handleAction($event: ButtonClickedTargets): void {
+    async handleAction($event: ButtonClickedTargets): Promise<void> {
         if ($event === "reset") {
             this.activityStartTime = Date.now();
             this.dataService.reset();
@@ -68,7 +68,7 @@ export class AppComponent {
         }
 
         if ($event === "heartRate") {
-            this.heartRateService.discover$().subscribe();
+            await this.heartRateService.discover();
         }
 
         if ($event === "bluetooth") {

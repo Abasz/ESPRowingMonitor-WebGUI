@@ -56,6 +56,24 @@ export class BLEHeartRateService implements IHeartRateService {
         }
     }
 
+    // TODO: Reconnect feature:
+    // a new function in the heart rate service is needed that routes to either ant+ or ble depending on the setting so the right reconnect is done
+    // need to handle the change of setting which should trigger a reconnect of the other
+    // 1) this has been only tested in chrome
+    // 2) need to enable the chrome://flags/#enable-web-bluetooth-new-permissions-backend in chrome
+
+    // need to check if getDevices API is available
+    // it needs to save the last connected device id in local storage and then search getDevvices().
+    // const devices = (await navigator.bluetooth.getDevices())
+    // register the onadverisementreceived event (only once)
+    // devices[0].onadvertisementreceived = (event) =>{console.log(event)
+    //                                                event.device.gatt.connect()
+    //                                                }
+
+    // switch on advertisement watch
+    // await devices[0].watchAdvertisements()
+    // get the heartratecharacteristic and do next. everything should be a go then.
+
     discover$(): Observable<Array<Observable<never> | BluetoothRemoteGATTCharacteristic>> {
         return this.ble
             .discover$({

@@ -2,8 +2,7 @@ import { Injectable } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import {
     BehaviorSubject,
-    catchError,
-    EMPTY,
+    filter,
     from,
     fromEvent,
     map,
@@ -11,11 +10,13 @@ import {
     Observable,
     of,
     startWith,
+    Subscription,
     switchMap,
+    take,
+    takeWhile,
     tap,
 } from "rxjs";
-import { HeartRateSensor, HeartRateSensorState } from "web-ant-plus";
-import { USBDriver } from "web-ant-plus/dist/USBDriver";
+import { HeartRateSensor, HeartRateSensorState, USBDriver } from "web-ant-plus";
 
 import { IHeartRate, IHeartRateService } from "../common.interfaces";
 
@@ -31,51 +32,61 @@ export class AntHeartRateService implements IHeartRateService {
         HeartRateSensor | undefined
     >(undefined);
 
+    private onConnect: Subscription | undefined;
+
+    private onConnect$: Observable<void> = (
+        fromEvent(navigator.usb, "connect") as Observable<USBConnectionEvent>
+    ).pipe(
+        filter(
+            (event: USBConnectionEvent): boolean =>
+                ((event.device.vendorId === USBDriver.supportedDevices[0].vendor ||
+                    event.device.vendorId === USBDriver.supportedDevices[1].vendor) &&
+                    event.device.productId === USBDriver.supportedDevices[0].product) ||
+                event.device.productId === USBDriver.supportedDevices[1].product,
+        ),
+        switchMap((): Observable<void> => from(this.reconnect())),
+    );
     private stick: USBDriver | undefined = undefined;
 
     constructor(private snackBar: MatSnackBar) {}
 
     async disconnectDevice(): Promise<void> {
-        await this.heartRateSensorSubject.value?.detach();
-        await this.stick?.close();
+        if (this.heartRateSensorSubject.value !== undefined) {
+            await this.stick?.close();
+        }
+        this.onConnect?.unsubscribe();
         this.batteryLevelSubject.next(undefined);
         this.heartRateSensorSubject.next(undefined);
         this.stick = undefined;
+        this.onConnect = undefined;
     }
 
-    discover$(): Observable<HeartRateSensor> {
-        return from(USBDriver.requestDevice()).pipe(
-            tap({
-                error: (error: unknown): void => {
-                    if (error) {
-                        this.snackBar.open("No USB device was selected", "Dismiss");
-                    }
-                },
-            }),
-            switchMap((stick: USBDriver): Observable<HeartRateSensor> => {
-                this.stick = stick;
-                const hrSensor = new HeartRateSensor(this.stick);
+    async discover(): Promise<void> {
+        let newStick: USBDriver | undefined;
+        try {
+            newStick = await USBDriver.createFromNewDevice();
+        } catch (error) {
+            if (error) {
+                this.snackBar.open("No USB device was selected", "Dismiss");
+            }
+        }
+        if (newStick !== undefined) {
+            await this.disconnectDevice();
+            await this.connect(newStick);
+        }
+    }
 
-                return merge(
-                    fromEvent(this.stick, "startup").pipe(
-                        switchMap((): Observable<void> => from(hrSensor.attachSensor(0, 0))),
-                    ),
-                    fromEvent(hrSensor, "detached").pipe(
-                        switchMap((): Observable<void> => {
-                            this.batteryLevelSubject.next(undefined);
-                            this.heartRateSensorSubject.next(undefined);
+    async reconnect(): Promise<void> {
+        await this.disconnectDevice();
+        const stick = await USBDriver.createFromPairedDevice();
 
-                            return from(hrSensor.attachSensor(0, 0));
-                        }),
-                    ),
-                    from(this.stick.open()),
-                ).pipe(
-                    map((): HeartRateSensor => hrSensor),
-                    tap((hrSensor: HeartRateSensor): void => this.heartRateSensorSubject.next(hrSensor)),
-                );
-            }),
-            catchError((): Observable<never> => EMPTY),
-        );
+        if (this.onConnect === undefined) {
+            this.onConnect = this.onConnect$.subscribe();
+        }
+
+        if (stick !== undefined) {
+            await this.connect(stick);
+        }
     }
 
     streamHRMonitorBatteryLevel$(): Observable<number | undefined> {
@@ -91,7 +102,6 @@ export class AntHeartRateService implements IHeartRateService {
                             const batteryLevel =
                                 data.BatteryLevel ?? this.parseBatteryStatus(data.BatteryStatus) ?? 0;
                             this.batteryLevelSubject.next(batteryLevel);
-                            console.log(data);
 
                             return {
                                 contactDetected: true,
@@ -106,6 +116,55 @@ export class AntHeartRateService implements IHeartRateService {
             }),
             startWith(undefined as IHeartRate | undefined),
         );
+    }
+
+    private async connect(stick: USBDriver): Promise<void> {
+        if (this.onConnect === undefined) {
+            this.onConnect = this.onConnect$.subscribe();
+        }
+        this.stick = stick;
+        const hrSensor = new HeartRateSensor(this.stick);
+
+        fromEvent(this.stick, "startup")
+            .pipe(
+                take(1),
+                switchMap((): Observable<void> => {
+                    this.snackBar.open("ANT+ Stick is ready", "Dismiss");
+
+                    return from(hrSensor.attachSensor(0, 0));
+                }),
+                switchMap(
+                    (): Observable<void> =>
+                        merge(
+                            (fromEvent(hrSensor, "detached") as Observable<void>).pipe(
+                                switchMap((): Observable<void> => {
+                                    this.batteryLevelSubject.next(undefined);
+                                    this.heartRateSensorSubject.next(undefined);
+                                    this.snackBar.open("Heart Rate Monitor connection lost", "Dismiss");
+
+                                    return from(hrSensor.attachSensor(0, 0));
+                                }),
+                            ),
+                            (fromEvent(hrSensor, "attached") as Observable<void>).pipe(
+                                tap((): void => {
+                                    this.heartRateSensorSubject.next(hrSensor);
+                                }),
+                            ),
+                        ),
+                ),
+            )
+            .pipe(takeWhile((): boolean => this.onConnect !== undefined))
+            .subscribe();
+
+        try {
+            await this.stick.open();
+        } catch (error) {
+            if (error instanceof Error) {
+                console.error(error);
+                this.heartRateSensorSubject.next(undefined);
+                this.snackBar.open("An error occurred while communicating with ANT+ Stick", "Dismiss");
+            }
+        }
     }
 
     private parseBatteryStatus(
