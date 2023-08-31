@@ -26,7 +26,7 @@
         "ng2-charts": "^4.1.1",
         "rxjs": "~7.8.0",
         "tslib": "^2.3.0",
-        "web-ant-plus": "^1.0.4",
+        "web-ant-plus": "github:Abasz/web-ant-plus#Release",
         "zone.js": "~0.12.0"
     },
     "devDependencies": {
