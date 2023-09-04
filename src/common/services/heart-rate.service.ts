@@ -22,12 +22,9 @@ export class HeartRateService {
     ) {}
 
     async discover(): Promise<void> {
-        this.ble.disconnectDevice();
-
         switch (this.configManager.getConfig().heartRateMonitor) {
             case "ble":
-                this.ble.discover$().subscribe();
-                break;
+                return await this.ble.discover();
             case "ant":
                 return await this.ant.discover();
             default:
@@ -46,19 +43,21 @@ export class HeartRateService {
             filter((config: Config): boolean => config.heartRateMonitor !== this.heartRateMonitor),
             switchMap((config: Config): Observable<IHeartRate | undefined> => {
                 this.heartRateMonitor = config.heartRateMonitor;
-                this.ble.disconnectDevice();
 
                 switch (config.heartRateMonitor) {
                     case "ble":
                         this.ant.disconnectDevice();
+                        this.ble.reconnect();
 
                         return this.ble.streamHeartRate$();
                     case "ant":
+                        this.ble.disconnectDevice();
                         this.ant.reconnect();
 
                         return this.ant.streamHeartRate$();
                     default:
                         this.ant.disconnectDevice();
+                        this.ble.disconnectDevice();
 
                         return of(undefined);
                 }

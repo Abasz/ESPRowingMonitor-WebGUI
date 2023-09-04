@@ -3,14 +3,9 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { BluetoothCore } from "@manekinekko/angular-web-bluetooth";
 import {
     BehaviorSubject,
-    catchError,
-    combineLatest,
     concat,
-    concatMap,
-    EMPTY,
     filter,
     map,
-    merge,
     Observable,
     of,
     startWith,
@@ -18,7 +13,6 @@ import {
     take,
     takeUntil,
     tap,
-    timer,
     withLatestFrom,
 } from "rxjs";
 
@@ -31,88 +25,70 @@ import {
     IHeartRateService,
 } from "../common.interfaces";
 
+import { ConfigManagerService } from "./config-manager.service";
+
 @Injectable({
     providedIn: "root",
 })
 export class BLEHeartRateService implements IHeartRateService {
     private batteryCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
+    private bluetoothDevice: BluetoothDevice | undefined;
+    private cancellationToken: AbortController = new AbortController();
     private heartRateCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
 
     constructor(
+        private configManager: ConfigManagerService,
         private snackBar: MatSnackBar,
         private ble: BluetoothCore,
     ) {}
 
     disconnectDevice(): void {
-        if (
-            this.batteryCharacteristic.value !== undefined ||
-            this.heartRateCharacteristic.value !== undefined
-        ) {
-            this.ble.disconnectDevice();
-            this.batteryCharacteristic.next(undefined);
-            this.heartRateCharacteristic.next(undefined);
+        if (this.bluetoothDevice !== undefined) {
+            this.bluetoothDevice.ongattserverdisconnected = (): void => {
+                return;
+            };
+            this.bluetoothDevice = undefined;
         }
+        this.ble.disconnectDevice();
+        this.cancellationToken.abort();
+        this.batteryCharacteristic.next(undefined);
+        this.heartRateCharacteristic.next(undefined);
     }
 
     // TODO: Reconnect feature:
-    // a new function in the heart rate service is needed that routes to either ant+ or ble depending on the setting so the right reconnect is done
-    // need to handle the change of setting which should trigger a reconnect of the other
     // 1) this has been only tested in chrome
     // 2) need to enable the chrome://flags/#enable-web-bluetooth-new-permissions-backend in chrome
 
-    // need to check if getDevices API is available
-    // it needs to save the last connected device id in local storage and then search getDevvices().
-    // const devices = (await navigator.bluetooth.getDevices())
-    // register the onadverisementreceived event (only once)
-    // devices[0].onadvertisementreceived = (event) =>{console.log(event)
-    //                                                event.device.gatt.connect()
-    //                                                }
+    async discover(): Promise<void> {
+        this.disconnectDevice();
 
-    // switch on advertisement watch
-    // await devices[0].watchAdvertisements()
-    // get the heartratecharacteristic and do next. everything should be a go then.
+        const device = await this.ble.discover({
+            acceptAllDevices: false,
+            filters: [{ services: [HEART_RATE_SERVICE] }],
+            optionalServices: [BATTERY_LEVEL_SERVICE],
+        });
+        if (device?.gatt === undefined) {
+            await this.reconnect();
 
-    discover$(): Observable<Array<Observable<never> | BluetoothRemoteGATTCharacteristic>> {
-        return this.ble
-            .discover$({
-                acceptAllDevices: false,
-                filters: [{ services: [HEART_RATE_SERVICE] }],
-                optionalServices: [BATTERY_LEVEL_SERVICE],
-            })
-            .pipe(
-                concatMap(
-                    (
-                        gatt: void | BluetoothRemoteGATTServer,
-                    ): Observable<Array<Observable<never> | BluetoothRemoteGATTCharacteristic>> => {
-                        if (gatt === undefined) {
-                            return EMPTY;
-                        }
+            return;
+        }
+        await this.connect(device);
+    }
 
-                        return combineLatest([
-                            merge(
-                                timer(15 * 1000).pipe(
-                                    tap((): void => {
-                                        this.snackBar.open("Getting battery info timed out", "Dismiss");
-                                    }),
-                                    map((): Observable<never> => EMPTY),
-                                ),
-                                this.connectToBattery(gatt),
-                            ),
-                            this.connectToHearRate(gatt),
-                        ]);
-                    },
-                ),
-                tap({
-                    error: (error: unknown): void => {
-                        if (error) {
-                            this.snackBar.open(`${error}`, "Dismiss");
-                        }
-                    },
-                }),
-                catchError((): Observable<never> => EMPTY),
-            );
+    async reconnect(): Promise<void> {
+        this.disconnectDevice();
+        const device = (await navigator.bluetooth.getDevices()).filter(
+            (device: BluetoothDevice): boolean => device.id === this.configManager.getItem("bleDeviceId"),
+        )?.[0];
+        if (device === undefined) {
+            return;
+        }
+
+        device.onadvertisementreceived = this.reconnectHandler;
+        this.cancellationToken = new AbortController();
+        await device.watchAdvertisements({ signal: this.cancellationToken.signal });
     }
 
     streamHRMonitorBatteryLevel$(): Observable<number | undefined> {
@@ -148,67 +124,77 @@ export class BLEHeartRateService implements IHeartRateService {
         );
     }
 
-    private connectToBattery(gatt: BluetoothRemoteGATTServer): Observable<BluetoothRemoteGATTCharacteristic> {
-        return this.ble.getPrimaryService$(gatt, BATTERY_LEVEL_SERVICE).pipe(
-            concatMap(
-                (
-                    primaryService: BluetoothRemoteGATTService,
-                ): Observable<void | BluetoothRemoteGATTCharacteristic> => {
-                    return this.ble.getCharacteristic$(primaryService, BATTERY_LEVEL_CHARACTERISTIC).pipe(
-                        tap((): void => {
-                            this.snackBar.open("Battery service is available", "Dismiss");
-                        }),
-                    );
-                },
-            ),
-            concatMap(
-                (
-                    characteristic: void | BluetoothRemoteGATTCharacteristic,
-                ): Observable<BluetoothRemoteGATTCharacteristic> => {
-                    if (characteristic === undefined) {
-                        return EMPTY;
-                    }
-                    this.batteryCharacteristic.next(characteristic);
+    private async connect(device: BluetoothDevice): Promise<void> {
+        try {
+            this.bluetoothDevice = device;
+            const gatt = await this.ble.connectDevice(device);
 
-                    return of(characteristic);
-                },
-            ),
-            catchError((): Observable<never> => EMPTY),
-            take(1),
-        );
+            if (this.bluetoothDevice === undefined) {
+                return;
+            }
+
+            await Promise.all([this.connectToBattery(gatt), this.connectToHearRate(gatt)]);
+            this.configManager.setItem("bleDeviceId", device.id);
+            device.ongattserverdisconnected = this.disconnectHandler;
+        } catch (error) {
+            this.snackBar.open(`${error}`, "Dismiss");
+        }
     }
 
-    private connectToHearRate(
+    private async connectToBattery(
         gatt: BluetoothRemoteGATTServer,
-    ): Observable<BluetoothRemoteGATTCharacteristic> {
-        return this.ble.getPrimaryService$(gatt, HEART_RATE_SERVICE).pipe(
-            concatMap(
-                (
-                    primaryService: BluetoothRemoteGATTService,
-                ): Observable<void | BluetoothRemoteGATTCharacteristic> => {
-                    return this.ble.getCharacteristic$(primaryService, HEART_RATE_CHARACTERISTIC).pipe(
-                        tap((): void => {
-                            this.snackBar.open("Heart Rate monitor is connected", "Dismiss");
-                        }),
-                    );
-                },
-            ),
-            concatMap(
-                (
-                    characteristic: void | BluetoothRemoteGATTCharacteristic,
-                ): Observable<BluetoothRemoteGATTCharacteristic> => {
-                    if (characteristic === undefined) {
-                        return EMPTY;
-                    }
-                    this.heartRateCharacteristic.next(characteristic);
+    ): Promise<void | BluetoothRemoteGATTCharacteristic> {
+        try {
+            const primaryService = await this.ble.getPrimaryService(gatt, BATTERY_LEVEL_SERVICE);
+            const characteristic = await this.ble.getCharacteristic(
+                primaryService,
+                BATTERY_LEVEL_CHARACTERISTIC,
+            );
+            this.batteryCharacteristic.next(characteristic ?? undefined);
 
-                    return of(characteristic);
-                },
-            ),
-            catchError((): Observable<never> => EMPTY),
-            take(1),
-        );
+            return characteristic;
+        } catch (error) {
+            if (this.bluetoothDevice) {
+                this.snackBar.open("Battery service is unavailable", "Dismiss");
+                console.warn(error);
+            }
+        }
+
+        return;
     }
+
+    private async connectToHearRate(
+        gatt: BluetoothRemoteGATTServer,
+    ): Promise<void | BluetoothRemoteGATTCharacteristic> {
+        try {
+            const primaryService = await this.ble.getPrimaryService(gatt, HEART_RATE_SERVICE);
+            const characteristic = await this.ble.getCharacteristic(
+                primaryService,
+                HEART_RATE_CHARACTERISTIC,
+            );
+            this.heartRateCharacteristic.next(characteristic ?? undefined);
+
+            return characteristic;
+        } catch (error) {
+            if (this.bluetoothDevice) {
+                this.snackBar.open("Error connecting Heart Rate monitor", "Dismiss");
+                console.error(error);
+            }
+        }
+
+        return;
+    }
+
+    private disconnectHandler = async (event: Event): Promise<void> => {
+        const device: BluetoothDevice = event.target as BluetoothDevice;
+        device.onadvertisementreceived = this.reconnectHandler;
+
+        if (!device.watchingAdvertisements) {
+            this.cancellationToken = new AbortController();
+            await device.watchAdvertisements({ signal: this.cancellationToken.signal });
+        }
+        this.snackBar.open("Heart Rate Monitor disconnected", "Dismiss");
+    };
 
     private observeBattery(
         batteryCharacteristic: BluetoothRemoteGATTCharacteristic,
@@ -298,4 +284,12 @@ export class BLEHeartRateService implements IHeartRateService {
 
         return result;
     }
+
+    private reconnectHandler: (event: BluetoothAdvertisingEvent) => Promise<void> = async (
+        event: BluetoothAdvertisingEvent,
+    ): Promise<void> => {
+        this.cancellationToken.abort();
+
+        this.connect(event.device);
+    };
 }

@@ -19,7 +19,9 @@ export class ConfigManagerService {
         });
         if (!isSecureContext) {
             this.config.heartRateMonitor = "off";
+            this.config.bleDeviceId = "";
             localStorage.setItem("heartRateMonitor", "off");
+            localStorage.setItem("bleDeviceId", "");
         }
 
         this.configSubject = new BehaviorSubject(this.config);
