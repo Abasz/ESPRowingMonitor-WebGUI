@@ -22,17 +22,23 @@ One advantage of serving the WebGUI via the built in web server is that the WebS
 
 ## Experimental BLE Heart Rate Monitor Support
 
-Added experimental BLE HR support that can be enabled in the setting. Once that is done a heart icon will show up on the toolbar that enables connecting to the HR monitor (user needs to click and then select the device from the popup window). The implementation uses Web Bluetooth API. However currently there are several limitations:
+Added experimental BLE HR support that can be enabled in the setting. Once that is done a heart icon will show up on the toolbar that enables connecting to the HR monitor (user needs to click and then select the device from the popup window). The implementation uses Web Bluetooth API.
 
-- Automatic connection to a previously pared device is not implemented so devices need to be selected on every connect. I was able to identify some probable solutions, but I need to do more research and testing.
-- As per the specs Web BLE API is only available in [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts), i.e. either when accessing locally-delivered resources such as those with `http://127.0.0.1` URLs, `http://localhost` and `http://*.localhost` URLs (e.g. `http://dev.whatever.localhost/`), and `file://` URLs. This means that BLE connection will not be available if WebGUI is served up from the ESP32 as it does not meet any of the above criteria (served up via http from a local IP address). Currently there are two possible workarounds:
+The WebGUI supports auto reconnect to previously paired device (reconnects to the one that was last connected) without the need to open the dialog.
+
+However currently there are several limitations:
+
+- Theoretically any browser (with sufficient high version) should work that supports the Web Bluetooth API. However, it has only been tested in Chrome
+- For Chrome at least (but I suspect other browsers may too) require the `chrome://flags/#enable-web-bluetooth-new-permissions-backend` to be enabled for the reconnect feature to work correctly
+- As per the specs Web BLE API is only available in [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts), i.e. either when accessing locally-delivered resources such as those with `http://127.0.0.1` URLs, `http://localhost` and `http://*.localhost` URLs (e.g. `http://dev.whatever.localhost/`), and `file://` URLs. This should mean that BLE connection will not be available if WebGUI is served up from the ESP32 as it does not meet any of the above criteria (served up via http from a local IP address). Currently there are three possible workarounds:
 
 1) to serve the page up from the computer as a [Developer server](#development-server)
-2) to set up reverse proxy for the ESP32's IP address and rewrite rule in IIS/Apache for a localhost address
+2) to set up proxy pass for the ESP32's IP address and rewrite rule in IIS/Apache for a `localhost` address
+3) to route through a secure https page (e.g. one that has a self-signed certificate) with proxy pass in IIS/Apache (I went down this route)
 
-None of the above are ideal especially in a DHCP local network as on the IP address change of the ESP32 these needs updating (in Option 1 on the WebGUI under settings, in Option 2 in IIS/Apache). A potential workaround is to set up a DHCP Binding in the router so the ESP32 gets assigned a reserved IP address.
+None of the above are ideal especially in a DHCP local network as on the IP address change of the ESP32 these needs updating (in Option 1 on the WebGUI under settings, in Option 2-3 in IIS/Apache). A potential workaround is to set up a DHCP Binding in the router so the ESP32 gets assigned a reserved IP address.
 
-Option 1 is generally easier to setup but more cumbersome as the dev server needs starting every time, while option 2 is more complicated to set up initially but on the long term its more of a shoot and forget solution.
+Option 1 is generally easier to setup but more cumbersome as the dev server needs starting every time, while option 2-3 is more complicated to set up initially but on the long term its more of a shoot and forget solution.
 
 A more robust and permanent solution to this is to implement/move to a web server library on the ESP32 that supports tls/ssl. This may happen in the future but for now due to lack of resources this is not planned (help though would be appreciated)
 
