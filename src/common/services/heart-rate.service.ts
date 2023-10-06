@@ -36,7 +36,7 @@ export class HeartRateService {
         if (!isSecureContext) {
             this.snack.open("Heart Rate features are not available, refer to documentation", "Dismiss");
 
-            return EMPTY;
+            return EMPTY.pipe(startWith(undefined), shareReplay());
         }
 
         return this.configManager.config$.pipe(
