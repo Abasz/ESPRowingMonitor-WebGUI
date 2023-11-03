@@ -3,16 +3,17 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { BluetoothCore } from "@manekinekko/angular-web-bluetooth";
 import {
     BehaviorSubject,
+    catchError,
     concat,
     filter,
+    finalize,
     map,
     Observable,
     of,
+    retry,
     startWith,
     switchMap,
-    take,
-    takeUntil,
-    tap,
+    timer,
     withLatestFrom,
 } from "rxjs";
 
@@ -103,6 +104,24 @@ export class BLEHeartRateService implements IHeartRateService {
                 (batteryCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<number | undefined> =>
                     this.observeBattery(batteryCharacteristic),
             ),
+            retry({
+                count: 4,
+                delay: (error: string, count: number): Observable<0> => {
+                    if (this.batteryCharacteristic.value?.service.device.gatt && error.includes("unknown")) {
+                        console.warn(`Battery characteristic error: ${error}; retrying: ${count}`);
+
+                        this.connectToBattery(this.batteryCharacteristic.value.service.device.gatt);
+                    }
+
+                    return timer(2000);
+                },
+            }),
+            catchError((error: string): Observable<undefined> => {
+                console.error(error);
+                this.snackBar.open("Error while connecting to battery service", "Dismiss");
+
+                return of(undefined);
+            }),
             startWith(undefined as number | undefined),
         );
     }
@@ -133,7 +152,8 @@ export class BLEHeartRateService implements IHeartRateService {
                 return;
             }
 
-            await Promise.all([this.connectToBattery(gatt), this.connectToHearRate(gatt)]);
+            await Promise.all([this.connectToHearRate(gatt), this.connectToBattery(gatt)]);
+
             this.configManager.setItem("bleDeviceId", device.id);
             device.ongattserverdisconnected = this.disconnectHandler;
         } catch (error) {
@@ -200,55 +220,34 @@ export class BLEHeartRateService implements IHeartRateService {
         batteryCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<number | undefined> {
         return concat(
-            concat(
-                this.ble.readValue$(batteryCharacteristic),
-                this.ble.observeValue$(batteryCharacteristic),
-            ).pipe(
-                map((value: DataView): number => value.getInt8(0)),
-                takeUntil(
-                    this.ble.getDevice$().pipe(
-                        filter((device: BluetoothDevice): boolean => !device),
-                        tap((): void => {
-                            this.heartRateCharacteristic.next(undefined);
-                            this.batteryCharacteristic.next(undefined);
-                        }),
-                        take(1),
-                    ),
-                ),
-            ),
-            of(undefined),
+            this.ble.readValue$(batteryCharacteristic),
+            this.ble.observeValue$(batteryCharacteristic),
+        ).pipe(
+            map((value: DataView): number => value.getInt8(0)),
+            finalize((): void => {
+                this.batteryCharacteristic.next(undefined);
+            }),
         );
     }
-
     private observeHeartRate(
         heartRateCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<IHeartRate | undefined> {
-        return concat(
-            this.ble
-                .observeValue$(heartRateCharacteristic)
-                .pipe(
-                    withLatestFrom(this.streamHRMonitorBatteryLevel$()),
-                    map(
-                        ([heartRateData, batteryLevel]: [DataView, number | undefined]): IHeartRate => ({
-                            ...this.parseHeartRate(heartRateData),
-                            batteryLevel,
-                        }),
-                    ),
-                )
-                .pipe(
-                    takeUntil(
-                        this.ble.getDevice$().pipe(
-                            filter((device: BluetoothDevice): boolean => !device),
-                            tap((): void => {
-                                this.heartRateCharacteristic.next(undefined);
-                                this.batteryCharacteristic.next(undefined);
-                            }),
-                            take(1),
-                        ),
-                    ),
+        return this.ble
+            .observeValue$(heartRateCharacteristic)
+            .pipe(
+                withLatestFrom(this.streamHRMonitorBatteryLevel$()),
+                map(
+                    ([heartRateData, batteryLevel]: [DataView, number | undefined]): IHeartRate => ({
+                        ...this.parseHeartRate(heartRateData),
+                        batteryLevel,
+                    }),
                 ),
-            of(undefined),
-        );
+            )
+            .pipe(
+                finalize((): void => {
+                    this.heartRateCharacteristic.next(undefined);
+                }),
+            );
     }
 
     private parseHeartRate(value: DataView): Omit<IHeartRate, "batteryLevel"> {
