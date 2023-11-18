@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from "@angular/core";
+import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy } from "@angular/core";
 import { MatDialog } from "@angular/material/dialog";
 import { interval, map, Observable, startWith, switchMap, take } from "rxjs";
 
@@ -6,6 +6,7 @@ import { BleServiceFlag, IHeartRate, IRowerData } from "../common/common.interfa
 import { DataRecorderService } from "../common/services/data-recorder.service";
 import { DataService } from "../common/services/data.service";
 import { HeartRateService } from "../common/services/heart-rate.service";
+import { UtilsService } from "../common/services/utils.service";
 import { WebSocketService } from "../common/services/websocket.service";
 
 import { ButtonClickedTargets } from "./settings-bar/settings-bar.interfaces";
@@ -17,7 +18,7 @@ import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.compo
     styleUrls: ["./app.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AppComponent {
+export class AppComponent implements AfterViewInit, OnDestroy {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
 
     elapseTime$: Observable<number> = this.dataService.rowingData().pipe(
@@ -44,6 +45,7 @@ export class AppComponent {
         private webSocketService: WebSocketService,
         private dialog: MatDialog,
         private heartRateService: HeartRateService,
+        private utils: UtilsService,
     ) {
         this.heartRateData$ = this.dataService.heartRateData();
         this.rowingData$ = this.dataService.rowingData();
@@ -78,5 +80,13 @@ export class AppComponent {
                     : BleServiceFlag.CpsService,
             );
         }
+    }
+
+    async ngAfterViewInit(): Promise<void> {
+        await this.utils.enableWakeLock();
+    }
+
+    async ngOnDestroy(): Promise<void> {
+        await this.utils.disableWackeLock();
     }
 }

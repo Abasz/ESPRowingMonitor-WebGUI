@@ -1,9 +1,10 @@
 import { BreakpointObserver, Breakpoints, BreakpointState, MediaMatcher } from "@angular/cdk/layout";
 import { Injectable } from "@angular/core";
-import { Observable } from "rxjs";
-import { map } from "rxjs/operators";
+import { MatSnackBar } from "@angular/material/snack-bar";
+import { fromEvent, Observable, Subscription } from "rxjs";
+import { filter, map, startWith, tap } from "rxjs/operators";
 
-import { IMediaQuery } from "../common.interfaces";
+import { IMediaQuery, Navigator, WakeLockSentinel } from "../common.interfaces";
 import { SpinnerOverlayRef } from "../overlay/spinner-overlay-ref";
 import { SpinnerOverlayService } from "../overlay/spinner-overlay.service";
 
@@ -16,8 +17,11 @@ export class UtilsService {
         .pipe(map((result: BreakpointState): boolean => result.matches));
 
     private mainSpinnerRef: SpinnerOverlayRef | undefined;
+    private pageVisible: Subscription | undefined;
+    private wakeLock: WakeLockSentinel | undefined;
 
     constructor(
+        private snack: MatSnackBar,
         private spinner: SpinnerOverlayService,
         private mediaMatcher: MediaMatcher,
         private breakpointObserver: BreakpointObserver,
@@ -52,6 +56,39 @@ export class UtilsService {
                     ),
                 ),
             );
+    }
+
+    async disableWackeLock(): Promise<void> {
+        await this.wakeLock?.release();
+        this.pageVisible?.unsubscribe();
+    }
+
+    async enableWakeLock(): Promise<void> {
+        this.pageVisible = fromEvent(document, "visibilitychange")
+            .pipe(
+                startWith(document.visibilityState),
+                filter((): boolean => document.visibilityState === "visible"),
+                tap(async (): Promise<void> => {
+                    try {
+                        if (!("wakeLock" in navigator)) {
+                            await this.disableWackeLock();
+                            throw Error("Wake lock API is not available");
+                        }
+                        this.wakeLock = await (navigator as Navigator).wakeLock.request("screen");
+                    } catch (error: unknown) {
+                        if (error instanceof Error) {
+                            setTimeout((): void => {
+                                this.snack.open(
+                                    `Failed to request wake lock: ${(error as Error).message}`,
+                                    "Dismiss",
+                                );
+                            }, 5000);
+                            console.error(error.message);
+                        }
+                    }
+                }),
+            )
+            .subscribe();
     }
 
     mainSpinner(): { close(): void; open(): void } {
