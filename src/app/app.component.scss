@@ -25,7 +25,7 @@
 app-metric[icon="favorite"],
 app-metric[title="Drive"],
 app-metric[title="Recovery"] {
-    @media (max-width: 959px) {
+    @media (max-width: 890px) {
         display: none;
     }
 }
@@ -37,4 +37,12 @@ app-metric[icon="favorite"] mat-icon {
     position: absolute;
     bottom: 0.3em;
     right: 0.2em;
+}
+
+app-force-curve {
+    grid-row: span 2;
+
+    @media (max-width: 890px) {
+        grid-column: span 2;
+    }
 }

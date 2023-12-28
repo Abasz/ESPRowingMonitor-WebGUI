@@ -34,7 +34,7 @@ export class SettingsDialogComponent {
             [
                 Validators.required,
                 Validators.pattern(
-                    /^ws:\/\/[a-z0-9-]+(\.?[a-z0-9-])+(:[0-9]+)?([\/?][-a-zA-Z0-9+&@#\/%?=~_]*)?$/,
+                    /^wss?:\/\/[a-z0-9-]+(\.?[a-z0-9-])+(:[0-9]+)?([\/?][-a-zA-Z0-9+&@#\/%?=~_]*)?$/,
                 ),
             ],
         ],
