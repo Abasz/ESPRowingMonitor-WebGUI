@@ -21,6 +21,7 @@
         "@angular/platform-browser-dynamic": "^15.2.0",
         "@angular/router": "^15.2.0",
         "@manekinekko/angular-web-bluetooth": "^15.0.0",
+        "@uriopass/nosleep.js": "^0.12.2",
         "chart.js": "^4.4.0",
         "chartjs-plugin-datalabels": "^2.2.0",
         "ng2-charts": "^4.1.1",

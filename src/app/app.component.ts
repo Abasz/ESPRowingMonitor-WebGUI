@@ -82,11 +82,11 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         }
     }
 
-    async ngAfterViewInit(): Promise<void> {
-        await this.utils.enableWakeLock();
+    ngAfterViewInit(): void {
+        this.utils.enableWakeLock();
     }
 
-    async ngOnDestroy(): Promise<void> {
-        await this.utils.disableWackeLock();
+    ngOnDestroy(): void {
+        this.utils.disableWackeLock();
     }
 }
