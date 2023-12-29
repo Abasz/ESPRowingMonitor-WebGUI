@@ -30,17 +30,20 @@ However currently there are several limitations:
 
 - Theoretically any browser (with sufficient high version) should work that supports the Web Bluetooth API. However, it has only been tested in Chrome
 - For Chrome at least (but I suspect other browsers may too) require the `chrome://flags/#enable-web-bluetooth-new-permissions-backend` to be enabled for the reconnect feature to work correctly
-- As per the specs Web BLE API is only available in [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts), i.e. either when accessing locally-delivered resources such as those with `http://127.0.0.1` URLs, `http://localhost` and `http://*.localhost` URLs (e.g. `http://dev.whatever.localhost/`), and `file://` URLs. This should mean that BLE connection will not be available if WebGUI is served up from the ESP32 as it does not meet any of the above criteria (served up via http from a local IP address). Currently there are three possible workarounds:
+- As per the specs Web BLE API is only available in [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts), i.e. either when accessing locally-delivered resources such as those with `http://127.0.0.1` URLs, `http://localhost` and `http://*.localhost` URLs (e.g. `http://dev.whatever.localhost/`), and `file://` URLs. This should mean that BLE connection will not be available if WebGUI is served up from the ESP32 as it does not meet any of the above criteria (served up via http from a local IP address). Currently there are several possible workarounds:
 
-1) to serve the page up from the computer as a [Developer server](#development-server)
-2) to set up proxy pass for the ESP32's IP address and rewrite rule in IIS/Apache for a `localhost` address
-3) to route through a secure https page (e.g. one that has a self-signed certificate) with proxy pass in IIS/Apache (I went down this route)
+1) serve the page up from the computer as a [Developer server](#development-server)
+2) use a simple light weight http server (it is available on most platforms including android) and serve the GUI from there and access it through localhost
+3) set up proxy pass for the ESP32's IP address and rewrite rule in IIS/Apache for a `localhost` address
+4) route through a secure https page (e.g. one that has a self-signed certificate) with proxy pass in IIS/Apache (I went down this route)
 
-None of the above are ideal especially in a DHCP local network as on the IP address change of the ESP32 these needs updating (in Option 1 on the WebGUI under settings, in Option 2-3 in IIS/Apache). A potential workaround is to set up a DHCP Binding in the router so the ESP32 gets assigned a reserved IP address.
+None of the above are ideal especially in a DHCP local network as on the IP address change of the ESP32 these needs updating (in Option 1-2 on the WebGUI under settings, in Option 3-4 in IIS/Apache). A potential workaround is to set up a DHCP Binding in the router so the ESP32 gets assigned a reserved IP address.
 
-Option 1 is generally easier to setup but more cumbersome as the dev server needs starting every time, while option 2-3 is more complicated to set up initially but on the long term its more of a shoot and forget solution.
+Option 1 and 2 is generally easier to setup but option 1 more cumbersome as the dev server needs starting every time, while option 3-4 is more complicated to set up initially but on the long term its more of a shoot and forget solution.
 
-A more robust and permanent solution to this is to implement/move to a web server library on the ESP32 that supports tls/ssl. This may happen in the future but for now due to lack of resources this is not planned (help though would be appreciated)
+A more robust and permanent solution to this is to implement/move to a web server library on the ESP32 that supports tls/ssl. However, while recently I was able to implement a https server (after testing libraries ending up using [this library](https://github.com/hoeken/PsychicHTTP)) on the ESP32 that worked, tests have shown that the MCU does not have sufficient memory (ssl handshakes require approx 45kb heap per socket!) making the device very unstable. I have created a separate [branch](https://github.com/Abasz/ESPRowingMonitor#http-server) on the ESP Rowing Monitor repo which has an updated README that includes the relevant considerations and observations.
+
+**Long story short, it is highly unlikely that a dedicated https server will make it to a stable release on the monitor and my recommendation is to use Option 2 (light weight web server).**
 
 ## Experimental ANT+ Heart Rate Monitor Support
 
