@@ -15,6 +15,8 @@ type SettingsFormGroup = FormGroup<{
     websocketAddress: FormControl<string>;
     logLevel: FormControl<LogLevel>;
     heartRateMonitor: FormControl<HeartRateMonitorMode>;
+    logToWebSocket: FormControl<boolean>;
+    logToSdCard: FormControl<boolean>;
 }>;
 
 @Component({
@@ -43,6 +45,18 @@ export class SettingsDialogComponent {
             this.configManager.getItem("heartRateMonitor") as HeartRateMonitorMode,
             Validators.pattern(/^(off|ble|ant)$/),
         ],
+        logToWebSocket: [
+            {
+                value: this.dataService.getWebSocketLoggingState() ?? false,
+                disabled: this.dataService.getWebSocketLoggingState() === undefined ? true : false,
+            },
+        ],
+        logToSdCard: [
+            {
+                value: this.dataService.getSdCardLoggingState() ?? false,
+                disabled: this.dataService.getSdCardLoggingState() === undefined ? true : false,
+            },
+        ],
     });
 
     settingsFormErrors$: Observable<ValidationErrors | null> = this.settingsForm.statusChanges.pipe(
@@ -59,12 +73,28 @@ export class SettingsDialogComponent {
     ) {}
 
     submitLoginForm(): void {
-        this.configManager.setItem("webSocketAddress", this.settingsForm.value.websocketAddress as string);
-        this.configManager.setItem(
-            "heartRateMonitor",
-            this.settingsForm.value.heartRateMonitor as HeartRateMonitorMode,
-        );
-        this.webSocketService.changeLogLevel(this.settingsForm.value.logLevel as LogLevel);
+        if (this.settingsForm.get("logLevel")?.dirty) {
+            this.webSocketService.changeLogLevel(this.settingsForm.value.logLevel as LogLevel);
+        }
+        if (this.settingsForm.get("logToWebSocket")?.dirty) {
+            this.webSocketService.changeLogToWebSocket(this.settingsForm.value.logToWebSocket as boolean);
+        }
+        if (this.settingsForm.get("logToSdCard")?.dirty) {
+            this.webSocketService.changeLogToSdCard(this.settingsForm.value.logToSdCard as boolean);
+        }
+
+        if (this.settingsForm.get("websocketAddress")?.dirty) {
+            this.configManager.setItem(
+                "webSocketAddress",
+                this.settingsForm.value.websocketAddress as string,
+            );
+        }
+        if (this.settingsForm.get("heartRateMonitor")?.dirty) {
+            this.configManager.setItem(
+                "heartRateMonitor",
+                this.settingsForm.value.heartRateMonitor as HeartRateMonitorMode,
+            );
+        }
         this.dialogRef.close();
     }
 }

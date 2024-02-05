@@ -6,11 +6,16 @@ import { IRowerDataDto, IRowerSettings, ISessionData } from "../common.interface
     providedIn: "root",
 })
 export class DataRecorderService {
+    private deltaTimes: Array<number> = [];
     private rowingData: Array<IRowerDataDto | IRowerSettings> = [];
     private rowingSessionData: Array<ISessionData> = [];
 
     add(rowingData: ISessionData): void {
         this.rowingSessionData.push(rowingData);
+    }
+
+    addDeltaTimes(deltaTimes: Array<number>): void {
+        this.deltaTimes.push(...deltaTimes);
     }
 
     addRaw(rowingData: IRowerDataDto | IRowerSettings): void {
@@ -20,6 +25,11 @@ export class DataRecorderService {
     download(): void {
         const blob = new Blob([JSON.stringify(this.rowingSessionData)], { type: "application/json" });
         this.createDownload(blob, "session");
+    }
+
+    downloadDeltaTimes(): void {
+        const blob = new Blob([JSON.stringify(this.deltaTimes)], { type: "application/json" });
+        this.createDownload(blob, "deltaTimes");
     }
 
     downloadRaw(): void {

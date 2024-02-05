@@ -67,6 +67,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         if ($event === "download") {
             this.dataRecorder.download();
             this.dataRecorder.downloadRaw();
+            this.dataRecorder.downloadDeltaTimes();
         }
 
         if ($event === "heartRate") {

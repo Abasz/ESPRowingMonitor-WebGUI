@@ -36,6 +36,8 @@ export class DataService {
     private lastStrokeTime: number = 0;
 
     private logLevel: LogLevel = LogLevel.Trace;
+    private logToSdCard: boolean | undefined = false;
+    private logToWebSocket: boolean | undefined = false;
 
     private resetSubject: Subject<IRowerDataDto> = new Subject();
 
@@ -72,6 +74,14 @@ export class DataService {
                             ? rowerRawMessage.bleServiceFlag
                             : this.bleServiceFlag;
                     this.logLevel = "logLevel" in rowerRawMessage ? rowerRawMessage.logLevel : this.logLevel;
+                    this.logToWebSocket =
+                        "logToWebSocket" in rowerRawMessage
+                            ? rowerRawMessage.logToWebSocket ?? undefined
+                            : this.logToWebSocket;
+                    this.logToSdCard =
+                        "logToSdCard" in rowerRawMessage
+                            ? rowerRawMessage.logToSdCard ?? undefined
+                            : this.logToSdCard;
                     this.batteryLevel =
                         "batteryLevel" in rowerRawMessage ? rowerRawMessage.batteryLevel : this.batteryLevel;
 
@@ -94,6 +104,8 @@ export class DataService {
                     const appData: IAppState = {
                         bleServiceFlag: this.bleServiceFlag,
                         logLevel: this.logLevel,
+                        logToSdCard: this.logToSdCard,
+                        logToWebSocket: this.logToWebSocket,
                         batteryLevel: this.batteryLevel,
                         driveDuration: this.rowingData.driveDuration / 1e6,
                         recoveryDuration: this.rowingData.recoveryDuration / 1e6,
@@ -125,6 +137,8 @@ export class DataService {
                             heartRate: heartRateData?.contactDetected ? heartRateData : undefined,
                         });
 
+                        this.dataRecorder.addDeltaTimes(this.rowingData.deltaTimes);
+
                         this.lastRevTime = this.rowingData.revTime;
                         this.lastRevCount = distance;
                         this.lastStrokeTime = this.rowingData.strokeTime;
@@ -149,6 +163,14 @@ export class DataService {
 
     getLogLevel(): LogLevel {
         return this.logLevel;
+    }
+
+    getSdCardLoggingState(): boolean | undefined {
+        return this.logToSdCard;
+    }
+
+    getWebSocketLoggingState(): boolean | undefined {
+        return this.logToWebSocket;
     }
 
     heartRateData(): Observable<IHeartRate | undefined> {

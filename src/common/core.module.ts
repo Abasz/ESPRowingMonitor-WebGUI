@@ -2,6 +2,7 @@ import { NgModule } from "@angular/core";
 import { ReactiveFormsModule } from "@angular/forms";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCardModule } from "@angular/material/card";
+import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatDialogModule } from "@angular/material/dialog";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatIconModule } from "@angular/material/icon";
@@ -20,6 +21,7 @@ import { SecondsToTimePipe } from "./utils/seconds-to-time.pipe";
 const MODULES = [
     SpinnerOverlayModule,
     MatCardModule,
+    MatCheckboxModule,
     MatIconModule,
     MatButtonModule,
     MatSnackBarModule,

@@ -29,6 +29,8 @@ export interface IRowerData {
 }
 
 export interface IRowerSettings {
+    logToWebSocket: boolean | undefined;
+    logToSdCard: boolean | undefined;
     bleServiceFlag: BleServiceFlag;
     logLevel: LogLevel;
     batteryLevel: number;
@@ -39,6 +41,8 @@ export interface IRowerDataDto {
 }
 
 export interface IAppState {
+    logToWebSocket: boolean | undefined;
+    logToSdCard: boolean | undefined;
     bleServiceFlag: BleServiceFlag;
     logLevel: LogLevel;
     batteryLevel: number;
@@ -110,6 +114,8 @@ export type IConfig = Config;
 export enum PSCOpCodes {
     SetLogLevel = 17,
     ChangeBleService = 18,
+    SetWebSocketDeltaTimeLogging = 19,
+    SetSdCardLogging = 20,
 }
 
 export enum LogLevel {

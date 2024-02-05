@@ -77,6 +77,24 @@ export class WebSocketService {
         }
     }
 
+    changeLogToSdCard(shouldEnable: boolean): void {
+        if (this.webSocketSubject?.closed === false) {
+            this.webSocketSubject?.next([
+                PSCOpCodes.SetSdCardLogging,
+                shouldEnable ? 1 : 0,
+            ] as unknown as IRowerDataDto);
+        }
+    }
+
+    changeLogToWebSocket(shouldEnable: boolean): void {
+        if (this.webSocketSubject?.closed === false) {
+            this.webSocketSubject?.next([
+                PSCOpCodes.SetWebSocketDeltaTimeLogging,
+                shouldEnable ? 1 : 0,
+            ] as unknown as IRowerDataDto);
+        }
+    }
+
     connectionStatus(): Observable<boolean> {
         return this.isConnected$;
     }
