@@ -2,7 +2,7 @@ import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy } from "@a
 import { MatDialog } from "@angular/material/dialog";
 import { interval, map, Observable, startWith, switchMap, take } from "rxjs";
 
-import { BleServiceFlag, IHeartRate, IRowerData } from "../common/common.interfaces";
+import { BleServiceFlag, IAppState, IHeartRate } from "../common/common.interfaces";
 import { DataRecorderService } from "../common/services/data-recorder.service";
 import { DataService } from "../common/services/data.service";
 import { HeartRateService } from "../common/services/heart-rate.service";
@@ -21,7 +21,7 @@ import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.compo
 export class AppComponent implements AfterViewInit, OnDestroy {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
 
-    elapseTime$: Observable<number> = this.dataService.rowingData().pipe(
+    elapseTime$: Observable<number> = this.dataService.appState().pipe(
         take(1),
         switchMap((): Observable<number> => {
             this.activityStartTime = Date.now();
@@ -35,7 +35,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
     heartRateData$: Observable<IHeartRate | undefined>;
     isConnected$: Observable<boolean>;
-    rowingData$: Observable<IRowerData>;
+    rowingData$: Observable<IAppState>;
 
     private activityStartTime: number = Date.now();
 
@@ -48,7 +48,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         private utils: UtilsService,
     ) {
         this.heartRateData$ = this.dataService.heartRateData();
-        this.rowingData$ = this.dataService.rowingData();
+        this.rowingData$ = this.dataService.appState();
         this.isConnected$ = this.webSocketService.connectionStatus();
     }
 

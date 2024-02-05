@@ -1,7 +1,15 @@
 import { Injectable } from "@angular/core";
 import { map, merge, Observable, shareReplay, Subject, withLatestFrom } from "rxjs";
 
-import { BleServiceFlag, IHeartRate, IRowerData, IRowerDataDto, LogLevel } from "../common.interfaces";
+import {
+    BleServiceFlag,
+    IAppState,
+    IHeartRate,
+    IRowerData,
+    IRowerDataDto,
+    IRowerSettings,
+    LogLevel,
+} from "../common.interfaces";
 
 import { DataRecorderService } from "./data-recorder.service";
 import { HeartRateService } from "./heart-rate.service";
@@ -13,6 +21,8 @@ import { WebSocketService } from "./websocket.service";
 export class DataService {
     private activityStartDistance: number = 0;
     private activityStartStrokeCount: number = 0;
+
+    private appState$: Observable<IAppState>;
 
     private batteryLevel: number = 0;
     private bleServiceFlag: BleServiceFlag = BleServiceFlag.CpsService;
@@ -29,7 +39,18 @@ export class DataService {
 
     private resetSubject: Subject<IRowerDataDto> = new Subject();
 
-    private rowingData$: Observable<IRowerData>;
+    private rowingData: IRowerData = {
+        revTime: 0,
+        distance: 0,
+        strokeTime: 0,
+        strokeCount: 0,
+        avgStrokePower: 0,
+        driveDuration: 0,
+        recoveryDuration: 0,
+        dragFactor: 0,
+        handleForces: [],
+        deltaTimes: [],
+    };
 
     constructor(
         private webSocketService: WebSocketService,
@@ -38,57 +59,88 @@ export class DataService {
     ) {
         this.heartRateData$ = this.heartRateService.streamHeartRate();
 
-        this.rowingData$ = merge(this.webSocketService.data(), this.resetSubject).pipe(
+        this.appState$ = merge(this.webSocketService.data(), this.resetSubject).pipe(
             withLatestFrom(this.heartRateData$),
-            map(([rowerDataDto, heartRateData]: [IRowerDataDto, IHeartRate | undefined]): IRowerData => {
-                const distance = Math.round(rowerDataDto.distance);
-                const rowerData: IRowerData = {
-                    bleServiceFlag: rowerDataDto.bleServiceFlag,
-                    logLevel: rowerDataDto.logLevel,
-                    driveDuration: rowerDataDto.driveDuration / 1e6,
-                    recoveryDuration: rowerDataDto.recoveryDuration / 1e6,
-                    avgStrokePower: rowerDataDto.avgStrokePower,
-                    distance: rowerDataDto.distance - this.activityStartDistance,
-                    batteryLevel: rowerDataDto.batteryLevel,
-                    dragFactor: rowerDataDto.dragFactor,
-                    strokeCount: rowerDataDto.strokeCount - this.activityStartStrokeCount,
-                    handleForces: rowerDataDto.handleForces,
-                    peakForce: Math.max(...rowerDataDto.handleForces),
-                    strokeRate:
-                        ((rowerDataDto.strokeCount - this.lastStrokeCount) /
-                            ((rowerDataDto.strokeTime - this.lastStrokeTime) / 1e6)) *
-                        60,
-                    speed:
-                        (distance - this.lastRevCount) /
-                        100 /
-                        ((rowerDataDto.revTime - this.lastRevTime) / 1e6),
-                    distPerStroke:
-                        Math.round(rowerDataDto.distance) === this.lastRevCount
-                            ? 0
-                            : (distance - this.lastRevCount) /
-                              100 /
-                              (rowerDataDto.strokeCount - this.lastStrokeCount),
-                };
+            map(
+                ([rowerRawMessage, heartRateData]: [
+                    IRowerDataDto | IRowerSettings,
+                    IHeartRate | undefined,
+                ]): IAppState => {
+                    dataRecorder.addRaw(rowerRawMessage);
+                    this.bleServiceFlag =
+                        "bleServiceFlag" in rowerRawMessage
+                            ? rowerRawMessage.bleServiceFlag
+                            : this.bleServiceFlag;
+                    this.logLevel = "logLevel" in rowerRawMessage ? rowerRawMessage.logLevel : this.logLevel;
+                    this.batteryLevel =
+                        "batteryLevel" in rowerRawMessage ? rowerRawMessage.batteryLevel : this.batteryLevel;
 
-                this.dataRecorder.add({
-                    ...rowerData,
-                    heartRate: heartRateData?.contactDetected ? heartRateData : undefined,
-                });
-                this.dataRecorder.addRaw(rowerDataDto);
+                    if ("data" in rowerRawMessage) {
+                        this.rowingData = {
+                            revTime: rowerRawMessage.data[0],
+                            distance: rowerRawMessage.data[1],
+                            strokeTime: rowerRawMessage.data[2],
+                            strokeCount: rowerRawMessage.data[3],
+                            avgStrokePower: rowerRawMessage.data[4],
+                            driveDuration: rowerRawMessage.data[5],
+                            recoveryDuration: rowerRawMessage.data[6],
+                            dragFactor: rowerRawMessage.data[7],
+                            handleForces: rowerRawMessage.data[8],
+                            deltaTimes: rowerRawMessage.data[9],
+                        };
+                    }
 
-                this.lastRevTime = rowerDataDto.revTime;
-                this.lastRevCount = distance;
-                this.lastStrokeTime = rowerDataDto.strokeTime;
-                this.lastStrokeCount = rowerDataDto.strokeCount;
-                this.lastDistance = rowerDataDto.distance;
-                this.batteryLevel = rowerDataDto.batteryLevel;
-                this.bleServiceFlag = rowerDataDto.bleServiceFlag;
-                this.logLevel = rowerDataDto.logLevel;
+                    const distance = Math.round(this.rowingData.distance);
+                    const appData: IAppState = {
+                        bleServiceFlag: this.bleServiceFlag,
+                        logLevel: this.logLevel,
+                        batteryLevel: this.batteryLevel,
+                        driveDuration: this.rowingData.driveDuration / 1e6,
+                        recoveryDuration: this.rowingData.recoveryDuration / 1e6,
+                        avgStrokePower: this.rowingData.avgStrokePower,
+                        distance: this.rowingData.distance - this.activityStartDistance,
+                        dragFactor: this.rowingData.dragFactor,
+                        strokeCount: this.rowingData.strokeCount - this.activityStartStrokeCount,
+                        handleForces: this.rowingData.handleForces,
+                        peakForce: Math.max(...this.rowingData.handleForces),
+                        strokeRate:
+                            ((this.rowingData.strokeCount - this.lastStrokeCount) /
+                                ((this.rowingData.strokeTime - this.lastStrokeTime) / 1e6)) *
+                            60,
+                        speed:
+                            (distance - this.lastRevCount) /
+                            100 /
+                            ((this.rowingData.revTime - this.lastRevTime) / 1e6),
+                        distPerStroke:
+                            Math.round(this.rowingData.distance) === this.lastRevCount
+                                ? 0
+                                : (distance - this.lastRevCount) /
+                                  100 /
+                                  (this.rowingData.strokeCount - this.lastStrokeCount),
+                    };
 
-                return rowerData;
-            }),
+                    if ("data" in rowerRawMessage) {
+                        this.dataRecorder.add({
+                            ...appData,
+                            heartRate: heartRateData?.contactDetected ? heartRateData : undefined,
+                        });
+
+                        this.lastRevTime = this.rowingData.revTime;
+                        this.lastRevCount = distance;
+                        this.lastStrokeTime = this.rowingData.strokeTime;
+                        this.lastStrokeCount = this.rowingData.strokeCount;
+                        this.lastDistance = this.rowingData.distance;
+                    }
+
+                    return appData;
+                },
+            ),
             shareReplay(),
         );
+    }
+
+    appState(): Observable<IAppState> {
+        return this.appState$;
     }
 
     getBleServiceFlag(): BleServiceFlag {
@@ -109,22 +161,18 @@ export class DataService {
         this.dataRecorder.reset();
 
         this.resetSubject.next({
-            driveDuration: 0,
-            recoveryDuration: 0,
-            avgStrokePower: 0,
-            distance: this.lastDistance,
-            batteryLevel: this.batteryLevel,
-            bleServiceFlag: this.bleServiceFlag,
-            logLevel: this.logLevel,
-            dragFactor: 0,
-            strokeCount: this.lastStrokeCount,
-            handleForces: [],
-            revTime: this.lastRevTime,
-            strokeTime: this.lastStrokeTime,
+            data: [
+                this.lastRevTime,
+                this.lastDistance,
+                this.lastStrokeTime,
+                this.lastStrokeCount,
+                0,
+                0,
+                0,
+                0,
+                [],
+                [],
+            ],
         });
-    }
-
-    rowingData(): Observable<IRowerData> {
-        return this.rowingData$;
     }
 }

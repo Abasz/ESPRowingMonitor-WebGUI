@@ -15,21 +15,40 @@ export interface IMediaQuery {
     2?: "width" | "height";
 }
 
-export interface IRowerDataDto {
-    driveDuration: number;
-    recoveryDuration: number;
-    batteryLevel: number;
-    bleServiceFlag: BleServiceFlag;
-    logLevel: LogLevel;
+export interface IRowerData {
     revTime: number;
     distance: number;
     strokeTime: number;
     strokeCount: number;
     avgStrokePower: number;
+    driveDuration: number;
+    recoveryDuration: number;
     dragFactor: number;
     handleForces: Array<number>;
+    deltaTimes: Array<number>;
 }
-export interface IRowerData extends Omit<IRowerDataDto, "revTime" | "strokeTime"> {
+
+export interface IRowerSettings {
+    bleServiceFlag: BleServiceFlag;
+    logLevel: LogLevel;
+    batteryLevel: number;
+}
+
+export interface IRowerDataDto {
+    data: [number, number, number, number, number, number, number, number, Array<number>, Array<number>];
+}
+
+export interface IAppState {
+    bleServiceFlag: BleServiceFlag;
+    logLevel: LogLevel;
+    batteryLevel: number;
+    driveDuration: number;
+    recoveryDuration: number;
+    distance: number;
+    strokeCount: number;
+    avgStrokePower: number;
+    dragFactor: number;
+    handleForces: Array<number>;
     speed: number;
     strokeRate: number;
     peakForce: number;
@@ -37,7 +56,7 @@ export interface IRowerData extends Omit<IRowerDataDto, "revTime" | "strokeTime"
     heartRate?: IHeartRate;
 }
 
-export interface ISessionData extends IRowerData {
+export interface ISessionData extends IAppState {
     heartRate?: IHeartRate;
 }
 

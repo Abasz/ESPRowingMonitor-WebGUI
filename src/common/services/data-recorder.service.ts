@@ -1,19 +1,19 @@
 import { Injectable } from "@angular/core";
 
-import { IRowerDataDto, ISessionData } from "../common.interfaces";
+import { IRowerDataDto, IRowerSettings, ISessionData } from "../common.interfaces";
 
 @Injectable({
     providedIn: "root",
 })
 export class DataRecorderService {
-    private rowingData: Array<IRowerDataDto> = [];
+    private rowingData: Array<IRowerDataDto | IRowerSettings> = [];
     private rowingSessionData: Array<ISessionData> = [];
 
     add(rowingData: ISessionData): void {
         this.rowingSessionData.push(rowingData);
     }
 
-    addRaw(rowingData: IRowerDataDto): void {
+    addRaw(rowingData: IRowerDataDto | IRowerSettings): void {
         this.rowingData.push(rowingData);
     }
 
