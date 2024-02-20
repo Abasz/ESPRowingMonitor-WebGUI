@@ -172,7 +172,7 @@ export class BLEHeartRateService implements IHeartRateService {
             );
             this.batteryCharacteristic.next(characteristic ?? undefined);
 
-            return characteristic;
+            return characteristic ?? undefined;
         } catch (error) {
             if (this.bluetoothDevice) {
                 this.snackBar.open("Battery service is unavailable", "Dismiss");
@@ -194,7 +194,7 @@ export class BLEHeartRateService implements IHeartRateService {
             );
             this.heartRateCharacteristic.next(characteristic ?? undefined);
 
-            return characteristic;
+            return characteristic ?? undefined;
         } catch (error) {
             if (this.bluetoothDevice) {
                 this.snackBar.open("Error connecting Heart Rate monitor", "Dismiss");
@@ -229,6 +229,7 @@ export class BLEHeartRateService implements IHeartRateService {
             }),
         );
     }
+
     private observeHeartRate(
         heartRateCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<IHeartRate | undefined> {
