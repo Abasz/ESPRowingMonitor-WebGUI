@@ -42,6 +42,7 @@ export class DataService {
     private resetSubject: Subject<IRowerDataDto> = new Subject();
 
     private rowingData: IRowerData = {
+        timeStamp: new Date(),
         revTime: 0,
         distance: 0,
         strokeTime: 0,
@@ -87,6 +88,7 @@ export class DataService {
 
                     if ("data" in rowerRawMessage) {
                         this.rowingData = {
+                            timeStamp: rowerRawMessage.timeStamp,
                             revTime: rowerRawMessage.data[0],
                             distance: rowerRawMessage.data[1],
                             strokeTime: rowerRawMessage.data[2],
@@ -102,6 +104,7 @@ export class DataService {
 
                     const distance = Math.round(this.rowingData.distance);
                     const appData: IAppState = {
+                        timeStamp: this.rowingData.timeStamp,
                         bleServiceFlag: this.bleServiceFlag,
                         logLevel: this.logLevel,
                         logToSdCard: this.logToSdCard,
@@ -183,6 +186,7 @@ export class DataService {
         this.dataRecorder.reset();
 
         this.resetSubject.next({
+            timeStamp: new Date(),
             data: [
                 this.lastRevTime,
                 this.lastDistance,

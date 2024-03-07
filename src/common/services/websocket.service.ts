@@ -39,9 +39,10 @@ export class WebSocketService {
                     closeObserver: this.closeSubject,
                     binaryType: "arraybuffer",
                     deserializer: (msg: MessageEvent<string | ArrayBuffer>): IRowerDataDto | IRowerSettings =>
-                        JSON.parse(new TextDecoder().decode(msg.data as ArrayBuffer)) as
-                            | IRowerDataDto
-                            | IRowerSettings,
+                        ({
+                            ...JSON.parse(new TextDecoder().decode(msg.data as ArrayBuffer)),
+                            timeStamp: new Date(),
+                        }) as IRowerDataDto | IRowerSettings,
                 });
                 this.webSocketSubject = socket;
 

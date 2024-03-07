@@ -16,6 +16,7 @@ export interface IMediaQuery {
 }
 
 export interface IRowerData {
+    timeStamp: Date;
     revTime: number;
     distance: number;
     strokeTime: number;
@@ -29,6 +30,7 @@ export interface IRowerData {
 }
 
 export interface IRowerSettings {
+    timeStamp: Date;
     logToWebSocket: boolean | undefined;
     logToSdCard: boolean | undefined;
     bleServiceFlag: BleServiceFlag;
@@ -37,22 +39,13 @@ export interface IRowerSettings {
 }
 
 export interface IRowerDataDto {
+    timeStamp: Date;
     data: [number, number, number, number, number, number, number, number, Array<number>, Array<number>];
 }
 
-export interface IAppState {
-    logToWebSocket: boolean | undefined;
-    logToSdCard: boolean | undefined;
-    bleServiceFlag: BleServiceFlag;
-    logLevel: LogLevel;
-    batteryLevel: number;
-    driveDuration: number;
-    recoveryDuration: number;
-    distance: number;
-    strokeCount: number;
-    avgStrokePower: number;
-    dragFactor: number;
-    handleForces: Array<number>;
+export interface IAppState
+    extends Omit<IRowerData, "deltaTimes" | "revTime" | "strokeTime">,
+        Omit<IRowerSettings, "timeStamp"> {
     speed: number;
     strokeRate: number;
     peakForce: number;
