@@ -8,6 +8,7 @@ import { Config, HeartRateMonitorMode, IConfig } from "../common.interfaces";
 })
 export class ConfigManagerService {
     heartRateMonitorChanged$: Observable<HeartRateMonitorMode>;
+    useBluetoothChanged$: Observable<boolean>;
     websocketAddressChanged$: Observable<string>;
 
     private address: string = "";
@@ -18,6 +19,7 @@ export class ConfigManagerService {
     private configSubject: BehaviorSubject<Config>;
 
     private heartRateMonitor: HeartRateMonitorMode = "off";
+    private useBluetooth: string = "";
 
     constructor() {
         this.config = new Config();
@@ -26,9 +28,11 @@ export class ConfigManagerService {
         });
         if (!isSecureContext) {
             this.config.heartRateMonitor = "off";
-            this.config.bleDeviceId = "";
+            this.config.heartRateBleId = "";
+            this.config.ergoMonitorBleId = "";
             localStorage.setItem("heartRateMonitor", "off");
-            localStorage.setItem("bleDeviceId", "");
+            localStorage.setItem("heartRateBleId", "");
+            localStorage.setItem("monitorBleId", "");
         }
 
         this.configSubject = new BehaviorSubject(this.config);
@@ -45,6 +49,20 @@ export class ConfigManagerService {
                 return false;
             }),
             map((config: Config): HeartRateMonitorMode => config.heartRateMonitor),
+            shareReplay(1),
+        );
+
+        this.useBluetoothChanged$ = this.config$.pipe(
+            filter((config: Config): boolean => {
+                if (config.useBluetooth !== this.useBluetooth) {
+                    this.useBluetooth = config.useBluetooth;
+
+                    return true;
+                }
+
+                return false;
+            }),
+            map((config: Config): boolean => config.useBluetooth === "true"),
             shareReplay(1),
         );
 

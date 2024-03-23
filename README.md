@@ -4,9 +4,9 @@ The purpose of this project is to provide a WebGUI for [ESP Rowing Monitor](http
 
 ![ESP Rowing Monitor WebGUI](docs/imgs/ESP-Rowing-Monitor-WebGUI.jpg)
 
-Version 3 and above of this GUI is only compatibly with version 5 and above of ESP Rowing Monitor. Also the new WebGUI can be now access via [GitHub Pages of this Rep](https://abasz.github.io/ESPRowingMonitor-WebGUI) directly as an installable Progressive Web App (with all its features) eliminating the need of running local developer/other server or host the page on the ESP32 MCU. This means that this app, after install from the browser, can be used and accessed like a native app on Windows/IOS/Android with home screen icon etc.
+Version 3.1 and above of this GUI is only compatibly with version 5.1 and above of ESP Rowing Monitor. Also the new WebGUI can be access now via [GitHub Pages of this Repo](https://abasz.github.io/ESPRowingMonitor-WebGUI) directly as an installable Progressive Web App (with all its features) eliminating the need of running local developer/other server or host the page on the ESP32 MCU. This means that this app, after install from the browser, can be used and accessed like a native app on Windows/IOS/Android with home screen icon etc.
 
-Please note that you need ESP Rowing Monitor firmware version 5 or above running on the ESP32 MCU to use the GitHub Pages version.
+**Please note that you need ESP Rowing Monitor firmware version 5.1 or above running on the ESP32 MCU to use the GitHub Pages version. Also the WebGUI served via GitHub Pages do not work with the WebSocket based connection type (the issue is the lack of connection via ssl to the MCU), i.e. it requires the new experimental extended BLE service introduced in version 5.1. This is now default on the ESP Rowing Monitor firmware. The WebSocket based connection approach is deprecated now and will probably be removed at some pint in the future.**
 
 This approach solves several issues that has been encounter with the distribution method (e.g. its accessed through https so secured context is not an issue). Updates to the WebGUI can be done pushed automatically and no longer requires recompilation and uploading the the MCU, etc.
 

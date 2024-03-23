@@ -2,7 +2,7 @@ import { Injectable } from "@angular/core";
 import { map, merge, Observable, retry, shareReplay, startWith, Subject, switchMap } from "rxjs";
 import { webSocket, WebSocketSubject } from "rxjs/webSocket";
 
-import { BleServiceFlag, IRowerDataDto, IRowerSettings, LogLevel, PSCOpCodes } from "../common.interfaces";
+import { BleServiceFlag, IRowerDataDto, IRowerSettings, LogLevel, BleOpCodes } from "../common.interfaces";
 
 import { ConfigManagerService } from "./config-manager.service";
 
@@ -37,7 +37,7 @@ export class WebSocketService {
 
                 return socket.pipe(retry({ delay: 5000 }));
             }),
-            shareReplay(),
+            shareReplay({ refCount: true }),
         );
 
         this.isConnected$ = merge(this.closeSubject, this.openSubject).pipe(
@@ -55,7 +55,7 @@ export class WebSocketService {
     changeBleServiceType(bleService: BleServiceFlag): void {
         if (this.webSocketSubject?.closed === false) {
             this.webSocketSubject?.next([
-                PSCOpCodes.ChangeBleService,
+                BleOpCodes.ChangeBleService,
                 bleService,
             ] as unknown as IRowerDataDto);
         }
@@ -63,14 +63,14 @@ export class WebSocketService {
 
     changeLogLevel(logLevel: LogLevel): void {
         if (this.webSocketSubject?.closed === false) {
-            this.webSocketSubject?.next([PSCOpCodes.SetLogLevel, logLevel] as unknown as IRowerDataDto);
+            this.webSocketSubject?.next([BleOpCodes.SetLogLevel, logLevel] as unknown as IRowerDataDto);
         }
     }
 
     changeLogToSdCard(shouldEnable: boolean): void {
         if (this.webSocketSubject?.closed === false) {
             this.webSocketSubject?.next([
-                PSCOpCodes.SetSdCardLogging,
+                BleOpCodes.SetSdCardLogging,
                 shouldEnable ? 1 : 0,
             ] as unknown as IRowerDataDto);
         }
@@ -79,7 +79,7 @@ export class WebSocketService {
     changeLogToWebSocket(shouldEnable: boolean): void {
         if (this.webSocketSubject?.closed === false) {
             this.webSocketSubject?.next([
-                PSCOpCodes.SetWebSocketDeltaTimeLogging,
+                BleOpCodes.SetWebSocketDeltaTimeLogging,
                 shouldEnable ? 1 : 0,
             ] as unknown as IRowerDataDto);
         }

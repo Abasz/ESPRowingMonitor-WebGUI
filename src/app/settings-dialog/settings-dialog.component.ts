@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component } from "@angular/core";
 import { FormControl, FormGroup, NonNullableFormBuilder, ValidationErrors, Validators } from "@angular/forms";
 import { MatDialogRef } from "@angular/material/dialog";
+import { MatSlideToggleChange } from "@angular/material/slide-toggle";
 import { map, Observable, startWith } from "rxjs";
 
-import { IValidationErrors, LogLevel } from "../../common/common.interfaces";
+import { BleServiceFlag, IValidationErrors, LogLevel } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { DataService } from "../../common/services/data.service";
 import { WebSocketService } from "../../common/services/websocket.service";
@@ -12,6 +13,8 @@ import { getValidationErrors } from "../../common/utils/utility.functions";
 import { HeartRateMonitorMode } from "./../../common/common.interfaces";
 
 type SettingsFormGroup = FormGroup<{
+    useBluetooth: FormControl<boolean>;
+    bleMode: FormControl<BleServiceFlag>;
     websocketAddress: FormControl<string>;
     logLevel: FormControl<LogLevel>;
     heartRateMonitor: FormControl<HeartRateMonitorMode>;
@@ -26,13 +29,19 @@ type SettingsFormGroup = FormGroup<{
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsDialogComponent {
+    BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
     LogLevel: typeof LogLevel = LogLevel;
 
     isSecureContext: boolean = isSecureContext;
 
     settingsForm: SettingsFormGroup = this.fb.group({
+        useBluetooth: [this.configManager.getItem("useBluetooth") === "true" ? true : false],
+        bleMode: [this.dataService.getBleServiceFlag()],
         websocketAddress: [
-            this.configManager.getItem("webSocketAddress"),
+            {
+                value: this.configManager.getItem("webSocketAddress"),
+                disabled: this.configManager.getItem("useBluetooth") === "true" ? true : false,
+            },
             [
                 Validators.required,
                 Validators.pattern(
@@ -48,7 +57,11 @@ export class SettingsDialogComponent {
         logToWebSocket: [
             {
                 value: this.dataService.getWebSocketLoggingState() ?? false,
-                disabled: this.dataService.getWebSocketLoggingState() === undefined ? true : false,
+                disabled:
+                    this.dataService.getWebSocketLoggingState() === undefined ||
+                    this.configManager.getItem("useBluetooth") === "true"
+                        ? true
+                        : false,
             },
         ],
         logToSdCard: [
@@ -74,13 +87,17 @@ export class SettingsDialogComponent {
 
     submitLoginForm(): void {
         if (this.settingsForm.get("logLevel")?.dirty) {
-            this.webSocketService.changeLogLevel(this.settingsForm.value.logLevel as LogLevel);
+            this.dataService.changeLogLevel(this.settingsForm.value.logLevel as LogLevel);
         }
         if (this.settingsForm.get("logToWebSocket")?.dirty) {
             this.webSocketService.changeLogToWebSocket(this.settingsForm.value.logToWebSocket as boolean);
         }
         if (this.settingsForm.get("logToSdCard")?.dirty) {
             this.webSocketService.changeLogToSdCard(this.settingsForm.value.logToSdCard as boolean);
+        }
+
+        if (this.settingsForm.get("bleMode")?.dirty) {
+            this.dataService.changeBleServiceType(this.settingsForm.value.bleMode as BleServiceFlag);
         }
 
         if (this.settingsForm.get("websocketAddress")?.dirty) {
@@ -95,6 +112,22 @@ export class SettingsDialogComponent {
                 this.settingsForm.value.heartRateMonitor as HeartRateMonitorMode,
             );
         }
+
+        if (this.settingsForm.get("useBluetooth")?.dirty) {
+            this.configManager.setItem(
+                "useBluetooth",
+                this.settingsForm.value.useBluetooth ? "true" : "false",
+            );
+        }
         this.dialogRef.close();
+    }
+
+    useBluetoothClick($event: MatSlideToggleChange): void {
+        $event.checked
+            ? this.settingsForm.controls.websocketAddress.disable()
+            : this.settingsForm.controls.websocketAddress.enable();
+        $event.checked
+            ? this.settingsForm.controls.logToWebSocket.disable()
+            : this.settingsForm.controls.logToWebSocket.enable();
     }
 }

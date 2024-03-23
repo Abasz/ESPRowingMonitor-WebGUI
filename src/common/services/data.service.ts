@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { map, merge, Observable, shareReplay, Subject, withLatestFrom } from "rxjs";
+import { map, merge, Observable, shareReplay, Subject, switchMap, withLatestFrom } from "rxjs";
 
 import {
     BleServiceFlag,
@@ -11,6 +11,8 @@ import {
     LogLevel,
 } from "../common.interfaces";
 
+import { BluetoothMetricsService } from "./ble-data.service";
+import { ConfigManagerService } from "./config-manager.service";
 import { DataRecorderService } from "./data-recorder.service";
 import { HeartRateService } from "./heart-rate.service";
 import { WebSocketService } from "./websocket.service";
@@ -22,18 +24,13 @@ export class DataService {
     private activityStartDistance: number = 0;
     private activityStartStrokeCount: number = 0;
 
+    private appData: IAppState = {} as IAppState;
     private appState$: Observable<IAppState>;
 
     private batteryLevel: number = 0;
     private bleServiceFlag: BleServiceFlag = BleServiceFlag.CpsService;
 
     private heartRateData$: Observable<IHeartRate | undefined>;
-
-    private lastDistance: number = 0;
-    private lastRevCount: number = 0;
-    private lastRevTime: number = 0;
-    private lastStrokeCount: number = 0;
-    private lastStrokeTime: number = 0;
 
     private logLevel: LogLevel = LogLevel.Trace;
     private logToSdCard: boolean | undefined = false;
@@ -57,19 +54,28 @@ export class DataService {
 
     constructor(
         private webSocketService: WebSocketService,
+        private bleDataService: BluetoothMetricsService,
+        private configManager: ConfigManagerService,
         private dataRecorder: DataRecorderService,
         private heartRateService: HeartRateService,
     ) {
         this.heartRateData$ = this.heartRateService.streamHeartRate();
 
-        this.appState$ = merge(this.webSocketService.data(), this.resetSubject).pipe(
+        this.appState$ = merge(
+            this.configManager.useBluetoothChanged$.pipe(
+                switchMap(
+                    (useBluetooth: boolean): Observable<IRowerDataDto | IRowerSettings> =>
+                        useBluetooth ? this.bleDataService.data() : this.webSocketService.data(),
+                ),
+            ),
+            this.resetSubject,
+        ).pipe(
             withLatestFrom(this.heartRateData$),
             map(
                 ([rowerRawMessage, heartRateData]: [
                     IRowerDataDto | IRowerSettings,
                     IHeartRate | undefined,
                 ]): IAppState => {
-                    dataRecorder.addRaw(rowerRawMessage);
                     this.bleServiceFlag =
                         "bleServiceFlag" in rowerRawMessage
                             ? rowerRawMessage.bleServiceFlag
@@ -86,7 +92,30 @@ export class DataService {
                     this.batteryLevel =
                         "batteryLevel" in rowerRawMessage ? rowerRawMessage.batteryLevel : this.batteryLevel;
 
+                    this.appData = {
+                        ...this.appData,
+                        bleServiceFlag: this.bleServiceFlag,
+                        logLevel: this.logLevel,
+                        logToSdCard: this.logToSdCard,
+                        logToWebSocket: this.logToWebSocket,
+                        batteryLevel: this.batteryLevel,
+                    };
+
                     if ("data" in rowerRawMessage) {
+                        const {
+                            revTime: lastRevTime,
+                            distance: lastDistance,
+                            strokeTime: lastStrokeTime,
+                            strokeCount: lastStrokeCount,
+                        }: {
+                            revTime: number;
+                            distance: number;
+                            strokeTime: number;
+                            strokeCount: number;
+                        } = this.rowingData;
+
+                        this.dataRecorder.addRaw(rowerRawMessage);
+
                         this.rowingData = {
                             timeStamp: rowerRawMessage.timeStamp,
                             revTime: rowerRawMessage.data[0],
@@ -100,56 +129,43 @@ export class DataService {
                             handleForces: rowerRawMessage.data[8],
                             deltaTimes: rowerRawMessage.data[9],
                         };
-                    }
 
-                    const distance = Math.round(this.rowingData.distance);
-                    const appData: IAppState = {
-                        timeStamp: this.rowingData.timeStamp,
-                        bleServiceFlag: this.bleServiceFlag,
-                        logLevel: this.logLevel,
-                        logToSdCard: this.logToSdCard,
-                        logToWebSocket: this.logToWebSocket,
-                        batteryLevel: this.batteryLevel,
-                        driveDuration: this.rowingData.driveDuration / 1e6,
-                        recoveryDuration: this.rowingData.recoveryDuration / 1e6,
-                        avgStrokePower: this.rowingData.avgStrokePower,
-                        distance: this.rowingData.distance - this.activityStartDistance,
-                        dragFactor: this.rowingData.dragFactor,
-                        strokeCount: this.rowingData.strokeCount - this.activityStartStrokeCount,
-                        handleForces: this.rowingData.handleForces,
-                        peakForce: Math.max(...this.rowingData.handleForces),
-                        strokeRate:
-                            ((this.rowingData.strokeCount - this.lastStrokeCount) /
-                                ((this.rowingData.strokeTime - this.lastStrokeTime) / 1e6)) *
-                            60,
-                        speed:
-                            (distance - this.lastRevCount) /
-                            100 /
-                            ((this.rowingData.revTime - this.lastRevTime) / 1e6),
-                        distPerStroke:
-                            Math.round(this.rowingData.distance) === this.lastRevCount
-                                ? 0
-                                : (distance - this.lastRevCount) /
-                                  100 /
-                                  (this.rowingData.strokeCount - this.lastStrokeCount),
-                    };
+                        this.appData = {
+                            ...this.appData,
+                            timeStamp: this.rowingData.timeStamp,
+                            driveDuration: this.rowingData.driveDuration / 1e6,
+                            recoveryDuration: this.rowingData.recoveryDuration / 1e6,
+                            avgStrokePower: this.rowingData.avgStrokePower,
+                            distance: this.rowingData.distance - this.activityStartDistance,
+                            dragFactor: this.rowingData.dragFactor,
+                            strokeCount: this.rowingData.strokeCount - this.activityStartStrokeCount,
+                            handleForces: this.rowingData.handleForces,
+                            peakForce: Math.max(...this.rowingData.handleForces),
+                            strokeRate:
+                                ((this.rowingData.strokeCount - lastStrokeCount) /
+                                    ((this.rowingData.strokeTime - lastStrokeTime) / 1e6)) *
+                                60,
+                            speed:
+                                (this.rowingData.distance - lastDistance) /
+                                100 /
+                                ((this.rowingData.revTime - lastRevTime) / 1e6),
+                            distPerStroke:
+                                this.rowingData.distance === lastDistance
+                                    ? 0
+                                    : (this.rowingData.distance - lastDistance) /
+                                      100 /
+                                      (this.rowingData.strokeCount - lastStrokeCount),
+                        };
 
-                    if ("data" in rowerRawMessage) {
                         this.dataRecorder.add({
-                            ...appData,
+                            ...this.appData,
                             heartRate: heartRateData?.contactDetected ? heartRateData : undefined,
                         });
 
                         this.dataRecorder.addDeltaTimes(this.rowingData.deltaTimes);
-
-                        this.lastRevTime = this.rowingData.revTime;
-                        this.lastRevCount = distance;
-                        this.lastStrokeTime = this.rowingData.strokeTime;
-                        this.lastStrokeCount = this.rowingData.strokeCount;
-                        this.lastDistance = this.rowingData.distance;
                     }
 
-                    return appData;
+                    return this.appData;
                 },
             ),
             shareReplay(),
@@ -158,6 +174,29 @@ export class DataService {
 
     appState(): Observable<IAppState> {
         return this.appState$;
+    }
+
+    changeBleServiceType(bleService: BleServiceFlag): void {
+        this.configManager.getItem("useBluetooth") === "true"
+            ? this.bleDataService.changeBleServiceType(bleService)
+            : this.webSocketService.changeBleServiceType(bleService);
+    }
+
+    changeLogLevel(logLevel: LogLevel): void {
+        this.configManager.getItem("useBluetooth") === "true"
+            ? this.bleDataService.changeLogLevel(logLevel)
+            : this.webSocketService.changeLogLevel(logLevel);
+    }
+
+    connectionStatus(): Observable<boolean> {
+        return this.configManager.useBluetoothChanged$.pipe(
+            switchMap(
+                (useBluetooth: boolean): Observable<boolean> =>
+                    useBluetooth
+                        ? this.bleDataService.connectionStatus()
+                        : this.webSocketService.connectionStatus(),
+            ),
+        );
     }
 
     getBleServiceFlag(): BleServiceFlag {
@@ -181,17 +220,17 @@ export class DataService {
     }
 
     reset(): void {
-        this.activityStartDistance = this.lastDistance;
-        this.activityStartStrokeCount = this.lastStrokeCount;
+        this.activityStartDistance = this.rowingData.distance;
+        this.activityStartStrokeCount = this.rowingData.strokeCount;
         this.dataRecorder.reset();
 
         this.resetSubject.next({
             timeStamp: new Date(),
             data: [
-                this.lastRevTime,
-                this.lastDistance,
-                this.lastStrokeTime,
-                this.lastStrokeCount,
+                this.rowingData.revTime,
+                this.rowingData.distance,
+                this.rowingData.strokeTime,
+                this.rowingData.strokeCount,
                 0,
                 0,
                 0,
