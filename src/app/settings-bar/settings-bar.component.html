@@ -16,7 +16,7 @@
             <mat-icon>download</mat-icon>
         </button>
         <button
-            *ngIf="(configManager.config$ | async)?.heartRateMonitor !== 'off'"
+            *ngIf="((configManager.heartRateMonitorChanged$ | async) ?? 'off') !== 'off'"
             (click)="click('heartRate')"
             mat-icon-button
         >

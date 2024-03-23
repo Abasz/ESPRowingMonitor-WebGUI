@@ -1,8 +1,8 @@
 import { Injectable } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { EMPTY, filter, Observable, of, shareReplay, startWith, switchMap } from "rxjs";
+import { EMPTY, Observable, of, shareReplay, startWith, switchMap } from "rxjs";
 
-import { Config, HeartRateMonitorMode, IHeartRate } from "../common.interfaces";
+import { HeartRateMonitorMode, IHeartRate } from "../common.interfaces";
 
 import { AntHeartRateService } from "./ant-heart-rate.service";
 import { BLEHeartRateService } from "./ble-heart-rate.service";
@@ -12,8 +12,6 @@ import { ConfigManagerService } from "./config-manager.service";
     providedIn: "root",
 })
 export class HeartRateService {
-    private heartRateMonitor: HeartRateMonitorMode = "off";
-
     constructor(
         private configManager: ConfigManagerService,
         private ble: BLEHeartRateService,
@@ -39,12 +37,9 @@ export class HeartRateService {
             return EMPTY.pipe(startWith(undefined), shareReplay());
         }
 
-        return this.configManager.config$.pipe(
-            filter((config: Config): boolean => config.heartRateMonitor !== this.heartRateMonitor),
-            switchMap((config: Config): Observable<IHeartRate | undefined> => {
-                this.heartRateMonitor = config.heartRateMonitor;
-
-                switch (config.heartRateMonitor) {
+        return this.configManager.heartRateMonitorChanged$.pipe(
+            switchMap((heartRateMonitorMode: HeartRateMonitorMode): Observable<IHeartRate | undefined> => {
+                switch (heartRateMonitorMode) {
                     case "ble":
                         this.ant.disconnectDevice();
                         this.ble.reconnect();

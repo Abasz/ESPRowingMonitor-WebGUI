@@ -1,15 +1,8 @@
 import { Injectable } from "@angular/core";
-import { filter, map, merge, Observable, retry, shareReplay, startWith, Subject, switchMap } from "rxjs";
+import { map, merge, Observable, retry, shareReplay, startWith, Subject, switchMap } from "rxjs";
 import { webSocket, WebSocketSubject } from "rxjs/webSocket";
 
-import {
-    BleServiceFlag,
-    Config,
-    IRowerDataDto,
-    IRowerSettings,
-    LogLevel,
-    PSCOpCodes,
-} from "../common.interfaces";
+import { BleServiceFlag, IRowerDataDto, IRowerSettings, LogLevel, PSCOpCodes } from "../common.interfaces";
 
 import { ConfigManagerService } from "./config-manager.service";
 
@@ -17,24 +10,20 @@ import { ConfigManagerService } from "./config-manager.service";
     providedIn: "root",
 })
 export class WebSocketService {
-    private address: string = "";
-
     private closeSubject: Subject<CloseEvent> = new Subject();
-    private data$: Observable<IRowerDataDto | IRowerSettings | string>;
+    private data$: Observable<IRowerDataDto | IRowerSettings>;
     private isConnected$: Observable<boolean>;
     private openSubject: Subject<Event> = new Subject();
-    private webSocketSubject: WebSocketSubject<IRowerDataDto | IRowerSettings | string> | undefined;
+    private webSocketSubject: WebSocketSubject<IRowerDataDto | IRowerSettings> | undefined;
 
     constructor(private configManager: ConfigManagerService) {
-        this.data$ = this.configManager.config$.pipe(
-            filter((config: Config): boolean => config.webSocketAddress !== this.address),
-            switchMap((config: Config): Observable<IRowerDataDto | IRowerSettings | string> => {
-                this.address = config.webSocketAddress;
+        this.data$ = this.configManager.websocketAddressChanged$.pipe(
+            switchMap((webSocketAddress: string): Observable<IRowerDataDto | IRowerSettings> => {
                 this.webSocketSubject?.complete();
-                const socket: WebSocketSubject<IRowerDataDto | IRowerSettings | string> = webSocket<
-                    IRowerDataDto | IRowerSettings | string
+                const socket: WebSocketSubject<IRowerDataDto | IRowerSettings> = webSocket<
+                    IRowerDataDto | IRowerSettings
                 >({
-                    url: config.webSocketAddress,
+                    url: webSocketAddress,
                     openObserver: this.openSubject,
                     closeObserver: this.closeSubject,
                     binaryType: "arraybuffer",
@@ -100,7 +89,7 @@ export class WebSocketService {
         return this.isConnected$;
     }
 
-    data(): Observable<IRowerDataDto> {
-        return this.data$ as Observable<IRowerDataDto>;
+    data(): Observable<IRowerDataDto | IRowerSettings> {
+        return this.data$;
     }
 }
