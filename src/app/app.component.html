@@ -7,17 +7,17 @@
 <div class="dashboard">
     <app-metric
         icon="location_on"
-        [value]="(((rowingData$ | async)?.distance ?? 0) / 100 | number : '0.0-0') ?? '--'"
+        [value]="(((rowingData$ | async)?.distance ?? 0) / 100 | number: '0.0-0') ?? '--'"
         unit="m"
     ></app-metric>
     <app-metric
         icon="speed"
-        [value]="500 / ((rowingData$ | async)?.speed ?? 0) | secondsToTime : 'pace'"
+        [value]="500 / ((rowingData$ | async)?.speed ?? 0) | secondsToTime: 'pace'"
         unit="/500m"
     ></app-metric>
     <app-metric
         icon="bolt"
-        [value]="((rowingData$ | async)?.avgStrokePower ?? 0 | number : '0.0-0') ?? '--'"
+        [value]="((rowingData$ | async)?.avgStrokePower ?? 0 | number: '0.0-0') ?? '--'"
         unit="watt"
     ></app-metric>
     <app-metric
@@ -25,12 +25,12 @@
         [value]="(rowingData$ | async)?.strokeRate ?? 0 | roundNumber"
         unit="/min"
     ></app-metric>
-    <app-metric icon="timer" [value]="(elapseTime$ | async) ?? 0 | secondsToTime : 'pace'"></app-metric>
+    <app-metric icon="timer" [value]="(elapseTime$ | async) ?? 0 | secondsToTime: 'pace'"></app-metric>
     <app-force-curve [handleForces]="(rowingData$ | async)?.handleForces ?? []"></app-force-curve>
     <app-metric
         icon="route"
-        [value]="((rowingData$ | async)?.distPerStroke ?? 0 | number : '0.0-1') ?? '--'"
-        unit="stk/m"
+        [value]="((rowingData$ | async)?.distPerStroke ?? 0 | number: '0.0-1') ?? '--'"
+        unit="m/stk"
     ></app-metric>
     <app-metric title="Total Strokes" [value]="(rowingData$ | async)?.strokeCount ?? 0"></app-metric>
     <app-metric
@@ -39,13 +39,13 @@
     ></app-metric>
     <app-metric
         title="Drive"
-        [value]="(rowingData$ | async)?.driveDuration ?? 0 | roundNumber : 2"
+        [value]="(rowingData$ | async)?.driveDuration ?? 0 | roundNumber: 2"
         unit="sec"
     ></app-metric>
     <app-metric
         *ngIf="(heartRateData$ | async)?.contactDetected !== true"
         title="Recovery"
-        [value]="(rowingData$ | async)?.recoveryDuration ?? 0 | roundNumber : 2"
+        [value]="(rowingData$ | async)?.recoveryDuration ?? 0 | roundNumber: 2"
         unit="sec"
     ></app-metric>
     <app-metric
