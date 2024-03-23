@@ -6,6 +6,11 @@ h1.mdc-dialog__title {
 form {
     display: flex;
     flex-direction: column;
+
+    mat-slide-toggle {
+        margin: 8px 0;
+        display: block;
+    }
 }
 
 mat-option {

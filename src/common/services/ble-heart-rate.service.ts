@@ -50,9 +50,10 @@ export class BLEHeartRateService implements IHeartRateService {
             this.bluetoothDevice.ongattserverdisconnected = (): void => {
                 return;
             };
+
+            this.bluetoothDevice.gatt?.disconnect();
             this.bluetoothDevice = undefined;
         }
-        this.ble.disconnectDevice();
         this.cancellationToken.abort();
         this.batteryCharacteristic.next(undefined);
         this.heartRateCharacteristic.next(undefined);
@@ -81,7 +82,7 @@ export class BLEHeartRateService implements IHeartRateService {
     async reconnect(): Promise<void> {
         this.disconnectDevice();
         const device = (await navigator.bluetooth.getDevices()).filter(
-            (device: BluetoothDevice): boolean => device.id === this.configManager.getItem("bleDeviceId"),
+            (device: BluetoothDevice): boolean => device.id === this.configManager.getItem("heartRateBleId"),
         )?.[0];
         if (device === undefined) {
             return;
@@ -154,7 +155,7 @@ export class BLEHeartRateService implements IHeartRateService {
 
             await Promise.all([this.connectToHearRate(gatt), this.connectToBattery(gatt)]);
 
-            this.configManager.setItem("bleDeviceId", device.id);
+            this.configManager.setItem("heartRateBleId", device.id);
             device.ongattserverdisconnected = this.disconnectHandler;
         } catch (error) {
             this.snackBar.open(`${error}`, "Dismiss");
@@ -175,7 +176,7 @@ export class BLEHeartRateService implements IHeartRateService {
             return characteristic ?? undefined;
         } catch (error) {
             if (this.bluetoothDevice) {
-                this.snackBar.open("Battery service is unavailable", "Dismiss");
+                this.snackBar.open("HR Monitor battery service is unavailable", "Dismiss");
                 console.warn(error);
             }
         }

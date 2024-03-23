@@ -1,6 +1,34 @@
 <h1 mat-dialog-title>Settings</h1>
 <div mat-dialog-content>
     <form [formGroup]="settingsForm" (ngSubmit)="submitLoginForm()" novalidate>
+        <div>
+            <mat-slide-toggle
+                hideIcon="true"
+                labelPosition="before"
+                formControlName="useBluetooth"
+                (change)="useBluetoothClick($event)"
+                name="useBluetooth"
+                >Use Bluetooth:
+            </mat-slide-toggle>
+        </div>
+        <mat-form-field *ngIf="isSecureContext">
+            <mat-label>BLE Mode</mat-label>
+            <mat-select
+                name="bleMode"
+                placeholder="Select heart rate monitor mode"
+                formControlName="bleMode"
+                required
+            >
+                <mat-option [value]="BleServiceFlag.CpsService">Cycling Power</mat-option>
+                <mat-option [value]="BleServiceFlag.CscService">Cycling Speed and Cadence</mat-option>
+            </mat-select>
+            <mat-error *ngIf="(settingsFormErrors$ | async)?.heartRateMonitor?.required"
+                >Heart rate monitor mode is required</mat-error
+            >
+            <mat-error *ngIf="(settingsFormErrors$ | async)?.heartRateMonitor?.pattern"
+                >Invalid value</mat-error
+            >
+        </mat-form-field>
         <mat-form-field>
             <mat-label>Web Socket URL</mat-label>
             <input matInput formControlName="websocketAddress" name="websocketAddress" required />

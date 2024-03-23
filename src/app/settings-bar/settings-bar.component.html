@@ -22,7 +22,11 @@
         >
             <mat-icon>favorite</mat-icon>
         </button>
-        <button (click)="click('bluetooth')" mat-icon-button>
+        <button
+            *ngIf="(configManager.useBluetoothChanged$ | async) === true"
+            (click)="click('bluetooth')"
+            mat-icon-button
+        >
             <mat-icon>bluetooth</mat-icon>
         </button>
         <span>{{

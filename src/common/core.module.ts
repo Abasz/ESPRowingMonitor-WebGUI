@@ -8,6 +8,7 @@ import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
+import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { MAT_SNACK_BAR_DEFAULT_OPTIONS, MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { NgChartsModule } from "ng2-charts";
@@ -21,6 +22,7 @@ import { SecondsToTimePipe } from "./utils/seconds-to-time.pipe";
 const MODULES = [
     SpinnerOverlayModule,
     MatCardModule,
+    MatSlideToggleModule,
     MatCheckboxModule,
     MatIconModule,
     MatButtonModule,

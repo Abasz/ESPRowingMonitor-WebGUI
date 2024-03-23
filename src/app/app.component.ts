@@ -1,15 +1,21 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy } from "@angular/core";
+import {
+    AfterViewInit,
+    ChangeDetectionStrategy,
+    ChangeDetectorRef,
+    Component,
+    OnDestroy,
+} from "@angular/core";
 import { MatDialog } from "@angular/material/dialog";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { SwUpdate, VersionEvent, VersionReadyEvent } from "@angular/service-worker";
-import { filter, interval, map, Observable, startWith, switchMap, take, takeUntil } from "rxjs";
+import { filter, interval, map, Observable, startWith, switchMap, take, takeUntil, tap } from "rxjs";
 
 import { BleServiceFlag, IAppState, IHeartRate } from "../common/common.interfaces";
+import { BluetoothMetricsService } from "../common/services/ble-data.service";
 import { DataRecorderService } from "../common/services/data-recorder.service";
 import { DataService } from "../common/services/data.service";
 import { HeartRateService } from "../common/services/heart-rate.service";
 import { UtilsService } from "../common/services/utils.service";
-import { WebSocketService } from "../common/services/websocket.service";
 import { NgUnsubscribeDirective } from "../common/utils/unsubscribe-base.component";
 
 import { ButtonClickedTargets } from "./settings-bar/settings-bar.interfaces";
@@ -24,17 +30,7 @@ import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.compo
 export class AppComponent extends NgUnsubscribeDirective implements AfterViewInit, OnDestroy {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
 
-    elapseTime$: Observable<number> = this.dataService.appState().pipe(
-        take(1),
-        switchMap((): Observable<number> => {
-            this.activityStartTime = Date.now();
-
-            return interval(1000).pipe(
-                startWith(0),
-                map((): number => (Date.now() - this.activityStartTime) / 1000),
-            );
-        }),
-    );
+    elapseTime$: Observable<number>;
 
     heartRateData$: Observable<IHeartRate | undefined>;
     isConnected$: Observable<boolean>;
@@ -43,9 +39,10 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
     private activityStartTime: number = Date.now();
 
     constructor(
+        private cd: ChangeDetectorRef,
+        private metricsService: BluetoothMetricsService,
         private dataService: DataService,
         private dataRecorder: DataRecorderService,
-        private webSocketService: WebSocketService,
         private dialog: MatDialog,
         private heartRateService: HeartRateService,
         private utils: UtilsService,
@@ -54,8 +51,24 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
     ) {
         super();
         this.heartRateData$ = this.dataService.heartRateData();
-        this.rowingData$ = this.dataService.appState();
-        this.isConnected$ = this.webSocketService.connectionStatus();
+        this.isConnected$ = this.dataService.connectionStatus();
+        this.elapseTime$ = this.isConnected$.pipe(
+            filter((isConnected: boolean): boolean => isConnected),
+            take(1),
+            switchMap((): Observable<number> => {
+                this.activityStartTime = Date.now();
+
+                return interval(1000).pipe(
+                    startWith(0),
+                    map((): number => (Date.now() - this.activityStartTime) / 1000),
+                );
+            }),
+        );
+        this.rowingData$ = this.dataService.appState().pipe(
+            tap((): void => {
+                this.cd.detectChanges();
+            }),
+        );
 
         this.swUpdate.versionUpdates
             .pipe(
@@ -96,11 +109,7 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
         }
 
         if ($event === "bluetooth") {
-            this.webSocketService.changeBleServiceType(
-                this.dataService.getBleServiceFlag() === BleServiceFlag.CpsService
-                    ? BleServiceFlag.CscService
-                    : BleServiceFlag.CpsService,
-            );
+            await this.metricsService.discover();
         }
     }
 
