@@ -2,14 +2,22 @@ mat-toolbar {
     display: grid;
     align-items: center;
     justify-content: center;
-    grid-template-columns: repeat(6, max-content) 1fr max-content;
+    grid-template-columns: max-content 1fr max-content;
     font-size: 0.7em;
+    > div:first-child {
+        margin-left: -16px;
+    }
 
     > div {
         display: flex;
         justify-content: center;
         align-items: center;
-        min-width: 48px;
+
+        > * {
+            min-width: 48px;
+            display: flex;
+            justify-content: center;
+        }
     }
 
     > .time-of-day {
@@ -18,10 +26,6 @@ mat-toolbar {
 
     > .title {
         justify-self: self-end;
-    }
-
-    &.show-heart-rate-monitor {
-        grid-template-columns: repeat(7, max-content) 1fr max-content;
     }
 }
 

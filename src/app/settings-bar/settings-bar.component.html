@@ -1,30 +1,27 @@
-<mat-toolbar
-    color="primary"
-    [ngClass]="{ 'show-heart-rate-monitor': (configManager.config$ | async)?.heartRateMonitor !== 'off' }"
->
+<mat-toolbar color="primary">
     <div>
-        <mat-icon>{{ batteryLevel | batteryLevel }}</mat-icon>
-    </div>
-    <div>
-        <mat-icon>{{ connectionStatus ? "wifi" : "wifi_off" }}</mat-icon>
-    </div>
-    <button (click)="click('settings')" mat-icon-button>
-        <mat-icon>settings</mat-icon>
-    </button>
-    <button (click)="click('reset')" mat-icon-button>
-        <mat-icon>replay</mat-icon>
-    </button>
-    <button (click)="click('download')" mat-icon-button>
-        <mat-icon>download</mat-icon>
-    </button>
-    <button
-        *ngIf="(configManager.config$ | async)?.heartRateMonitor !== 'off'"
-        (click)="click('heartRate')"
-        mat-icon-button
-    >
-        <mat-icon>favorite</mat-icon>
-    </button>
-    <div>
+        <div>
+            <mat-icon>{{ batteryLevel | batteryLevel }}</mat-icon>
+        </div>
+        <div>
+            <mat-icon>{{ connectionStatus ? "wifi" : "wifi_off" }}</mat-icon>
+        </div>
+        <button (click)="click('settings')" mat-icon-button>
+            <mat-icon>settings</mat-icon>
+        </button>
+        <button (click)="click('reset')" mat-icon-button>
+            <mat-icon>replay</mat-icon>
+        </button>
+        <button (click)="click('download')" mat-icon-button>
+            <mat-icon>download</mat-icon>
+        </button>
+        <button
+            *ngIf="(configManager.config$ | async)?.heartRateMonitor !== 'off'"
+            (click)="click('heartRate')"
+            mat-icon-button
+        >
+            <mat-icon>favorite</mat-icon>
+        </button>
         <button (click)="click('bluetooth')" mat-icon-button>
             <mat-icon>bluetooth</mat-icon>
         </button>
