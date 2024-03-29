@@ -26,14 +26,17 @@
                         "tsConfig": "tsconfig.app.json",
                         "inlineStyleLanguage": "scss",
                         "assets": [
+                            "src/assets",
                             "src/favicon.ico",
-                            "src/assets"
+                            "src/manifest.webmanifest"
                         ],
                         "styles": [
                             "src/styles.scss",
                             "src/theme.scss"
                         ],
-                        "scripts": []
+                        "scripts": [],
+                        "serviceWorker": true,
+                        "ngswConfigPath": "ngsw-config.json"
                     },
                     "configurations": {
                         "production": {
@@ -66,10 +69,10 @@
                     "builder": "@angular-devkit/build-angular:dev-server",
                     "configurations": {
                         "production": {
-                          "buildTarget": "esp-rowing-monitor-client:build:production"
+                            "buildTarget": "esp-rowing-monitor-client:build:production"
                         },
                         "development": {
-                          "buildTarget": "esp-rowing-monitor-client:build:development"
+                            "buildTarget": "esp-rowing-monitor-client:build:development"
                         }
                     },
                     "defaultConfiguration": "development"
@@ -77,7 +80,7 @@
                 "extract-i18n": {
                     "builder": "@angular-devkit/build-angular:extract-i18n",
                     "options": {
-                      "buildTarget": "esp-rowing-monitor-client:build"
+                        "buildTarget": "esp-rowing-monitor-client:build"
                     }
                 },
                 "test": {
@@ -91,7 +94,7 @@
                         "inlineStyleLanguage": "scss",
                         "assets": [
                             "src/favicon.ico",
-                            "src/assets"
+                            "src/manifest.webmanifest"
                         ],
                         "styles": [
                             "@angular/material/prebuilt-themes/pink-bluegrey.css",
