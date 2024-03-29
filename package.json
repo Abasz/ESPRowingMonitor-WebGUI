@@ -1,6 +1,6 @@
 {
     "name": "esp-rowing-monitor-client",
-    "version": "0.0.0",
+    "version": "3.1.0",
     "scripts": {
         "ng": "ng",
         "start": "ng serve",
@@ -20,6 +20,7 @@
         "@angular/platform-browser": "^17.3.1",
         "@angular/platform-browser-dynamic": "^17.3.1",
         "@angular/router": "^17.3.1",
+        "@angular/service-worker": "^17.3.1",
         "@manekinekko/angular-web-bluetooth": "^17.1.0",
         "@uriopass/nosleep.js": "^0.12.2",
         "chart.js": "^4.4.1",
@@ -27,7 +28,7 @@
         "ng2-charts": "^5.0.4",
         "rxjs": "~7.8.0",
         "tslib": "^2.3.0",
-        "web-ant-plus": "github:Abasz/web-ant-plus#Release",
+        "web-ant-plus": "file:c:/Users/peter.abay/Documents/www/web-ant-plus/dist",
         "zone.js": "~0.14.4"
     },
     "devDependencies": {

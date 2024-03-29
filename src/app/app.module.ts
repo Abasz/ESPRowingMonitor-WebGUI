@@ -1,8 +1,9 @@
 import { HTTP_INTERCEPTORS } from "@angular/common/http";
-import { NgModule } from "@angular/core";
+import { isDevMode, NgModule } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
+import { ServiceWorkerModule } from "@angular/service-worker";
 import { BrowserWebBluetooth, WebBluetoothModule } from "@manekinekko/angular-web-bluetooth";
 
 import { CoreModule } from "../common/core.module";
@@ -35,7 +36,18 @@ if (isSecureContext) {
         ForceCurveComponent,
         SettingsDialogComponent,
     ],
-    imports: [BrowserModule, BrowserAnimationsModule, CoreModule, webBluetooth],
+    imports: [
+        BrowserModule,
+        BrowserAnimationsModule,
+        CoreModule,
+        webBluetooth,
+        ServiceWorkerModule.register("ngsw-worker.js", {
+            enabled: !isDevMode(),
+            // register the ServiceWorker as soon as the application is stable
+            // or after 10 seconds (whichever comes first).
+            registrationStrategy: "registerWhenStable:10000",
+        }),
+    ],
     providers: [
         { provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true },
         {

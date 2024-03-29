@@ -1,6 +1,8 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy } from "@angular/core";
 import { MatDialog } from "@angular/material/dialog";
-import { interval, map, Observable, startWith, switchMap, take } from "rxjs";
+import { MatSnackBar } from "@angular/material/snack-bar";
+import { SwUpdate, VersionEvent, VersionReadyEvent } from "@angular/service-worker";
+import { filter, interval, map, Observable, startWith, switchMap, take, takeUntil } from "rxjs";
 
 import { BleServiceFlag, IAppState, IHeartRate } from "../common/common.interfaces";
 import { DataRecorderService } from "../common/services/data-recorder.service";
@@ -8,6 +10,7 @@ import { DataService } from "../common/services/data.service";
 import { HeartRateService } from "../common/services/heart-rate.service";
 import { UtilsService } from "../common/services/utils.service";
 import { WebSocketService } from "../common/services/websocket.service";
+import { NgUnsubscribeDirective } from "../common/utils/unsubscribe-base.component";
 
 import { ButtonClickedTargets } from "./settings-bar/settings-bar.interfaces";
 import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.component";
@@ -18,7 +21,7 @@ import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.compo
     styleUrls: ["./app.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AppComponent implements AfterViewInit, OnDestroy {
+export class AppComponent extends NgUnsubscribeDirective implements AfterViewInit, OnDestroy {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
 
     elapseTime$: Observable<number> = this.dataService.appState().pipe(
@@ -46,10 +49,28 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         private dialog: MatDialog,
         private heartRateService: HeartRateService,
         private utils: UtilsService,
+        private swUpdate: SwUpdate,
+        private snackBar: MatSnackBar,
     ) {
+        super();
         this.heartRateData$ = this.dataService.heartRateData();
         this.rowingData$ = this.dataService.appState();
         this.isConnected$ = this.webSocketService.connectionStatus();
+
+        this.swUpdate.versionUpdates
+            .pipe(
+                filter((evt: VersionEvent): evt is VersionReadyEvent => evt.type === "VERSION_READY"),
+                switchMap((evt: VersionReadyEvent): Observable<void> => {
+                    console.log(`Current app version: ${evt.currentVersion.hash}`);
+                    console.log(`New app version ready for use: ${evt.latestVersion.hash}`);
+
+                    return this.snackBar.open("Update Available", "Reload").onAction();
+                }),
+                takeUntil(this.ngUnsubscribe),
+            )
+            .subscribe((): void => {
+                window.location.reload();
+            });
     }
 
     async handleAction($event: ButtonClickedTargets): Promise<void> {
@@ -83,11 +104,19 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         }
     }
 
-    ngAfterViewInit(): void {
+    async ngAfterViewInit(): Promise<void> {
+        try {
+            await this.swUpdate.checkForUpdate();
+        } catch (err) {
+            this.snackBar.open(`Failed to check for updates: ", ${err}`, "Dismiss");
+            console.error("Failed to check for updates:", err);
+        }
         this.utils.enableWakeLock();
     }
 
-    ngOnDestroy(): void {
+    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+    override ngOnDestroy(): void {
+        super.ngOnDestroy();
         this.utils.disableWackeLock();
     }
 }
