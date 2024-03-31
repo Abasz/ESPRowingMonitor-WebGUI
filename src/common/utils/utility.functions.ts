@@ -89,6 +89,12 @@ export class CustomValidators {
     }
 }
 
+export function withDelay<T>(ms: number, value?: T): Promise<T> {
+    return new Promise<T>((resolve: (value: T | PromiseLike<T>) => void): number =>
+        window.setTimeout(resolve, ms, value),
+    );
+}
+
 declare global {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars, id-blacklist
     interface String {

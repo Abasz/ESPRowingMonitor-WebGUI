@@ -25,6 +25,7 @@ import {
     IHeartRate,
     IHeartRateService,
 } from "../common.interfaces";
+import { withDelay } from "../utils/utility.functions";
 
 import { ConfigManagerService } from "./config-manager.service";
 
@@ -167,7 +168,9 @@ export class BLEHeartRateService implements IHeartRateService {
                 return;
             }
 
-            await Promise.all([this.connectToHearRate(gatt), this.connectToBattery(gatt)]);
+            await withDelay(1000);
+            await withDelay(1000, this.connectToHearRate(gatt));
+            await withDelay(1000, this.connectToBattery(gatt));
 
             this.configManager.setItem("heartRateBleId", device.id);
             device.ongattserverdisconnected = this.disconnectHandler;

@@ -37,6 +37,7 @@ import {
     ExtendedMetricsDto,
     HANDLE_FORCES_CHARACTERISTIC,
 } from "../common.interfaces";
+import { withDelay } from "../utils/utility.functions";
 
 import {
     BleServiceFlag,
@@ -462,12 +463,10 @@ export class BluetoothMetricsService {
                 return;
             }
 
-            Promise.all([
-                this.connectToMeasurement(gatt),
-                this.connectToExtended(gatt),
-                this.connectToHandleForces(gatt),
-                this.connectToBattery(gatt),
-            ]);
+            await withDelay(1000, this.connectToMeasurement(gatt));
+            await withDelay(1000, this.connectToExtended(gatt));
+            await withDelay(1000, this.connectToHandleForces(gatt));
+            await withDelay(1000, this.connectToBattery(gatt));
 
             this.isConnectedSubject.next(this.bluetoothDevice.gatt?.connected === true);
 
