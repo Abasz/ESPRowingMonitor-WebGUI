@@ -140,6 +140,20 @@ export class BLEHeartRateService implements IHeartRateService {
                     heartRateCharacteristic: BluetoothRemoteGATTCharacteristic,
                 ): Observable<IHeartRate | undefined> => this.observeHeartRate(heartRateCharacteristic),
             ),
+            retry({
+                count: 4,
+                delay: (error: string, count: number): Observable<0> => {
+                    if (this.batteryCharacteristic.value?.service.device.gatt && error.includes("unknown")) {
+                        console.warn(
+                            `Heart rate measurement characteristic error: ${error}; retrying: ${count}`,
+                        );
+
+                        this.connectToBattery(this.batteryCharacteristic.value.service.device.gatt);
+                    }
+
+                    return timer(2000);
+                },
+            }),
             startWith(undefined as IHeartRate | undefined),
         );
     }
