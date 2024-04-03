@@ -144,12 +144,15 @@ export class BLEHeartRateService implements IHeartRateService {
             retry({
                 count: 4,
                 delay: (error: string, count: number): Observable<0> => {
-                    if (this.batteryCharacteristic.value?.service.device.gatt && error.includes("unknown")) {
+                    if (
+                        this.heartRateCharacteristic.value?.service.device.gatt &&
+                        error.includes("unknown")
+                    ) {
                         console.warn(
                             `Heart rate measurement characteristic error: ${error}; retrying: ${count}`,
                         );
 
-                        this.connectToBattery(this.batteryCharacteristic.value.service.device.gatt);
+                        this.connectToHearRate(this.heartRateCharacteristic.value.service.device.gatt);
                     }
 
                     return timer(2000);
