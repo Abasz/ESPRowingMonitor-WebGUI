@@ -173,8 +173,8 @@ export class BLEHeartRateService implements IHeartRateService {
             }
 
             await withDelay(1000);
-            await withDelay(1000, this.connectToHearRate(gatt));
-            await withDelay(1000, this.connectToBattery(gatt));
+            this.connectToHearRate(gatt);
+            this.connectToBattery(gatt);
 
             this.configManager.setItem("heartRateBleId", device.id);
             device.ongattserverdisconnected = this.disconnectHandler;
@@ -187,7 +187,10 @@ export class BLEHeartRateService implements IHeartRateService {
         gatt: BluetoothRemoteGATTServer,
     ): Promise<void | BluetoothRemoteGATTCharacteristic> {
         try {
-            const primaryService = await this.ble.getPrimaryService(gatt, BATTERY_LEVEL_SERVICE);
+            const primaryService = await withDelay(
+                1000,
+                this.ble.getPrimaryService(gatt, BATTERY_LEVEL_SERVICE),
+            );
             const characteristic = await this.ble.getCharacteristic(
                 primaryService,
                 BATTERY_LEVEL_CHARACTERISTIC,
@@ -209,7 +212,10 @@ export class BLEHeartRateService implements IHeartRateService {
         gatt: BluetoothRemoteGATTServer,
     ): Promise<void | BluetoothRemoteGATTCharacteristic> {
         try {
-            const primaryService = await this.ble.getPrimaryService(gatt, HEART_RATE_SERVICE);
+            const primaryService = await withDelay(
+                1000,
+                this.ble.getPrimaryService(gatt, HEART_RATE_SERVICE),
+            );
             const characteristic = await this.ble.getCharacteristic(
                 primaryService,
                 HEART_RATE_CHARACTERISTIC,

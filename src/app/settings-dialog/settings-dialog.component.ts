@@ -86,12 +86,21 @@ export class SettingsDialogComponent {
     ) {}
 
     submitLoginForm(): void {
+        if (this.settingsForm.get("useBluetooth")?.dirty) {
+            this.configManager.setItem(
+                "useBluetooth",
+                this.settingsForm.value.useBluetooth ? "true" : "false",
+            );
+        }
+
         if (this.settingsForm.get("logLevel")?.dirty) {
             this.dataService.changeLogLevel(this.settingsForm.value.logLevel as LogLevel);
         }
+
         if (this.settingsForm.get("logToWebSocket")?.dirty) {
             this.webSocketService.changeLogToWebSocket(this.settingsForm.value.logToWebSocket as boolean);
         }
+
         if (this.settingsForm.get("logToSdCard")?.dirty) {
             this.webSocketService.changeLogToSdCard(this.settingsForm.value.logToSdCard as boolean);
         }
@@ -106,6 +115,7 @@ export class SettingsDialogComponent {
                 this.settingsForm.value.websocketAddress as string,
             );
         }
+
         if (this.settingsForm.get("heartRateMonitor")?.dirty) {
             this.configManager.setItem(
                 "heartRateMonitor",
@@ -113,12 +123,6 @@ export class SettingsDialogComponent {
             );
         }
 
-        if (this.settingsForm.get("useBluetooth")?.dirty) {
-            this.configManager.setItem(
-                "useBluetooth",
-                this.settingsForm.value.useBluetooth ? "true" : "false",
-            );
-        }
         this.dialogRef.close();
     }
 

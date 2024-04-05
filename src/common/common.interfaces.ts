@@ -38,14 +38,12 @@ export interface IRowerSettings {
     batteryLevel: number;
 }
 
-export interface ExtendedMetricsDto {
-    settings: {
-        logToWebSocket: boolean | undefined;
-        logToSdCard: boolean | undefined;
-        logLevel: LogLevel;
-    };
-    data: [number, number, number, number];
-}
+export type ExtendedMetricsDto = [number, number, number, number];
+export type BaseMetricsDto = [number, number, number, number];
+export type SettingsStream = Omit<IRowerSettings, "timeStamp" | "batteryLevel">;
+export type SettingsWithBatteryStream = [SettingsStream, number];
+
+export type MetricsStream = [BaseMetricsDto, ExtendedMetricsDto, Array<number>];
 
 export interface IRowerDataDto {
     timeStamp: Date;
@@ -99,7 +97,9 @@ export const CYCLING_SPEED_AND_CADENCE_SERVICE = "cycling_speed_and_cadence";
 export const CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC = "csc_measurement";
 export const CYCLING_SPEED_AND_CADENCE_CONTROL_CHARACTERISTIC = "sc_control_point";
 export const SETTINGS_SERVICE = "56892de1-7068-4b5a-acaa-473d97b02206";
+export const SETTINGS_CHARACTERISTIC = "54e15528-73b5-4905-9481-89e5184a3364";
 export const SETTINGS_CONTROL_POINT = "51ba0a00-8853-477c-bf43-6a09c36aac9f";
+export const EXTENDED_METRICS_SERVICE = "a72a5762-803b-421d-a759-f0314153da97";
 export const EXTENDED_CHARACTERISTIC = "808a0d51-efae-4f0c-b2e0-48bc180d65c3";
 export const HANDLE_FORCES_CHARACTERISTIC = "3d9c2760-cf91-41ee-87e9-fd99d5f129a4";
 
