@@ -213,14 +213,52 @@ export class BluetoothMetricsService {
         }
     }
 
-    // changeLogToSdCard(shouldEnable: boolean): void {
-    //     if (this.webSocketSubject?.closed === false) {
-    //         this.webSocketSubject?.next([
-    //             PSCOpCodes.SetSdCardLogging,
-    //             shouldEnable ? 1 : 0,
-    //         ] as unknown as IRowerDataDto);
-    //     }
-    // }
+    async changeLogToSdCard(shouldEnable: boolean): Promise<void> {
+        if (
+            this.bluetoothDevice?.gatt === undefined ||
+            this.settingsCharacteristic.value?.service === undefined
+        ) {
+            this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
+
+            return;
+        }
+        try {
+            const characteristic = await this.ble.getCharacteristic(
+                this.settingsCharacteristic.value?.service,
+                SETTINGS_CONTROL_POINT,
+            );
+
+            // eslint-disable-next-line no-null/no-null
+            if (characteristic === null) {
+                this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
+
+                return;
+            }
+
+            this.ble
+                .observeValue$(characteristic)
+                .pipe(take(1))
+                .subscribe((response: DataView): void => {
+                    this.snackBar.open(
+                        response.getUint8(2) === BleResponseOpCodes.Successful
+                            ? `Sd Card logging ${shouldEnable ? "enabled" : "disabled"}`
+                            : "An error occurred while changing Sd Card logging",
+                        "Dismiss",
+                    );
+                });
+
+            await characteristic.startNotifications();
+            await characteristic.writeValueWithResponse(
+                new Uint8Array([BleOpCodes.SetSdCardLogging, shouldEnable ? 1 : 0]),
+            );
+        } catch (error) {
+            console.error(error);
+            this.snackBar.open(
+                `Failed to ${shouldEnable ? "enabled" : "disabled"} Sd Card logging`,
+                "Dismiss",
+            );
+        }
+    }
 
     // changeLogToWebSocket(shouldEnable: boolean): void {
     //     if (this.webSocketSubject?.closed === false) {

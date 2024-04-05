@@ -102,7 +102,7 @@ export class SettingsDialogComponent {
         }
 
         if (this.settingsForm.get("logToSdCard")?.dirty) {
-            this.webSocketService.changeLogToSdCard(this.settingsForm.value.logToSdCard as boolean);
+            this.dataService.changeLogToSdCard(this.settingsForm.value.logToSdCard as boolean);
         }
 
         if (this.settingsForm.get("bleMode")?.dirty) {

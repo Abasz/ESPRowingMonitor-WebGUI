@@ -188,6 +188,12 @@ export class DataService {
             : this.webSocketService.changeLogLevel(logLevel);
     }
 
+    changeLogToSdCard(shouldEnable: boolean): void {
+        this.configManager.getItem("useBluetooth") === "true"
+            ? this.bleDataService.changeLogToSdCard(shouldEnable)
+            : this.webSocketService.changeLogToSdCard(shouldEnable);
+    }
+
     connectionStatus(): Observable<boolean> {
         return this.configManager.useBluetoothChanged$.pipe(
             switchMap(
