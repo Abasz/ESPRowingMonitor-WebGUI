@@ -3,7 +3,7 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { BluetoothCore } from "@manekinekko/angular-web-bluetooth";
 import {
     BehaviorSubject,
-    bufferWhen,
+    buffer,
     catchError,
     combineLatest,
     concat,
@@ -16,7 +16,6 @@ import {
     retry,
     shareReplay,
     startWith,
-    Subject,
     switchMap,
     take,
     tap,
@@ -708,15 +707,12 @@ export class BluetoothMetricsService {
     private observeHandleForces(
         handleForcesCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<Array<number>> {
-        const complete: Subject<void> = new Subject();
-
         return this.ble.observeValue$(handleForcesCharacteristic).pipe(
-            tap((value: DataView): void => {
-                if (value.getUint8(0) === value.getUint8(1)) {
-                    complete.next();
-                }
-            }),
-            bufferWhen((): Subject<void> => complete),
+            buffer(
+                this.ble
+                    .observeValue$(handleForcesCharacteristic)
+                    .pipe(filter((value: DataView): boolean => value.getUint8(0) === value.getUint8(1))),
+            ),
             map(
                 (values: Array<DataView>): Array<number> =>
                     values.reduce((accumulator: Array<number>, value: DataView): Array<number> => {
