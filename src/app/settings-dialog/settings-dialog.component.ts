@@ -7,7 +7,6 @@ import { map, Observable, startWith } from "rxjs";
 import { BleServiceFlag, IValidationErrors, LogLevel } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { DataService } from "../../common/services/data.service";
-import { WebSocketService } from "../../common/services/websocket.service";
 import { getValidationErrors } from "../../common/utils/utility.functions";
 
 import { HeartRateMonitorMode } from "./../../common/common.interfaces";
@@ -80,7 +79,6 @@ export class SettingsDialogComponent {
     constructor(
         private configManager: ConfigManagerService,
         private dataService: DataService,
-        private webSocketService: WebSocketService,
         private fb: NonNullableFormBuilder,
         private dialogRef: MatDialogRef<SettingsDialogComponent>,
     ) {}
@@ -98,7 +96,7 @@ export class SettingsDialogComponent {
         }
 
         if (this.settingsForm.get("logToWebSocket")?.dirty) {
-            this.webSocketService.changeLogToWebSocket(this.settingsForm.value.logToWebSocket as boolean);
+            this.dataService.changeLogToWebSocket(this.settingsForm.value.logToWebSocket as boolean);
         }
 
         if (this.settingsForm.get("logToSdCard")?.dirty) {
