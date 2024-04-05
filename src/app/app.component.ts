@@ -3,6 +3,7 @@ import {
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
+    isDevMode,
     OnDestroy,
 } from "@angular/core";
 import { MatDialog } from "@angular/material/dialog";
@@ -70,20 +71,22 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
             }),
         );
 
-        this.swUpdate.versionUpdates
-            .pipe(
-                filter((evt: VersionEvent): evt is VersionReadyEvent => evt.type === "VERSION_READY"),
-                switchMap((evt: VersionReadyEvent): Observable<void> => {
-                    console.log(`Current app version: ${evt.currentVersion.hash}`);
-                    console.log(`New app version ready for use: ${evt.latestVersion.hash}`);
+        if (!isDevMode()) {
+            this.swUpdate.versionUpdates
+                .pipe(
+                    filter((evt: VersionEvent): evt is VersionReadyEvent => evt.type === "VERSION_READY"),
+                    switchMap((evt: VersionReadyEvent): Observable<void> => {
+                        console.log(`Current app version: ${evt.currentVersion.hash}`);
+                        console.log(`New app version ready for use: ${evt.latestVersion.hash}`);
 
-                    return this.snackBar.open("Update Available", "Reload").onAction();
-                }),
-                takeUntil(this.ngUnsubscribe),
-            )
-            .subscribe((): void => {
-                window.location.reload();
-            });
+                        return this.snackBar.open("Update Available", "Reload").onAction();
+                    }),
+                    takeUntil(this.ngUnsubscribe),
+                )
+                .subscribe((): void => {
+                    window.location.reload();
+                });
+        }
     }
 
     async handleAction($event: ButtonClickedTargets): Promise<void> {
@@ -114,11 +117,13 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
     }
 
     async ngAfterViewInit(): Promise<void> {
-        try {
-            await this.swUpdate.checkForUpdate();
-        } catch (err) {
-            this.snackBar.open(`Failed to check for updates: ", ${err}`, "Dismiss");
-            console.error("Failed to check for updates:", err);
+        if (!isDevMode()) {
+            try {
+                await this.swUpdate.checkForUpdate();
+            } catch (err) {
+                this.snackBar.open(`Failed to check for updates: ", ${err}`, "Dismiss");
+                console.error("Failed to check for updates:", err);
+            }
         }
         this.utils.enableWakeLock();
     }
