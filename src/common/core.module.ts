@@ -11,6 +11,7 @@ import { MatSelectModule } from "@angular/material/select";
 import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { MAT_SNACK_BAR_DEFAULT_OPTIONS, MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatToolbarModule } from "@angular/material/toolbar";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { NgChartsModule } from "ng2-charts";
 
 import { SpinnerOverlayModule } from "./overlay/spinner-overlay.module";
@@ -30,6 +31,7 @@ const MODULES = [
     MatToolbarModule,
     MatDialogModule,
     MatFormFieldModule,
+    MatTooltipModule,
     MatInputModule,
     ReactiveFormsModule,
     MatSelectModule,

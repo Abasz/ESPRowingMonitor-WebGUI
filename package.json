@@ -4,7 +4,7 @@
     "scripts": {
         "ng": "ng",
         "start": "ng serve",
-        "dev": "ng serve --no-live-reload --configuration=production",
+        "dev": "node --input-type=module < ./auto-version.ts && ng serve --no-live-reload --configuration=production",
         "build": "ng build",
         "watch": "ng build --watch --configuration development",
         "test": "ng test"

@@ -1,13 +1,15 @@
-import { ChangeDetectionStrategy, Component } from "@angular/core";
+import { ChangeDetectionStrategy, Component, isDevMode } from "@angular/core";
 import { FormControl, FormGroup, NonNullableFormBuilder, ValidationErrors, Validators } from "@angular/forms";
 import { MatDialogRef } from "@angular/material/dialog";
 import { MatSlideToggleChange } from "@angular/material/slide-toggle";
+import { SwUpdate } from "@angular/service-worker";
 import { map, Observable, startWith } from "rxjs";
 
 import { BleServiceFlag, IValidationErrors, LogLevel } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { DataService } from "../../common/services/data.service";
 import { getValidationErrors } from "../../common/utils/utility.functions";
+import { versionInfo } from "../../version";
 
 import { HeartRateMonitorMode } from "./../../common/common.interfaces";
 
@@ -30,6 +32,8 @@ type SettingsFormGroup = FormGroup<{
 export class SettingsDialogComponent {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
     LogLevel: typeof LogLevel = LogLevel;
+
+    compileDate: Date = new Date(versionInfo.timeStamp);
 
     isSecureContext: boolean = isSecureContext;
 
@@ -81,7 +85,14 @@ export class SettingsDialogComponent {
         private dataService: DataService,
         private fb: NonNullableFormBuilder,
         private dialogRef: MatDialogRef<SettingsDialogComponent>,
+        private swUpdate: SwUpdate,
     ) {}
+
+    checkForUpdates(): void {
+        if (!isDevMode()) {
+            this.swUpdate.checkForUpdate();
+        }
+    }
 
     submitLoginForm(): void {
         if (this.settingsForm.get("useBluetooth")?.dirty) {

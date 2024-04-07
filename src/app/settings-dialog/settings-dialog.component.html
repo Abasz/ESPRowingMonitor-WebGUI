@@ -80,6 +80,18 @@
         <mat-checkbox formControlName="logToWebSocket">WebSocket</mat-checkbox>
         <mat-checkbox formControlName="logToSdCard">SdCard</mat-checkbox>
     </form>
+    <div versionInfo>
+        <button
+            matTooltipShowDelay="1000"
+            matTooltip="Check for update"
+            class="small-icon-button"
+            mat-icon-button
+            (click)="checkForUpdates()"
+        >
+            <mat-icon>replay</mat-icon>
+        </button>
+        <span>SW Version: {{ compileDate | date: "yyMMddHHmmss" }}</span>
+    </div>
 </div>
 <div mat-dialog-actions align="end">
     <button
