@@ -17,6 +17,7 @@ import { DataRecorderService } from "../common/services/data-recorder.service";
 import { DataService } from "../common/services/data.service";
 import { HeartRateService } from "../common/services/heart-rate.service";
 import { UtilsService } from "../common/services/utils.service";
+import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-confirm.component";
 import { NgUnsubscribeDirective } from "../common/utils/unsubscribe-base.component";
 
 import { ButtonClickedTargets } from "./settings-bar/settings-bar.interfaces";
@@ -79,7 +80,12 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
                         console.log(`Current app version: ${evt.currentVersion.hash}`);
                         console.log(`New app version ready for use: ${evt.latestVersion.hash}`);
 
-                        return this.snackBar.open("Update Available", "Reload").onAction();
+                        return this.snackBar
+                            .openFromComponent(SnackBarConfirmComponent, {
+                                duration: undefined,
+                                data: "Update Available",
+                            })
+                            .onAction();
                     }),
                     takeUntil(this.ngUnsubscribe),
                 )

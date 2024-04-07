@@ -1,5 +1,5 @@
-<div fxLayout="row" fxLayoutAlign="start center">
-    <div [innerHtml]="text"></div>
-    <button mat-button (click)="confirmed()">YES</button>
-    <button mat-button (click)="cancel()"><strong style="color: rgb(196, 49, 0)"> NO</strong></button>
-</div>
+<span matSnackBarLabel [innerHTML]="text"></span>
+<span matSnackBarActions>
+    <button mat-button matSnackBarAction (click)="confirmed()">Update</button>
+    <button mat-button matSnackBarAction (click)="cancel()">Dismiss</button>
+</span>
