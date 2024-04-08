@@ -5,6 +5,7 @@ import {
     BehaviorSubject,
     catchError,
     concat,
+    endWith,
     filter,
     finalize,
     map,
@@ -248,6 +249,7 @@ export class BLEHeartRateService implements IHeartRateService {
             finalize((): void => {
                 this.batteryCharacteristic.next(undefined);
             }),
+            endWith(undefined),
         );
     }
 
@@ -269,6 +271,7 @@ export class BLEHeartRateService implements IHeartRateService {
                 finalize((): void => {
                     this.heartRateCharacteristic.next(undefined);
                 }),
+                endWith(undefined),
             );
     }
 
