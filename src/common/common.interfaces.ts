@@ -26,16 +26,19 @@ export interface IRowerData {
     recoveryDuration: number;
     dragFactor: number;
     handleForces: Array<number>;
-    deltaTimes: Array<number>;
 }
 
 export interface IRowerSettings {
     timeStamp: Date;
-    logToWebSocket: boolean | undefined;
+    logDeltaTimes: boolean | undefined;
     logToSdCard: boolean | undefined;
     bleServiceFlag: BleServiceFlag;
     logLevel: LogLevel;
     batteryLevel: number;
+}
+
+export interface IRowerWebSocketSettings extends Omit<IRowerSettings, "logDeltaTimes"> {
+    logToWebSocket: boolean | undefined;
 }
 
 export type ExtendedMetricsDto = [number, number, number, number];
@@ -47,11 +50,16 @@ export type MetricsStream = [BaseMetricsDto, ExtendedMetricsDto, Array<number>];
 
 export interface IRowerDataDto {
     timeStamp: Date;
+    data: [number, number, number, number, number, number, number, number, Array<number>];
+}
+
+export interface IRowerWebSocketDataDto {
+    timeStamp: Date;
     data: [number, number, number, number, number, number, number, number, Array<number>, Array<number>];
 }
 
 export interface IAppState
-    extends Omit<IRowerData, "deltaTimes" | "revTime" | "strokeTime">,
+    extends Omit<IRowerData, "revTime" | "strokeTime">,
         Omit<IRowerSettings, "timeStamp"> {
     speed: number;
     strokeRate: number;
@@ -102,6 +110,7 @@ export const SETTINGS_CONTROL_POINT = "51ba0a00-8853-477c-bf43-6a09c36aac9f";
 export const EXTENDED_METRICS_SERVICE = "a72a5762-803b-421d-a759-f0314153da97";
 export const EXTENDED_CHARACTERISTIC = "808a0d51-efae-4f0c-b2e0-48bc180d65c3";
 export const HANDLE_FORCES_CHARACTERISTIC = "3d9c2760-cf91-41ee-87e9-fd99d5f129a4";
+export const DELTA_TIMES_CHARACTERISTIC = "ae5d11ea-62f6-4789-b809-6fc93fee92b9";
 
 export interface ServiceOptions<T> {
     characteristic: string;
@@ -128,7 +137,7 @@ export type IConfig = Config;
 export enum BleOpCodes {
     SetLogLevel = 17,
     ChangeBleService = 18,
-    SetWebSocketDeltaTimeLogging = 19,
+    SetDeltaTimeLogging = 19,
     SetSdCardLogging = 20,
 }
 

@@ -32,9 +32,9 @@ export class DataService {
 
     private heartRateData$: Observable<IHeartRate | undefined>;
 
+    private logDeltaTime: boolean | undefined = undefined;
     private logLevel: LogLevel = LogLevel.Trace;
-    private logToSdCard: boolean | undefined = false;
-    private logToWebSocket: boolean | undefined = false;
+    private logToSdCard: boolean | undefined = undefined;
 
     private resetSubject: Subject<IRowerDataDto> = new Subject();
 
@@ -49,7 +49,6 @@ export class DataService {
         recoveryDuration: 0,
         dragFactor: 0,
         handleForces: [],
-        deltaTimes: [],
     };
 
     constructor(
@@ -81,10 +80,10 @@ export class DataService {
                             ? rowerRawMessage.bleServiceFlag
                             : this.bleServiceFlag;
                     this.logLevel = "logLevel" in rowerRawMessage ? rowerRawMessage.logLevel : this.logLevel;
-                    this.logToWebSocket =
-                        "logToWebSocket" in rowerRawMessage
-                            ? rowerRawMessage.logToWebSocket ?? undefined
-                            : this.logToWebSocket;
+                    this.logDeltaTime =
+                        "logDeltaTimes" in rowerRawMessage
+                            ? rowerRawMessage.logDeltaTimes ?? undefined
+                            : this.logDeltaTime;
                     this.logToSdCard =
                         "logToSdCard" in rowerRawMessage
                             ? rowerRawMessage.logToSdCard ?? undefined
@@ -97,7 +96,7 @@ export class DataService {
                         bleServiceFlag: this.bleServiceFlag,
                         logLevel: this.logLevel,
                         logToSdCard: this.logToSdCard,
-                        logToWebSocket: this.logToWebSocket,
+                        logDeltaTimes: this.logDeltaTime,
                         batteryLevel: this.batteryLevel,
                     };
 
@@ -127,7 +126,6 @@ export class DataService {
                             recoveryDuration: rowerRawMessage.data[6],
                             dragFactor: rowerRawMessage.data[7],
                             handleForces: rowerRawMessage.data[8],
-                            deltaTimes: rowerRawMessage.data[9],
                         };
 
                         this.appData = {
@@ -161,8 +159,6 @@ export class DataService {
                             ...this.appData,
                             heartRate: heartRateData?.contactDetected ? heartRateData : undefined,
                         });
-
-                        this.dataRecorder.addDeltaTimes(this.rowingData.deltaTimes);
                     }
 
                     return this.appData;
@@ -170,6 +166,19 @@ export class DataService {
             ),
             shareReplay(),
         );
+
+        this.configManager.useBluetoothChanged$
+            .pipe(
+                switchMap(
+                    (useBluetooth: boolean): Observable<Array<number>> =>
+                        useBluetooth
+                            ? this.bleDataService.streamDeltaTimes$()
+                            : this.webSocketService.streamDeltaTimes$(),
+                ),
+            )
+            .subscribe((deltaTimes: Array<number>): void => {
+                this.dataRecorder.addDeltaTimes(deltaTimes);
+            });
     }
 
     appState(): Observable<IAppState> {
@@ -182,6 +191,12 @@ export class DataService {
             : this.webSocketService.changeBleServiceType(bleService);
     }
 
+    changeDeltaTimeLogging(shouldEnable: boolean): void {
+        this.configManager.getItem("useBluetooth") === "true"
+            ? this.bleDataService.changeDeltaTimeLogging(shouldEnable)
+            : this.webSocketService.changeDeltaTimeLogging(shouldEnable);
+    }
+
     changeLogLevel(logLevel: LogLevel): void {
         this.configManager.getItem("useBluetooth") === "true"
             ? this.bleDataService.changeLogLevel(logLevel)
@@ -192,12 +207,6 @@ export class DataService {
         this.configManager.getItem("useBluetooth") === "true"
             ? this.bleDataService.changeLogToSdCard(shouldEnable)
             : this.webSocketService.changeLogToSdCard(shouldEnable);
-    }
-
-    changeLogToWebSocket(shouldEnable: boolean): void {
-        this.configManager.getItem("useBluetooth") === "true"
-            ? this.bleDataService.changeLogToWebSocket(shouldEnable)
-            : this.webSocketService.changeLogToWebSocket(shouldEnable);
     }
 
     connectionStatus(): Observable<boolean> {
@@ -215,16 +224,16 @@ export class DataService {
         return this.bleServiceFlag;
     }
 
+    getDeltaTimeLoggingState(): boolean | undefined {
+        return this.logDeltaTime;
+    }
+
     getLogLevel(): LogLevel {
         return this.logLevel;
     }
 
     getSdCardLoggingState(): boolean | undefined {
         return this.logToSdCard;
-    }
-
-    getWebSocketLoggingState(): boolean | undefined {
-        return this.logToWebSocket;
     }
 
     heartRateData(): Observable<IHeartRate | undefined> {
@@ -247,7 +256,6 @@ export class DataService {
                 0,
                 0,
                 0,
-                [],
                 [],
             ],
         });

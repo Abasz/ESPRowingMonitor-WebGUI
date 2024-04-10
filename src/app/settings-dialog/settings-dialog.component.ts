@@ -19,7 +19,7 @@ type SettingsFormGroup = FormGroup<{
     websocketAddress: FormControl<string>;
     logLevel: FormControl<LogLevel>;
     heartRateMonitor: FormControl<HeartRateMonitorMode>;
-    logToWebSocket: FormControl<boolean>;
+    deltaTimeLogging: FormControl<boolean>;
     logToSdCard: FormControl<boolean>;
 }>;
 
@@ -57,14 +57,10 @@ export class SettingsDialogComponent {
             this.configManager.getItem("heartRateMonitor") as HeartRateMonitorMode,
             Validators.pattern(/^(off|ble|ant)$/),
         ],
-        logToWebSocket: [
+        deltaTimeLogging: [
             {
-                value: this.dataService.getWebSocketLoggingState() ?? false,
-                disabled:
-                    this.dataService.getWebSocketLoggingState() === undefined ||
-                    this.configManager.getItem("useBluetooth") === "true"
-                        ? true
-                        : false,
+                value: this.dataService.getDeltaTimeLoggingState() ?? false,
+                disabled: this.dataService.getDeltaTimeLoggingState() === undefined,
             },
         ],
         logToSdCard: [
@@ -106,8 +102,8 @@ export class SettingsDialogComponent {
             this.dataService.changeLogLevel(this.settingsForm.value.logLevel as LogLevel);
         }
 
-        if (this.settingsForm.get("logToWebSocket")?.dirty) {
-            this.dataService.changeLogToWebSocket(this.settingsForm.value.logToWebSocket as boolean);
+        if (this.settingsForm.get("deltaTimeLogging")?.dirty) {
+            this.dataService.changeDeltaTimeLogging(this.settingsForm.value.deltaTimeLogging as boolean);
         }
 
         if (this.settingsForm.get("logToSdCard")?.dirty) {
@@ -139,8 +135,5 @@ export class SettingsDialogComponent {
         $event.checked
             ? this.settingsForm.controls.websocketAddress.disable()
             : this.settingsForm.controls.websocketAddress.enable();
-        $event.checked
-            ? this.settingsForm.controls.logToWebSocket.disable()
-            : this.settingsForm.controls.logToWebSocket.enable();
     }
 }

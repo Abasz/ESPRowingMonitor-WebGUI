@@ -76,8 +76,10 @@
                 >Invalid value</mat-error
             >
         </mat-form-field>
-        <h3>Logging destinations</h3>
-        <mat-checkbox formControlName="logToWebSocket">WebSocket</mat-checkbox>
+        <h3>Delta Time Logging</h3>
+        <mat-checkbox formControlName="deltaTimeLogging">{{
+            settingsForm.value.useBluetooth ? "Bluetooth" : "WebSocket"
+        }}</mat-checkbox>
         <mat-checkbox formControlName="logToSdCard">SdCard</mat-checkbox>
     </form>
     <div versionInfo>

@@ -33,6 +33,7 @@ import {
     CYCLING_POWER_CHARACTERISTIC,
     CYCLING_POWER_SERVICE,
     CYCLING_SPEED_AND_CADENCE_SERVICE,
+    DELTA_TIMES_CHARACTERISTIC,
     EXTENDED_CHARACTERISTIC,
     EXTENDED_METRICS_SERVICE,
     ExtendedMetricsDto,
@@ -66,6 +67,8 @@ export class BluetoothMetricsService {
 
     private data$: Observable<IRowerDataDto | IRowerSettings>;
 
+    private deltaTimesCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
+        new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
     private extendedCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
     private handleForceCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
@@ -115,7 +118,7 @@ export class BluetoothMetricsService {
 
                 return {
                     timeStamp: new Date(),
-                    data: [...cyclingPowerData, ...extendedData, handleForces, []],
+                    data: [...cyclingPowerData, ...extendedData, handleForces],
                 };
             }),
             tap({ unsubscribe: (): void => this.disconnectDevice() }),
@@ -168,6 +171,53 @@ export class BluetoothMetricsService {
         } catch (error) {
             console.error(error);
             this.snackBar.open("Failed to change BLE service", "Dismiss");
+        }
+    }
+
+    async changeDeltaTimeLogging(shouldEnable: boolean): Promise<void> {
+        if (
+            this.bluetoothDevice?.gatt === undefined ||
+            this.settingsCharacteristic.value?.service === undefined
+        ) {
+            this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
+
+            return;
+        }
+        try {
+            const characteristic = await this.ble.getCharacteristic(
+                this.settingsCharacteristic.value?.service,
+                SETTINGS_CONTROL_POINT,
+            );
+
+            // eslint-disable-next-line no-null/no-null
+            if (characteristic === null) {
+                this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
+
+                return;
+            }
+
+            this.ble
+                .observeValue$(characteristic)
+                .pipe(take(1))
+                .subscribe((response: DataView): void => {
+                    this.snackBar.open(
+                        response.getUint8(2) === BleResponseOpCodes.Successful
+                            ? `Delta time logging ${shouldEnable ? "enabled" : "disabled"}`
+                            : "An error occurred while changing delta time logging",
+                        "Dismiss",
+                    );
+                });
+
+            await characteristic.startNotifications();
+            await characteristic.writeValueWithResponse(
+                new Uint8Array([BleOpCodes.SetDeltaTimeLogging, shouldEnable ? 1 : 0]),
+            );
+        } catch (error) {
+            console.error(error);
+            this.snackBar.open(
+                `Failed to ${shouldEnable ? "enabled" : "disabled"} delta time logging`,
+                "Dismiss",
+            );
         }
     }
 
@@ -260,53 +310,6 @@ export class BluetoothMetricsService {
         }
     }
 
-    async changeLogToWebSocket(shouldEnable: boolean): Promise<void> {
-        if (
-            this.bluetoothDevice?.gatt === undefined ||
-            this.settingsCharacteristic.value?.service === undefined
-        ) {
-            this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
-
-            return;
-        }
-        try {
-            const characteristic = await this.ble.getCharacteristic(
-                this.settingsCharacteristic.value?.service,
-                SETTINGS_CONTROL_POINT,
-            );
-
-            // eslint-disable-next-line no-null/no-null
-            if (characteristic === null) {
-                this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
-
-                return;
-            }
-
-            this.ble
-                .observeValue$(characteristic)
-                .pipe(take(1))
-                .subscribe((response: DataView): void => {
-                    this.snackBar.open(
-                        response.getUint8(2) === BleResponseOpCodes.Successful
-                            ? `WebSocket logging ${shouldEnable ? "enabled" : "disabled"}`
-                            : "An error occurred while changing WebSocket logging",
-                        "Dismiss",
-                    );
-                });
-
-            await characteristic.startNotifications();
-            await characteristic.writeValueWithResponse(
-                new Uint8Array([BleOpCodes.SettingsWithBatteryStream, shouldEnable ? 1 : 0]),
-            );
-        } catch (error) {
-            console.error(error);
-            this.snackBar.open(
-                `Failed to ${shouldEnable ? "enabled" : "disabled"} WebSocket logging`,
-                "Dismiss",
-            );
-        }
-    }
-
     connectionStatus(): Observable<boolean> {
         return this.isConnectedSubject.asObservable();
     }
@@ -372,6 +375,37 @@ export class BluetoothMetricsService {
         device.onadvertisementreceived = this.reconnectHandler;
         this.cancellationToken = new AbortController();
         await device.watchAdvertisements({ signal: this.cancellationToken.signal });
+    }
+
+    streamDeltaTimes$(): Observable<Array<number>> {
+        return this.deltaTimesCharacteristic.pipe(
+            filter(
+                (
+                    deltaTimesCharacteristic: BluetoothRemoteGATTCharacteristic | undefined,
+                ): deltaTimesCharacteristic is BluetoothRemoteGATTCharacteristic =>
+                    deltaTimesCharacteristic !== undefined,
+            ),
+            switchMap(
+                (deltaTimesCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<Array<number>> =>
+                    this.observeDeltaTimes(deltaTimesCharacteristic),
+            ),
+            retry({
+                count: 4,
+                delay: (error: string, count: number): Observable<0> => {
+                    if (
+                        this.deltaTimesCharacteristic.value?.service.device.gatt &&
+                        error.includes("unknown")
+                    ) {
+                        console.warn(`Handle characteristic error: ${error}; retrying: ${count}`);
+
+                        this.connectToDeltaTimes(this.deltaTimesCharacteristic.value.service.device.gatt);
+                    }
+
+                    return timer(2000);
+                },
+            }),
+            startWith([]),
+        );
     }
 
     streamExtended$(): Observable<ExtendedMetricsDto> {
@@ -523,7 +557,7 @@ export class BluetoothMetricsService {
                 },
             }),
             startWith({
-                logToWebSocket: undefined,
+                logDeltaTimes: undefined,
                 logToSdCard: undefined,
                 logLevel: 0,
                 bleServiceFlag: BleServiceFlag.CpsService,
@@ -545,6 +579,7 @@ export class BluetoothMetricsService {
             await this.connectToMeasurement(gatt);
             await this.connectToExtended(gatt);
             await this.connectToHandleForces(gatt);
+            await this.connectToDeltaTimes(gatt);
             await this.connectToSettings(gatt);
             await this.connectToBattery(gatt);
 
@@ -578,6 +613,31 @@ export class BluetoothMetricsService {
             if (this.bluetoothDevice) {
                 this.snackBar.open("Ergo battery service is unavailable", "Dismiss");
                 console.warn(error);
+            }
+        }
+
+        return;
+    }
+
+    private async connectToDeltaTimes(
+        gatt: BluetoothRemoteGATTServer,
+    ): Promise<void | BluetoothRemoteGATTCharacteristic> {
+        try {
+            const primaryService = await withDelay(
+                1000,
+                this.ble.getPrimaryService(gatt, EXTENDED_METRICS_SERVICE),
+            );
+            const characteristic = await this.ble.getCharacteristic(
+                primaryService,
+                DELTA_TIMES_CHARACTERISTIC,
+            );
+            this.deltaTimesCharacteristic.next(characteristic ?? undefined);
+
+            return characteristic ?? undefined;
+        } catch (error) {
+            if (this.bluetoothDevice) {
+                this.snackBar.open("Error connecting to Delta Times", "Dismiss");
+                console.error(error);
             }
         }
 
@@ -722,6 +782,24 @@ export class BluetoothMetricsService {
         );
     }
 
+    private observeDeltaTimes(
+        deltaTimesCharacteristic: BluetoothRemoteGATTCharacteristic,
+    ): Observable<Array<number>> {
+        return this.ble.observeValue$(deltaTimesCharacteristic).pipe(
+            map((value: DataView): Array<number> => {
+                const accumulator = [];
+                for (let index = 0; index < value.byteLength; index += 4) {
+                    accumulator.push(value.getUint32(index, true));
+                }
+
+                return accumulator;
+            }),
+            finalize((): void => {
+                this.deltaTimesCharacteristic.next(undefined);
+            }),
+        );
+    }
+
     private observeExtended(
         extendedCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<ExtendedMetricsDto> {
@@ -841,7 +919,7 @@ export class BluetoothMetricsService {
                 const logLevel = (value.getUint8(0) >> 4) & 7;
 
                 return {
-                    logToWebSocket: logToWs === 0 ? undefined : logToWs === 1 ? false : true,
+                    logDeltaTimes: logToWs === 0 ? undefined : logToWs === 1 ? false : true,
                     logToSdCard: logToSd === 0 ? undefined : logToSd === 1 ? false : true,
                     logLevel: logLevel,
                     bleServiceFlag:
