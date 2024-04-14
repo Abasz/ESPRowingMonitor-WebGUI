@@ -30,7 +30,7 @@ export class HeartRateService {
         }
     }
 
-    streamHeartRate(): Observable<IHeartRate | undefined> {
+    streamHeartRate$(): Observable<IHeartRate | undefined> {
         if (!isSecureContext) {
             this.snack.open("Heart Rate features are not available, refer to documentation", "Dismiss");
 

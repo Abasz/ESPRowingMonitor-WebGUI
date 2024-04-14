@@ -1,7 +1,7 @@
 <app-settings-bar
     [connectionStatus]="(isConnected$ | async) ?? false"
-    [batteryLevel]="(rowingData$ | async)?.batteryLevel ?? 0"
-    [bleServiceType]="(rowingData$ | async)?.bleServiceFlag ?? BleServiceFlag.CpsService"
+    [batteryLevel]="(batteryLevel$ | async) ?? 0"
+    [bleServiceType]="(settingsData$ | async)?.bleServiceFlag ?? BleServiceFlag.CpsService"
     (buttonClicked)="handleAction($event)"
 ></app-settings-bar>
 <div class="dashboard">

@@ -1,11 +1,11 @@
-import { ChangeDetectionStrategy, Component, isDevMode } from "@angular/core";
+import { ChangeDetectionStrategy, Component, Inject, isDevMode } from "@angular/core";
 import { FormControl, FormGroup, NonNullableFormBuilder, ValidationErrors, Validators } from "@angular/forms";
-import { MatDialogRef } from "@angular/material/dialog";
+import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { MatSlideToggleChange } from "@angular/material/slide-toggle";
 import { SwUpdate } from "@angular/service-worker";
 import { map, Observable, startWith } from "rxjs";
 
-import { BleServiceFlag, IValidationErrors, LogLevel } from "../../common/common.interfaces";
+import { BleServiceFlag, IRowerSettings, IValidationErrors, LogLevel } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { DataService } from "../../common/services/data.service";
 import { getValidationErrors } from "../../common/utils/utility.functions";
@@ -39,7 +39,7 @@ export class SettingsDialogComponent {
 
     settingsForm: SettingsFormGroup = this.fb.group({
         useBluetooth: [this.configManager.getItem("useBluetooth") === "true" ? true : false],
-        bleMode: [this.dataService.getBleServiceFlag()],
+        bleMode: [this.settings.bleServiceFlag],
         websocketAddress: [
             {
                 value: this.configManager.getItem("webSocketAddress"),
@@ -52,21 +52,21 @@ export class SettingsDialogComponent {
                 ),
             ],
         ],
-        logLevel: [this.dataService.getLogLevel(), [Validators.min(0), Validators.max(6)]],
+        logLevel: [this.settings.logLevel, [Validators.min(0), Validators.max(6)]],
         heartRateMonitor: [
             this.configManager.getItem("heartRateMonitor") as HeartRateMonitorMode,
             Validators.pattern(/^(off|ble|ant)$/),
         ],
         deltaTimeLogging: [
             {
-                value: this.dataService.getDeltaTimeLoggingState() ?? false,
-                disabled: this.dataService.getDeltaTimeLoggingState() === undefined,
+                value: this.settings.logDeltaTimes ?? false,
+                disabled: this.settings.logDeltaTimes === undefined,
             },
         ],
         logToSdCard: [
             {
-                value: this.dataService.getSdCardLoggingState() ?? false,
-                disabled: this.dataService.getSdCardLoggingState() === undefined ? true : false,
+                value: this.settings.logToSdCard ?? false,
+                disabled: this.settings.logToSdCard === undefined ? true : false,
             },
         ],
     });
@@ -82,6 +82,7 @@ export class SettingsDialogComponent {
         private fb: NonNullableFormBuilder,
         private dialogRef: MatDialogRef<SettingsDialogComponent>,
         private swUpdate: SwUpdate,
+        @Inject(MAT_DIALOG_DATA) private settings: IRowerSettings,
     ) {}
 
     checkForUpdates(): void {

@@ -16,7 +16,6 @@ export interface IMediaQuery {
 }
 
 export interface IRowerData {
-    timeStamp: Date;
     revTime: number;
     distance: number;
     strokeTime: number;
@@ -28,47 +27,48 @@ export interface IRowerData {
     handleForces: Array<number>;
 }
 
+export interface IExtendedMetrics {
+    avgStrokePower: number;
+    driveDuration: number;
+    recoveryDuration: number;
+    dragFactor: number;
+}
+
+export interface IBaseMetrics {
+    revTime: number;
+    distance: number;
+    strokeTime: number;
+    strokeCount: number;
+}
+
 export interface IRowerSettings {
-    timeStamp: Date;
     logDeltaTimes: boolean | undefined;
     logToSdCard: boolean | undefined;
     bleServiceFlag: BleServiceFlag;
     logLevel: LogLevel;
-    batteryLevel: number;
 }
 
 export interface IRowerWebSocketSettings extends Omit<IRowerSettings, "logDeltaTimes"> {
     logToWebSocket: boolean | undefined;
 }
+export type WebSocketRowerSettings = IRowerSettings & {
+    batteryLevel: number;
+};
 
-export type ExtendedMetricsDto = [number, number, number, number];
-export type BaseMetricsDto = [number, number, number, number];
-export type SettingsStream = Omit<IRowerSettings, "timeStamp" | "batteryLevel">;
-export type SettingsWithBatteryStream = [SettingsStream, number];
-
-export type MetricsStream = [BaseMetricsDto, ExtendedMetricsDto, Array<number>];
-
-export interface IRowerDataDto {
-    timeStamp: Date;
-    data: [number, number, number, number, number, number, number, number, Array<number>];
-}
+export type MetricsStream = [IBaseMetrics, IExtendedMetrics, Array<number>];
 
 export interface IRowerWebSocketDataDto {
-    timeStamp: Date;
     data: [number, number, number, number, number, number, number, number, Array<number>, Array<number>];
 }
 
-export interface IAppState
-    extends Omit<IRowerData, "revTime" | "strokeTime">,
-        Omit<IRowerSettings, "timeStamp"> {
+export interface ICalculatedMetrics extends Omit<IRowerData, "revTime" | "strokeTime"> {
     speed: number;
     strokeRate: number;
     peakForce: number;
     distPerStroke: number;
-    heartRate?: IHeartRate;
 }
 
-export interface ISessionData extends IAppState {
+export interface ISessionData extends ICalculatedMetrics {
     heartRate?: IHeartRate;
 }
 
@@ -86,6 +86,19 @@ export interface IHeartRateService {
     reconnect(): Promise<void>;
     streamHRMonitorBatteryLevel$(): Observable<number | undefined>;
     streamHeartRate$(): Observable<IHeartRate | undefined>;
+}
+
+export interface IRowerDataService {
+    streamDeltaTimes$(): Observable<Array<number>>;
+    streamExtended$(): Observable<IExtendedMetrics>;
+    streamHandleForces$(): Observable<Array<number>>;
+    streamMeasurement$(): Observable<IBaseMetrics>;
+    streamMonitorBatteryLevel$(): Observable<number>;
+    streamSettings$(): Observable<IRowerSettings>;
+    changeBleServiceType(bleService: BleServiceFlag): Promise<void> | void;
+    changeDeltaTimeLogging(shouldEnable: boolean): Promise<void> | void;
+    changeLogLevel(logLevel: LogLevel): Promise<void> | void;
+    changeLogToSdCard(shouldEnable: boolean): Promise<void> | void;
 }
 
 export interface ISupportedVendors {

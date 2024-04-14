@@ -10,22 +10,17 @@ import {
     distinctUntilChanged,
     filter,
     finalize,
-    interval,
     map,
-    merge,
     Observable,
     of,
     retry,
-    shareReplay,
     startWith,
     switchMap,
     take,
-    tap,
     timer,
 } from "rxjs";
 
 import {
-    BaseMetricsDto,
     BATTERY_LEVEL_CHARACTERISTIC,
     BATTERY_LEVEL_SERVICE,
     BleOpCodes,
@@ -36,21 +31,19 @@ import {
     DELTA_TIMES_CHARACTERISTIC,
     EXTENDED_CHARACTERISTIC,
     EXTENDED_METRICS_SERVICE,
-    ExtendedMetricsDto,
     HANDLE_FORCES_CHARACTERISTIC,
-    MetricsStream,
+    IBaseMetrics,
+    IExtendedMetrics,
+    IRowerDataService,
     SETTINGS_CHARACTERISTIC,
     SETTINGS_CONTROL_POINT,
     SETTINGS_SERVICE,
-    SettingsStream,
-    SettingsWithBatteryStream,
 } from "../common.interfaces";
 import { withDelay } from "../utils/utility.functions";
 
 import {
     BleServiceFlag,
     CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC,
-    IRowerDataDto,
     IRowerSettings,
     LogLevel,
 } from "./../common.interfaces";
@@ -59,13 +52,11 @@ import { ConfigManagerService } from "./config-manager.service";
 @Injectable({
     providedIn: "root",
 })
-export class BluetoothMetricsService {
+export class BluetoothMetricsService implements IRowerDataService {
     private batteryCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
     private bluetoothDevice: BluetoothDevice | undefined;
     private cancellationToken: AbortController = new AbortController();
-
-    private data$: Observable<IRowerDataDto | IRowerSettings>;
 
     private deltaTimesCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
@@ -86,45 +77,7 @@ export class BluetoothMetricsService {
         private configManager: ConfigManagerService,
         private snackBar: MatSnackBar,
         private ble: BluetoothCore,
-    ) {
-        const allMetrics$ = combineLatest([
-            this.streamMeasurement$(),
-            this.streamExtended$(),
-            this.streamHandleForces$(),
-        ]).pipe(
-            distinctUntilChanged(
-                (current: MetricsStream, previous: MetricsStream): boolean =>
-                    current[0][1] === previous[0][1],
-            ),
-        );
-        this.data$ = merge(
-            combineLatest([
-                allMetrics$,
-                allMetrics$.pipe(switchMap((): Observable<number> => interval(4500))),
-            ]).pipe(map(([metrics]: [MetricsStream, number]): MetricsStream => metrics)),
-            combineLatest([this.streamSettings$(), this.streamMonitorBatteryLevel$()]),
-        ).pipe(
-            map((data: MetricsStream | SettingsWithBatteryStream): IRowerDataDto | IRowerSettings => {
-                if (data.length === 2) {
-                    const [settings, batteryLevel]: SettingsWithBatteryStream = data;
-
-                    return {
-                        ...settings,
-                        batteryLevel,
-                        timeStamp: new Date(),
-                    };
-                }
-                const [cyclingPowerData, extendedData, handleForces]: MetricsStream = data;
-
-                return {
-                    timeStamp: new Date(),
-                    data: [...cyclingPowerData, ...extendedData, handleForces],
-                };
-            }),
-            tap({ unsubscribe: (): void => this.disconnectDevice() }),
-            shareReplay({ refCount: true }),
-        );
-    }
+    ) {}
 
     async changeBleServiceType(bleService: BleServiceFlag): Promise<void> {
         if (
@@ -314,12 +267,6 @@ export class BluetoothMetricsService {
         return this.isConnectedSubject.asObservable();
     }
 
-    data(): Observable<IRowerDataDto | IRowerSettings> {
-        this.reconnect();
-
-        return this.data$;
-    }
-
     disconnectDevice(): void {
         if (this.bluetoothDevice !== undefined) {
             this.bluetoothDevice.ongattserverdisconnected = (): void => {
@@ -408,7 +355,7 @@ export class BluetoothMetricsService {
         );
     }
 
-    streamExtended$(): Observable<ExtendedMetricsDto> {
+    streamExtended$(): Observable<IExtendedMetrics> {
         return this.extendedCharacteristic.pipe(
             filter(
                 (
@@ -417,7 +364,7 @@ export class BluetoothMetricsService {
                     extendedCharacteristic !== undefined,
             ),
             switchMap(
-                (extendedCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<ExtendedMetricsDto> =>
+                (extendedCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<IExtendedMetrics> =>
                     this.observeExtended(extendedCharacteristic),
             ),
             retry({
@@ -432,7 +379,12 @@ export class BluetoothMetricsService {
                     return timer(2000);
                 },
             }),
-            startWith([0, 0, 0, 0] as ExtendedMetricsDto),
+            startWith({
+                avgStrokePower: 0,
+                dragFactor: 0,
+                driveDuration: 0,
+                recoveryDuration: 0,
+            }),
         );
     }
 
@@ -467,7 +419,7 @@ export class BluetoothMetricsService {
         );
     }
 
-    streamMeasurement$(): Observable<BaseMetricsDto> {
+    streamMeasurement$(): Observable<IBaseMetrics> {
         return this.measurementCharacteristic.pipe(
             filter(
                 (
@@ -476,9 +428,19 @@ export class BluetoothMetricsService {
                     measurementCharacteristic !== undefined,
             ),
             switchMap(
-                (measurementCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<BaseMetricsDto> =>
+                (measurementCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<IBaseMetrics> =>
                     this.observeMeasurement(measurementCharacteristic),
             ),
+            distinctUntilChanged(
+                (baseMetricsCurrent: IBaseMetrics, baseMetricsPrevious: IBaseMetrics): boolean =>
+                    baseMetricsCurrent.distance === baseMetricsPrevious.distance &&
+                    baseMetricsCurrent.strokeCount === baseMetricsPrevious.strokeCount,
+            ),
+            switchMap(
+                (baseMetrics: IBaseMetrics): Observable<[IBaseMetrics, number]> =>
+                    combineLatest([of(baseMetrics), timer(4500).pipe(startWith(0))]),
+            ),
+            map(([baseMetrics]: [IBaseMetrics, number]): IBaseMetrics => baseMetrics),
             retry({
                 count: 4,
                 delay: (error: string, count: number): Observable<0> => {
@@ -494,7 +456,12 @@ export class BluetoothMetricsService {
                     return timer(2000);
                 },
             }),
-            startWith([0, 0, 0, 0] as BaseMetricsDto),
+            startWith({
+                distance: 0,
+                revTime: 0,
+                strokeCount: 0,
+                strokeTime: 0,
+            }),
         );
     }
 
@@ -532,7 +499,7 @@ export class BluetoothMetricsService {
         );
     }
 
-    streamSettings$(): Observable<SettingsStream> {
+    streamSettings$(): Observable<IRowerSettings> {
         return this.settingsCharacteristic.pipe(
             filter(
                 (
@@ -541,7 +508,7 @@ export class BluetoothMetricsService {
                     settingsCharacteristic !== undefined,
             ),
             switchMap(
-                (settingsCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<SettingsStream> =>
+                (settingsCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<IRowerSettings> =>
                     this.observeSettings(settingsCharacteristic),
             ),
             retry({
@@ -802,15 +769,15 @@ export class BluetoothMetricsService {
 
     private observeExtended(
         extendedCharacteristic: BluetoothRemoteGATTCharacteristic,
-    ): Observable<ExtendedMetricsDto> {
+    ): Observable<IExtendedMetrics> {
         return this.ble.observeValue$(extendedCharacteristic).pipe(
             map(
-                (value: DataView): ExtendedMetricsDto => [
-                    value.getUint16(0, true),
-                    Math.round((value.getUint16(2, true) / 4096) * 1e6),
-                    Math.round((value.getUint16(2 + 2, true) / 4096) * 1e6),
-                    value.getUint8(2 + 2 + 2),
-                ],
+                (value: DataView): IExtendedMetrics => ({
+                    avgStrokePower: value.getUint16(0, true),
+                    driveDuration: Math.round((value.getUint16(2, true) / 4096) * 1e6),
+                    recoveryDuration: Math.round((value.getUint16(2 + 2, true) / 4096) * 1e6),
+                    dragFactor: value.getUint8(2 + 2 + 2),
+                }),
             ),
             finalize((): void => {
                 this.extendedCharacteristic.next(undefined);
@@ -845,7 +812,7 @@ export class BluetoothMetricsService {
 
     private observeMeasurement(
         measurementCharacteristic: BluetoothRemoteGATTCharacteristic,
-    ): Observable<BaseMetricsDto> {
+    ): Observable<IBaseMetrics> {
         let lastRevTime = 0;
         let revTime = 0;
 
@@ -853,7 +820,7 @@ export class BluetoothMetricsService {
         let strokeTime = 0;
 
         return this.ble.observeValue$(measurementCharacteristic).pipe(
-            map((value: DataView): BaseMetricsDto => {
+            map((value: DataView): IBaseMetrics => {
                 if (
                     measurementCharacteristic.uuid ===
                     BluetoothUUID.getCharacteristic(CYCLING_POWER_CHARACTERISTIC)
@@ -875,12 +842,12 @@ export class BluetoothMetricsService {
                     lastRevTime = value.getUint16(2 + 2 + 4, true);
                     lastStrokeTime = value.getUint16(2 + 2 + 4 + 2 + 2, true);
 
-                    return [
+                    return {
                         revTime,
-                        value.getUint32(2 + 2, true),
+                        distance: value.getUint32(2 + 2, true),
                         strokeTime,
-                        value.getUint16(2 + 2 + 4 + 2, true),
-                    ];
+                        strokeCount: value.getUint16(2 + 2 + 4 + 2, true),
+                    };
                 }
                 const revTimeDelta =
                     value.getUint16(1 + 4, true) >= lastRevTime
@@ -898,7 +865,12 @@ export class BluetoothMetricsService {
                 lastRevTime = value.getUint16(1 + 4, true);
                 lastStrokeTime = value.getUint16(1 + 4 + 2 + 2, true);
 
-                return [revTime, value.getUint32(1, true), strokeTime, value.getUint16(1 + 4 + 2, true)];
+                return {
+                    revTime,
+                    distance: value.getUint32(1, true),
+                    strokeTime,
+                    strokeCount: value.getUint16(1 + 4 + 2, true),
+                };
             }),
             finalize((): void => {
                 this.measurementCharacteristic.next(undefined);
@@ -908,12 +880,12 @@ export class BluetoothMetricsService {
 
     private observeSettings(
         settingsCharacteristic: BluetoothRemoteGATTCharacteristic,
-    ): Observable<SettingsStream> {
+    ): Observable<IRowerSettings> {
         return concat(
             this.ble.readValue$(settingsCharacteristic),
             this.ble.observeValue$(settingsCharacteristic),
         ).pipe(
-            map((value: DataView): SettingsStream => {
+            map((value: DataView): IRowerSettings => {
                 const logToWs = value.getUint8(0) & 3;
                 const logToSd = (value.getUint8(0) >> 2) & 3;
                 const logLevel = (value.getUint8(0) >> 4) & 7;

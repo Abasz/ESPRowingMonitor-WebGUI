@@ -1,25 +1,20 @@
 import { Injectable } from "@angular/core";
 
-import { IRowerDataDto, IRowerSettings, ISessionData } from "../common.interfaces";
+import { ISessionData } from "../common.interfaces";
 
 @Injectable({
     providedIn: "root",
 })
 export class DataRecorderService {
     private deltaTimes: Array<number> = [];
-    private rowingData: Array<IRowerDataDto | IRowerSettings> = [];
-    private rowingSessionData: Array<ISessionData> = [];
+    private rowingSessionData: Array<ISessionData & { timeStamp: Date }> = [];
 
     add(rowingData: ISessionData): void {
-        this.rowingSessionData.push(rowingData);
+        this.rowingSessionData.push({ ...rowingData, timeStamp: new Date() });
     }
 
     addDeltaTimes(deltaTimes: Array<number>): void {
         this.deltaTimes.push(...deltaTimes);
-    }
-
-    addRaw(rowingData: IRowerDataDto | IRowerSettings): void {
-        this.rowingData.push(rowingData);
     }
 
     download(): void {
@@ -32,13 +27,9 @@ export class DataRecorderService {
         this.createDownload(blob, "deltaTimes");
     }
 
-    downloadRaw(): void {
-        const blob = new Blob([JSON.stringify(this.rowingData)], { type: "application/json" });
-        this.createDownload(blob, "raw");
-    }
-
     reset(): void {
         this.rowingSessionData = [];
+        this.deltaTimes = [];
     }
 
     private createDownload(blob: Blob, name: string): void {

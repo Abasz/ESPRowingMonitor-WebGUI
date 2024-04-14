@@ -1,12 +1,24 @@
 import { Injectable } from "@angular/core";
-import { map, merge, Observable, shareReplay, Subject, switchMap, withLatestFrom } from "rxjs";
+import {
+    combineLatest,
+    filter,
+    map,
+    merge,
+    Observable,
+    pairwise,
+    shareReplay,
+    Subject,
+    switchMap,
+    tap,
+    withLatestFrom,
+} from "rxjs";
 
 import {
     BleServiceFlag,
-    IAppState,
+    IBaseMetrics,
+    ICalculatedMetrics,
+    IExtendedMetrics,
     IHeartRate,
-    IRowerData,
-    IRowerDataDto,
     IRowerSettings,
     LogLevel,
 } from "../common.interfaces";
@@ -24,32 +36,18 @@ export class DataService {
     private activityStartDistance: number = 0;
     private activityStartStrokeCount: number = 0;
 
-    private appData: IAppState = {} as IAppState;
-    private appState$: Observable<IAppState>;
-
-    private batteryLevel: number = 0;
-    private bleServiceFlag: BleServiceFlag = BleServiceFlag.CpsService;
-
-    private heartRateData$: Observable<IHeartRate | undefined>;
-
-    private logDeltaTime: boolean | undefined = undefined;
-    private logLevel: LogLevel = LogLevel.Trace;
-    private logToSdCard: boolean | undefined = undefined;
-
-    private resetSubject: Subject<IRowerDataDto> = new Subject();
-
-    private rowingData: IRowerData = {
-        timeStamp: new Date(),
+    private baseMetrics: IBaseMetrics = {
         revTime: 0,
         distance: 0,
         strokeTime: 0,
         strokeCount: 0,
-        avgStrokePower: 0,
-        driveDuration: 0,
-        recoveryDuration: 0,
-        dragFactor: 0,
-        handleForces: [],
     };
+
+    private calculatedMetrics$: Observable<ICalculatedMetrics>;
+
+    private heartRateData$: Observable<IHeartRate | undefined>;
+
+    private resetSubject: Subject<IBaseMetrics> = new Subject();
 
     constructor(
         private webSocketService: WebSocketService,
@@ -58,110 +56,63 @@ export class DataService {
         private dataRecorder: DataRecorderService,
         private heartRateService: HeartRateService,
     ) {
-        this.heartRateData$ = this.heartRateService.streamHeartRate();
+        this.heartRateData$ = this.heartRateService.streamHeartRate$();
 
-        this.appState$ = merge(
-            this.configManager.useBluetoothChanged$.pipe(
-                switchMap(
-                    (useBluetooth: boolean): Observable<IRowerDataDto | IRowerSettings> =>
-                        useBluetooth ? this.bleDataService.data() : this.webSocketService.data(),
-                ),
+        this.calculatedMetrics$ = combineLatest([
+            this.streamMeasurement$().pipe(
+                tap((baseMetrics: IBaseMetrics): void => {
+                    this.baseMetrics = baseMetrics;
+                }),
+                pairwise(),
             ),
-            this.resetSubject,
-        ).pipe(
-            withLatestFrom(this.heartRateData$),
+            this.streamExtended$(),
+            this.streamHandleForces$(),
+        ]).pipe(
             map(
-                ([rowerRawMessage, heartRateData]: [
-                    IRowerDataDto | IRowerSettings,
-                    IHeartRate | undefined,
-                ]): IAppState => {
-                    this.bleServiceFlag =
-                        "bleServiceFlag" in rowerRawMessage
-                            ? rowerRawMessage.bleServiceFlag
-                            : this.bleServiceFlag;
-                    this.logLevel = "logLevel" in rowerRawMessage ? rowerRawMessage.logLevel : this.logLevel;
-                    this.logDeltaTime =
-                        "logDeltaTimes" in rowerRawMessage
-                            ? rowerRawMessage.logDeltaTimes ?? undefined
-                            : this.logDeltaTime;
-                    this.logToSdCard =
-                        "logToSdCard" in rowerRawMessage
-                            ? rowerRawMessage.logToSdCard ?? undefined
-                            : this.logToSdCard;
-                    this.batteryLevel =
-                        "batteryLevel" in rowerRawMessage ? rowerRawMessage.batteryLevel : this.batteryLevel;
+                ([[baseMetricsPrevious, baseMetricsCurrent], extendedMetrics, handleForces]: [
+                    [IBaseMetrics, IBaseMetrics],
+                    IExtendedMetrics,
+                    Array<number>,
+                ]): ICalculatedMetrics => {
+                    const distance: number = baseMetricsCurrent.distance - this.activityStartDistance;
+                    const strokeCount: number =
+                        baseMetricsCurrent.strokeCount - this.activityStartStrokeCount;
 
-                    this.appData = {
-                        ...this.appData,
-                        bleServiceFlag: this.bleServiceFlag,
-                        logLevel: this.logLevel,
-                        logToSdCard: this.logToSdCard,
-                        logDeltaTimes: this.logDeltaTime,
-                        batteryLevel: this.batteryLevel,
+                    const strokeRate: number =
+                        baseMetricsCurrent.strokeCount === baseMetricsPrevious.strokeCount ||
+                        baseMetricsCurrent.strokeTime === baseMetricsPrevious.strokeTime
+                            ? 0
+                            : ((baseMetricsCurrent.strokeCount - baseMetricsPrevious.strokeCount) /
+                                  ((baseMetricsCurrent.strokeTime - baseMetricsPrevious.strokeTime) / 1e6)) *
+                              60;
+                    const speed: number =
+                        baseMetricsCurrent.distance === baseMetricsPrevious.distance ||
+                        baseMetricsCurrent.revTime === baseMetricsPrevious.revTime
+                            ? 0
+                            : (baseMetricsCurrent.distance - baseMetricsPrevious.distance) /
+                              100 /
+                              ((baseMetricsCurrent.revTime - baseMetricsPrevious.revTime) / 1e6);
+                    const distPerStroke: number =
+                        baseMetricsCurrent.distance === baseMetricsPrevious.distance ||
+                        baseMetricsCurrent.strokeCount === baseMetricsPrevious.strokeCount
+                            ? 0
+                            : (baseMetricsCurrent.distance - baseMetricsPrevious.distance) /
+                              100 /
+                              (baseMetricsCurrent.strokeCount - baseMetricsPrevious.strokeCount);
+
+                    return {
+                        avgStrokePower: extendedMetrics.avgStrokePower,
+                        driveDuration: extendedMetrics.driveDuration / 1e6,
+                        recoveryDuration: extendedMetrics.recoveryDuration / 1e6,
+                        dragFactor: extendedMetrics.dragFactor,
+                        distance: distance > 0 ? distance : 0,
+                        strokeCount: strokeCount > 0 ? strokeCount : 0,
+                        handleForces: handleForces,
+                        peakForce: Math.max(...handleForces, 0),
+                        strokeRate,
+                        speed,
+                        distPerStroke,
                     };
-
-                    if ("data" in rowerRawMessage) {
-                        const {
-                            revTime: lastRevTime,
-                            distance: lastDistance,
-                            strokeTime: lastStrokeTime,
-                            strokeCount: lastStrokeCount,
-                        }: {
-                            revTime: number;
-                            distance: number;
-                            strokeTime: number;
-                            strokeCount: number;
-                        } = this.rowingData;
-
-                        this.dataRecorder.addRaw(rowerRawMessage);
-
-                        this.rowingData = {
-                            timeStamp: rowerRawMessage.timeStamp,
-                            revTime: rowerRawMessage.data[0],
-                            distance: rowerRawMessage.data[1],
-                            strokeTime: rowerRawMessage.data[2],
-                            strokeCount: rowerRawMessage.data[3],
-                            avgStrokePower: rowerRawMessage.data[4],
-                            driveDuration: rowerRawMessage.data[5],
-                            recoveryDuration: rowerRawMessage.data[6],
-                            dragFactor: rowerRawMessage.data[7],
-                            handleForces: rowerRawMessage.data[8],
-                        };
-
-                        this.appData = {
-                            ...this.appData,
-                            timeStamp: this.rowingData.timeStamp,
-                            driveDuration: this.rowingData.driveDuration / 1e6,
-                            recoveryDuration: this.rowingData.recoveryDuration / 1e6,
-                            avgStrokePower: this.rowingData.avgStrokePower,
-                            distance: this.rowingData.distance - this.activityStartDistance,
-                            dragFactor: this.rowingData.dragFactor,
-                            strokeCount: this.rowingData.strokeCount - this.activityStartStrokeCount,
-                            handleForces: this.rowingData.handleForces,
-                            peakForce: Math.max(...this.rowingData.handleForces),
-                            strokeRate:
-                                ((this.rowingData.strokeCount - lastStrokeCount) /
-                                    ((this.rowingData.strokeTime - lastStrokeTime) / 1e6)) *
-                                60,
-                            speed:
-                                (this.rowingData.distance - lastDistance) /
-                                100 /
-                                ((this.rowingData.revTime - lastRevTime) / 1e6),
-                            distPerStroke:
-                                this.rowingData.distance === lastDistance
-                                    ? 0
-                                    : (this.rowingData.distance - lastDistance) /
-                                      100 /
-                                      (this.rowingData.strokeCount - lastStrokeCount),
-                        };
-
-                        this.dataRecorder.add({
-                            ...this.appData,
-                            heartRate: heartRateData?.contactDetected ? heartRateData : undefined,
-                        });
-                    }
-
-                    return this.appData;
                 },
             ),
             shareReplay(),
@@ -175,14 +126,52 @@ export class DataService {
                             ? this.bleDataService.streamDeltaTimes$()
                             : this.webSocketService.streamDeltaTimes$(),
                 ),
+                filter((deltaTimes: Array<number>): boolean => deltaTimes.length > 0),
             )
             .subscribe((deltaTimes: Array<number>): void => {
                 this.dataRecorder.addDeltaTimes(deltaTimes);
             });
-    }
 
-    appState(): Observable<IAppState> {
-        return this.appState$;
+        this.streamMeasurement$()
+            .pipe(
+                withLatestFrom(this.calculatedMetrics$, this.streamHeartRate$()),
+                filter(
+                    ([_, calculatedMetrics]: [
+                        IBaseMetrics,
+                        ICalculatedMetrics,
+                        IHeartRate | undefined,
+                    ]): boolean => calculatedMetrics.strokeCount > 0 || calculatedMetrics.distance > 0,
+                ),
+            )
+            .subscribe(
+                ([_, calculatedMetrics, heartRate]: [
+                    IBaseMetrics,
+                    ICalculatedMetrics,
+                    IHeartRate | undefined,
+                ]): void => {
+                    this.dataRecorder.add({
+                        ...calculatedMetrics,
+                        heartRate,
+                    });
+                },
+            );
+
+        // TODO: Serves backward compatibility with WS API, remove once WS connection is removed
+        this.configManager.useBluetoothChanged$.subscribe((useBluetooth: boolean): void => {
+            this.baseMetrics = {
+                revTime: 0,
+                distance: 0,
+                strokeTime: 0,
+                strokeCount: 0,
+            };
+            this.resetSubject.next(this.baseMetrics);
+
+            if (!useBluetooth) {
+                this.bleDataService.disconnectDevice();
+            } else {
+                this.bleDataService.reconnect();
+            }
+        });
     }
 
     changeBleServiceType(bleService: BleServiceFlag): void {
@@ -220,44 +209,102 @@ export class DataService {
         );
     }
 
-    getBleServiceFlag(): BleServiceFlag {
-        return this.bleServiceFlag;
-    }
-
-    getDeltaTimeLoggingState(): boolean | undefined {
-        return this.logDeltaTime;
-    }
-
-    getLogLevel(): LogLevel {
-        return this.logLevel;
-    }
-
-    getSdCardLoggingState(): boolean | undefined {
-        return this.logToSdCard;
-    }
-
-    heartRateData(): Observable<IHeartRate | undefined> {
-        return this.heartRateData$;
-    }
-
     reset(): void {
-        this.activityStartDistance = this.rowingData.distance;
-        this.activityStartStrokeCount = this.rowingData.strokeCount;
+        this.activityStartDistance = this.baseMetrics.distance;
+        this.activityStartStrokeCount = this.baseMetrics.strokeCount;
         this.dataRecorder.reset();
 
         this.resetSubject.next({
-            timeStamp: new Date(),
-            data: [
-                this.rowingData.revTime,
-                this.rowingData.distance,
-                this.rowingData.strokeTime,
-                this.rowingData.strokeCount,
-                0,
-                0,
-                0,
-                0,
-                [],
-            ],
+            revTime: this.baseMetrics.revTime,
+            distance: this.baseMetrics.distance,
+            strokeTime: this.baseMetrics.strokeTime,
+            strokeCount: this.baseMetrics.strokeCount,
         });
+    }
+
+    streamAllMetrics$(): Observable<ICalculatedMetrics> {
+        return this.calculatedMetrics$;
+    }
+
+    streamExtended$(): Observable<IExtendedMetrics> {
+        return merge(
+            this.configManager.useBluetoothChanged$.pipe(
+                switchMap(
+                    (useBluetooth: boolean): Observable<IExtendedMetrics> =>
+                        useBluetooth
+                            ? this.bleDataService.streamExtended$()
+                            : this.webSocketService.streamExtended$(),
+                ),
+                shareReplay(1),
+            ),
+            this.resetSubject.pipe(
+                map(
+                    (): IExtendedMetrics => ({
+                        avgStrokePower: 0,
+                        dragFactor: 0,
+                        driveDuration: 0,
+                        recoveryDuration: 0,
+                    }),
+                ),
+            ),
+        );
+    }
+
+    streamHandleForces$(): Observable<Array<number>> {
+        return merge(
+            this.configManager.useBluetoothChanged$.pipe(
+                switchMap(
+                    (useBluetooth: boolean): Observable<Array<number>> =>
+                        useBluetooth
+                            ? this.bleDataService.streamHandleForces$()
+                            : this.webSocketService.streamHandleForces$(),
+                ),
+                shareReplay(1),
+            ),
+            this.resetSubject.pipe(map((): Array<number> => [])),
+        );
+    }
+
+    streamHeartRate$(): Observable<IHeartRate | undefined> {
+        return this.heartRateData$;
+    }
+
+    streamMeasurement$(): Observable<IBaseMetrics> {
+        return merge(
+            this.configManager.useBluetoothChanged$.pipe(
+                switchMap(
+                    (useBluetooth: boolean): Observable<IBaseMetrics> =>
+                        useBluetooth
+                            ? this.bleDataService.streamMeasurement$()
+                            : this.webSocketService.streamMeasurement$(),
+                ),
+                shareReplay(1),
+            ),
+            this.resetSubject,
+        );
+    }
+
+    streamMonitorBatteryLevel$(): Observable<number> {
+        return this.configManager.useBluetoothChanged$.pipe(
+            switchMap(
+                (useBluetooth: boolean): Observable<number> =>
+                    useBluetooth
+                        ? this.bleDataService.streamMonitorBatteryLevel$()
+                        : this.webSocketService.streamMonitorBatteryLevel$(),
+            ),
+            shareReplay(1),
+        );
+    }
+
+    streamSettings$(): Observable<IRowerSettings> {
+        return this.configManager.useBluetoothChanged$.pipe(
+            switchMap(
+                (useBluetooth: boolean): Observable<IRowerSettings> =>
+                    useBluetooth
+                        ? this.bleDataService.streamSettings$()
+                        : this.webSocketService.streamSettings$(),
+            ),
+            shareReplay(1),
+        );
     }
 }

@@ -11,7 +11,7 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { SwUpdate, VersionEvent, VersionReadyEvent } from "@angular/service-worker";
 import { filter, interval, map, Observable, startWith, switchMap, take, takeUntil, tap } from "rxjs";
 
-import { BleServiceFlag, IAppState, IHeartRate } from "../common/common.interfaces";
+import { BleServiceFlag, ICalculatedMetrics, IHeartRate, IRowerSettings } from "../common/common.interfaces";
 import { BluetoothMetricsService } from "../common/services/ble-data.service";
 import { DataRecorderService } from "../common/services/data-recorder.service";
 import { DataService } from "../common/services/data.service";
@@ -32,11 +32,12 @@ import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.compo
 export class AppComponent extends NgUnsubscribeDirective implements AfterViewInit, OnDestroy {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
 
+    batteryLevel$: Observable<number>;
     elapseTime$: Observable<number>;
-
     heartRateData$: Observable<IHeartRate | undefined>;
     isConnected$: Observable<boolean>;
-    rowingData$: Observable<IAppState>;
+    rowingData$: Observable<ICalculatedMetrics>;
+    settingsData$: Observable<IRowerSettings>;
 
     private activityStartTime: number = Date.now();
 
@@ -52,8 +53,10 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
         private snackBar: MatSnackBar,
     ) {
         super();
-        this.heartRateData$ = this.dataService.heartRateData();
+        this.heartRateData$ = this.dataService.streamHeartRate$();
         this.isConnected$ = this.dataService.connectionStatus();
+        this.settingsData$ = this.dataService.streamSettings$();
+        this.batteryLevel$ = this.dataService.streamMonitorBatteryLevel$();
         this.elapseTime$ = this.isConnected$.pipe(
             filter((isConnected: boolean): boolean => isConnected),
             take(1),
@@ -66,7 +69,7 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
                 );
             }),
         );
-        this.rowingData$ = this.dataService.appState().pipe(
+        this.rowingData$ = this.dataService.streamAllMetrics$().pipe(
             tap((): void => {
                 this.cd.detectChanges();
             }),
@@ -102,14 +105,17 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
         }
 
         if ($event === "settings") {
-            this.dialog.open(SettingsDialogComponent, {
-                autoFocus: false,
+            // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+            this.settingsData$.pipe(take(1)).subscribe((settings: IRowerSettings): void => {
+                this.dialog.open(SettingsDialogComponent, {
+                    autoFocus: false,
+                    data: settings,
+                });
             });
         }
 
         if ($event === "download") {
             this.dataRecorder.download();
-            this.dataRecorder.downloadRaw();
             this.dataRecorder.downloadDeltaTimes();
         }
 
