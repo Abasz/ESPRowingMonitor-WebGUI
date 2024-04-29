@@ -7,6 +7,7 @@ import {
     OnDestroy,
 } from "@angular/core";
 import { MatDialog } from "@angular/material/dialog";
+import { MatIconRegistry } from "@angular/material/icon";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { SwUpdate, VersionEvent, VersionReadyEvent } from "@angular/service-worker";
 import { filter, interval, map, Observable, startWith, switchMap, take, takeUntil, tap } from "rxjs";
@@ -51,8 +52,11 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
         private utils: UtilsService,
         private swUpdate: SwUpdate,
         private snackBar: MatSnackBar,
+        private matIconReg: MatIconRegistry,
     ) {
         super();
+        this.matIconReg.setDefaultFontSetClass("material-symbols-sharp");
+
         this.heartRateData$ = this.dataService.streamHeartRate$();
         this.isConnected$ = this.dataService.connectionStatus();
         this.settingsData$ = this.dataService.streamSettings$();

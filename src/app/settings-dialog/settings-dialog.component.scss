@@ -1,8 +1,3 @@
-h1.mdc-dialog__title {
-    font-size: 1em;
-    padding-bottom: 24px;
-}
-
 form {
     display: flex;
     flex-direction: column;
@@ -20,4 +15,9 @@ div[versionInfo] {
 
 mat-option {
     font-size: 16px;
+}
+
+h4 {
+    margin-bottom: 0px;
+    margin-top: 0px;
 }

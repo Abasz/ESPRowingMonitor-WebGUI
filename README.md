@@ -35,6 +35,5 @@ However the ANT+ needs a WinUSB driver (instead of generic libusb) otherwise itt
 
 ## Backlog
 
-- Add tooltips for icons
 - Implement log book functionality to manage and store session data
 - Support more export format (e.g. TCX for Strava)

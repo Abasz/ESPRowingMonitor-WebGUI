@@ -6,33 +6,46 @@
 ></app-settings-bar>
 <div class="dashboard">
     <app-metric
-        icon="location_on"
+        title="Distance"
+        icon="distance"
         [value]="(((rowingData$ | async)?.distance ?? 0) / 100 | number: '0.0-0') ?? '--'"
         unit="m"
     ></app-metric>
     <app-metric
+        title="Pace"
         icon="speed"
         [value]="500 / ((rowingData$ | async)?.speed ?? 0) | secondsToTime: 'pace'"
         unit="/500m"
     ></app-metric>
     <app-metric
+        title="Power"
         icon="bolt"
         [value]="((rowingData$ | async)?.avgStrokePower ?? 0 | number: '0.0-0') ?? '--'"
         unit="watt"
     ></app-metric>
     <app-metric
+        title="Stroke rate"
         icon="rowing"
         [value]="(rowingData$ | async)?.strokeRate ?? 0 | roundNumber"
-        unit="/min"
+        unit="stk/min"
     ></app-metric>
-    <app-metric icon="timer" [value]="(elapseTime$ | async) ?? 0 | secondsToTime: 'pace'"></app-metric>
+    <app-metric
+        title="Timer"
+        icon="timer"
+        [value]="(elapseTime$ | async) ?? 0 | secondsToTime: 'pace'"
+    ></app-metric>
     <app-force-curve [handleForces]="(rowingData$ | async)?.handleForces ?? []"></app-force-curve>
     <app-metric
+        title="Distance per stroke"
         icon="route"
         [value]="((rowingData$ | async)?.distPerStroke ?? 0 | number: '0.0-1') ?? '--'"
         unit="m/stk"
     ></app-metric>
-    <app-metric title="Total Strokes" [value]="(rowingData$ | async)?.strokeCount ?? 0"></app-metric>
+    <app-metric
+        title="Total Strokes"
+        unit="stk"
+        [value]="(rowingData$ | async)?.strokeCount ?? 0"
+    ></app-metric>
     <app-metric
         title="Drag Factor"
         [value]="(rowingData$ | async)?.dragFactor ?? 0 | roundNumber"
@@ -49,8 +62,9 @@
         unit="sec"
     ></app-metric>
     <app-metric
+        title="Heart rate"
         *ngIf="(heartRateData$ | async)?.contactDetected === true"
-        icon="favorite"
+        icon="ecg_heart"
         [value]="
             ((heartRateData$ | async)?.contactDetected === true
                 ? (heartRateData$ | async)?.heartRate ?? 0

@@ -22,7 +22,7 @@
     margin: 10px;
 }
 
-app-metric[icon="favorite"],
+app-metric[icon="ecg_heart"],
 app-metric[title="Drive"],
 app-metric[title="Recovery"] {
     @media (max-width: 890px) {
@@ -30,7 +30,7 @@ app-metric[title="Recovery"] {
     }
 }
 
-app-metric[icon="favorite"] mat-icon {
+app-metric[icon="ecg_heart"] mat-icon {
     width: 1.1em;
     height: 1.1em;
     font-size: 1.1em;
