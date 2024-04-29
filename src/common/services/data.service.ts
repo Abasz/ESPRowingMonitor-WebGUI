@@ -278,7 +278,7 @@ export class DataService {
                     ICalculatedMetrics,
                     IHeartRate | undefined,
                 ]): void => {
-                    this.dataRecorder.add({
+                    this.dataRecorder.addSessionData({
                         ...calculatedMetrics,
                         heartRate,
                     });
@@ -290,6 +290,9 @@ export class DataService {
         return combineLatest([
             this.streamMeasurement$().pipe(
                 tap((baseMetrics: IBaseMetrics): void => {
+                    if (baseMetrics.distance < this.baseMetrics.distance) {
+                        this.dataRecorder.reset();
+                    }
                     this.baseMetrics = baseMetrics;
                 }),
                 pairwise(),

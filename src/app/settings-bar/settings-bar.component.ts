@@ -57,7 +57,7 @@ export class SettingsBarComponent {
     }
 
     downloadSession(): void {
-        this.dataRecorder.download();
+        this.dataRecorder.downloadSessionData();
         this.dataRecorder.downloadDeltaTimes();
     }
 

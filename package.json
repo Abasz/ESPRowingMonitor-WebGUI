@@ -4,7 +4,7 @@
     "scripts": {
         "ng": "ng",
         "start": "ng serve",
-        "dev": "node --input-type=module < ./auto-version.ts && ng serve --no-live-reload --configuration=production",
+        "dev": "node --input-type=module < ./auto-version.ts && ng serve --no-live-reload --configuration=production --port 4201",
         "build": "ng build",
         "watch": "ng build --watch --configuration development",
         "test": "ng test"
@@ -26,6 +26,7 @@
         "@uriopass/nosleep.js": "^0.12.2",
         "chart.js": "^4.4.1",
         "chartjs-plugin-datalabels": "^2.2.0",
+        "dexie": "^4.0.4",
         "ng2-charts": "^5.0.4",
         "rxjs": "~7.8.0",
         "tslib": "^2.3.0",
