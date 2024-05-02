@@ -1,0 +1,56 @@
+<div>
+    <h2 mat-dialog-title>Log Book</h2>
+    <nas-dialog-close-button mat-dialog-close></nas-dialog-close-button>
+</div>
+<div mat-dialog-content>
+    <table
+        mat-table
+        [dataSource]="(sessionsTableData$ | async) ?? []"
+        [trackBy]="trackBySessionId"
+        matSort
+        matSortStart="desc"
+        matSortDirection="desc"
+        matSortActive="sessionId"
+    >
+        <ng-container matColumnDef="sessionId">
+            <mat-header-cell justify="center" mat-sort-header *matHeaderCellDef class="date"
+                >Date</mat-header-cell
+            >
+            <mat-cell *matCellDef="let sessionData" class="date date-cell">
+                <span>{{ sessionData.sessionId | date: "yyyy-MM-dd" }}</span>
+                <span>{{ sessionData.sessionId | date: "HH:mm:ss" }}</span>
+            </mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="time">
+            <mat-header-cell mat-sort-header *matHeaderCellDef class="time">Time</mat-header-cell>
+            <mat-cell *matCellDef="let sessionData" class="time">
+                {{ (sessionData.finishTime - sessionData.startTime) / 1000 | secondsToTime: "pace" }}
+            </mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="distance">
+            <mat-header-cell mat-sort-header *matHeaderCellDef class="distance">Distance (m)</mat-header-cell>
+            <mat-cell *matCellDef="let sessionData" class="distance">
+                {{ sessionData.distance / 100 }}
+            </mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="strokeCount">
+            <mat-header-cell mat-sort-header *matHeaderCellDef class="stroke-count">Strokes</mat-header-cell>
+            <mat-cell *matCellDef="let sessionData" class="stroke-count">
+                {{ sessionData.strokeCount }}
+            </mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="actions">
+            <mat-header-cell *matHeaderCellDef class="actions">Actions</mat-header-cell>
+            <mat-cell *matCellDef="let sessionData" class="actions">
+                <button (click)="downloadSession(sessionData.sessionId)" mat-icon-button>
+                    <mat-icon>download</mat-icon>
+                </button>
+                <button color="warn" (click)="deleteSession(sessionData.sessionId)" mat-icon-button>
+                    <mat-icon>delete</mat-icon>
+                </button>
+            </mat-cell>
+        </ng-container>
+        <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+        <mat-row *matRowDef="let sessionData; columns: displayedColumns"></mat-row>
+    </table>
+</div>

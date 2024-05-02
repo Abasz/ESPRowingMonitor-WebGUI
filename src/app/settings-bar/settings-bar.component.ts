@@ -3,12 +3,19 @@ import { MatDialog } from "@angular/material/dialog";
 import { interval, map, Observable, startWith, take } from "rxjs";
 
 import { BleServiceFlag } from "../../common/ble.interfaces";
-import { IErgConnectionStatus, IHRConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
+import {
+    IErgConnectionStatus,
+    IHRConnectionStatus,
+    IRowerSettings,
+    ISessionSummary,
+} from "../../common/common.interfaces";
 import { BluetoothMetricsService } from "../../common/services/ble-data.service";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { DataRecorderService } from "../../common/services/data-recorder.service";
 import { DataService } from "../../common/services/data.service";
 import { HeartRateService } from "../../common/services/heart-rate.service";
+import { UtilsService } from "../../common/services/utils.service";
+import { LogbookDialogComponent } from "../logbook-dialog/logbook-dialog.component";
 import { SettingsDialogComponent } from "../settings-dialog/settings-dialog.component";
 
 @Component({
@@ -48,6 +55,7 @@ export class SettingsBarComponent {
         private metricsService: BluetoothMetricsService,
         private dialog: MatDialog,
         private heartRateService: HeartRateService,
+        private utils: UtilsService,
         public configManager: ConfigManagerService,
     ) {
         this.ergConnectionStatus$ = this.dataService.ergConnectionStatus$();
@@ -57,8 +65,18 @@ export class SettingsBarComponent {
     }
 
     downloadSession(): void {
-        this.dataRecorder.downloadSessionData();
-        this.dataRecorder.downloadDeltaTimes();
+        this.utils.mainSpinner().open();
+        this.dataRecorder
+            .getSessionSummaries$()
+            .pipe(take(1))
+            // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+            .subscribe((sessions: Array<ISessionSummary>): void => {
+                this.utils.mainSpinner().close();
+                this.dialog.open(LogbookDialogComponent, {
+                    autoFocus: false,
+                    data: sessions,
+                });
+            });
     }
 
     async ergoMonitorDiscovery(): Promise<void> {

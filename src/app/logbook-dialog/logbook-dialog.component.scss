@@ -1,0 +1,27 @@
+table {
+    width: 100%;
+
+    .date {
+        min-width: 115px;
+    }
+
+    .date-cell {
+        flex-direction: column;
+
+        justify-content: center;
+        align-items: start;
+
+        span:last-of-type {
+            font-size: 0.75rem;
+        }
+    }
+
+    .distance {
+        min-width: 135px;
+    }
+
+    .actions {
+        min-width: 100px;
+        justify-content: center;
+    }
+}

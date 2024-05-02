@@ -74,6 +74,14 @@ export interface ISessionData extends ICalculatedMetrics {
     heartRate?: IHeartRate;
 }
 
+export interface ISessionSummary {
+    sessionId: number;
+    startTime: number;
+    finishTime: number;
+    distance: number;
+    strokeCount: number;
+}
+
 export interface IHeartRate {
     heartRate: number;
     contactDetected: boolean;

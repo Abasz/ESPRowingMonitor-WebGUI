@@ -5,8 +5,7 @@
                 (batteryLevel$ | async) ?? 0 | batteryLevel
             }}</mat-icon>
         </div>
-
-        <button matTooltip="Export sessions" (click)="downloadSession()" mat-icon-button>
+        <button matTooltip="Logbook" (click)="downloadSession()" mat-icon-button>
             <mat-icon>sports_score</mat-icon>
         </button>
         <button matTooltip="Settings" (click)="openSettings()" mat-icon-button>

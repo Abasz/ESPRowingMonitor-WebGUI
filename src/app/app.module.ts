@@ -14,6 +14,7 @@ import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-
 
 import { AppComponent } from "./app.component";
 import { ForceCurveComponent } from "./force-curve/force-curve.component";
+import { LogbookDialogComponent } from "./logbook-dialog/logbook-dialog.component";
 import { MetricComponent } from "./metric/metric.component";
 import { SettingsBarComponent } from "./settings-bar/settings-bar.component";
 import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.component";
@@ -34,6 +35,7 @@ if (isSecureContext) {
         SnackBarConfirmComponent,
         MetricComponent,
         SettingsBarComponent,
+        LogbookDialogComponent,
         ForceCurveComponent,
         SettingsDialogComponent,
     ],
