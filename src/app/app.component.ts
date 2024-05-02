@@ -97,7 +97,7 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
                         return this.snackBar
                             .openFromComponent(SnackBarConfirmComponent, {
                                 duration: undefined,
-                                data: "Update Available",
+                                data: { text: "Update Available", confirm: "Update" },
                             })
                             .onAction();
                     }),

@@ -8,7 +8,7 @@ import { MAT_SNACK_BAR_DATA, MatSnackBarRef } from "@angular/material/snack-bar"
 })
 export class SnackBarConfirmComponent {
     constructor(
-        @Inject(MAT_SNACK_BAR_DATA) public text: string,
+        @Inject(MAT_SNACK_BAR_DATA) public data: { text: string; confirm?: string },
         private snackRef: MatSnackBarRef<SnackBarConfirmComponent>,
     ) {}
 
