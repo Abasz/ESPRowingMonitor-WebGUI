@@ -7,6 +7,7 @@ import { ServiceWorkerModule } from "@angular/service-worker";
 import { BrowserWebBluetooth, WebBluetoothModule } from "@manekinekko/angular-web-bluetooth";
 
 import { CoreModule } from "../common/core.module";
+import { DialogCloseButtonModule } from "../common/dialog-close-button/dialog-close-button.module";
 import { AntHeartRateService } from "../common/services/ant-heart-rate.service";
 import { ErrorInterceptor } from "../common/services/error.interceptor.service";
 import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-confirm.component";
@@ -47,6 +48,7 @@ if (isSecureContext) {
             // or after 10 seconds (whichever comes first).
             registrationStrategy: "registerWhenStable:10000",
         }),
+        DialogCloseButtonModule,
     ],
     providers: [
         { provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true },
