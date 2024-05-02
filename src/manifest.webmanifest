@@ -7,6 +7,28 @@
     "description": "A Web Gui for ESP Rowing Monitor",
     "scope": "./",
     "start_url": "./",
+    "screenshots": [
+        {
+            "src": "assets/screenshots/main-screen.png",
+            "sizes": "1920x877",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "Main Screen"
+        },
+        {
+            "src": "assets/screenshots/logbook.png",
+            "sizes": "1920x877",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "Logbook"
+        },
+        {
+            "src": "assets/screenshots/main-screen-small.png",
+            "sizes": "960x438",
+            "type": "image/png",
+            "label": "Main Screen"
+        }
+    ],
     "icons": [
         {
             "src": "assets/icons/windows11/SmallTile.scale-100.png",
