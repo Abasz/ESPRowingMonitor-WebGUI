@@ -1,5 +1,7 @@
 import { Injectable } from "@angular/core";
 import { IndexableTypePart, liveQuery } from "dexie";
+import { exportDB, ExportProgress, importInto, peakImportFile } from "dexie-export-import";
+import { ImportProgress } from "dexie-export-import/dist/import";
 import { filter, from, Observable } from "rxjs";
 
 import { ISessionData, ISessionSummary } from "../common.interfaces";
@@ -88,6 +90,13 @@ export class DataRecorderService {
         return Promise.all([this.downloadDeltaTimes(sessionId), this.downloadSessionData(sessionId)]);
     }
 
+    async export(progressCallback?: (progress: ExportProgress) => boolean): Promise<void> {
+        const database = await exportDB(appDB, { progressCallback });
+        const name = `${new Date().toDateTimeStringFormat()} - database.json`;
+
+        this.createDownload(database, name);
+    }
+
     getSessionSummaries$(): Observable<Array<ISessionSummary>> {
         return from(
             liveQuery(
@@ -140,6 +149,26 @@ export class DataRecorderService {
                     value !== undefined,
             ),
         );
+    }
+
+    async import(blob: Blob, progressCallback?: (progress: ImportProgress) => boolean): Promise<void> {
+        const importMeta = await peakImportFile(blob);
+        console.log("Database name:", importMeta.data.databaseName);
+        console.log("Database version:", importMeta.data.databaseVersion);
+        console.log(
+            "Tables:",
+            importMeta.data.tables
+                .map(
+                    (table: { name: string; schema: string; rowCount: number }): string =>
+                        `${table.name} (${table.rowCount} rows)`,
+                )
+                .join("\n\t"),
+        );
+
+        return importInto(appDB, blob, {
+            overwriteValues: true,
+            progressCallback,
+        });
     }
 
     reset(): void {

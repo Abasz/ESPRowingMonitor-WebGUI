@@ -60,3 +60,23 @@
         <mat-row *matRowDef="let sessionData; columns: displayedColumns"></mat-row>
     </table>
 </div>
+
+<div mat-dialog-actions>
+    <button mat-raised-button [disabled]="((importExportProgress$ | async) ?? -1) >= 0" (click)="export()">
+        Export
+    </button>
+    <button
+        mat-raised-button
+        [disabled]="((importExportProgress$ | async) ?? -1) >= 0"
+        (click)="fileInput.click()"
+    >
+        Import
+    </button>
+    <input #fileInput hidden accept="application/json" type="file" id="file" (change)="import($event)" />
+    <mat-progress-bar
+        *ngIf="((importExportProgress$ | async) ?? -1) >= 0"
+        [value]="(importExportProgress$ | async) ?? 0"
+        mode="determinate"
+        value="40"
+    ></mat-progress-bar>
+</div>

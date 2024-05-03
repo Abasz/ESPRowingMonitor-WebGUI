@@ -10,7 +10,9 @@ import { MAT_DIALOG_DATA } from "@angular/material/dialog";
 import { MatSnackBar, MatSnackBarRef } from "@angular/material/snack-bar";
 import { MatSort, SortDirection } from "@angular/material/sort";
 import { MatTableDataSource } from "@angular/material/table";
-import { finalize, from, map, Observable, startWith, switchMap } from "rxjs";
+import { ExportProgress } from "dexie-export-import";
+import { ImportProgress } from "dexie-export-import/dist/import";
+import { finalize, from, map, Observable, startWith, Subject, switchMap } from "rxjs";
 
 import { ISessionSummary } from "../../common/common.interfaces";
 import { DataRecorderService } from "../../common/services/data-recorder.service";
@@ -32,6 +34,8 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
         "actions",
     ];
 
+    importExportProgress$: Observable<number | undefined>;
+
     sessionsTableData$: Observable<MatTableDataSource<ISessionSummary>>;
     @ViewChild(MatSort, { static: true }) sort!: MatSort;
 
@@ -39,12 +43,14 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
     private dataSource: MatTableDataSource<ISessionSummary> = new MatTableDataSource<ISessionSummary>(
         this.sessionSummary,
     );
+    private progressBarSubject$: Subject<number | undefined> = new Subject();
 
     constructor(
         private dataRecorder: DataRecorderService,
         private snackBar: MatSnackBar,
         @Inject(MAT_DIALOG_DATA) private sessionSummary: Array<ISessionSummary>,
     ) {
+        this.importExportProgress$ = this.progressBarSubject$.asObservable();
         this.sessionsTableData$ = this.dataRecorder.getSessionSummaries$().pipe(
             map((sessions: Array<ISessionSummary>): MatTableDataSource<ISessionSummary> => {
                 this.dataSource.data = sessions;
@@ -105,6 +111,76 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
 
             console.error(e);
         }
+    }
+
+    async export(): Promise<void> {
+        this.progressBarSubject$.next(0);
+        try {
+            await this.dataRecorder.export((progress: ExportProgress): boolean => {
+                const status = Math.floor((progress.completedRows / (progress.totalRows ?? 0)) * 100);
+                this.progressBarSubject$.next(status);
+
+                return true;
+            });
+            this.snackBar
+                .open("Export successful", "Dismiss")
+                .afterDismissed()
+                // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+                .subscribe((): void => {
+                    this.progressBarSubject$.next(undefined);
+                });
+        } catch (e) {
+            if (e instanceof Error) {
+                this.snackBar
+                    .open(`Export failed: ${e.message}`, "Dismiss", { duration: 10000 })
+                    .afterDismissed()
+                    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+                    .subscribe((): void => {
+                        this.progressBarSubject$.next(undefined);
+                    });
+            }
+            console.error(e);
+        }
+    }
+
+    async import(event: Event): Promise<void> {
+        this.progressBarSubject$.next(0);
+        const file = (event.target as HTMLInputElement)?.files?.[0];
+
+        if (!file) {
+            return;
+        }
+
+        try {
+            await this.dataRecorder.import(file, (progress: ImportProgress): boolean => {
+                const status = Math.floor((progress.completedRows / (progress.totalRows ?? 0)) * 100);
+                this.progressBarSubject$.next(status);
+
+                return true;
+            });
+            this.snackBar
+                .open("Import successful", "Dismiss")
+                .afterDismissed()
+                // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+                .subscribe((): void => {
+                    this.progressBarSubject$.next(undefined);
+                });
+        } catch (e) {
+            if (e instanceof Error) {
+                this.snackBar
+                    .open(`Import failed: ${e.message}`, "Dismiss", {
+                        duration: 10000,
+                    })
+                    .afterDismissed()
+                    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+                    .subscribe((): void => {
+                        this.progressBarSubject$.next(undefined);
+                    });
+
+                console.error(e);
+            }
+        }
+        (event.target as HTMLInputElement).value = "";
     }
 
     ngAfterViewInit(): void {
