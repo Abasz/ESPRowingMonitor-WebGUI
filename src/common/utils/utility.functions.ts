@@ -103,7 +103,22 @@ declare global {
         toFirstLowerCase(): string;
         toFirstUpperCase(): string;
     }
+    interface Date {
+        toDateTimeStringFormat(): string;
+    }
 }
+
+Date.prototype.toDateTimeStringFormat = function (): string {
+    const self: Date = this as Date;
+
+    return `${self.getFullYear()}-${(self.getMonth() + 1).toString().padStart(2, "0")}-${self
+        .getDate()
+        .toString()
+        .padStart(2, "0")} ${self.getHours().toString().padStart(2, "0")}-${self
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}-${self.getSeconds().toString().padStart(2, "0")}`;
+};
 
 String.prototype.toFirstUpperCase = function (): string {
     const self: string = this as string;

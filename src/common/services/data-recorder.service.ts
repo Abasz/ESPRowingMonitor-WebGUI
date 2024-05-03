@@ -150,14 +150,7 @@ export class DataRecorderService {
         const url = window.URL.createObjectURL(blob);
         const downloadTag = document.createElement("a");
         downloadTag.href = url;
-        const now = new Date(Date.now());
-        downloadTag.download = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}-${now
-            .getDate()
-            .toString()
-            .padStart(2, "0")} ${now.getHours().toString().padStart(2, "0")}-${now
-            .getMinutes()
-            .toString()
-            .padStart(2, "0")}-${now.getSeconds().toString().padStart(2, "0")} - ${name}`;
+        downloadTag.download = name;
         downloadTag.click();
     }
 
@@ -176,7 +169,8 @@ export class DataRecorderService {
         }
 
         const blob = new Blob([JSON.stringify(deltaTimes)], { type: "application/json" });
-        this.createDownload(blob, "deltaTimes");
+        const name = `${new Date(sessionId).toDateTimeStringFormat()} - deltaTimes`;
+        this.createDownload(blob, name);
     }
 
     private downloadSessionData(sessionId: number): Promise<void> {
@@ -220,7 +214,8 @@ export class DataRecorderService {
             );
 
             const blob = new Blob([JSON.stringify(rowingSessionData)], { type: "application/json" });
-            this.createDownload(blob, "session");
+            const name = `${new Date(sessionId).toDateTimeStringFormat()} - session`;
+            this.createDownload(blob, name);
         });
     }
 }
