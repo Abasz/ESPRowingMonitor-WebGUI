@@ -263,25 +263,30 @@ export class DataService {
 
         this.streamMeasurement$()
             .pipe(
-                withLatestFrom(this.calculatedMetrics$, this.streamHeartRate$()),
+                withLatestFrom(this.calculatedMetrics$, this.streamHeartRate$(), this.ergConnectionStatus$()),
                 filter(
                     ([_, calculatedMetrics]: [
                         IBaseMetrics,
                         ICalculatedMetrics,
                         IHeartRate | undefined,
+                        IErgConnectionStatus,
                     ]): boolean => calculatedMetrics.strokeCount > 0 || calculatedMetrics.distance > 0,
                 ),
             )
             .subscribe(
-                ([_, calculatedMetrics, heartRate]: [
+                ([_, calculatedMetrics, heartRate, connectionStatus]: [
                     IBaseMetrics,
                     ICalculatedMetrics,
                     IHeartRate | undefined,
+                    IHRConnectionStatus,
                 ]): void => {
                     this.dataRecorder.addSessionData({
                         ...calculatedMetrics,
                         heartRate,
                     });
+                    if (connectionStatus.deviceName !== undefined) {
+                        this.dataRecorder.addConnectedDevice(connectionStatus.deviceName);
+                    }
                 },
             );
     }

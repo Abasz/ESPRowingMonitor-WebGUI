@@ -23,7 +23,14 @@ import { SnackBarConfirmComponent } from "../../common/snack-bar-confirm/snack-b
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
-    displayedColumns: Array<string> = ["sessionId", "time", "distance", "strokeCount", "actions"];
+    displayedColumns: Array<string> = [
+        "sessionId",
+        "time",
+        "distance",
+        "strokeCount",
+        "deviceName",
+        "actions",
+    ];
 
     sessionsTableData$: Observable<MatTableDataSource<ISessionSummary>>;
     @ViewChild(MatSort, { static: true }) sort!: MatSort;
@@ -70,7 +77,7 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
             .onAction()
             .pipe(
                 switchMap(
-                    (): Observable<[number, number, number]> =>
+                    (): Observable<[number, number, number, number]> =>
                         from(this.dataRecorder.deleteSession(sessionId)),
                 ),
                 finalize((): undefined => (this.confirmSnackBarRef = undefined)),

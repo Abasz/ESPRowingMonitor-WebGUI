@@ -76,6 +76,7 @@ export interface ISessionData extends ICalculatedMetrics {
 
 export interface ISessionSummary {
     sessionId: number;
+    deviceName?: string;
     startTime: number;
     finishTime: number;
     distance: number;

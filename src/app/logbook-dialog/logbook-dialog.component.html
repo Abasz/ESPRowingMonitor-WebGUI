@@ -39,6 +39,12 @@
                 {{ sessionData.strokeCount }}
             </mat-cell>
         </ng-container>
+        <ng-container matColumnDef="deviceName">
+            <mat-header-cell mat-sort-header *matHeaderCellDef class="device-name">Device</mat-header-cell>
+            <mat-cell *matCellDef="let sessionData" class="device-name">
+                {{ sessionData.deviceName ?? "Unknown" }}
+            </mat-cell>
+        </ng-container>
         <ng-container matColumnDef="actions">
             <mat-header-cell *matHeaderCellDef class="actions">Actions</mat-header-cell>
             <mat-cell *matCellDef="let sessionData" class="actions">

@@ -5,6 +5,7 @@ import { filter, from, Observable } from "rxjs";
 import { ISessionData, ISessionSummary } from "../common.interfaces";
 import {
     ExportSessionData,
+    IConnectedDeviceEntity,
     IDeltaTimesEntity,
     IHandleForcesEntity,
     IMetricsEntity,
@@ -16,6 +17,10 @@ import { appDB } from "../utils/app-database";
 })
 export class DataRecorderService {
     private currentSessionId: number = Date.now();
+
+    addConnectedDevice(deviceName: string): Promise<number> {
+        return appDB.connectedDevice.put({ deviceName, sessionId: this.currentSessionId });
+    }
 
     addDeltaTimes(deltaTimes: Array<number>): Promise<number> {
         return appDB.deltaTimes.put({
@@ -62,17 +67,19 @@ export class DataRecorderService {
         });
     }
 
-    deleteSession(sessionId: number): Promise<[number, number, number]> {
+    deleteSession(sessionId: number): Promise<[number, number, number, number]> {
         return appDB.transaction(
             "rw",
             appDB.sessionData,
             appDB.deltaTimes,
             appDB.handleForces,
-            (): Promise<[number, number, number]> =>
+            appDB.connectedDevice,
+            (): Promise<[number, number, number, number]> =>
                 Promise.all([
                     appDB.sessionData.where({ sessionId }).delete(),
                     appDB.deltaTimes.where({ sessionId }).delete(),
                     appDB.handleForces.where({ sessionId }).delete(),
+                    appDB.connectedDevice.where({ sessionId }).delete(),
                 ]),
         );
     }
@@ -88,6 +95,7 @@ export class DataRecorderService {
                     appDB.transaction(
                         "r",
                         appDB.sessionData,
+                        appDB.connectedDevice,
                         async (): Promise<Array<ISessionSummary | undefined>> => {
                             const uniqueSessionIds = await appDB.sessionData
                                 .orderBy("sessionId")
@@ -98,10 +106,12 @@ export class DataRecorderService {
                                     async (
                                         sessionId: IndexableTypePart,
                                     ): Promise<ISessionSummary | undefined> => {
-                                        const [first, last]: [
+                                        const [connectedDevice, first, last]: [
+                                            IConnectedDeviceEntity | undefined,
                                             IMetricsEntity | undefined,
                                             IMetricsEntity | undefined,
                                         ] = await Promise.all([
+                                            appDB.connectedDevice.where({ sessionId }).last(),
                                             appDB.sessionData.where({ sessionId }).first(),
                                             appDB.sessionData.where({ sessionId }).last(),
                                         ]);
@@ -112,6 +122,7 @@ export class DataRecorderService {
 
                                         return {
                                             sessionId: last.sessionId,
+                                            deviceName: connectedDevice?.deviceName,
                                             startTime: first.timeStamp - first.driveDuration / 1000,
                                             finishTime: last.timeStamp,
                                             distance: last.distance,
