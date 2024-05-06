@@ -3,7 +3,7 @@ import { MatDialog } from "@angular/material/dialog";
 import { interval, map, Observable, startWith, take } from "rxjs";
 
 import { BleServiceFlag } from "../../common/ble.interfaces";
-import { IRowerSettings } from "../../common/common.interfaces";
+import { IErgConnectionStatus, IHRConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
 import { BluetoothMetricsService } from "../../common/services/ble-data.service";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { DataRecorderService } from "../../common/services/data-recorder.service";
@@ -21,7 +21,19 @@ export class SettingsBarComponent {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
 
     batteryLevel$: Observable<number>;
-    isConnected$: Observable<boolean>;
+
+    bleConnectionStatusIcons: {
+        connected: string;
+        searching: string;
+        disconnected: string;
+    } = {
+        connected: "bluetooth_connected",
+        searching: "bluetooth_searching",
+        disconnected: "bluetooth",
+    };
+
+    ergConnectionStatus$: Observable<IErgConnectionStatus>;
+    hrConnectionStatus$: Observable<IHRConnectionStatus>;
     settingsData$: Observable<IRowerSettings>;
     timeOfDay$: Observable<number> = interval(1000).pipe(
         startWith(Date.now()),
@@ -36,7 +48,8 @@ export class SettingsBarComponent {
         private heartRateService: HeartRateService,
         public configManager: ConfigManagerService,
     ) {
-        this.isConnected$ = this.dataService.connectionStatus();
+        this.ergConnectionStatus$ = this.dataService.ergConnectionStatus$();
+        this.hrConnectionStatus$ = this.heartRateService.connectionStatus$();
         this.settingsData$ = this.dataService.streamSettings$();
         this.batteryLevel$ = this.dataService.streamMonitorBatteryLevel$();
     }

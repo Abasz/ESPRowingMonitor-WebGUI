@@ -39,10 +39,15 @@ import {
     SETTINGS_CONTROL_POINT,
     SETTINGS_SERVICE,
 } from "../ble.interfaces";
-import { IBaseMetrics, IExtendedMetrics, IRowerDataService } from "../common.interfaces";
 import { withDelay } from "../utils/utility.functions";
 
-import { IRowerSettings } from "./../common.interfaces";
+import {
+    IBaseMetrics,
+    IErgConnectionStatus,
+    IExtendedMetrics,
+    IRowerDataService,
+    IRowerSettings,
+} from "./../common.interfaces";
 import { ConfigManagerService } from "./config-manager.service";
 
 @Injectable({
@@ -54,14 +59,15 @@ export class BluetoothMetricsService implements IRowerDataService {
     private bluetoothDevice: BluetoothDevice | undefined;
     private cancellationToken: AbortController = new AbortController();
 
+    private connectionStatusSubject: BehaviorSubject<IErgConnectionStatus> =
+        new BehaviorSubject<IErgConnectionStatus>({ status: "disconnected" });
+
     private deltaTimesCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
     private extendedCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
     private handleForceCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
-
-    private isConnectedSubject: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
 
     private measurementCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
@@ -259,8 +265,8 @@ export class BluetoothMetricsService implements IRowerDataService {
         }
     }
 
-    connectionStatus(): Observable<boolean> {
-        return this.isConnectedSubject.asObservable();
+    connectionStatus$(): Observable<IErgConnectionStatus> {
+        return this.connectionStatusSubject.asObservable();
     }
 
     disconnectDevice(): void {
@@ -279,7 +285,7 @@ export class BluetoothMetricsService implements IRowerDataService {
         this.extendedCharacteristic.next(undefined);
         this.handleForceCharacteristic.next(undefined);
         this.measurementCharacteristic.next(undefined);
-        this.isConnectedSubject.next(false);
+        this.connectionStatusSubject.next({ status: "disconnected" });
     }
 
     // TODO: Reconnect feature:
@@ -318,6 +324,7 @@ export class BluetoothMetricsService implements IRowerDataService {
         device.onadvertisementreceived = this.reconnectHandler;
         this.cancellationToken = new AbortController();
         await device.watchAdvertisements({ signal: this.cancellationToken.signal });
+        this.connectionStatusSubject.next({ status: "searching" });
     }
 
     streamDeltaTimes$(): Observable<Array<number>> {
@@ -529,12 +536,16 @@ export class BluetoothMetricsService implements IRowerDataService {
     }
 
     private async connect(device: BluetoothDevice): Promise<void> {
+        this.connectionStatusSubject.next({ status: "searching" });
+
         try {
             this.bluetoothDevice = device;
             const gatt = await this.ble.connectDevice(device);
 
             if (this.bluetoothDevice === undefined || !gatt) {
-                this.snackBar.open("BLE Connection failed", "Dismiss");
+                this.snackBar.open("BLE Connection to EPRM failed", "Dismiss");
+
+                this.connectionStatusSubject.next({ status: "disconnected" });
 
                 return;
             }
@@ -546,14 +557,20 @@ export class BluetoothMetricsService implements IRowerDataService {
             await this.connectToSettings(gatt);
             await this.connectToBattery(gatt);
 
-            this.isConnectedSubject.next(this.bluetoothDevice.gatt?.connected === true);
+            this.connectionStatusSubject.next({
+                deviceName:
+                    this.bluetoothDevice.gatt?.connected === true && this.bluetoothDevice.name
+                        ? this.bluetoothDevice.name
+                        : undefined,
+                status: this.bluetoothDevice.gatt?.connected ? "connected" : "disconnected",
+            });
 
             this.configManager.setItem("ergoMonitorBleId", device.id);
             device.ongattserverdisconnected = this.disconnectHandler;
             this.snackBar.open("Ergo monitor connected", "Dismiss");
         } catch (error) {
+            this.connectionStatusSubject.next({ status: "disconnected" });
             this.snackBar.open(`${error}`, "Dismiss");
-            this.isConnectedSubject.next(false);
         }
     }
 
@@ -702,13 +719,13 @@ export class BluetoothMetricsService implements IRowerDataService {
     private disconnectHandler = async (event: Event): Promise<void> => {
         const device: BluetoothDevice = event.target as BluetoothDevice;
         device.onadvertisementreceived = this.reconnectHandler;
+        this.connectionStatusSubject.next({ status: "searching" });
 
         if (!device.watchingAdvertisements) {
             this.cancellationToken = new AbortController();
             await device.watchAdvertisements({ signal: this.cancellationToken.signal });
         }
         this.snackBar.open("Ergometer Monitor disconnected", "Dismiss");
-        this.isConnectedSubject.next(false);
     };
 
     private async getService(gatt: BluetoothRemoteGATTServer): Promise<BluetoothRemoteGATTService> {

@@ -2,7 +2,7 @@ import { Injectable } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { EMPTY, Observable, of, shareReplay, startWith, switchMap } from "rxjs";
 
-import { HeartRateMonitorMode, IHeartRate } from "../common.interfaces";
+import { HeartRateMonitorMode, IHeartRate, IHRConnectionStatus } from "../common.interfaces";
 
 import { AntHeartRateService } from "./ant-heart-rate.service";
 import { BLEHeartRateService } from "./ble-heart-rate.service";
@@ -18,6 +18,29 @@ export class HeartRateService {
         private ant: AntHeartRateService,
         private snack: MatSnackBar,
     ) {}
+
+    connectionStatus$(): Observable<IHRConnectionStatus> {
+        if (!isSecureContext) {
+            this.snack.open("Heart Rate features are not available, refer to documentation", "Dismiss");
+
+            return EMPTY.pipe(startWith({ status: "disconnected" } as IHRConnectionStatus), shareReplay());
+        }
+
+        return this.configManager.heartRateMonitorChanged$.pipe(
+            switchMap((heartRateMonitorMode: HeartRateMonitorMode): Observable<IHRConnectionStatus> => {
+                switch (heartRateMonitorMode) {
+                    case "ble":
+                        return this.ble.connectionStatus$();
+                    case "ant":
+                        return this.ant.connectionStatus$();
+                    default:
+                        return of({ status: "disconnected" });
+                }
+            }),
+            startWith({ status: "disconnected" } as IHRConnectionStatus),
+            shareReplay(),
+        );
+    }
 
     async discover(): Promise<void> {
         switch (this.configManager.getConfig().heartRateMonitor) {

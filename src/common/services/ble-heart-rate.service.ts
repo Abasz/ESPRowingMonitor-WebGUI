@@ -24,7 +24,7 @@ import {
     HEART_RATE_CHARACTERISTIC,
     HEART_RATE_SERVICE,
 } from "../ble.interfaces";
-import { IHeartRate, IHeartRateService } from "../common.interfaces";
+import { IHeartRate, IHeartRateService, IHRConnectionStatus } from "../common.interfaces";
 import { withDelay } from "../utils/utility.functions";
 
 import { ConfigManagerService } from "./config-manager.service";
@@ -37,6 +37,10 @@ export class BLEHeartRateService implements IHeartRateService {
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
     private bluetoothDevice: BluetoothDevice | undefined;
     private cancellationToken: AbortController = new AbortController();
+
+    private connectionStatusSubject: BehaviorSubject<IHRConnectionStatus> =
+        new BehaviorSubject<IHRConnectionStatus>({ status: "disconnected" });
+
     private heartRateCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
 
@@ -45,6 +49,10 @@ export class BLEHeartRateService implements IHeartRateService {
         private snackBar: MatSnackBar,
         private ble: BluetoothCore,
     ) {}
+
+    connectionStatus$(): Observable<IHRConnectionStatus> {
+        return this.connectionStatusSubject.asObservable();
+    }
 
     disconnectDevice(): void {
         if (this.bluetoothDevice !== undefined) {
@@ -58,6 +66,7 @@ export class BLEHeartRateService implements IHeartRateService {
         this.cancellationToken.abort();
         this.batteryCharacteristic.next(undefined);
         this.heartRateCharacteristic.next(undefined);
+        this.connectionStatusSubject.next({ status: "disconnected" });
     }
 
     // TODO: Reconnect feature:
@@ -92,6 +101,7 @@ export class BLEHeartRateService implements IHeartRateService {
         device.onadvertisementreceived = this.reconnectHandler;
         this.cancellationToken = new AbortController();
         await device.watchAdvertisements({ signal: this.cancellationToken.signal });
+        this.connectionStatusSubject.next({ status: "searching" });
     }
 
     streamHRMonitorBatteryLevel$(): Observable<number | undefined> {
@@ -163,11 +173,16 @@ export class BLEHeartRateService implements IHeartRateService {
     }
 
     private async connect(device: BluetoothDevice): Promise<void> {
+        this.connectionStatusSubject.next({ status: "searching" });
+
         try {
             this.bluetoothDevice = device;
             const gatt = await this.ble.connectDevice(device);
 
             if (this.bluetoothDevice === undefined) {
+                this.snackBar.open("BLE Connection to HR Monitor failed", "Dismiss");
+                this.connectionStatusSubject.next({ status: "disconnected" });
+
                 return;
             }
 
@@ -178,6 +193,7 @@ export class BLEHeartRateService implements IHeartRateService {
             this.configManager.setItem("heartRateBleId", device.id);
             device.ongattserverdisconnected = this.disconnectHandler;
         } catch (error) {
+            this.connectionStatusSubject.next({ status: "disconnected" });
             this.snackBar.open(`${error}`, "Dismiss");
         }
     }
@@ -220,6 +236,13 @@ export class BLEHeartRateService implements IHeartRateService {
                 HEART_RATE_CHARACTERISTIC,
             );
             this.heartRateCharacteristic.next(characteristic ?? undefined);
+            this.connectionStatusSubject.next({
+                deviceName:
+                    this.bluetoothDevice?.gatt?.connected === true && this.bluetoothDevice.name
+                        ? this.bluetoothDevice.name
+                        : undefined,
+                status: this.bluetoothDevice?.gatt?.connected ? "connected" : "disconnected",
+            });
 
             return characteristic ?? undefined;
         } catch (error) {
@@ -235,6 +258,7 @@ export class BLEHeartRateService implements IHeartRateService {
     private disconnectHandler = async (event: Event): Promise<void> => {
         const device: BluetoothDevice = event.target as BluetoothDevice;
         device.onadvertisementreceived = this.reconnectHandler;
+        this.connectionStatusSubject.next({ status: "searching" });
 
         if (!device.watchingAdvertisements) {
             this.cancellationToken = new AbortController();
@@ -275,6 +299,9 @@ export class BLEHeartRateService implements IHeartRateService {
             .pipe(
                 finalize((): void => {
                     this.heartRateCharacteristic.next(undefined);
+                    this.connectionStatusSubject.next({
+                        status: "disconnected",
+                    });
                 }),
                 endWith(undefined),
             );

@@ -18,7 +18,7 @@ import {
 } from "rxjs";
 import { HeartRateSensor, HeartRateSensorState, USBDriver } from "web-ant-plus";
 
-import { IHeartRate, IHeartRateService } from "../common.interfaces";
+import { IHeartRate, IHeartRateService, IHRConnectionStatus } from "../common.interfaces";
 
 @Injectable({
     providedIn: "root",
@@ -27,7 +27,8 @@ export class AntHeartRateService implements IHeartRateService {
     private batteryLevelSubject: BehaviorSubject<number | undefined> = new BehaviorSubject<
         number | undefined
     >(undefined);
-
+    private connectionStatusSubject: BehaviorSubject<IHRConnectionStatus> =
+        new BehaviorSubject<IHRConnectionStatus>({ status: "disconnected" });
     private heartRateSensorSubject: BehaviorSubject<HeartRateSensor | undefined> = new BehaviorSubject<
         HeartRateSensor | undefined
     >(undefined);
@@ -49,6 +50,19 @@ export class AntHeartRateService implements IHeartRateService {
     private stick: USBDriver | undefined = undefined;
 
     constructor(private snackBar: MatSnackBar) {}
+    connectionStatus$(): Observable<IHRConnectionStatus> {
+        return merge(
+            this.connectionStatusSubject,
+            this.heartRateSensorSubject.pipe(
+                map(
+                    (hrSensor: HeartRateSensor | undefined): IHRConnectionStatus => ({
+                        deviceName: hrSensor?.deviceID?.toString(),
+                        status: hrSensor?.deviceID ? "connected" : "disconnected",
+                    }),
+                ),
+            ),
+        );
+    }
 
     async disconnectDevice(): Promise<void> {
         if (this.heartRateSensorSubject.value !== undefined) {
@@ -130,6 +144,10 @@ export class AntHeartRateService implements IHeartRateService {
                 take(1),
                 switchMap((): Observable<void> => {
                     this.snackBar.open("ANT+ Stick is ready", "Dismiss");
+
+                    this.connectionStatusSubject.next({
+                        status: "searching",
+                    });
 
                     return from(hrSensor.attachSensor(0, 0));
                 }),

@@ -24,7 +24,7 @@ import {
 } from "rxjs";
 
 import { BleServiceFlag } from "../common/ble.interfaces";
-import { ICalculatedMetrics, IHeartRate } from "../common/common.interfaces";
+import { ICalculatedMetrics, IErgConnectionStatus, IHeartRate } from "../common/common.interfaces";
 import { DataService } from "../common/services/data.service";
 import { UtilsService } from "../common/services/utils.service";
 import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-confirm.component";
@@ -55,8 +55,10 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
         this.matIconReg.setDefaultFontSetClass("material-symbols-sharp");
 
         this.heartRateData$ = this.dataService.streamHeartRate$();
-        this.elapseTime$ = this.dataService.connectionStatus().pipe(
-            filter((isConnected: boolean): boolean => isConnected),
+        this.elapseTime$ = this.dataService.ergConnectionStatus$().pipe(
+            filter(
+                (connectionStatus: IErgConnectionStatus): boolean => connectionStatus.status === "connected",
+            ),
             take(1),
             switchMap(
                 (): Observable<number> =>

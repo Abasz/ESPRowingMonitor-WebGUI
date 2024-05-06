@@ -18,8 +18,10 @@ import { BleServiceFlag, LogLevel } from "../ble.interfaces";
 import {
     IBaseMetrics,
     ICalculatedMetrics,
+    IErgConnectionStatus,
     IExtendedMetrics,
     IHeartRate,
+    IHRConnectionStatus,
     IRowerSettings,
 } from "../common.interfaces";
 
@@ -61,9 +63,12 @@ export class DataService {
         this.calculatedMetrics$ = this.setupMetricStream();
         this.setupLogging();
 
-        this.connectionStatus()
+        this.ergConnectionStatus$()
             .pipe(
-                filter((isConnected: boolean): boolean => isConnected),
+                filter(
+                    (connectionStatus: IErgConnectionStatus): boolean =>
+                        connectionStatus.status === "connected",
+                ),
                 take(1),
             )
             .subscribe((): void => {
@@ -113,19 +118,32 @@ export class DataService {
             : Promise.resolve(this.webSocketService.changeLogToSdCard(shouldEnable));
     }
 
-    connectionStatus(): Observable<boolean> {
+    ergConnectionStatus$(): Observable<IErgConnectionStatus> {
         return this.configManager.useBluetoothChanged$.pipe(
             switchMap(
-                (useBluetooth: boolean): Observable<boolean> =>
+                (useBluetooth: boolean): Observable<IErgConnectionStatus> =>
                     useBluetooth
-                        ? this.bleDataService.connectionStatus()
-                        : this.webSocketService.connectionStatus(),
+                        ? this.bleDataService.connectionStatus$()
+                        : this.webSocketService.connectionStatus().pipe(
+                              map(
+                                  (isConnected: boolean): IErgConnectionStatus => ({
+                                      deviceName: isConnected
+                                          ? new URL(this.configManager.getItem("webSocketAddress")).hostname
+                                          : undefined,
+                                      status: isConnected ? "connected" : "disconnected",
+                                  }),
+                              ),
+                          ),
             ),
         );
     }
 
     getActivityStartTime(): Date {
         return this.activityStartTime;
+    }
+
+    hrConnectionStatus$(): Observable<IHRConnectionStatus> {
+        return this.heartRateService.connectionStatus$();
     }
 
     reset(): void {

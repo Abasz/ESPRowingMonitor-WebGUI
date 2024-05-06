@@ -28,6 +28,18 @@ export class Config {
     webSocketAddress: string = `ws://${window.location.host}/ws`;
 }
 
+type BleConnectionStatus = "disconnected" | "connected" | "searching";
+
+export interface IErgConnectionStatus {
+    deviceName?: string;
+    status: BleConnectionStatus;
+}
+
+export interface IHRConnectionStatus {
+    deviceName?: string;
+    status: BleConnectionStatus;
+}
+
 export interface IExtendedMetrics {
     avgStrokePower: number;
     driveDuration: number;

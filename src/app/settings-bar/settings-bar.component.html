@@ -16,7 +16,10 @@
             <mat-icon>laps</mat-icon>
         </button>
         <button
-            matTooltip="Connect HRM"
+            [matTooltip]="
+                (hrConnectionStatus$ | async)?.deviceName ??
+                ((hrConnectionStatus$ | async)?.status === 'searching' ? 'Searching' : 'Connect HRM')
+            "
             *ngIf="((configManager.heartRateMonitorChanged$ | async) ?? 'off') !== 'off'"
             (click)="heartRateMonitorDiscovery()"
             mat-icon-button
@@ -24,16 +27,21 @@
             <mat-icon>ecg_heart</mat-icon>
         </button>
         <button
-            matTooltip="Connect ESPRM"
+            [matTooltip]="
+                (ergConnectionStatus$ | async)?.deviceName ??
+                ((ergConnectionStatus$ | async)?.status === 'searching' ? 'Searching' : 'Connect ESPRM')
+            "
             *ngIf="(configManager.useBluetoothChanged$ | async) === true"
             (click)="ergoMonitorDiscovery()"
             mat-icon-button
         >
-            <mat-icon>{{ (isConnected$ | async) ? "bluetooth_connected" : "bluetooth" }}</mat-icon>
+            <mat-icon>{{
+                bleConnectionStatusIcons[(ergConnectionStatus$ | async)?.status ?? "disconnected"]
+            }}</mat-icon>
         </button>
         <div *ngIf="(configManager.useBluetoothChanged$ | async) === false">
-            <mat-icon [matTooltip]="(isConnected$ | async) ? 'Connected' : 'Not connected'">{{
-                (isConnected$ | async) ? "wifi" : "wifi_off"
+            <mat-icon [matTooltip]="(ergConnectionStatus$ | async)?.deviceName ?? 'Not connected'">{{
+                (ergConnectionStatus$ | async)?.status === "connected" ? "wifi" : "wifi_off"
             }}</mat-icon>
         </div>
         <span>{{
