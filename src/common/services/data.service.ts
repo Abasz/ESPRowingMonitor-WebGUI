@@ -56,104 +56,8 @@ export class DataService {
         private heartRateService: HeartRateService,
     ) {
         this.heartRateData$ = this.heartRateService.streamHeartRate$();
-
-        this.calculatedMetrics$ = combineLatest([
-            this.streamMeasurement$().pipe(
-                tap((baseMetrics: IBaseMetrics): void => {
-                    this.baseMetrics = baseMetrics;
-                }),
-                pairwise(),
-            ),
-            this.streamExtended$(),
-            this.streamHandleForces$(),
-        ]).pipe(
-            map(
-                ([[baseMetricsPrevious, baseMetricsCurrent], extendedMetrics, handleForces]: [
-                    [IBaseMetrics, IBaseMetrics],
-                    IExtendedMetrics,
-                    Array<number>,
-                ]): ICalculatedMetrics => {
-                    const distance: number = baseMetricsCurrent.distance - this.activityStartDistance;
-                    const strokeCount: number =
-                        baseMetricsCurrent.strokeCount - this.activityStartStrokeCount;
-
-                    const strokeRate: number =
-                        baseMetricsCurrent.strokeCount === baseMetricsPrevious.strokeCount ||
-                        baseMetricsCurrent.strokeTime === baseMetricsPrevious.strokeTime
-                            ? 0
-                            : ((baseMetricsCurrent.strokeCount - baseMetricsPrevious.strokeCount) /
-                                  ((baseMetricsCurrent.strokeTime - baseMetricsPrevious.strokeTime) / 1e6)) *
-                              60;
-                    const speed: number =
-                        baseMetricsCurrent.distance === baseMetricsPrevious.distance ||
-                        baseMetricsCurrent.revTime === baseMetricsPrevious.revTime
-                            ? 0
-                            : (baseMetricsCurrent.distance - baseMetricsPrevious.distance) /
-                              100 /
-                              ((baseMetricsCurrent.revTime - baseMetricsPrevious.revTime) / 1e6);
-                    const distPerStroke: number =
-                        baseMetricsCurrent.distance === baseMetricsPrevious.distance ||
-                        baseMetricsCurrent.strokeCount === baseMetricsPrevious.strokeCount
-                            ? 0
-                            : (baseMetricsCurrent.distance - baseMetricsPrevious.distance) /
-                              100 /
-                              (baseMetricsCurrent.strokeCount - baseMetricsPrevious.strokeCount);
-
-                    return {
-                        avgStrokePower: extendedMetrics.avgStrokePower,
-                        driveDuration: extendedMetrics.driveDuration / 1e6,
-                        recoveryDuration: extendedMetrics.recoveryDuration / 1e6,
-                        dragFactor: extendedMetrics.dragFactor,
-                        distance: distance > 0 ? distance : 0,
-                        strokeCount: strokeCount > 0 ? strokeCount : 0,
-                        handleForces: handleForces,
-                        peakForce: Math.max(...handleForces, 0),
-                        strokeRate,
-                        speed,
-                        distPerStroke,
-                    };
-                },
-            ),
-            shareReplay(),
-        );
-
-        this.configManager.useBluetoothChanged$
-            .pipe(
-                switchMap(
-                    (useBluetooth: boolean): Observable<Array<number>> =>
-                        useBluetooth
-                            ? this.bleDataService.streamDeltaTimes$()
-                            : this.webSocketService.streamDeltaTimes$(),
-                ),
-                filter((deltaTimes: Array<number>): boolean => deltaTimes.length > 0),
-            )
-            .subscribe((deltaTimes: Array<number>): void => {
-                this.dataRecorder.addDeltaTimes(deltaTimes);
-            });
-
-        this.streamMeasurement$()
-            .pipe(
-                withLatestFrom(this.calculatedMetrics$, this.streamHeartRate$()),
-                filter(
-                    ([_, calculatedMetrics]: [
-                        IBaseMetrics,
-                        ICalculatedMetrics,
-                        IHeartRate | undefined,
-                    ]): boolean => calculatedMetrics.strokeCount > 0 || calculatedMetrics.distance > 0,
-                ),
-            )
-            .subscribe(
-                ([_, calculatedMetrics, heartRate]: [
-                    IBaseMetrics,
-                    ICalculatedMetrics,
-                    IHeartRate | undefined,
-                ]): void => {
-                    this.dataRecorder.add({
-                        ...calculatedMetrics,
-                        heartRate,
-                    });
-                },
-            );
+        this.calculatedMetrics$ = this.setupMetricStream();
+        this.setupLogging();
 
         // TODO: Serves backward compatibility with WS API, remove once WS connection is removed
         this.configManager.useBluetoothChanged$.subscribe((useBluetooth: boolean): void => {
@@ -304,6 +208,108 @@ export class DataService {
                         : this.webSocketService.streamSettings$(),
             ),
             shareReplay(1),
+        );
+    }
+
+    private setupLogging(): void {
+        this.configManager.useBluetoothChanged$
+            .pipe(
+                switchMap(
+                    (useBluetooth: boolean): Observable<Array<number>> =>
+                        useBluetooth
+                            ? this.bleDataService.streamDeltaTimes$()
+                            : this.webSocketService.streamDeltaTimes$(),
+                ),
+                filter((deltaTimes: Array<number>): boolean => deltaTimes.length > 0),
+            )
+            .subscribe((deltaTimes: Array<number>): void => {
+                this.dataRecorder.addDeltaTimes(deltaTimes);
+            });
+
+        this.streamMeasurement$()
+            .pipe(
+                withLatestFrom(this.calculatedMetrics$, this.streamHeartRate$()),
+                filter(
+                    ([_, calculatedMetrics]: [
+                        IBaseMetrics,
+                        ICalculatedMetrics,
+                        IHeartRate | undefined,
+                    ]): boolean => calculatedMetrics.strokeCount > 0 || calculatedMetrics.distance > 0,
+                ),
+            )
+            .subscribe(
+                ([_, calculatedMetrics, heartRate]: [
+                    IBaseMetrics,
+                    ICalculatedMetrics,
+                    IHeartRate | undefined,
+                ]): void => {
+                    this.dataRecorder.add({
+                        ...calculatedMetrics,
+                        heartRate,
+                    });
+                },
+            );
+    }
+
+    private setupMetricStream(): Observable<ICalculatedMetrics> {
+        return combineLatest([
+            this.streamMeasurement$().pipe(
+                tap((baseMetrics: IBaseMetrics): void => {
+                    this.baseMetrics = baseMetrics;
+                }),
+                pairwise(),
+            ),
+            this.streamExtended$(),
+            this.streamHandleForces$(),
+        ]).pipe(
+            map(
+                ([[baseMetricsPrevious, baseMetricsCurrent], extendedMetrics, handleForces]: [
+                    [IBaseMetrics, IBaseMetrics],
+                    IExtendedMetrics,
+                    Array<number>,
+                ]): ICalculatedMetrics => {
+                    const distance: number = baseMetricsCurrent.distance - this.activityStartDistance;
+                    const strokeCount: number =
+                        baseMetricsCurrent.strokeCount - this.activityStartStrokeCount;
+
+                    const strokeRate: number =
+                        baseMetricsCurrent.strokeCount === baseMetricsPrevious.strokeCount ||
+                        baseMetricsCurrent.strokeTime === baseMetricsPrevious.strokeTime
+                            ? 0
+                            : ((baseMetricsCurrent.strokeCount - baseMetricsPrevious.strokeCount) /
+                                  ((baseMetricsCurrent.strokeTime - baseMetricsPrevious.strokeTime) / 1e6)) *
+                              60;
+                    const speed: number =
+                        baseMetricsCurrent.distance === baseMetricsPrevious.distance ||
+                        baseMetricsCurrent.revTime === baseMetricsPrevious.revTime
+                            ? 0
+                            : (baseMetricsCurrent.distance - baseMetricsPrevious.distance) /
+                              100 /
+                              ((baseMetricsCurrent.revTime - baseMetricsPrevious.revTime) / 1e6);
+                    const distPerStroke: number =
+                        baseMetricsCurrent.distance === baseMetricsPrevious.distance ||
+                        baseMetricsCurrent.strokeCount === baseMetricsPrevious.strokeCount
+                            ? 0
+                            : (baseMetricsCurrent.distance - baseMetricsPrevious.distance) /
+                              100 /
+                              (baseMetricsCurrent.strokeCount - baseMetricsPrevious.strokeCount);
+
+                    return {
+                        avgStrokePower: extendedMetrics.avgStrokePower,
+                        driveDuration: extendedMetrics.driveDuration / 1e6,
+                        recoveryDuration: extendedMetrics.recoveryDuration / 1e6,
+                        dragFactor: extendedMetrics.dragFactor,
+                        distance: distance > 0 ? distance : 0,
+                        strokeCount: strokeCount > 0 ? strokeCount : 0,
+                        handleForces: handleForces,
+                        peakForce: Math.max(...handleForces, 0),
+                        strokeRate,
+                        speed,
+                        distPerStroke,
+                    };
+                },
+            ),
+            shareReplay(),
         );
     }
 }
