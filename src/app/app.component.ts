@@ -119,6 +119,18 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
             }
         }
         this.utils.enableWakeLock();
+
+        if (navigator.storage === undefined) {
+            console.error("StorageManage- API is not found or not supported");
+
+            return;
+        }
+
+        if (!(await navigator.storage.persisted())) {
+            if (!(await navigator.storage.persist())) {
+                console.warn("Failed to make storage persisted");
+            }
+        }
     }
 
     // eslint-disable-next-line rxjs-angular/prefer-takeuntil
