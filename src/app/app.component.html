@@ -1,9 +1,4 @@
-<app-settings-bar
-    [connectionStatus]="(isConnected$ | async) ?? false"
-    [batteryLevel]="(batteryLevel$ | async) ?? 0"
-    [bleServiceType]="(settingsData$ | async)?.bleServiceFlag ?? BleServiceFlag.CpsService"
-    (buttonClicked)="handleAction($event)"
-></app-settings-bar>
+<app-settings-bar></app-settings-bar>
 <div class="dashboard">
     <app-metric
         title="Distance"

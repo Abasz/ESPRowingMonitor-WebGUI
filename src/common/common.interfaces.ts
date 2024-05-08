@@ -50,6 +50,7 @@ export interface IRowerSettings {
 }
 
 export interface ICalculatedMetrics extends Omit<IExtendedMetrics & IBaseMetrics, "revTime" | "strokeTime"> {
+    activityStartTime: Date;
     speed: number;
     strokeRate: number;
     peakForce: number;

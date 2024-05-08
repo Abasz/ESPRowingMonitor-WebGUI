@@ -6,24 +6,29 @@ import {
     isDevMode,
     OnDestroy,
 } from "@angular/core";
-import { MatDialog } from "@angular/material/dialog";
 import { MatIconRegistry } from "@angular/material/icon";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { SwUpdate, VersionEvent, VersionReadyEvent } from "@angular/service-worker";
-import { filter, interval, map, Observable, startWith, switchMap, take, takeUntil, tap } from "rxjs";
+import {
+    filter,
+    interval,
+    map,
+    merge,
+    Observable,
+    pairwise,
+    startWith,
+    switchMap,
+    take,
+    takeUntil,
+    tap,
+} from "rxjs";
 
 import { BleServiceFlag } from "../common/ble.interfaces";
-import { ICalculatedMetrics, IHeartRate, IRowerSettings } from "../common/common.interfaces";
-import { BluetoothMetricsService } from "../common/services/ble-data.service";
-import { DataRecorderService } from "../common/services/data-recorder.service";
+import { ICalculatedMetrics, IHeartRate } from "../common/common.interfaces";
 import { DataService } from "../common/services/data.service";
-import { HeartRateService } from "../common/services/heart-rate.service";
 import { UtilsService } from "../common/services/utils.service";
 import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-confirm.component";
 import { NgUnsubscribeDirective } from "../common/utils/unsubscribe-base.component";
-
-import { ButtonClickedTargets } from "./settings-bar/settings-bar.interfaces";
-import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.component";
 
 @Component({
     selector: "app-root",
@@ -34,22 +39,13 @@ import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.compo
 export class AppComponent extends NgUnsubscribeDirective implements AfterViewInit, OnDestroy {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
 
-    batteryLevel$: Observable<number>;
     elapseTime$: Observable<number>;
     heartRateData$: Observable<IHeartRate | undefined>;
-    isConnected$: Observable<boolean>;
     rowingData$: Observable<ICalculatedMetrics>;
-    settingsData$: Observable<IRowerSettings>;
-
-    private activityStartTime: number = Date.now();
 
     constructor(
         private cd: ChangeDetectorRef,
-        private metricsService: BluetoothMetricsService,
         private dataService: DataService,
-        private dataRecorder: DataRecorderService,
-        private dialog: MatDialog,
-        private heartRateService: HeartRateService,
         private utils: UtilsService,
         private swUpdate: SwUpdate,
         private snackBar: MatSnackBar,
@@ -59,20 +55,28 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
         this.matIconReg.setDefaultFontSetClass("material-symbols-sharp");
 
         this.heartRateData$ = this.dataService.streamHeartRate$();
-        this.isConnected$ = this.dataService.connectionStatus();
-        this.settingsData$ = this.dataService.streamSettings$();
-        this.batteryLevel$ = this.dataService.streamMonitorBatteryLevel$();
-        this.elapseTime$ = this.isConnected$.pipe(
+        this.elapseTime$ = this.dataService.connectionStatus().pipe(
             filter((isConnected: boolean): boolean => isConnected),
             take(1),
-            switchMap((): Observable<number> => {
-                this.activityStartTime = Date.now();
-
-                return interval(1000).pipe(
-                    startWith(0),
-                    map((): number => (Date.now() - this.activityStartTime) / 1000),
-                );
-            }),
+            switchMap(
+                (): Observable<number> =>
+                    merge(
+                        interval(1000),
+                        this.rowingData$.pipe(
+                            pairwise(),
+                            filter(
+                                ([previous, current]: [ICalculatedMetrics, ICalculatedMetrics]): boolean =>
+                                    previous.activityStartTime !== current.activityStartTime,
+                            ),
+                        ),
+                    ).pipe(
+                        startWith(0),
+                        map(
+                            (): number =>
+                                (Date.now() - this.dataService.getActivityStartTime().getTime()) / 1000,
+                        ),
+                    ),
+            ),
         );
         this.rowingData$ = this.dataService.streamAllMetrics$().pipe(
             tap((): void => {
@@ -100,36 +104,6 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
                 .subscribe((): void => {
                     window.location.reload();
                 });
-        }
-    }
-
-    async handleAction($event: ButtonClickedTargets): Promise<void> {
-        if ($event === "reset") {
-            this.activityStartTime = Date.now();
-            this.dataService.reset();
-        }
-
-        if ($event === "settings") {
-            // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-            this.settingsData$.pipe(take(1)).subscribe((settings: IRowerSettings): void => {
-                this.dialog.open(SettingsDialogComponent, {
-                    autoFocus: false,
-                    data: settings,
-                });
-            });
-        }
-
-        if ($event === "download") {
-            this.dataRecorder.download();
-            this.dataRecorder.downloadDeltaTimes();
-        }
-
-        if ($event === "heartRate") {
-            await this.heartRateService.discover();
-        }
-
-        if ($event === "bluetooth") {
-            await this.metricsService.discover();
         }
     }
 

@@ -1,21 +1,24 @@
 <mat-toolbar color="primary">
     <div>
         <div>
-            <mat-icon [matTooltip]="batteryLevel + '%'">{{ batteryLevel | batteryLevel }}</mat-icon>
+            <mat-icon [matTooltip]="((batteryLevel$ | async) ?? 0) + '%'">{{
+                (batteryLevel$ | async) ?? 0 | batteryLevel
+            }}</mat-icon>
         </div>
-        <button matTooltip="Export sessions" (click)="click('download')" mat-icon-button>
+
+        <button matTooltip="Export sessions" (click)="downloadSession()" mat-icon-button>
             <mat-icon>sports_score</mat-icon>
         </button>
-        <button matTooltip="Settings" (click)="click('settings')" mat-icon-button>
+        <button matTooltip="Settings" (click)="openSettings()" mat-icon-button>
             <mat-icon>settings</mat-icon>
         </button>
-        <button matTooltip="Reset" (click)="click('reset')" mat-icon-button>
+        <button matTooltip="Reset" (click)="reset()" mat-icon-button>
             <mat-icon>laps</mat-icon>
         </button>
         <button
             matTooltip="Connect HRM"
             *ngIf="((configManager.heartRateMonitorChanged$ | async) ?? 'off') !== 'off'"
-            (click)="click('heartRate')"
+            (click)="heartRateMonitorDiscovery()"
             mat-icon-button
         >
             <mat-icon>ecg_heart</mat-icon>
@@ -23,19 +26,21 @@
         <button
             matTooltip="Connect ESPRM"
             *ngIf="(configManager.useBluetoothChanged$ | async) === true"
-            (click)="click('bluetooth')"
+            (click)="ergoMonitorDiscovery()"
             mat-icon-button
         >
-            <mat-icon>{{ connectionStatus ? "bluetooth_connected" : "bluetooth" }}</mat-icon>
+            <mat-icon>{{ (isConnected$ | async) ? "bluetooth_connected" : "bluetooth" }}</mat-icon>
         </button>
-
         <div *ngIf="(configManager.useBluetoothChanged$ | async) === false">
-            <mat-icon [matTooltip]="connectionStatus ? 'Connected' : 'Not connected'">{{
-                connectionStatus ? "wifi" : "wifi_off"
+            <mat-icon [matTooltip]="(isConnected$ | async) ? 'Connected' : 'Not connected'">{{
+                (isConnected$ | async) ? "wifi" : "wifi_off"
             }}</mat-icon>
         </div>
         <span>{{
-            bleServiceType === BleServiceFlag.CpsService ? "Cycling Power" : "Cycling Speed and Cadence"
+            ((settingsData$ | async)?.bleServiceFlag ?? BleServiceFlag.CpsService) ===
+            BleServiceFlag.CpsService
+                ? "Cycling Power"
+                : "Cycling Speed and Cadence"
         }}</span>
     </div>
     <span class="time-of-day">

@@ -9,6 +9,7 @@ import {
     shareReplay,
     Subject,
     switchMap,
+    take,
     tap,
     withLatestFrom,
 } from "rxjs";
@@ -34,6 +35,7 @@ import { WebSocketService } from "./websocket.service";
 export class DataService {
     private activityStartDistance: number = 0;
     private activityStartStrokeCount: number = 0;
+    private activityStartTime: Date = new Date();
 
     private baseMetrics: IBaseMetrics = {
         revTime: 0,
@@ -59,6 +61,15 @@ export class DataService {
         this.calculatedMetrics$ = this.setupMetricStream();
         this.setupLogging();
 
+        this.connectionStatus()
+            .pipe(
+                filter((isConnected: boolean): boolean => isConnected),
+                take(1),
+            )
+            .subscribe((): void => {
+                this.activityStartTime = new Date();
+            });
+
         // TODO: Serves backward compatibility with WS API, remove once WS connection is removed
         this.configManager.useBluetoothChanged$.subscribe((useBluetooth: boolean): void => {
             this.baseMetrics = {
@@ -68,6 +79,7 @@ export class DataService {
                 strokeCount: 0,
             };
             this.resetSubject.next(this.baseMetrics);
+            this.activityStartTime = new Date();
 
             if (!useBluetooth) {
                 this.bleDataService.disconnectDevice();
@@ -112,9 +124,14 @@ export class DataService {
         );
     }
 
+    getActivityStartTime(): Date {
+        return this.activityStartTime;
+    }
+
     reset(): void {
         this.activityStartDistance = this.baseMetrics.distance;
         this.activityStartStrokeCount = this.baseMetrics.strokeCount;
+        this.activityStartTime = new Date();
         this.dataRecorder.reset();
 
         this.resetSubject.next({
@@ -295,6 +312,7 @@ export class DataService {
                               (baseMetricsCurrent.strokeCount - baseMetricsPrevious.strokeCount);
 
                     return {
+                        activityStartTime: this.activityStartTime,
                         avgStrokePower: extendedMetrics.avgStrokePower,
                         driveDuration: extendedMetrics.driveDuration / 1e6,
                         recoveryDuration: extendedMetrics.recoveryDuration / 1e6,
