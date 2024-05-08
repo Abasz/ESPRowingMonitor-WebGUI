@@ -13,14 +13,13 @@ import {
     withLatestFrom,
 } from "rxjs";
 
+import { BleServiceFlag, LogLevel } from "../ble.interfaces";
 import {
-    BleServiceFlag,
     IBaseMetrics,
     ICalculatedMetrics,
     IExtendedMetrics,
     IHeartRate,
     IRowerSettings,
-    LogLevel,
 } from "../common.interfaces";
 
 import { BluetoothMetricsService } from "./ble-data.service";

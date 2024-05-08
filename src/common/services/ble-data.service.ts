@@ -25,28 +25,24 @@ import {
     BATTERY_LEVEL_SERVICE,
     BleOpCodes,
     BleResponseOpCodes,
+    BleServiceFlag,
     CYCLING_POWER_CHARACTERISTIC,
     CYCLING_POWER_SERVICE,
+    CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC,
     CYCLING_SPEED_AND_CADENCE_SERVICE,
     DELTA_TIMES_CHARACTERISTIC,
     EXTENDED_CHARACTERISTIC,
     EXTENDED_METRICS_SERVICE,
     HANDLE_FORCES_CHARACTERISTIC,
-    IBaseMetrics,
-    IExtendedMetrics,
-    IRowerDataService,
+    LogLevel,
     SETTINGS_CHARACTERISTIC,
     SETTINGS_CONTROL_POINT,
     SETTINGS_SERVICE,
-} from "../common.interfaces";
+} from "../ble.interfaces";
+import { IBaseMetrics, IExtendedMetrics, IRowerDataService } from "../common.interfaces";
 import { withDelay } from "../utils/utility.functions";
 
-import {
-    BleServiceFlag,
-    CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC,
-    IRowerSettings,
-    LogLevel,
-} from "./../common.interfaces";
+import { IRowerSettings } from "./../common.interfaces";
 import { ConfigManagerService } from "./config-manager.service";
 
 @Injectable({

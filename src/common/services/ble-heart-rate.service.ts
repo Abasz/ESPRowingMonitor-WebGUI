@@ -23,9 +23,8 @@ import {
     BATTERY_LEVEL_SERVICE,
     HEART_RATE_CHARACTERISTIC,
     HEART_RATE_SERVICE,
-    IHeartRate,
-    IHeartRateService,
-} from "../common.interfaces";
+} from "../ble.interfaces";
+import { IHeartRate, IHeartRateService } from "../common.interfaces";
 import { withDelay } from "../utils/utility.functions";
 
 import { ConfigManagerService } from "./config-manager.service";

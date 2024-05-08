@@ -5,7 +5,8 @@ import { MatSlideToggleChange } from "@angular/material/slide-toggle";
 import { SwUpdate } from "@angular/service-worker";
 import { map, Observable, startWith } from "rxjs";
 
-import { BleServiceFlag, IRowerSettings, IValidationErrors, LogLevel } from "../../common/common.interfaces";
+import { BleServiceFlag, LogLevel } from "../../common/ble.interfaces";
+import { IRowerSettings, IValidationErrors } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { DataService } from "../../common/services/data.service";
 import { getValidationErrors } from "../../common/utils/utility.functions";

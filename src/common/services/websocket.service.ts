@@ -2,19 +2,14 @@ import { Injectable } from "@angular/core";
 import { filter, map, merge, Observable, retry, shareReplay, startWith, Subject, switchMap } from "rxjs";
 import { webSocket, WebSocketSubject } from "rxjs/webSocket";
 
+import { BleOpCodes, BleServiceFlag, LogLevel } from "../ble.interfaces";
+import { IBaseMetrics, IExtendedMetrics, IRowerDataService, IRowerSettings } from "../common.interfaces";
 import {
-    BleOpCodes,
-    BleServiceFlag,
-    IBaseMetrics,
-    IExtendedMetrics,
     IRowerData,
-    IRowerDataService,
-    IRowerSettings,
     IRowerWebSocketDataDto,
     IRowerWebSocketSettings,
-    LogLevel,
     WebSocketRowerSettings,
-} from "../common.interfaces";
+} from "../websocket.interfaces";
 
 import { ConfigManagerService } from "./config-manager.service";
 

@@ -12,7 +12,8 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { SwUpdate, VersionEvent, VersionReadyEvent } from "@angular/service-worker";
 import { filter, interval, map, Observable, startWith, switchMap, take, takeUntil, tap } from "rxjs";
 
-import { BleServiceFlag, ICalculatedMetrics, IHeartRate, IRowerSettings } from "../common/common.interfaces";
+import { BleServiceFlag } from "../common/ble.interfaces";
+import { ICalculatedMetrics, IHeartRate, IRowerSettings } from "../common/common.interfaces";
 import { BluetoothMetricsService } from "../common/services/ble-data.service";
 import { DataRecorderService } from "../common/services/data-recorder.service";
 import { DataService } from "../common/services/data.service";

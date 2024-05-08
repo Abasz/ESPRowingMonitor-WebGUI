@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from "@angular/core";
 import { interval, map, Observable, startWith } from "rxjs";
 
-import { BleServiceFlag } from "../../common/common.interfaces";
+import { BleServiceFlag } from "../../common/ble.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 
 import { ButtonClickedTargets } from "./settings-bar.interfaces";
