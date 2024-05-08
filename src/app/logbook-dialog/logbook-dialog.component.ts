@@ -101,18 +101,6 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
             });
     }
 
-    async downloadSession(sessionId: number): Promise<void> {
-        try {
-            await this.dataRecorder.downloadSession(sessionId);
-        } catch (e) {
-            if (e instanceof Error) {
-                this.snackBar.open(`Error while downloading session: ${e.message}`, "Dismiss");
-            }
-
-            console.error(e);
-        }
-    }
-
     async export(): Promise<void> {
         this.progressBarSubject$.next(0);
         try {
@@ -139,6 +127,30 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
                         this.progressBarSubject$.next(undefined);
                     });
             }
+            console.error(e);
+        }
+    }
+
+    async exportToJson(sessionId: number): Promise<void> {
+        try {
+            await this.dataRecorder.exportSessionToJson(sessionId);
+        } catch (e) {
+            if (e instanceof Error) {
+                this.snackBar.open(`Error while downloading session: ${e.message}`, "Dismiss");
+            }
+
+            console.error(e);
+        }
+    }
+
+    async exportToTcx(sessionId: number): Promise<void> {
+        try {
+            await this.dataRecorder.exportSessionToTcx(sessionId);
+        } catch (e) {
+            if (e instanceof Error) {
+                this.snackBar.open(`Error while downloading session: ${e.message}`, "Dismiss");
+            }
+
             console.error(e);
         }
     }

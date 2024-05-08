@@ -2,6 +2,7 @@ import { Injectable } from "@angular/core";
 import { IndexableTypePart, liveQuery } from "dexie";
 import { exportDB, ExportProgress, importInto, peakImportFile } from "dexie-export-import";
 import { ImportProgress } from "dexie-export-import/dist/import";
+import { parse } from "js2xmlparser";
 import { filter, from, Observable } from "rxjs";
 
 import { ISessionData, ISessionSummary } from "../common.interfaces";
@@ -13,6 +14,7 @@ import {
     IMetricsEntity,
 } from "../database.interfaces";
 import { appDB } from "../utils/app-database";
+import { createSessionTcxObject } from "../utils/utility.functions";
 
 @Injectable({
     providedIn: "root",
@@ -86,15 +88,47 @@ export class DataRecorderService {
         );
     }
 
-    downloadSession(sessionId: number): Promise<[void, void]> {
-        return Promise.all([this.downloadDeltaTimes(sessionId), this.downloadSessionData(sessionId)]);
-    }
-
     async export(progressCallback?: (progress: ExportProgress) => boolean): Promise<void> {
         const database = await exportDB(appDB, { progressCallback });
         const name = `${new Date().toDateTimeStringFormat()} - database.json`;
 
         this.createDownload(database, name);
+    }
+
+    async exportSessionToJson(sessionId: number): Promise<void> {
+        const [deltaTimes, rowingSessionData]: [Array<number>, Array<ExportSessionData>] = await Promise.all([
+            this.getDeltaTimes(sessionId),
+            this.getSessionData(sessionId),
+        ]);
+
+        if (deltaTimes.length > 0) {
+            const blob = new Blob([JSON.stringify(deltaTimes)], { type: "application/json" });
+            const name = `${new Date(sessionId).toDateTimeStringFormat()} - deltaTimes`;
+            this.createDownload(blob, name);
+        }
+
+        const blob = new Blob([JSON.stringify(rowingSessionData)], { type: "application/json" });
+        const name = `${new Date(sessionId).toDateTimeStringFormat()} - session`;
+        this.createDownload(blob, name);
+    }
+
+    async exportSessionToTcx(sessionId: number): Promise<void> {
+        const rowingSessionData = await this.getSessionData(sessionId);
+
+        const blob = new Blob(
+            [
+                parse("TrainingCenterDatabase", createSessionTcxObject(sessionId, rowingSessionData), {
+                    format: {
+                        doubleQuotes: true,
+                    },
+                }),
+            ],
+            {
+                type: "application/vnd.garmin.tcx+xml",
+            },
+        );
+        const name = `${new Date(sessionId).toDateTimeStringFormat()} - session.tcx`;
+        this.createDownload(blob, name);
     }
 
     getSessionSummaries$(): Observable<Array<ISessionSummary>> {
@@ -183,8 +217,8 @@ export class DataRecorderService {
         downloadTag.click();
     }
 
-    private async downloadDeltaTimes(sessionId: number): Promise<void> {
-        const deltaTimes: Array<number> = (await appDB.deltaTimes.where({ sessionId }).toArray()).reduce(
+    private async getDeltaTimes(sessionId: number): Promise<Array<number>> {
+        return (await appDB.deltaTimes.where({ sessionId }).toArray()).reduce(
             (previousValue: Array<number>, currentValue: IDeltaTimesEntity): Array<number> => {
                 previousValue.push(...currentValue.deltaTimes);
 
@@ -192,59 +226,56 @@ export class DataRecorderService {
             },
             [],
         );
-
-        if (deltaTimes.length === 0) {
-            return;
-        }
-
-        const blob = new Blob([JSON.stringify(deltaTimes)], { type: "application/json" });
-        const name = `${new Date(sessionId).toDateTimeStringFormat()} - deltaTimes`;
-        this.createDownload(blob, name);
     }
 
-    private downloadSessionData(sessionId: number): Promise<void> {
-        return appDB.transaction("r", appDB.sessionData, appDB.handleForces, async (): Promise<void> => {
-            const [metricsEntity, handleForcesEntity]: [Array<IMetricsEntity>, Array<IHandleForcesEntity>] =
-                await Promise.all([
+    private async getSessionData(sessionId: number): Promise<Array<ExportSessionData>> {
+        return appDB.transaction(
+            "r",
+            appDB.sessionData,
+            appDB.handleForces,
+            async (): Promise<Array<ExportSessionData>> => {
+                const [metricsEntity, handleForcesEntity]: [
+                    Array<IMetricsEntity>,
+                    Array<IHandleForcesEntity>,
+                ] = await Promise.all([
                     appDB.sessionData.where({ sessionId }).toArray(),
                     appDB.handleForces.where({ sessionId }).toArray(),
                 ]);
 
-            const handleForces: { [key: number]: IHandleForcesEntity } = handleForcesEntity.reduce(
-                (
-                    previousValue: { [key: number]: IHandleForcesEntity },
-                    currentValue: IHandleForcesEntity,
-                ): { [key: number]: IHandleForcesEntity } => {
-                    previousValue[currentValue.strokeId] = {
-                        ...currentValue,
-                    };
+                const handleForces: { [key: number]: IHandleForcesEntity } = handleForcesEntity.reduce(
+                    (
+                        previousValue: { [key: number]: IHandleForcesEntity },
+                        currentValue: IHandleForcesEntity,
+                    ): { [key: number]: IHandleForcesEntity } => {
+                        previousValue[currentValue.strokeId] = {
+                            ...currentValue,
+                        };
 
-                    return previousValue;
-                },
-                {},
-            );
+                        return previousValue;
+                    },
+                    {},
+                );
 
-            const rowingSessionData: Array<ExportSessionData> = metricsEntity.map(
-                (metric: IMetricsEntity): ExportSessionData => ({
-                    avgStrokePower: metric.avgStrokePower,
-                    distance: metric.distance,
-                    distPerStroke: metric.distPerStroke,
-                    dragFactor: metric.dragFactor,
-                    driveDuration: metric.driveDuration,
-                    heartRate: metric.heartRate,
-                    recoveryDuration: metric.recoveryDuration,
-                    speed: metric.speed,
-                    strokeCount: metric.strokeCount,
-                    strokeRate: metric.strokeRate,
-                    timeStamp: new Date(metric.timeStamp),
-                    peakForce: handleForces[metric.strokeCount].peakForce,
-                    handleForces: handleForces[metric.strokeCount].handleForces,
-                }),
-            );
+                const rowingSessionData: Array<ExportSessionData> = metricsEntity.map(
+                    (metric: IMetricsEntity): ExportSessionData => ({
+                        avgStrokePower: metric.avgStrokePower,
+                        distance: metric.distance,
+                        distPerStroke: metric.distPerStroke,
+                        dragFactor: metric.dragFactor,
+                        driveDuration: metric.driveDuration,
+                        heartRate: metric.heartRate,
+                        recoveryDuration: metric.recoveryDuration,
+                        speed: metric.speed,
+                        strokeCount: metric.strokeCount,
+                        strokeRate: metric.strokeRate,
+                        timeStamp: new Date(metric.timeStamp),
+                        peakForce: handleForces[metric.strokeCount].peakForce,
+                        handleForces: handleForces[metric.strokeCount].handleForces,
+                    }),
+                );
 
-            const blob = new Blob([JSON.stringify(rowingSessionData)], { type: "application/json" });
-            const name = `${new Date(sessionId).toDateTimeStringFormat()} - session`;
-            this.createDownload(blob, name);
-        });
+                return rowingSessionData;
+            },
+        );
     }
 }

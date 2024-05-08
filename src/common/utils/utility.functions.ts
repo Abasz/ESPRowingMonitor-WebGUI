@@ -10,6 +10,10 @@ import {
 } from "@angular/forms";
 
 import { IValidationError, IValidationErrors } from "../common.interfaces";
+import { ExportSessionData } from "../database.interfaces";
+import { ILap, ITrainingCenterDatabase } from "../tcx.interface";
+
+import { ITrackPoint } from "./../tcx.interface";
 
 export function getValidationErrors<
     TControl extends {
@@ -93,6 +97,147 @@ export function withDelay<T>(ms: number, value?: T): Promise<T> {
     return new Promise<T>((resolve: (value: T | PromiseLike<T>) => void): number =>
         window.setTimeout(resolve, ms, value),
     );
+}
+
+export function createSessionTcxObject(
+    sessionId: number,
+    rowingSessionData: Array<ExportSessionData>,
+): ITrainingCenterDatabase {
+    const lastDataPoint = rowingSessionData[rowingSessionData.length - 1];
+
+    const heartRatePoints: Array<number> = rowingSessionData
+        .filter(
+            (dataPoint: ExportSessionData): dataPoint is Required<ExportSessionData> =>
+                dataPoint.heartRate !== undefined,
+        )
+        .map((dataPoint: Required<ExportSessionData>): number => dataPoint.heartRate.heartRate);
+
+    const strokeRates: Array<number> = rowingSessionData
+        .filter((dataPoint: ExportSessionData): boolean => dataPoint.strokeRate > 0)
+        .map((dataPoint: ExportSessionData): number => dataPoint.strokeRate);
+
+    const dragFactors: Array<number> = rowingSessionData
+        .filter((dataPoint: ExportSessionData): boolean => dataPoint.dragFactor > 0)
+        .map((dataPoint: ExportSessionData): number => dataPoint.dragFactor);
+
+    const lap: ILap = {
+        "@": { StartTime: new Date(sessionId).toISOString() },
+        TotalTimeSeconds: (lastDataPoint.timeStamp.getTime() - sessionId) / 1000,
+        DistanceMeters: lastDataPoint.distance / 100,
+        MaximumSpeed: Math.max(
+            ...rowingSessionData.map((dataPoint: ExportSessionData): number => dataPoint.speed),
+            0,
+        ),
+        Intensity: "Active",
+        Cadence: Math.round(
+            strokeRates.reduce((average: number, strokeRate: number): number => average + strokeRate, 0) /
+                strokeRates.length,
+        ),
+        TriggerMethod: "Manual",
+        Track: {
+            Trackpoint: rowingSessionData.map((dataPoint: ExportSessionData): ITrackPoint => {
+                const trackPoint: ITrackPoint = {
+                    Time: new Date(dataPoint.timeStamp).toISOString(),
+                    DistanceMeters: dataPoint.distance / 100,
+                    Cadence: Math.round(dataPoint.strokeRate),
+                    Extensions: {
+                        "ns3:TPX": {
+                            "ns3:Speed": dataPoint.speed ?? 0,
+                            "ns3:Watts": dataPoint.avgStrokePower,
+                        },
+                    },
+                };
+
+                if (dataPoint.heartRate) {
+                    trackPoint.HeartRateBpm = {
+                        Value: dataPoint.heartRate.heartRate,
+                    };
+                }
+
+                return trackPoint;
+            }),
+        },
+        Extensions: {
+            "ns3:LX": {
+                "ns3:Steps": lastDataPoint.strokeCount,
+                "ns3:AvgSpeed":
+                    rowingSessionData.reduce(
+                        (average: number, dataPoint: ExportSessionData): number => average + dataPoint.speed,
+                        0,
+                    ) /
+                    (rowingSessionData.length - 1),
+                "ns3:AvgWatts": Math.round(
+                    rowingSessionData.reduce(
+                        (average: number, dataPoint: ExportSessionData): number =>
+                            average + dataPoint.avgStrokePower,
+                        0,
+                    ) /
+                        (rowingSessionData.length - 1),
+                ),
+                "ns3:MaxWatts": Math.max(
+                    ...rowingSessionData.map((dataPoint: ExportSessionData): number => dataPoint.peakForce),
+                    0,
+                ),
+            },
+        },
+    };
+
+    if (heartRatePoints.length > 0) {
+        lap.AverageHeartRateBpm = {
+            Value: Math.round(
+                heartRatePoints.reduce(
+                    (average: number, heartRate: number): number => average + heartRate,
+                    0,
+                ) / heartRatePoints.length,
+            ),
+        };
+
+        lap.MaximumHeartRateBpm = { Value: Math.max(...heartRatePoints, 0) };
+    }
+
+    return {
+        "@": {
+            "xsi:schemaLocation":
+                "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd",
+            "xmlns:ns5": "http://www.garmin.com/xmlschemas/ActivityGoals/v1",
+            "xmlns:ns3": "http://www.garmin.com/xmlschemas/ActivityExtension/v2",
+            "xmlns:ns2": "http://www.garmin.com/xmlschemas/UserProfile/v2",
+            xmlns: "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2",
+            "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+            "xmlns:ns4": "http://www.garmin.com/xmlschemas/ProfileExtension/v1",
+        },
+        Activities: {
+            Activity: [
+                {
+                    "@": { Sport: "Other" },
+                    Id: new Date(sessionId).toISOString(),
+                    Lap: [lap],
+                    Notes: `Indoor Rowing/Kayaking, Drag factor/Resistance level: ${Math.round(
+                        dragFactors.reduce(
+                            (average: number, strokeRate: number): number => average + strokeRate,
+                            0,
+                        ) / dragFactors.length,
+                    )}`,
+                },
+            ],
+        },
+        Author: {
+            "@": {
+                "xsi:type": "Application_t",
+            },
+            Name: "ESP Rowing Monitor",
+            Build: {
+                Version: {
+                    VersionMajor: 0,
+                    VersionMinor: 0,
+                    BuildMajor: 0,
+                    BuildMinor: 0,
+                },
+                LangID: "en",
+                PartNumber: "ESP-32ROW-PM",
+            },
+        },
+    };
 }
 
 declare global {
