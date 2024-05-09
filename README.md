@@ -33,7 +33,22 @@ The WebGUI supports ANT+ HR monitors that can be enabled in the setting. Once th
 
 However the ANT+ needs a WinUSB driver (instead of generic libusb) otherwise itt will not work. This can be installed with [Zadig](https://zadig.akeo.ie/).
 
+## TCX export for Strava upload
+
+It is possible to export logged workout data in TCX format that can be manually uploaded to Strava and other platforms.
+
+## Experimental Logbook support
+
+The GUI is capable of persisting sessions. However, this is saved to the browser storage which means that it is not transferable between devices automatically. Nevertheless, the GUI provides for an import/export feature that helps with moving the data between devices if necessary.
+
+_Limitations:_
+
+Even though the Logbook is saved to a fully functional client-side database (IndexedDB) for the web, it is not a persistent storage by default. IndexedDB without StorageManager is just a “best-effort” database that can be erased in situations of low disk space on a device. The browser may delete your database without notifying the user in case it needs to free up space for other website’s data that was used more recently than yours.
+
+It is possible to request via the StorageManager API to persist the data and prevent accidental deletion but this is not perfect as there is no guarantee that persistance can be enabled (its up to the browser, system whether system got permission etc.).
+
+For further information please see the [here](https://dexie.org/docs/StorageManager) and [here](https://hackernoon.com/persistent-data-what-working-with-the-storage-api-looks-like)
+
 ## Backlog
 
-- Implement log book functionality to manage and store session data
-- Support more export format (e.g. TCX for Strava)
+- Make sessions repayable, especially the force curves
