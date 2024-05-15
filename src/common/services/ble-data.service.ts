@@ -10,13 +10,16 @@ import {
     distinctUntilChanged,
     filter,
     finalize,
+    fromEvent,
     map,
     Observable,
     of,
     retry,
+    skip,
     startWith,
     switchMap,
     take,
+    takeUntil,
     timer,
 } from "rxjs";
 
@@ -109,7 +112,7 @@ export class BluetoothMetricsService implements IRowerDataService {
                 .pipe(take(1))
                 .subscribe((response: DataView): void => {
                     if (response.getUint8(2) === BleResponseOpCodes.Successful) {
-                        this.disconnectDevice();
+                        this.discover();
                     }
                     this.snackBar.open(
                         response.getUint8(2) === BleResponseOpCodes.Successful
@@ -269,15 +272,21 @@ export class BluetoothMetricsService implements IRowerDataService {
         return this.connectionStatusSubject.asObservable();
     }
 
-    disconnectDevice(): void {
-        if (this.bluetoothDevice !== undefined) {
-            this.bluetoothDevice.ongattserverdisconnected = (): void => {
-                return;
-            };
+    async disconnectDevice(): Promise<void> {
+        await new Promise<void>((resolve: () => void): void => {
+            if (this.bluetoothDevice !== undefined && this.bluetoothDevice.gatt?.connected) {
+                this.bluetoothDevice.ongattserverdisconnected = (): void => {
+                    resolve();
+                };
+                this.bluetoothDevice.gatt?.disconnect();
 
-            this.bluetoothDevice.gatt?.disconnect();
-            this.bluetoothDevice = undefined;
-        }
+                return;
+            }
+
+            resolve();
+        });
+
+        this.bluetoothDevice = undefined;
 
         this.cancellationToken.abort();
         this.batteryCharacteristic.next(undefined);
@@ -293,7 +302,7 @@ export class BluetoothMetricsService implements IRowerDataService {
     // 2) need to enable the chrome://flags/#enable-web-bluetooth-new-permissions-backend in chrome
 
     async discover(): Promise<void> {
-        this.disconnectDevice();
+        await this.disconnectDevice();
 
         const device = await this.ble.discover({
             acceptAllDevices: false,
@@ -312,7 +321,7 @@ export class BluetoothMetricsService implements IRowerDataService {
     }
 
     async reconnect(): Promise<void> {
-        this.disconnectDevice();
+        await this.disconnectDevice();
         const device = (await navigator.bluetooth.getDevices()).filter(
             (device: BluetoothDevice): boolean =>
                 device.id === this.configManager.getItem("ergoMonitorBleId"),
@@ -321,10 +330,29 @@ export class BluetoothMetricsService implements IRowerDataService {
             return;
         }
 
-        device.onadvertisementreceived = this.reconnectHandler;
-        this.cancellationToken = new AbortController();
-        await device.watchAdvertisements({ signal: this.cancellationToken.signal });
-        this.connectionStatusSubject.next({ status: "searching" });
+        fromEvent(document, "visibilitychange")
+            .pipe(
+                startWith(document.visibilityState),
+                filter((): boolean => document.visibilityState === "visible"),
+            )
+            .pipe(
+                takeUntil(
+                    this.connectionStatusSubject.pipe(
+                        skip(1),
+                        filter(
+                            (connectionStatus: IErgConnectionStatus): boolean =>
+                                connectionStatus.status !== "searching",
+                        ),
+                    ),
+                ),
+            )
+            .subscribe(async (): Promise<void> => {
+                this.cancellationToken.abort();
+                this.cancellationToken = new AbortController();
+                device.onadvertisementreceived = this.reconnectHandler;
+                await device.watchAdvertisements({ signal: this.cancellationToken.signal });
+                this.connectionStatusSubject.next({ status: "searching" });
+            });
     }
 
     streamDeltaTimes$(): Observable<Array<number>> {
@@ -570,7 +598,12 @@ export class BluetoothMetricsService implements IRowerDataService {
             this.snackBar.open("Ergo monitor connected", "Dismiss");
         } catch (error) {
             this.connectionStatusSubject.next({ status: "disconnected" });
-            this.snackBar.open(`${error}`, "Dismiss");
+            if (this.bluetoothDevice?.gatt?.connected) {
+                this.snackBar.open(`${error}`, "Dismiss");
+            }
+            if (this.bluetoothDevice?.gatt?.connected === false) {
+                this.reconnect();
+            }
         }
     }
 
@@ -590,10 +623,14 @@ export class BluetoothMetricsService implements IRowerDataService {
 
             return characteristic ?? undefined;
         } catch (error) {
-            if (this.bluetoothDevice) {
+            if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Ergo battery service is unavailable", "Dismiss");
                 console.warn(error);
+
+                return;
             }
+
+            throw error;
         }
 
         return;
@@ -615,10 +652,13 @@ export class BluetoothMetricsService implements IRowerDataService {
 
             return characteristic ?? undefined;
         } catch (error) {
-            if (this.bluetoothDevice) {
+            if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Error connecting to Delta Times", "Dismiss");
                 console.error(error);
+
+                return;
             }
+            throw error;
         }
 
         return;
@@ -638,10 +678,13 @@ export class BluetoothMetricsService implements IRowerDataService {
 
             return characteristic ?? undefined;
         } catch (error) {
-            if (this.bluetoothDevice) {
+            if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Error connecting to Extended Metrics", "Dismiss");
                 console.error(error);
+
+                return;
             }
+            throw error;
         }
 
         return;
@@ -663,10 +706,13 @@ export class BluetoothMetricsService implements IRowerDataService {
 
             return characteristic ?? undefined;
         } catch (error) {
-            if (this.bluetoothDevice) {
+            if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Error connecting to Handles Forces", "Dismiss");
                 console.error(error);
+
+                return;
             }
+            throw error;
         }
 
         return;
@@ -687,10 +733,13 @@ export class BluetoothMetricsService implements IRowerDataService {
 
             return characteristic ?? undefined;
         } catch (error) {
-            if (this.bluetoothDevice) {
+            if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Error connecting to Measurement Characteristic", "Dismiss");
                 console.error(error);
+
+                return;
             }
+            throw error;
         }
 
         return;
@@ -707,24 +756,22 @@ export class BluetoothMetricsService implements IRowerDataService {
 
             return characteristic ?? undefined;
         } catch (error) {
-            if (this.bluetoothDevice) {
+            if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Error connecting to Settings", "Dismiss");
                 console.error(error);
-            }
-        }
 
-        return;
+                return;
+            }
+            throw error;
+        }
     }
 
     private disconnectHandler = async (event: Event): Promise<void> => {
         const device: BluetoothDevice = event.target as BluetoothDevice;
-        device.onadvertisementreceived = this.reconnectHandler;
-        this.connectionStatusSubject.next({ status: "searching" });
+        this.bluetoothDevice = device;
 
-        if (!device.watchingAdvertisements) {
-            this.cancellationToken = new AbortController();
-            await device.watchAdvertisements({ signal: this.cancellationToken.signal });
-        }
+        this.reconnect();
+
         this.snackBar.open("Ergometer Monitor disconnected", "Dismiss");
     };
 
@@ -923,6 +970,7 @@ export class BluetoothMetricsService implements IRowerDataService {
     private reconnectHandler: (event: BluetoothAdvertisingEvent) => void = (
         event: BluetoothAdvertisingEvent,
     ): void => {
+        this.connectionStatusSubject.next({ status: "disconnected" });
         this.cancellationToken.abort();
 
         this.connect(event.device);
