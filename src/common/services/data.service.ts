@@ -89,28 +89,28 @@ export class DataService {
         });
     }
 
-    changeBleServiceType(bleService: BleServiceFlag): void {
-        this.configManager.getItem("useBluetooth") === "true"
+    changeBleServiceType(bleService: BleServiceFlag): Promise<void> {
+        return this.configManager.getItem("useBluetooth") === "true"
             ? this.bleDataService.changeBleServiceType(bleService)
-            : this.webSocketService.changeBleServiceType(bleService);
+            : Promise.resolve(this.webSocketService.changeBleServiceType(bleService));
     }
 
-    changeDeltaTimeLogging(shouldEnable: boolean): void {
-        this.configManager.getItem("useBluetooth") === "true"
+    changeDeltaTimeLogging(shouldEnable: boolean): Promise<void> {
+        return this.configManager.getItem("useBluetooth") === "true"
             ? this.bleDataService.changeDeltaTimeLogging(shouldEnable)
-            : this.webSocketService.changeDeltaTimeLogging(shouldEnable);
+            : Promise.resolve(this.webSocketService.changeDeltaTimeLogging(shouldEnable));
     }
 
-    changeLogLevel(logLevel: LogLevel): void {
-        this.configManager.getItem("useBluetooth") === "true"
+    changeLogLevel(logLevel: LogLevel): Promise<void> {
+        return this.configManager.getItem("useBluetooth") === "true"
             ? this.bleDataService.changeLogLevel(logLevel)
-            : this.webSocketService.changeLogLevel(logLevel);
+            : Promise.resolve(this.webSocketService.changeLogLevel(logLevel));
     }
 
-    changeLogToSdCard(shouldEnable: boolean): void {
-        this.configManager.getItem("useBluetooth") === "true"
+    changeLogToSdCard(shouldEnable: boolean): Promise<void> {
+        return this.configManager.getItem("useBluetooth") === "true"
             ? this.bleDataService.changeLogToSdCard(shouldEnable)
-            : this.webSocketService.changeLogToSdCard(shouldEnable);
+            : Promise.resolve(this.webSocketService.changeLogToSdCard(shouldEnable));
     }
 
     connectionStatus(): Observable<boolean> {

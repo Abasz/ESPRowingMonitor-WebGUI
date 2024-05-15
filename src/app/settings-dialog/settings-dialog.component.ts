@@ -92,7 +92,7 @@ export class SettingsDialogComponent {
         }
     }
 
-    submitLoginForm(): void {
+    async submitLoginForm(): Promise<void> {
         if (this.settingsForm.get("useBluetooth")?.dirty) {
             this.configManager.setItem(
                 "useBluetooth",
@@ -101,19 +101,21 @@ export class SettingsDialogComponent {
         }
 
         if (this.settingsForm.get("logLevel")?.dirty) {
-            this.dataService.changeLogLevel(this.settingsForm.value.logLevel as LogLevel);
+            await this.dataService.changeLogLevel(this.settingsForm.value.logLevel as LogLevel);
         }
 
         if (this.settingsForm.get("deltaTimeLogging")?.dirty) {
-            this.dataService.changeDeltaTimeLogging(this.settingsForm.value.deltaTimeLogging as boolean);
+            await this.dataService.changeDeltaTimeLogging(
+                this.settingsForm.value.deltaTimeLogging as boolean,
+            );
         }
 
         if (this.settingsForm.get("logToSdCard")?.dirty) {
-            this.dataService.changeLogToSdCard(this.settingsForm.value.logToSdCard as boolean);
+            await this.dataService.changeLogToSdCard(this.settingsForm.value.logToSdCard as boolean);
         }
 
         if (this.settingsForm.get("bleMode")?.dirty) {
-            this.dataService.changeBleServiceType(this.settingsForm.value.bleMode as BleServiceFlag);
+            await this.dataService.changeBleServiceType(this.settingsForm.value.bleMode as BleServiceFlag);
         }
 
         if (this.settingsForm.get("websocketAddress")?.dirty) {
