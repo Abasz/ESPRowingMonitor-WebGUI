@@ -28,7 +28,7 @@ export class Config {
     webSocketAddress: string = `ws://${window.location.host}/ws`;
 }
 
-type BleConnectionStatus = "disconnected" | "connected" | "searching";
+type BleConnectionStatus = "disconnected" | "connected" | "connecting" | "searching";
 
 export interface IErgConnectionStatus {
     deviceName?: string;

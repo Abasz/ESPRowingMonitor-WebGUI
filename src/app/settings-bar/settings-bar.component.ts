@@ -24,10 +24,12 @@ export class SettingsBarComponent {
 
     bleConnectionStatusIcons: {
         connected: string;
+        connecting: string;
         searching: string;
         disconnected: string;
     } = {
         connected: "bluetooth_connected",
+        connecting: "bluetooth_connected",
         searching: "bluetooth_searching",
         disconnected: "bluetooth",
     };

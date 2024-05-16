@@ -130,8 +130,12 @@ export class BLEHeartRateService implements IHeartRateService {
                 this.cancellationToken.abort();
                 this.cancellationToken = new AbortController();
                 device.onadvertisementreceived = this.reconnectHandler;
-                await device.watchAdvertisements({ signal: this.cancellationToken.signal });
-                this.connectionStatusSubject.next({ status: "searching" });
+                try {
+                    await device.watchAdvertisements({ signal: this.cancellationToken.signal });
+                    this.connectionStatusSubject.next({ status: "searching" });
+                } catch {
+                    this.reconnect();
+                }
             });
     }
 
@@ -204,7 +208,7 @@ export class BLEHeartRateService implements IHeartRateService {
     }
 
     private async connect(device: BluetoothDevice): Promise<void> {
-        this.connectionStatusSubject.next({ status: "searching" });
+        this.connectionStatusSubject.next({ status: "connecting" });
 
         try {
             this.bluetoothDevice = device;
@@ -383,7 +387,6 @@ export class BLEHeartRateService implements IHeartRateService {
     private reconnectHandler: (event: BluetoothAdvertisingEvent) => Promise<void> = async (
         event: BluetoothAdvertisingEvent,
     ): Promise<void> => {
-        this.connectionStatusSubject.next({ status: "disconnected" });
         this.cancellationToken.abort();
 
         this.connect(event.device);

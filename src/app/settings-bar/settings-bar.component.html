@@ -24,7 +24,9 @@
             (click)="heartRateMonitorDiscovery()"
             mat-icon-button
         >
-            <mat-icon>ecg_heart</mat-icon>
+            <mat-icon [ngClass]="(hrConnectionStatus$ | async)?.status === 'connecting' ? 'blink' : ''"
+                >{{(hrConnectionStatus$ | async)?.status === 'disconnected' ? 'favorite': 'ecg_heart'}}</mat-icon
+            >
         </button>
         <button
             [matTooltip]="
@@ -35,7 +37,7 @@
             (click)="ergoMonitorDiscovery()"
             mat-icon-button
         >
-            <mat-icon>{{
+            <mat-icon [ngClass]="(ergConnectionStatus$ | async)?.status === 'connecting' ? 'blink' : ''">{{
                 bleConnectionStatusIcons[(ergConnectionStatus$ | async)?.status ?? "disconnected"]
             }}</mat-icon>
         </button>

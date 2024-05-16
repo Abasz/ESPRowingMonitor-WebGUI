@@ -322,6 +322,7 @@ export class BluetoothMetricsService implements IRowerDataService {
 
     async reconnect(): Promise<void> {
         await this.disconnectDevice();
+
         const device = (await navigator.bluetooth.getDevices()).filter(
             (device: BluetoothDevice): boolean =>
                 device.id === this.configManager.getItem("ergoMonitorBleId"),
@@ -350,8 +351,12 @@ export class BluetoothMetricsService implements IRowerDataService {
                 this.cancellationToken.abort();
                 this.cancellationToken = new AbortController();
                 device.onadvertisementreceived = this.reconnectHandler;
-                await device.watchAdvertisements({ signal: this.cancellationToken.signal });
-                this.connectionStatusSubject.next({ status: "searching" });
+                try {
+                    await device.watchAdvertisements({ signal: this.cancellationToken.signal });
+                    this.connectionStatusSubject.next({ status: "searching" });
+                } catch {
+                    this.reconnect();
+                }
             });
     }
 
@@ -564,7 +569,7 @@ export class BluetoothMetricsService implements IRowerDataService {
     }
 
     private async connect(device: BluetoothDevice): Promise<void> {
-        this.connectionStatusSubject.next({ status: "searching" });
+        this.connectionStatusSubject.next({ status: "connecting" });
 
         try {
             this.bluetoothDevice = device;
@@ -970,7 +975,6 @@ export class BluetoothMetricsService implements IRowerDataService {
     private reconnectHandler: (event: BluetoothAdvertisingEvent) => void = (
         event: BluetoothAdvertisingEvent,
     ): void => {
-        this.connectionStatusSubject.next({ status: "disconnected" });
         this.cancellationToken.abort();
 
         this.connect(event.device);
