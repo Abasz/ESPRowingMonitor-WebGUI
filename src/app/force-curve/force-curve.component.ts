@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
-import { Chart, ChartConfiguration, ChartOptions, Point } from "chart.js";
-import ChartDataLabels, { Context } from "chartjs-plugin-datalabels";
+import { ChartConfiguration, ChartOptions, Point } from "chart.js";
+import { Context } from "chartjs-plugin-datalabels";
 
 @Component({
     selector: "app-force-curve",
@@ -97,8 +97,4 @@ export class ForceCurveComponent {
             },
         ],
     };
-
-    constructor() {
-        Chart.register(ChartDataLabels);
-    }
 }

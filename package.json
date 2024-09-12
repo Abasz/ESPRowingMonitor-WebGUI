@@ -28,7 +28,7 @@
         "dexie": "^4.0.4",
         "dexie-export-import": "^4.1.2",
         "js2xmlparser": "^5.0.0",
-        "ng2-charts": "^5.0.4",
+        "ng2-charts": "^6.0.1",
         "rxjs": "~7.8.0",
         "tslib": "^2.3.0",
         "web-ant-plus": "github:Abasz/web-ant-plus#Release",

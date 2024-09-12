@@ -16,7 +16,18 @@ import { MatSortModule } from "@angular/material/sort";
 import { MatTableModule } from "@angular/material/table";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatTooltipModule } from "@angular/material/tooltip";
-import { NgChartsModule } from "ng2-charts";
+import {
+    CategoryScale,
+    Filler,
+    Legend,
+    LinearScale,
+    LineController,
+    LineElement,
+    PointElement,
+    Title,
+} from "chart.js";
+import ChartDataLabels from "chartjs-plugin-datalabels";
+import { BaseChartDirective, provideCharts } from "ng2-charts";
 
 import { SpinnerOverlayModule } from "./overlay/spinner-overlay.module";
 import { BatteryLevelPipe } from "./utils/battery-level.pipe";
@@ -43,7 +54,7 @@ const MODULES = [
     MatInputModule,
     ReactiveFormsModule,
     MatSelectModule,
-    NgChartsModule,
+    BaseChartDirective,
 ];
 
 const DECLARATIONS = [SecondsToTimePipe, RoundNumberPipe, BatteryLevelPipe, EnumToArrayPipe];
@@ -53,6 +64,19 @@ const DECLARATIONS = [SecondsToTimePipe, RoundNumberPipe, BatteryLevelPipe, Enum
     declarations: DECLARATIONS,
     exports: [...DECLARATIONS, ...MODULES],
     providers: [
+        provideCharts({
+            registerables: [
+                LineController,
+                LineElement,
+                PointElement,
+                LinearScale,
+                CategoryScale,
+                Filler,
+                Title,
+                Legend,
+                ChartDataLabels,
+            ],
+        }),
         {
             provide: MAT_SNACK_BAR_DEFAULT_OPTIONS,
             useValue: {
