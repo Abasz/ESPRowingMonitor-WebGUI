@@ -1,7 +1,7 @@
 import { BreakpointObserver, Breakpoints, BreakpointState, MediaMatcher } from "@angular/cdk/layout";
 import { Injectable } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import NoSleep from "@uriopass/nosleep.js";
+import NoSleep, { INoSleep } from "@zakj/no-sleep";
 import { fromEvent, Observable } from "rxjs";
 import { filter, map, startWith, take, tap } from "rxjs/operators";
 
@@ -18,7 +18,7 @@ export class UtilsService {
         .pipe(map((result: BreakpointState): boolean => result.matches));
 
     private mainSpinnerRef: SpinnerOverlayRef | undefined;
-    private wakeLock: NoSleep = new NoSleep();
+    private wakeLock: INoSleep = new NoSleep();
 
     constructor(
         private snack: MatSnackBar,
@@ -66,11 +66,11 @@ export class UtilsService {
         fromEvent(document, "visibilitychange")
             .pipe(
                 startWith(document.visibilityState),
-                filter((): boolean => document.visibilityState === "visible" && !this.wakeLock.isEnabled),
-                tap(async (): Promise<void> => {
+                filter((): boolean => document.visibilityState === "visible" && !this.wakeLock.enabled),
+                tap((): void => {
                     try {
                         if ("wakeLock" in navigator) {
-                            await this.wakeLock.enable();
+                            this.wakeLock.enable();
 
                             return;
                         }

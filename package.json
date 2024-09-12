@@ -22,7 +22,7 @@
         "@angular/platform-browser-dynamic": "^17.3.7",
         "@angular/router": "^17.3.7",
         "@angular/service-worker": "^17.3.7",
-        "@uriopass/nosleep.js": "^0.12.2",
+        "@zakj/no-sleep": "^0.13.5",
         "chart.js": "^4.4.1",
         "chartjs-plugin-datalabels": "^2.2.0",
         "dexie": "^4.0.4",
