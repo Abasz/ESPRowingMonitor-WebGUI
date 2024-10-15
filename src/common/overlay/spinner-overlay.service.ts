@@ -8,10 +8,10 @@ import { SpinnerOverlayComponent } from "./spinner-overlay.component";
 @Injectable()
 export class SpinnerOverlayService {
     private DEFAULT_CONFIG: OverlayConfig = {
+        positionStrategy: this.overlay.position().global().centerHorizontally().centerVertically(),
         hasBackdrop: true,
-        backdropClass: "dark-backdrop",
-        panelClass: "",
     };
+
     constructor(private overlay: Overlay) {}
 
     open(config: OverlayConfig = {}): SpinnerOverlayRef {
