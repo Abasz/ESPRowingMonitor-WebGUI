@@ -4,7 +4,6 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { ServiceWorkerModule } from "@angular/service-worker";
-import { BrowserWebBluetooth, WebBluetoothModule } from "@manekinekko/angular-web-bluetooth";
 
 import { CoreModule } from "../common/core.module";
 import { DialogCloseButtonModule } from "../common/dialog-close-button/dialog-close-button.module";
@@ -18,16 +17,6 @@ import { LogbookDialogComponent } from "./logbook-dialog/logbook-dialog.componen
 import { MetricComponent } from "./metric/metric.component";
 import { SettingsBarComponent } from "./settings-bar/settings-bar.component";
 import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.component";
-
-const webBluetooth = [];
-
-if (isSecureContext) {
-    webBluetooth.push(
-        WebBluetoothModule.forRoot({
-            enableTracing: false, // or false, this will enable logs in the browser's console
-        }),
-    );
-}
 
 @NgModule({
     declarations: [
@@ -43,7 +32,6 @@ if (isSecureContext) {
         BrowserModule,
         BrowserAnimationsModule,
         CoreModule,
-        webBluetooth,
         ServiceWorkerModule.register("ngsw-worker.js", {
             enabled: !isDevMode(),
             // register the ServiceWorker as soon as the application is stable
@@ -54,20 +42,6 @@ if (isSecureContext) {
     ],
     providers: [
         { provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true },
-        {
-            provide: BrowserWebBluetooth,
-            useFactory: (): BrowserWebBluetooth => {
-                if (isSecureContext) {
-                    return new BrowserWebBluetooth();
-                }
-
-                return {
-                    requestDevice: (): Promise<BluetoothDevice> => {
-                        throw Error("Bluetooth API is not available");
-                    },
-                } as unknown as BrowserWebBluetooth;
-            },
-        },
         {
             provide: AntHeartRateService,
             useFactory: (snack: MatSnackBar): AntHeartRateService => {

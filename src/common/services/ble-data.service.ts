@@ -1,6 +1,5 @@
 import { Injectable } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { BluetoothCore } from "@manekinekko/angular-web-bluetooth";
 import {
     BehaviorSubject,
     buffer,
@@ -10,6 +9,7 @@ import {
     distinctUntilChanged,
     filter,
     finalize,
+    from,
     fromEvent,
     map,
     Observable,
@@ -42,7 +42,7 @@ import {
     SETTINGS_CONTROL_POINT,
     SETTINGS_SERVICE,
 } from "../ble.interfaces";
-import { withDelay } from "../utils/utility.functions";
+import { observeValue$, withDelay } from "../utils/utility.functions";
 
 import {
     IBaseMetrics,
@@ -81,7 +81,6 @@ export class BluetoothMetricsService implements IRowerDataService {
     constructor(
         private configManager: ConfigManagerService,
         private snackBar: MatSnackBar,
-        private ble: BluetoothCore,
     ) {}
 
     async changeBleServiceType(bleService: BleServiceFlag): Promise<void> {
@@ -95,20 +94,10 @@ export class BluetoothMetricsService implements IRowerDataService {
         }
 
         try {
-            const characteristic = await this.ble.getCharacteristic(
-                this.settingsCharacteristic.value?.service,
-                SETTINGS_CONTROL_POINT,
-            );
+            const characteristic =
+                await this.settingsCharacteristic.value?.service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
-            // eslint-disable-next-line no-null/no-null
-            if (characteristic === null) {
-                this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
-
-                return;
-            }
-
-            this.ble
-                .observeValue$(characteristic)
+            observeValue$(characteristic)
                 .pipe(take(1))
                 .subscribe((response: DataView): void => {
                     if (response.getUint8(2) === BleResponseOpCodes.Successful) {
@@ -141,21 +130,12 @@ export class BluetoothMetricsService implements IRowerDataService {
 
             return;
         }
+
         try {
-            const characteristic = await this.ble.getCharacteristic(
-                this.settingsCharacteristic.value?.service,
-                SETTINGS_CONTROL_POINT,
-            );
+            const characteristic =
+                await this.settingsCharacteristic.value?.service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
-            // eslint-disable-next-line no-null/no-null
-            if (characteristic === null) {
-                this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
-
-                return;
-            }
-
-            this.ble
-                .observeValue$(characteristic)
+            observeValue$(characteristic)
                 .pipe(take(1))
                 .subscribe((response: DataView): void => {
                     this.snackBar.open(
@@ -188,21 +168,12 @@ export class BluetoothMetricsService implements IRowerDataService {
 
             return;
         }
+
         try {
-            const characteristic = await this.ble.getCharacteristic(
-                this.settingsCharacteristic.value?.service,
-                SETTINGS_CONTROL_POINT,
-            );
+            const characteristic =
+                await this.settingsCharacteristic.value?.service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
-            // eslint-disable-next-line no-null/no-null
-            if (characteristic === null) {
-                this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
-
-                return;
-            }
-
-            this.ble
-                .observeValue$(characteristic)
+            observeValue$(characteristic)
                 .pipe(take(1))
                 .subscribe((response: DataView): void => {
                     this.snackBar.open(
@@ -230,21 +201,12 @@ export class BluetoothMetricsService implements IRowerDataService {
 
             return;
         }
+
         try {
-            const characteristic = await this.ble.getCharacteristic(
-                this.settingsCharacteristic.value?.service,
-                SETTINGS_CONTROL_POINT,
-            );
+            const characteristic =
+                await this.settingsCharacteristic.value?.service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
-            // eslint-disable-next-line no-null/no-null
-            if (characteristic === null) {
-                this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
-
-                return;
-            }
-
-            this.ble
-                .observeValue$(characteristic)
+            observeValue$(characteristic)
                 .pipe(take(1))
                 .subscribe((response: DataView): void => {
                     this.snackBar.open(
@@ -304,20 +266,20 @@ export class BluetoothMetricsService implements IRowerDataService {
     async discover(): Promise<void> {
         await this.disconnectDevice();
 
-        const device = await this.ble.discover({
-            acceptAllDevices: false,
-            filters: [
-                { services: [CYCLING_POWER_SERVICE] },
-                { services: [CYCLING_SPEED_AND_CADENCE_SERVICE] },
-            ],
-            optionalServices: [BATTERY_LEVEL_SERVICE, SETTINGS_SERVICE, EXTENDED_METRICS_SERVICE],
-        });
-        if (device?.gatt === undefined) {
-            await this.reconnect();
+        try {
+            const device = await navigator.bluetooth.requestDevice({
+                acceptAllDevices: false,
+                filters: [
+                    { services: [CYCLING_POWER_SERVICE] },
+                    { services: [CYCLING_SPEED_AND_CADENCE_SERVICE] },
+                ],
+                optionalServices: [BATTERY_LEVEL_SERVICE, SETTINGS_SERVICE, EXTENDED_METRICS_SERVICE],
+            });
 
-            return;
+            await this.connect(device);
+        } catch {
+            await this.reconnect();
         }
-        await this.connect(device);
     }
 
     async reconnect(): Promise<void> {
@@ -327,6 +289,7 @@ export class BluetoothMetricsService implements IRowerDataService {
             (device: BluetoothDevice): boolean =>
                 device.id === this.configManager.getItem("ergoMonitorBleId"),
         )?.[0];
+
         if (device === undefined) {
             return;
         }
@@ -370,7 +333,7 @@ export class BluetoothMetricsService implements IRowerDataService {
             ),
             switchMap(
                 (deltaTimesCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<Array<number>> =>
-                    this.observeDeltaTimes(deltaTimesCharacteristic),
+                    this.observeDeltaTimes$(deltaTimesCharacteristic),
             ),
             retry({
                 count: 4,
@@ -401,7 +364,7 @@ export class BluetoothMetricsService implements IRowerDataService {
             ),
             switchMap(
                 (extendedCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<IExtendedMetrics> =>
-                    this.observeExtended(extendedCharacteristic),
+                    this.observeExtended$(extendedCharacteristic),
             ),
             retry({
                 count: 4,
@@ -434,7 +397,7 @@ export class BluetoothMetricsService implements IRowerDataService {
             ),
             switchMap(
                 (handleForceCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<Array<number>> =>
-                    this.observeHandleForces(handleForceCharacteristic),
+                    this.observeHandleForces$(handleForceCharacteristic),
             ),
             retry({
                 count: 4,
@@ -465,7 +428,7 @@ export class BluetoothMetricsService implements IRowerDataService {
             ),
             switchMap(
                 (measurementCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<IBaseMetrics> =>
-                    this.observeMeasurement(measurementCharacteristic),
+                    this.observeMeasurement$(measurementCharacteristic),
             ),
             distinctUntilChanged(
                 (baseMetricsCurrent: IBaseMetrics, baseMetricsPrevious: IBaseMetrics): boolean =>
@@ -511,7 +474,7 @@ export class BluetoothMetricsService implements IRowerDataService {
             ),
             switchMap(
                 (batteryCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<number> =>
-                    this.observeBattery(batteryCharacteristic),
+                    this.observeBattery$(batteryCharacteristic),
             ),
             retry({
                 count: 4,
@@ -545,7 +508,7 @@ export class BluetoothMetricsService implements IRowerDataService {
             ),
             switchMap(
                 (settingsCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<IRowerSettings> =>
-                    this.observeSettings(settingsCharacteristic),
+                    this.observeSettings$(settingsCharacteristic),
             ),
             retry({
                 count: 4,
@@ -573,7 +536,7 @@ export class BluetoothMetricsService implements IRowerDataService {
 
         try {
             this.bluetoothDevice = device;
-            const gatt = await this.ble.connectDevice(device);
+            const gatt = await this.bluetoothDevice.gatt?.connect();
 
             if (this.bluetoothDevice === undefined || !gatt) {
                 this.snackBar.open("BLE Connection to EPRM failed", "Dismiss");
@@ -616,14 +579,8 @@ export class BluetoothMetricsService implements IRowerDataService {
         gatt: BluetoothRemoteGATTServer,
     ): Promise<void | BluetoothRemoteGATTCharacteristic> {
         try {
-            const primaryService = await withDelay(
-                1000,
-                this.ble.getPrimaryService(gatt, BATTERY_LEVEL_SERVICE),
-            );
-            const characteristic = await this.ble.getCharacteristic(
-                primaryService,
-                BATTERY_LEVEL_CHARACTERISTIC,
-            );
+            const primaryService = await withDelay(1000, gatt.getPrimaryService(BATTERY_LEVEL_SERVICE));
+            const characteristic = await primaryService.getCharacteristic(BATTERY_LEVEL_CHARACTERISTIC);
             this.batteryCharacteristic.next(characteristic ?? undefined);
 
             return characteristic ?? undefined;
@@ -637,22 +594,14 @@ export class BluetoothMetricsService implements IRowerDataService {
 
             throw error;
         }
-
-        return;
     }
 
     private async connectToDeltaTimes(
         gatt: BluetoothRemoteGATTServer,
     ): Promise<void | BluetoothRemoteGATTCharacteristic> {
         try {
-            const primaryService = await withDelay(
-                1000,
-                this.ble.getPrimaryService(gatt, EXTENDED_METRICS_SERVICE),
-            );
-            const characteristic = await this.ble.getCharacteristic(
-                primaryService,
-                DELTA_TIMES_CHARACTERISTIC,
-            );
+            const primaryService = await withDelay(1000, gatt.getPrimaryService(EXTENDED_METRICS_SERVICE));
+            const characteristic = await primaryService.getCharacteristic(DELTA_TIMES_CHARACTERISTIC);
             this.deltaTimesCharacteristic.next(characteristic ?? undefined);
 
             return characteristic ?? undefined;
@@ -673,11 +622,8 @@ export class BluetoothMetricsService implements IRowerDataService {
         gatt: BluetoothRemoteGATTServer,
     ): Promise<void | BluetoothRemoteGATTCharacteristic> {
         try {
-            const primaryService = await withDelay(
-                1000,
-                this.ble.getPrimaryService(gatt, EXTENDED_METRICS_SERVICE),
-            );
-            const characteristic = await this.ble.getCharacteristic(primaryService, EXTENDED_CHARACTERISTIC);
+            const primaryService = await withDelay(1000, gatt.getPrimaryService(EXTENDED_METRICS_SERVICE));
+            const characteristic = await primaryService.getCharacteristic(EXTENDED_CHARACTERISTIC);
 
             this.extendedCharacteristic.next(characteristic ?? undefined);
 
@@ -691,22 +637,14 @@ export class BluetoothMetricsService implements IRowerDataService {
             }
             throw error;
         }
-
-        return;
     }
 
     private async connectToHandleForces(
         gatt: BluetoothRemoteGATTServer,
     ): Promise<void | BluetoothRemoteGATTCharacteristic> {
         try {
-            const primaryService = await withDelay(
-                1000,
-                this.ble.getPrimaryService(gatt, EXTENDED_METRICS_SERVICE),
-            );
-            const characteristic = await this.ble.getCharacteristic(
-                primaryService,
-                HANDLE_FORCES_CHARACTERISTIC,
-            );
+            const primaryService = await withDelay(1000, gatt.getPrimaryService(EXTENDED_METRICS_SERVICE));
+            const characteristic = await primaryService.getCharacteristic(HANDLE_FORCES_CHARACTERISTIC);
             this.handleForceCharacteristic.next(characteristic ?? undefined);
 
             return characteristic ?? undefined;
@@ -719,8 +657,6 @@ export class BluetoothMetricsService implements IRowerDataService {
             }
             throw error;
         }
-
-        return;
     }
 
     private async connectToMeasurement(
@@ -728,8 +664,7 @@ export class BluetoothMetricsService implements IRowerDataService {
     ): Promise<void | BluetoothRemoteGATTCharacteristic> {
         try {
             const primaryService = await withDelay(1000, this.getService(gatt));
-            const characteristic = await this.ble.getCharacteristic(
-                primaryService,
+            const characteristic = await primaryService.getCharacteristic(
                 primaryService.uuid === BluetoothUUID.getService(CYCLING_SPEED_AND_CADENCE_SERVICE)
                     ? CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC
                     : CYCLING_POWER_CHARACTERISTIC,
@@ -746,16 +681,14 @@ export class BluetoothMetricsService implements IRowerDataService {
             }
             throw error;
         }
-
-        return;
     }
 
     private async connectToSettings(
         gatt: BluetoothRemoteGATTServer,
     ): Promise<void | BluetoothRemoteGATTCharacteristic> {
         try {
-            const primaryService = await withDelay(1000, this.ble.getPrimaryService(gatt, SETTINGS_SERVICE));
-            const characteristic = await this.ble.getCharacteristic(primaryService, SETTINGS_CHARACTERISTIC);
+            const primaryService = await withDelay(1000, gatt.getPrimaryService(SETTINGS_SERVICE));
+            const characteristic = await primaryService.getCharacteristic(SETTINGS_CHARACTERISTIC);
 
             this.settingsCharacteristic.next(characteristic ?? undefined);
 
@@ -784,13 +717,13 @@ export class BluetoothMetricsService implements IRowerDataService {
         let primaryService: BluetoothRemoteGATTService | undefined = undefined;
         const errorMessages: Array<unknown> = [];
         try {
-            primaryService = await this.ble.getPrimaryService(gatt, CYCLING_POWER_SERVICE);
+            primaryService = await gatt.getPrimaryService(CYCLING_POWER_SERVICE);
         } catch (error) {
             errorMessages?.push(error);
         }
 
         try {
-            primaryService = await this.ble.getPrimaryService(gatt, CYCLING_SPEED_AND_CADENCE_SERVICE);
+            primaryService = await gatt.getPrimaryService(CYCLING_SPEED_AND_CADENCE_SERVICE);
         } catch (error) {
             errorMessages?.push(error);
         }
@@ -802,11 +735,8 @@ export class BluetoothMetricsService implements IRowerDataService {
         return primaryService;
     }
 
-    private observeBattery(batteryCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<number> {
-        return concat(
-            this.ble.readValue$(batteryCharacteristic),
-            this.ble.observeValue$(batteryCharacteristic),
-        ).pipe(
+    private observeBattery$(batteryCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<number> {
+        return concat(from(batteryCharacteristic.readValue()), observeValue$(batteryCharacteristic)).pipe(
             map((value: DataView): number => value.getInt8(0)),
             finalize((): void => {
                 this.batteryCharacteristic.next(undefined);
@@ -814,10 +744,10 @@ export class BluetoothMetricsService implements IRowerDataService {
         );
     }
 
-    private observeDeltaTimes(
+    private observeDeltaTimes$(
         deltaTimesCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<Array<number>> {
-        return this.ble.observeValue$(deltaTimesCharacteristic).pipe(
+        return observeValue$(deltaTimesCharacteristic).pipe(
             map((value: DataView): Array<number> => {
                 const accumulator = [];
                 for (let index = 0; index < value.byteLength; index += 4) {
@@ -832,10 +762,10 @@ export class BluetoothMetricsService implements IRowerDataService {
         );
     }
 
-    private observeExtended(
+    private observeExtended$(
         extendedCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<IExtendedMetrics> {
-        return this.ble.observeValue$(extendedCharacteristic).pipe(
+        return observeValue$(extendedCharacteristic).pipe(
             map(
                 (value: DataView): IExtendedMetrics => ({
                     avgStrokePower: value.getUint16(0, true),
@@ -850,14 +780,14 @@ export class BluetoothMetricsService implements IRowerDataService {
         );
     }
 
-    private observeHandleForces(
+    private observeHandleForces$(
         handleForcesCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<Array<number>> {
-        return this.ble.observeValue$(handleForcesCharacteristic).pipe(
+        return observeValue$(handleForcesCharacteristic).pipe(
             buffer(
-                this.ble
-                    .observeValue$(handleForcesCharacteristic)
-                    .pipe(filter((value: DataView): boolean => value.getUint8(0) === value.getUint8(1))),
+                observeValue$(handleForcesCharacteristic).pipe(
+                    filter((value: DataView): boolean => value.getUint8(0) === value.getUint8(1)),
+                ),
             ),
             map(
                 (values: Array<DataView>): Array<number> =>
@@ -875,7 +805,7 @@ export class BluetoothMetricsService implements IRowerDataService {
         );
     }
 
-    private observeMeasurement(
+    private observeMeasurement$(
         measurementCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<IBaseMetrics> {
         let lastRevTime = 0;
@@ -884,7 +814,7 @@ export class BluetoothMetricsService implements IRowerDataService {
         let lastStrokeTime = 0;
         let strokeTime = 0;
 
-        return this.ble.observeValue$(measurementCharacteristic).pipe(
+        return observeValue$(measurementCharacteristic).pipe(
             map((value: DataView): IBaseMetrics => {
                 if (
                     measurementCharacteristic.uuid ===
@@ -943,13 +873,10 @@ export class BluetoothMetricsService implements IRowerDataService {
         );
     }
 
-    private observeSettings(
+    private observeSettings$(
         settingsCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<IRowerSettings> {
-        return concat(
-            this.ble.readValue$(settingsCharacteristic),
-            this.ble.observeValue$(settingsCharacteristic),
-        ).pipe(
+        return concat(from(settingsCharacteristic.readValue()), observeValue$(settingsCharacteristic)).pipe(
             map((value: DataView): IRowerSettings => {
                 const logToWs = value.getUint8(0) & 3;
                 const logToSd = (value.getUint8(0) >> 2) & 3;

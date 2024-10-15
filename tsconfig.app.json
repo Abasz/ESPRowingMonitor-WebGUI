@@ -5,7 +5,9 @@
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "outDir": "./out-tsc/app",
-        "types": []
+        "types": [
+            "web-bluetooth"
+        ]
     },
     "files": [
         "src/main.ts"

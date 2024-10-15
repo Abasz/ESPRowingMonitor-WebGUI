@@ -1,6 +1,5 @@
 import { Injectable } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { BluetoothCore } from "@manekinekko/angular-web-bluetooth";
 import {
     BehaviorSubject,
     catchError,
@@ -8,6 +7,7 @@ import {
     endWith,
     filter,
     finalize,
+    from,
     fromEvent,
     map,
     Observable,
@@ -28,7 +28,7 @@ import {
     HEART_RATE_SERVICE,
 } from "../ble.interfaces";
 import { IHeartRate, IHeartRateService, IHRConnectionStatus } from "../common.interfaces";
-import { withDelay } from "../utils/utility.functions";
+import { observeValue$, withDelay } from "../utils/utility.functions";
 
 import { ConfigManagerService } from "./config-manager.service";
 
@@ -50,7 +50,6 @@ export class BLEHeartRateService implements IHeartRateService {
     constructor(
         private configManager: ConfigManagerService,
         private snackBar: MatSnackBar,
-        private ble: BluetoothCore,
     ) {}
 
     connectionStatus$(): Observable<IHRConnectionStatus> {
@@ -86,17 +85,16 @@ export class BLEHeartRateService implements IHeartRateService {
     async discover(): Promise<void> {
         await this.disconnectDevice();
 
-        const device = await this.ble.discover({
-            acceptAllDevices: false,
-            filters: [{ services: [HEART_RATE_SERVICE] }],
-            optionalServices: [BATTERY_LEVEL_SERVICE],
-        });
-        if (device?.gatt === undefined) {
+        try {
+            const device = await navigator.bluetooth.requestDevice({
+                acceptAllDevices: false,
+                filters: [{ services: [HEART_RATE_SERVICE] }],
+                optionalServices: [BATTERY_LEVEL_SERVICE],
+            });
+            await this.connect(device);
+        } catch {
             await this.reconnect();
-
-            return;
         }
-        await this.connect(device);
     }
 
     async reconnect(): Promise<void> {
@@ -212,9 +210,9 @@ export class BLEHeartRateService implements IHeartRateService {
 
         try {
             this.bluetoothDevice = device;
-            const gatt = await this.ble.connectDevice(device);
+            const gatt = await this.bluetoothDevice.gatt?.connect();
 
-            if (this.bluetoothDevice === undefined) {
+            if (this.bluetoothDevice === undefined || !gatt) {
                 this.snackBar.open("BLE Connection to HR Monitor failed", "Dismiss");
                 this.connectionStatusSubject.next({ status: "disconnected" });
 
@@ -243,14 +241,8 @@ export class BLEHeartRateService implements IHeartRateService {
         gatt: BluetoothRemoteGATTServer,
     ): Promise<void | BluetoothRemoteGATTCharacteristic> {
         try {
-            const primaryService = await withDelay(
-                1000,
-                this.ble.getPrimaryService(gatt, BATTERY_LEVEL_SERVICE),
-            );
-            const characteristic = await this.ble.getCharacteristic(
-                primaryService,
-                BATTERY_LEVEL_CHARACTERISTIC,
-            );
+            const primaryService = await withDelay(1000, gatt.getPrimaryService(BATTERY_LEVEL_SERVICE));
+            const characteristic = await primaryService.getCharacteristic(BATTERY_LEVEL_CHARACTERISTIC);
             this.batteryCharacteristic.next(characteristic ?? undefined);
 
             return characteristic ?? undefined;
@@ -272,14 +264,8 @@ export class BLEHeartRateService implements IHeartRateService {
         gatt: BluetoothRemoteGATTServer,
     ): Promise<void | BluetoothRemoteGATTCharacteristic> {
         try {
-            const primaryService = await withDelay(
-                1000,
-                this.ble.getPrimaryService(gatt, HEART_RATE_SERVICE),
-            );
-            const characteristic = await this.ble.getCharacteristic(
-                primaryService,
-                HEART_RATE_CHARACTERISTIC,
-            );
+            const primaryService = await withDelay(1000, gatt.getPrimaryService(HEART_RATE_SERVICE));
+            const characteristic = await primaryService.getCharacteristic(HEART_RATE_CHARACTERISTIC);
             this.heartRateCharacteristic.next(characteristic ?? undefined);
             this.connectionStatusSubject.next({
                 deviceName:
@@ -313,10 +299,7 @@ export class BLEHeartRateService implements IHeartRateService {
     private observeBattery(
         batteryCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<number | undefined> {
-        return concat(
-            this.ble.readValue$(batteryCharacteristic),
-            this.ble.observeValue$(batteryCharacteristic),
-        ).pipe(
+        return concat(from(batteryCharacteristic.readValue()), observeValue$(batteryCharacteristic)).pipe(
             map((value: DataView): number => value.getInt8(0)),
             finalize((): void => {
                 this.batteryCharacteristic.next(undefined);
@@ -328,8 +311,7 @@ export class BLEHeartRateService implements IHeartRateService {
     private observeHeartRate(
         heartRateCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<IHeartRate | undefined> {
-        return this.ble
-            .observeValue$(heartRateCharacteristic)
+        return observeValue$(heartRateCharacteristic)
             .pipe(
                 withLatestFrom(this.streamHRMonitorBatteryLevel$()),
                 map(
