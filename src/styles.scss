@@ -19,6 +19,11 @@ body {
             font-size: calc(16px + (40 - 16) * ((100vw - 300px) / (1920 - 300)));
         }
     }
+
+    --mat-option-selected-state-layer-color: #{mat.get-theme-color($light-theme, primary, 90)};
+    --primary-color: #{mat.get-theme-color($light-theme, primary)};
+    --accent-color: #{mat.get-theme-color($light-theme, secondary, 60)};
+    --warn-color: #{mat.get-theme-color($light-theme, error)};
 }
 
 *:focus {

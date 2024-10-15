@@ -76,6 +76,7 @@ export class SettingsBarComponent {
                 this.dialog.open(LogbookDialogComponent, {
                     autoFocus: false,
                     data: sessions,
+                    maxWidth: "95vw",
                 });
             });
     }

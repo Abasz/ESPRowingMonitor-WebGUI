@@ -55,7 +55,11 @@
                 >
                     <mat-icon>download</mat-icon>
                 </button>
-                <button color="warn" (click)="deleteSession(sessionData.sessionId)" mat-icon-button>
+                <button
+                    [style.color]="'var(--warn-color)'"
+                    (click)="deleteSession(sessionData.sessionId)"
+                    mat-icon-button
+                >
                     <mat-icon>delete</mat-icon>
                 </button>
             </mat-cell>
@@ -65,7 +69,7 @@
     </table>
 </div>
 
-<div mat-dialog-actions>
+<div mat-dialog-actions align="start">
     <button mat-raised-button [disabled]="((importExportProgress$ | async) ?? -1) >= 0" (click)="export()">
         Export
     </button>

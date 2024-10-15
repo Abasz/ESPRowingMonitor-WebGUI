@@ -1,4 +1,16 @@
+@use "@angular/material" as mat;
+
+@import "../../theme.scss";
+
+mat-icon.battery-level {
+    padding: 0px 8px;
+}
+
 mat-toolbar {
+    --mat-toolbar-container-background-color: #{mat.get-theme-color($light-theme, primary)};
+    --mat-toolbar-container-text-color: white;
+    --mdc-icon-button-icon-color: white;
+
     display: grid;
     align-items: center;
     justify-content: center;
@@ -13,8 +25,11 @@ mat-toolbar {
         justify-content: center;
         align-items: center;
 
-        > * {
-            min-width: 48px;
+        > button,
+        div {
+            @media screen and (min-width: 600px) {
+                margin: 0px 8px;
+            }
             display: flex;
             justify-content: center;
         }

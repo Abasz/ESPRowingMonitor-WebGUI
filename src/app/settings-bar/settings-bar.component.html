@@ -1,7 +1,7 @@
-<mat-toolbar color="primary">
+<mat-toolbar>
     <div>
         <div>
-            <mat-icon [matTooltip]="((batteryLevel$ | async) ?? 0) + '%'">{{
+            <mat-icon class="battery-level" [matTooltip]="((batteryLevel$ | async) ?? 0) + '%'">{{
                 (batteryLevel$ | async) ?? 0 | batteryLevel
             }}</mat-icon>
         </div>
@@ -23,9 +23,9 @@
             (click)="heartRateMonitorDiscovery()"
             mat-icon-button
         >
-            <mat-icon [ngClass]="(hrConnectionStatus$ | async)?.status === 'connecting' ? 'blink' : ''"
-                >{{(hrConnectionStatus$ | async)?.status === 'disconnected' ? 'favorite': 'ecg_heart'}}</mat-icon
-            >
+            <mat-icon [ngClass]="(hrConnectionStatus$ | async)?.status === 'connecting' ? 'blink' : ''">{{
+                (hrConnectionStatus$ | async)?.status === "disconnected" ? "favorite" : "ecg_heart"
+            }}</mat-icon>
         </button>
         <button
             [matTooltip]="
