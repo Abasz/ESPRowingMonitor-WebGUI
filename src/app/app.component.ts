@@ -6,29 +6,17 @@ import {
     isDevMode,
     OnDestroy,
 } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MatIconRegistry } from "@angular/material/icon";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { SwUpdate, VersionEvent, VersionReadyEvent } from "@angular/service-worker";
-import {
-    filter,
-    interval,
-    map,
-    merge,
-    Observable,
-    pairwise,
-    startWith,
-    switchMap,
-    take,
-    takeUntil,
-    tap,
-} from "rxjs";
+import { filter, interval, map, merge, Observable, pairwise, startWith, switchMap, take, tap } from "rxjs";
 
 import { BleServiceFlag } from "../common/ble.interfaces";
 import { ICalculatedMetrics, IErgConnectionStatus, IHeartRate } from "../common/common.interfaces";
 import { DataService } from "../common/services/data.service";
 import { UtilsService } from "../common/services/utils.service";
 import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-confirm.component";
-import { NgUnsubscribeDirective } from "../common/utils/unsubscribe-base.component";
 
 @Component({
     selector: "app-root",
@@ -36,7 +24,7 @@ import { NgUnsubscribeDirective } from "../common/utils/unsubscribe-base.compone
     styleUrls: ["./app.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AppComponent extends NgUnsubscribeDirective implements AfterViewInit, OnDestroy {
+export class AppComponent implements AfterViewInit, OnDestroy {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
 
     elapseTime$: Observable<number>;
@@ -51,7 +39,6 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
         private snackBar: MatSnackBar,
         private matIconReg: MatIconRegistry,
     ) {
-        super();
         this.matIconReg.setDefaultFontSetClass("material-symbols-sharp");
 
         this.heartRateData$ = this.dataService.streamHeartRate$();
@@ -101,7 +88,7 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
                             })
                             .onAction();
                     }),
-                    takeUntil(this.ngUnsubscribe),
+                    takeUntilDestroyed(),
                 )
                 .subscribe((): void => {
                     window.location.reload();
@@ -139,9 +126,7 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
         }
     }
 
-    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-    override ngOnDestroy(): void {
-        super.ngOnDestroy();
+    ngOnDestroy(): void {
         this.utils.disableWackeLock();
     }
 }

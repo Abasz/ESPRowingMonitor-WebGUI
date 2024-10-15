@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component } from "@angular/core";
+import { ChangeDetectionStrategy, Component, DestroyRef } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MatDialog } from "@angular/material/dialog";
 import { interval, map, Observable, startWith, take } from "rxjs";
 
@@ -57,6 +58,7 @@ export class SettingsBarComponent {
         private dialog: MatDialog,
         private heartRateService: HeartRateService,
         private utils: UtilsService,
+        private destroyRef: DestroyRef,
         public configManager: ConfigManagerService,
     ) {
         this.ergConnectionStatus$ = this.dataService.ergConnectionStatus$();
@@ -69,8 +71,7 @@ export class SettingsBarComponent {
         this.utils.mainSpinner().open();
         this.dataRecorder
             .getSessionSummaries$()
-            .pipe(take(1))
-            // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+            .pipe(take(1), takeUntilDestroyed(this.destroyRef))
             .subscribe((sessions: Array<ISessionSummary>): void => {
                 this.utils.mainSpinner().close();
                 this.dialog.open(LogbookDialogComponent, {
@@ -90,13 +91,14 @@ export class SettingsBarComponent {
     }
 
     openSettings(): void {
-        // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-        this.settingsData$.pipe(take(1)).subscribe((settings: IRowerSettings): void => {
-            this.dialog.open(SettingsDialogComponent, {
-                autoFocus: false,
-                data: settings,
+        this.settingsData$
+            .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+            .subscribe((settings: IRowerSettings): void => {
+                this.dialog.open(SettingsDialogComponent, {
+                    autoFocus: false,
+                    data: settings,
+                });
             });
-        });
     }
 
     reset(): void {

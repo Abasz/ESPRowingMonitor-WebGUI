@@ -1,4 +1,5 @@
-import { Injectable } from "@angular/core";
+import { DestroyRef, Injectable } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import {
     BehaviorSubject,
@@ -49,7 +50,11 @@ export class AntHeartRateService implements IHeartRateService {
     );
     private stick: USBDriver | undefined = undefined;
 
-    constructor(private snackBar: MatSnackBar) {}
+    constructor(
+        private snackBar: MatSnackBar,
+        private destroyRef: DestroyRef,
+    ) {}
+
     connectionStatus$(): Observable<IHRConnectionStatus> {
         return merge(
             this.connectionStatusSubject,
@@ -95,7 +100,7 @@ export class AntHeartRateService implements IHeartRateService {
         const stick = await USBDriver.createFromPairedDevice();
 
         if (this.onConnect === undefined) {
-            this.onConnect = this.onConnect$.subscribe();
+            this.onConnect = this.onConnect$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
         }
 
         if (stick !== undefined) {
@@ -134,7 +139,7 @@ export class AntHeartRateService implements IHeartRateService {
 
     private async connect(stick: USBDriver): Promise<void> {
         if (this.onConnect === undefined) {
-            this.onConnect = this.onConnect$.subscribe();
+            this.onConnect = this.onConnect$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
         }
         this.stick = stick;
         const hrSensor = new HeartRateSensor(this.stick);

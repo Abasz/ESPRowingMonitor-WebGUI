@@ -269,10 +269,9 @@
                     "warn",
                     {
                         "alias": [
-                            "untilDestroyed"
+                            "takeUntilDestroyed"
                         ],
-                        "checkComplete": true,
-                        "checkDestroy": true
+                        "checkComplete": true
                     }
                 ],
                 "prettier/prettier": [

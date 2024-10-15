@@ -1,5 +1,5 @@
 import { HTTP_INTERCEPTORS } from "@angular/common/http";
-import { isDevMode, NgModule } from "@angular/core";
+import { DestroyRef, isDevMode, NgModule } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -44,9 +44,9 @@ import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.compo
         { provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true },
         {
             provide: AntHeartRateService,
-            useFactory: (snack: MatSnackBar): AntHeartRateService => {
+            useFactory: (snack: MatSnackBar, destroyRef: DestroyRef): AntHeartRateService => {
                 if (isSecureContext) {
-                    return new AntHeartRateService(snack);
+                    return new AntHeartRateService(snack, destroyRef);
                 }
 
                 return {
@@ -55,7 +55,7 @@ import { SettingsDialogComponent } from "./settings-dialog/settings-dialog.compo
                     },
                 } as unknown as AntHeartRateService;
             },
-            deps: [MatSnackBar],
+            deps: [MatSnackBar, DestroyRef],
         },
     ],
     bootstrap: [AppComponent],

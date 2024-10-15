@@ -1,4 +1,5 @@
-import { Injectable } from "@angular/core";
+import { DestroyRef, Injectable } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import {
     combineLatest,
     filter,
@@ -53,6 +54,7 @@ export class DataService {
         private ergMetricService: ErgMetricsService,
         private dataRecorder: DataRecorderService,
         private heartRateService: HeartRateService,
+        private destroyRef: DestroyRef,
     ) {
         this.heartRateData$ = this.heartRateService.streamHeartRate$();
         this.calculatedMetrics$ = this.setupMetricStream();
@@ -65,6 +67,7 @@ export class DataService {
                         connectionStatus.status === "connected",
                 ),
                 take(1),
+                takeUntilDestroyed(this.destroyRef),
             )
             .subscribe((): void => {
                 this.activityStartTime = new Date();
@@ -136,7 +139,10 @@ export class DataService {
     private setupLogging(): void {
         this.ergMetricService
             .streamDeltaTimes$()
-            .pipe(filter((deltaTimes: Array<number>): boolean => deltaTimes.length > 0))
+            .pipe(
+                filter((deltaTimes: Array<number>): boolean => deltaTimes.length > 0),
+                takeUntilDestroyed(this.destroyRef),
+            )
             .subscribe((deltaTimes: Array<number>): void => {
                 this.dataRecorder.addDeltaTimes(deltaTimes);
             });
@@ -152,6 +158,7 @@ export class DataService {
                         IErgConnectionStatus,
                     ]): boolean => calculatedMetrics.strokeCount > 0 || calculatedMetrics.distance > 0,
                 ),
+                takeUntilDestroyed(this.destroyRef),
             )
             .subscribe(
                 ([_, calculatedMetrics, heartRate, connectionStatus]: [

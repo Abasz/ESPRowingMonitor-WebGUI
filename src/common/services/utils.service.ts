@@ -1,5 +1,6 @@
 import { BreakpointObserver, Breakpoints, BreakpointState, MediaMatcher } from "@angular/cdk/layout";
-import { Injectable } from "@angular/core";
+import { DestroyRef, Injectable } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import NoSleep, { INoSleep } from "@zakj/no-sleep";
 import { fromEvent, Observable } from "rxjs";
@@ -25,6 +26,7 @@ export class UtilsService {
         private spinner: SpinnerOverlayService,
         private mediaMatcher: MediaMatcher,
         private breakpointObserver: BreakpointObserver,
+        private destroyRef: DestroyRef,
     ) {}
 
     breakpointHelper(breakPoints: Array<IMediaQuery>): Observable<{ [key: string]: boolean }> {
@@ -75,7 +77,7 @@ export class UtilsService {
                             return;
                         }
                         fromEvent(document, "click")
-                            .pipe(take(1))
+                            .pipe(take(1), takeUntilDestroyed(this.destroyRef))
                             .subscribe((): void => {
                                 console.log("enables");
                                 this.wakeLock.enable();
@@ -92,6 +94,7 @@ export class UtilsService {
                     }
                 }),
                 take(1),
+                takeUntilDestroyed(this.destroyRef),
             )
             .subscribe();
     }

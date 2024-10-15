@@ -2,10 +2,12 @@ import {
     AfterViewInit,
     ChangeDetectionStrategy,
     Component,
+    DestroyRef,
     Inject,
     OnDestroy,
     ViewChild,
 } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MAT_DIALOG_DATA } from "@angular/material/dialog";
 import { MatSnackBar, MatSnackBarRef } from "@angular/material/snack-bar";
 import { MatSort, SortDirection } from "@angular/material/sort";
@@ -49,6 +51,7 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
         private dataRecorder: DataRecorderService,
         private snackBar: MatSnackBar,
         @Inject(MAT_DIALOG_DATA) private sessionSummary: Array<ISessionSummary>,
+        private destroyRef: DestroyRef,
     ) {
         this.importExportProgress$ = this.progressBarSubject$.asObservable();
         this.sessionsTableData$ = this.dataRecorder.getSessionSummaries$().pipe(
@@ -87,8 +90,8 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
                         from(this.dataRecorder.deleteSession(sessionId)),
                 ),
                 finalize((): undefined => (this.confirmSnackBarRef = undefined)),
+                takeUntilDestroyed(this.destroyRef),
             )
-            // eslint-disable-next-line rxjs-angular/prefer-takeuntil
             .subscribe({
                 next: (): void => {
                     this.snackBar.open(`Session "${dateString}" was deleted`, "Dismiss");
@@ -113,7 +116,7 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
             this.snackBar
                 .open("Export successful", "Dismiss")
                 .afterDismissed()
-                // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+                .pipe(takeUntilDestroyed(this.destroyRef))
                 .subscribe((): void => {
                     this.progressBarSubject$.next(undefined);
                 });
@@ -122,7 +125,7 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
                 this.snackBar
                     .open(`Export failed: ${e.message}`, "Dismiss", { duration: 10000 })
                     .afterDismissed()
-                    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+                    .pipe(takeUntilDestroyed(this.destroyRef))
                     .subscribe((): void => {
                         this.progressBarSubject$.next(undefined);
                     });
@@ -173,7 +176,7 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
             this.snackBar
                 .open("Import successful", "Dismiss")
                 .afterDismissed()
-                // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+                .pipe(takeUntilDestroyed(this.destroyRef))
                 .subscribe((): void => {
                     this.progressBarSubject$.next(undefined);
                 });
@@ -184,7 +187,7 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
                         duration: 10000,
                     })
                     .afterDismissed()
-                    // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+                    .pipe(takeUntilDestroyed(this.destroyRef))
                     .subscribe((): void => {
                         this.progressBarSubject$.next(undefined);
                     });

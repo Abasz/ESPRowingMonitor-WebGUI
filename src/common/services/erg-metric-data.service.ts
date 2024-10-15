@@ -1,4 +1,5 @@
-import { Injectable } from "@angular/core";
+import { DestroyRef, Injectable } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import {
     BehaviorSubject,
@@ -81,6 +82,7 @@ export class ErgMetricsService implements IRowerDataService {
     constructor(
         private configManager: ConfigManagerService,
         private snackBar: MatSnackBar,
+        private destroyRef: DestroyRef,
     ) {}
 
     async changeBleServiceType(bleService: BleServiceFlag): Promise<void> {
@@ -98,7 +100,7 @@ export class ErgMetricsService implements IRowerDataService {
                 await this.settingsCharacteristic.value?.service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
             observeValue$(characteristic)
-                .pipe(take(1))
+                .pipe(take(1), takeUntilDestroyed(this.destroyRef))
                 .subscribe((response: DataView): void => {
                     if (response.getUint8(2) === BleResponseOpCodes.Successful) {
                         this.discover();
@@ -136,7 +138,7 @@ export class ErgMetricsService implements IRowerDataService {
                 await this.settingsCharacteristic.value?.service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
             observeValue$(characteristic)
-                .pipe(take(1))
+                .pipe(take(1), takeUntilDestroyed(this.destroyRef))
                 .subscribe((response: DataView): void => {
                     this.snackBar.open(
                         response.getUint8(2) === BleResponseOpCodes.Successful
@@ -174,7 +176,7 @@ export class ErgMetricsService implements IRowerDataService {
                 await this.settingsCharacteristic.value?.service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
             observeValue$(characteristic)
-                .pipe(take(1))
+                .pipe(take(1), takeUntilDestroyed(this.destroyRef))
                 .subscribe((response: DataView): void => {
                     this.snackBar.open(
                         response.getUint8(2) === BleResponseOpCodes.Successful
@@ -207,7 +209,7 @@ export class ErgMetricsService implements IRowerDataService {
                 await this.settingsCharacteristic.value?.service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
             observeValue$(characteristic)
-                .pipe(take(1))
+                .pipe(take(1), takeUntilDestroyed(this.destroyRef))
                 .subscribe((response: DataView): void => {
                     this.snackBar.open(
                         response.getUint8(2) === BleResponseOpCodes.Successful
