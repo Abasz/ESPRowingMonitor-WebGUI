@@ -43,6 +43,7 @@ export class SettingsBarComponent {
 
     ergConnectionStatus$: Observable<IErgConnectionStatus>;
     hrConnectionStatus$: Observable<IHRConnectionStatus>;
+    isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
     settingsData$: Observable<IRowerSettings>;
     timeOfDay$: Observable<number> = interval(1000).pipe(
         startWith(Date.now()),

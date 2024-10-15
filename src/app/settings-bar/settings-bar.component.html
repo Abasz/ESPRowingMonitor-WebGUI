@@ -8,7 +8,7 @@
         <button matTooltip="Logbook" (click)="downloadSession()" mat-icon-button>
             <mat-icon>sports_score</mat-icon>
         </button>
-        <button matTooltip="Settings" (click)="openSettings()" mat-icon-button>
+        <button *ngIf="isBleAvailable" matTooltip="Settings" (click)="openSettings()" mat-icon-button>
             <mat-icon>settings</mat-icon>
         </button>
         <button matTooltip="Reset" (click)="reset()" mat-icon-button>
@@ -19,7 +19,7 @@
                 (hrConnectionStatus$ | async)?.deviceName ??
                 ((hrConnectionStatus$ | async)?.status === 'searching' ? 'Searching' : 'Connect HRM')
             "
-            *ngIf="((configManager.heartRateMonitorChanged$ | async) ?? 'off') !== 'off'"
+            *ngIf="((configManager.heartRateMonitorChanged$ | async) ?? 'off') !== 'off' && isBleAvailable"
             (click)="heartRateMonitorDiscovery()"
             mat-icon-button
         >
@@ -32,7 +32,7 @@
                 (ergConnectionStatus$ | async)?.deviceName ??
                 ((ergConnectionStatus$ | async)?.status === 'searching' ? 'Searching' : 'Connect ESPRM')
             "
-            *ngIf="(configManager.useBluetoothChanged$ | async) === true"
+            *ngIf="(configManager.useBluetoothChanged$ | async) === true && isBleAvailable"
             (click)="ergoMonitorDiscovery()"
             mat-icon-button
         >

@@ -11,7 +11,7 @@
                 >Use Bluetooth:
             </mat-slide-toggle>
         </div>
-        <mat-form-field *ngIf="isSecureContext">
+        <mat-form-field>
             <mat-label>BLE Mode</mat-label>
             <mat-select
                 name="bleMode"
@@ -39,7 +39,7 @@
                 >Invalid URL</mat-error
             >
         </mat-form-field>
-        <mat-form-field *ngIf="isSecureContext">
+        <mat-form-field>
             <mat-label>Heart Rate Monitor</mat-label>
             <mat-select
                 name="heartRateMonitor"

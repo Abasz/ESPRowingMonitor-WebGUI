@@ -116,7 +116,7 @@ export class BluetoothMetricsService implements IRowerDataService {
                 new Uint8Array([BleOpCodes.ChangeBleService, bleService]),
             );
         } catch (error) {
-            console.error(error);
+            console.error("changeBleServiceType:", error);
             this.snackBar.open("Failed to change BLE service", "Dismiss");
         }
     }
@@ -151,7 +151,7 @@ export class BluetoothMetricsService implements IRowerDataService {
                 new Uint8Array([BleOpCodes.SetDeltaTimeLogging, shouldEnable ? 1 : 0]),
             );
         } catch (error) {
-            console.error(error);
+            console.error("changeDeltaTimeLogging:", error);
             this.snackBar.open(
                 `Failed to ${shouldEnable ? "enabled" : "disabled"} delta time logging`,
                 "Dismiss",
@@ -187,7 +187,7 @@ export class BluetoothMetricsService implements IRowerDataService {
             await characteristic.startNotifications();
             await characteristic.writeValueWithResponse(new Uint8Array([BleOpCodes.SetLogLevel, logLevel]));
         } catch (error) {
-            console.error(error);
+            console.error("changeLogLevel:", error);
             this.snackBar.open("Failed to set Log Level", "Dismiss");
         }
     }
@@ -222,7 +222,7 @@ export class BluetoothMetricsService implements IRowerDataService {
                 new Uint8Array([BleOpCodes.SetSdCardLogging, shouldEnable ? 1 : 0]),
             );
         } catch (error) {
-            console.error(error);
+            console.error("changeLogToSdCard:", error);
             this.snackBar.open(
                 `Failed to ${shouldEnable ? "enabled" : "disabled"} Sd Card logging`,
                 "Dismiss",
@@ -337,10 +337,10 @@ export class BluetoothMetricsService implements IRowerDataService {
             ),
             retry({
                 count: 4,
-                delay: (error: string, count: number): Observable<0> => {
+                delay: (error: Error, count: number): Observable<0> => {
                     if (
                         this.deltaTimesCharacteristic.value?.service.device.gatt &&
-                        error.includes("unknown")
+                        error.message.includes("unknown")
                     ) {
                         console.warn(`Handle characteristic error: ${error}; retrying: ${count}`);
 
@@ -368,8 +368,11 @@ export class BluetoothMetricsService implements IRowerDataService {
             ),
             retry({
                 count: 4,
-                delay: (error: string, count: number): Observable<0> => {
-                    if (this.extendedCharacteristic.value?.service.device.gatt && error.includes("unknown")) {
+                delay: (error: Error, count: number): Observable<0> => {
+                    if (
+                        this.extendedCharacteristic.value?.service.device.gatt &&
+                        error.message.includes("unknown")
+                    ) {
                         console.warn(`Extended metrics characteristic error: ${error}; retrying: ${count}`);
 
                         this.connectToExtended(this.extendedCharacteristic.value.service.device.gatt);
@@ -401,10 +404,10 @@ export class BluetoothMetricsService implements IRowerDataService {
             ),
             retry({
                 count: 4,
-                delay: (error: string, count: number): Observable<0> => {
+                delay: (error: Error, count: number): Observable<0> => {
                     if (
                         this.handleForceCharacteristic.value?.service.device.gatt &&
-                        error.includes("unknown")
+                        error.message.includes("unknown")
                     ) {
                         console.warn(`Handle characteristic error: ${error}; retrying: ${count}`);
 
@@ -442,10 +445,10 @@ export class BluetoothMetricsService implements IRowerDataService {
             map(([baseMetrics]: [IBaseMetrics, number]): IBaseMetrics => baseMetrics),
             retry({
                 count: 4,
-                delay: (error: string, count: number): Observable<0> => {
+                delay: (error: Error, count: number): Observable<0> => {
                     if (
                         this.measurementCharacteristic.value?.service.device.gatt &&
-                        error.includes("unknown")
+                        error.message.includes("unknown")
                     ) {
                         console.warn(`Measurement characteristic error: ${error}; retrying: ${count}`);
 
@@ -478,8 +481,11 @@ export class BluetoothMetricsService implements IRowerDataService {
             ),
             retry({
                 count: 4,
-                delay: (error: string, count: number): Observable<0> => {
-                    if (this.batteryCharacteristic.value?.service.device.gatt && error.includes("unknown")) {
+                delay: (error: Error, count: number): Observable<0> => {
+                    if (
+                        this.batteryCharacteristic.value?.service.device.gatt &&
+                        error.message.includes("unknown")
+                    ) {
                         console.warn(`Battery characteristic error: ${error}; retrying: ${count}`);
 
                         this.connectToBattery(this.batteryCharacteristic.value.service.device.gatt);
@@ -489,7 +495,7 @@ export class BluetoothMetricsService implements IRowerDataService {
                 },
             }),
             catchError((error: string): Observable<number> => {
-                console.error(error);
+                console.error("batteryCharacteristics:", error);
                 this.snackBar.open("Error while connecting to battery service", "Dismiss");
 
                 return of(0);
@@ -512,8 +518,11 @@ export class BluetoothMetricsService implements IRowerDataService {
             ),
             retry({
                 count: 4,
-                delay: (error: string, count: number): Observable<0> => {
-                    if (this.settingsCharacteristic.value?.service.device.gatt && error.includes("unknown")) {
+                delay: (error: Error, count: number): Observable<0> => {
+                    if (
+                        this.settingsCharacteristic.value?.service.device.gatt &&
+                        error.message.includes("unknown")
+                    ) {
                         console.warn(`Extended metrics characteristic error: ${error}; retrying: ${count}`);
 
                         this.connectToSettings(this.settingsCharacteristic.value.service.device.gatt);
@@ -587,7 +596,7 @@ export class BluetoothMetricsService implements IRowerDataService {
         } catch (error) {
             if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Ergo battery service is unavailable", "Dismiss");
-                console.warn(error);
+                console.warn("Ergo battery service:", error);
 
                 return;
             }
@@ -608,14 +617,12 @@ export class BluetoothMetricsService implements IRowerDataService {
         } catch (error) {
             if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Error connecting to Delta Times", "Dismiss");
-                console.error(error);
+                console.error("deltaTimesCharacteristics:", error);
 
                 return;
             }
             throw error;
         }
-
-        return;
     }
 
     private async connectToExtended(
@@ -631,7 +638,7 @@ export class BluetoothMetricsService implements IRowerDataService {
         } catch (error) {
             if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Error connecting to Extended Metrics", "Dismiss");
-                console.error(error);
+                console.error("extendedMetricsCharacteristics:", error);
 
                 return;
             }
@@ -651,7 +658,7 @@ export class BluetoothMetricsService implements IRowerDataService {
         } catch (error) {
             if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Error connecting to Handles Forces", "Dismiss");
-                console.error(error);
+                console.error("handleForcesCharacteristics:", error);
 
                 return;
             }
@@ -675,7 +682,7 @@ export class BluetoothMetricsService implements IRowerDataService {
         } catch (error) {
             if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Error connecting to Measurement Characteristic", "Dismiss");
-                console.error(error);
+                console.error("basicMeasurementCharacteristics:", error);
 
                 return;
             }
@@ -696,7 +703,7 @@ export class BluetoothMetricsService implements IRowerDataService {
         } catch (error) {
             if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Error connecting to Settings", "Dismiss");
-                console.error(error);
+                console.error("settingsCharacteristics:", error);
 
                 return;
             }

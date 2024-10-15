@@ -89,7 +89,9 @@ export class DataService {
             if (!useBluetooth) {
                 this.bleDataService.disconnectDevice();
             } else {
-                this.bleDataService.reconnect();
+                if (isSecureContext && navigator.bluetooth) {
+                    this.bleDataService.reconnect();
+                }
             }
         });
     }

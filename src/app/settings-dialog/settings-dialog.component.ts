@@ -36,8 +36,6 @@ export class SettingsDialogComponent {
 
     compileDate: Date = new Date(versionInfo.timeStamp);
 
-    isSecureContext: boolean = isSecureContext;
-
     settingsForm: SettingsFormGroup = this.fb.group({
         useBluetooth: [this.configManager.getItem("useBluetooth") === "true" ? true : false],
         bleMode: [this.settings.bleServiceFlag],

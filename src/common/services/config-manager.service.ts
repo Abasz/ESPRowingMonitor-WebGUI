@@ -26,7 +26,7 @@ export class ConfigManagerService {
         (Object.keys(this.config) as Array<keyof Config>).forEach((key: keyof Config): void => {
             this.config[key] = (localStorage.getItem(key) as HeartRateMonitorMode) ?? this.config[key];
         });
-        if (!isSecureContext) {
+        if (!isSecureContext || navigator.bluetooth === undefined) {
             this.config.heartRateMonitor = "off";
             this.config.heartRateBleId = "";
             this.config.ergoMonitorBleId = "";

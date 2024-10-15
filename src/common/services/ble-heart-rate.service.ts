@@ -151,8 +151,11 @@ export class BLEHeartRateService implements IHeartRateService {
             ),
             retry({
                 count: 4,
-                delay: (error: string, count: number): Observable<0> => {
-                    if (this.batteryCharacteristic.value?.service.device.gatt && error.includes("unknown")) {
+                delay: (error: Error, count: number): Observable<0> => {
+                    if (
+                        this.batteryCharacteristic.value?.service.device.gatt &&
+                        error.message.includes("unknown")
+                    ) {
                         console.warn(`Battery characteristic error: ${error}; retrying: ${count}`);
 
                         this.connectToBattery(this.batteryCharacteristic.value.service.device.gatt);
@@ -161,8 +164,8 @@ export class BLEHeartRateService implements IHeartRateService {
                     return timer(2000);
                 },
             }),
-            catchError((error: string): Observable<undefined> => {
-                console.error(error);
+            catchError((error: Error): Observable<undefined> => {
+                console.error("batteryService:", error);
                 this.snackBar.open("Error while connecting to battery service", "Dismiss");
 
                 return of(undefined);
@@ -186,13 +189,13 @@ export class BLEHeartRateService implements IHeartRateService {
             ),
             retry({
                 count: 4,
-                delay: (error: string, count: number): Observable<0> => {
+                delay: (error: Error, count: number): Observable<0> => {
                     if (
                         this.heartRateCharacteristic.value?.service.device.gatt &&
-                        error.includes("unknown")
+                        error.message.includes("unknown")
                     ) {
                         console.warn(
-                            `Heart rate measurement characteristic error: ${error}; retrying: ${count}`,
+                            `Heart rate measurement characteristic error: ${error.message}; retrying: ${count}`,
                         );
 
                         this.connectToHearRate(this.heartRateCharacteristic.value.service.device.gatt);
@@ -227,7 +230,7 @@ export class BLEHeartRateService implements IHeartRateService {
             device.ongattserverdisconnected = this.disconnectHandler;
         } catch (error) {
             this.connectionStatusSubject.next({ status: "disconnected" });
-            console.error(error);
+            console.error("connect:", error);
             if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open(`${error}`, "Dismiss");
             }
@@ -249,7 +252,7 @@ export class BLEHeartRateService implements IHeartRateService {
         } catch (error) {
             if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("HR Monitor battery service is unavailable", "Dismiss");
-                console.warn(error);
+                console.warn("batteryCharacteristics:", error);
 
                 return;
             }
@@ -279,7 +282,7 @@ export class BLEHeartRateService implements IHeartRateService {
         } catch (error) {
             if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Error connecting Heart Rate monitor", "Dismiss");
-                console.error(error);
+                console.error("heartRateCharacteristic:", error);
 
                 return;
             }

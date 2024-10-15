@@ -12,6 +12,7 @@ import { ConfigManagerService } from "./config-manager.service";
     providedIn: "root",
 })
 export class HeartRateService {
+    isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
     constructor(
         private configManager: ConfigManagerService,
         private ble: BLEHeartRateService,
@@ -20,7 +21,7 @@ export class HeartRateService {
     ) {}
 
     connectionStatus$(): Observable<IHRConnectionStatus> {
-        if (!isSecureContext) {
+        if (!this.isBleAvailable) {
             this.snack.open("Heart Rate features are not available, refer to documentation", "Dismiss");
 
             return EMPTY.pipe(startWith({ status: "disconnected" } as IHRConnectionStatus), shareReplay());
@@ -54,7 +55,7 @@ export class HeartRateService {
     }
 
     streamHeartRate$(): Observable<IHeartRate | undefined> {
-        if (!isSecureContext) {
+        if (!this.isBleAvailable) {
             this.snack.open("Heart Rate features are not available, refer to documentation", "Dismiss");
 
             return EMPTY.pipe(startWith(undefined), shareReplay());
@@ -64,6 +65,10 @@ export class HeartRateService {
             switchMap((heartRateMonitorMode: HeartRateMonitorMode): Observable<IHeartRate | undefined> => {
                 switch (heartRateMonitorMode) {
                     case "ble":
+                        if (navigator.bluetooth === undefined) {
+                            return EMPTY.pipe(startWith(undefined), shareReplay());
+                        }
+
                         this.ant.disconnectDevice();
                         this.ble.reconnect();
 

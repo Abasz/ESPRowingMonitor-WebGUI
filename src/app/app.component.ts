@@ -121,7 +121,7 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
         this.utils.enableWakeLock();
 
         if (navigator.storage === undefined) {
-            console.error("StorageManage- API is not found or not supported");
+            console.error("StorageManager API is not found or not supported");
 
             return;
         }
@@ -130,6 +130,12 @@ export class AppComponent extends NgUnsubscribeDirective implements AfterViewIni
             if (!(await navigator.storage.persist())) {
                 console.warn("Failed to make storage persisted");
             }
+        }
+
+        if (!isSecureContext || navigator.bluetooth === undefined) {
+            this.snackBar.open("Bluetooth API is not available", "Dismiss", {
+                duration: undefined,
+            });
         }
     }
 
