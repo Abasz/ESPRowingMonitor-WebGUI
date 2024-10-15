@@ -29,13 +29,6 @@ mat-toolbar {
     }
 }
 
-@media screen and (max-height: 400px) {
-    .mat-toolbar-row,
-    .mat-toolbar-single-row {
-        height: 48px;
-    }
-}
-
 .blink {
     animation: blink 2s infinite both;
 }

@@ -1,8 +1,14 @@
+@use "@angular/material" as mat;
+
+@import "./theme.scss";
+
+@include mat.core();
+
 html,
 body {
+    @include mat.all-component-themes($light-theme);
+
     height: 100vh;
-}
-body {
     margin: 0px;
     font-family: Roboto, "Helvetica Neue", sans-serif;
 
@@ -17,71 +23,6 @@ body {
 
 *:focus {
     outline: none !important;
-}
-
-.text-overflow {
-    text-overflow: ellipsis;
-    display: block;
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-.text-overflow-rtl {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    direction: rtl;
-    text-align: left;
-}
-
-/* Override Mat defaults */
-.mdc-card {
-    border-radius: unset !important;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    top: 0;
-}
-
-.mdc-button,
-.mdc-flat-button,
-.mdc-stroked-button,
-.mdc-raised-button {
-    border-radius: 0px !important;
-}
-
-.mat-select-panel,
-.mat-menu-panel,
-.mat-snack-bar-container,
-.mat-tooltip,
-.mat-autocomplete-panel {
-    border-radius: 0px !important;
-}
-
-.cdk-overlay-backdrop.cdk-overlay-backdrop-showing.dark-backdrop {
-    background: #000;
-    opacity: 0.4 !important;
-}
-
-.dynamic-mdc-form-field-width .mat-mdc-form-field-infix {
-    width: unset;
-}
-
-mat-dialog-container.mat-mdc-dialog-container .mdc-dialog__surface {
-    border-radius: 0px;
-
-    @media screen and (max-height: 399px), screen and (max-width: 599px) {
-        padding: 12px;
-
-        .mat-dialog-content {
-            margin: 0 -12px;
-            padding: 0 12px;
-        }
-
-        .mat-dialog-actions {
-            margin-bottom: 0px;
-        }
-    }
 }
 
 [versionInfo] {
