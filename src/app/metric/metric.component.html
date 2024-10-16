@@ -1,10 +1,14 @@
 <mat-card>
     <ng-content></ng-content>
     <div class="metric">
-        <span *ngIf="icon === undefined" class="title">
-            {{ title }}
-        </span>
-        <mat-icon *ngIf="icon" matTooltipPosition="above" [matTooltip]="title ?? ''">{{ icon }}</mat-icon>
+        @if (icon === undefined) {
+            <span class="title">
+                {{ title }}
+            </span>
+        }
+        @if (icon) {
+            <mat-icon matTooltipPosition="above" [matTooltip]="title ?? ''">{{ icon }}</mat-icon>
+        }
         <div class="value">
             <span> {{ value }} </span> <span class="unit"> {{ unit }} </span>
         </div>

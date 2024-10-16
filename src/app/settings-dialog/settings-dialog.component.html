@@ -12,12 +12,12 @@
                 <mat-option [value]="BleServiceFlag.CpsService">Cycling Power</mat-option>
                 <mat-option [value]="BleServiceFlag.CscService">Cycling Speed and Cadence</mat-option>
             </mat-select>
-            <mat-error *ngIf="(settingsFormErrors$ | async)?.heartRateMonitor?.required"
-                >Heart rate monitor mode is required</mat-error
-            >
-            <mat-error *ngIf="(settingsFormErrors$ | async)?.heartRateMonitor?.pattern"
-                >Invalid value</mat-error
-            >
+            @if ((settingsFormErrors$ | async)?.heartRateMonitor?.required) {
+                <mat-error>Heart rate monitor mode is required</mat-error>
+            }
+            @if ((settingsFormErrors$ | async)?.heartRateMonitor?.pattern) {
+                <mat-error>Invalid value</mat-error>
+            }
         </mat-form-field>
         <mat-form-field>
             <mat-label>Heart Rate Monitor</mat-label>
@@ -31,30 +31,28 @@
                 <mat-option value="ble">ble</mat-option>
                 <mat-option value="ant">ant</mat-option>
             </mat-select>
-            <mat-error *ngIf="(settingsFormErrors$ | async)?.heartRateMonitor?.required"
-                >Heart rate monitor mode is required</mat-error
-            >
-            <mat-error *ngIf="(settingsFormErrors$ | async)?.heartRateMonitor?.pattern"
-                >Invalid value</mat-error
-            >
+            @if ((settingsFormErrors$ | async)?.heartRateMonitor?.required) {
+                <mat-error>Heart rate monitor mode is required</mat-error>
+            }
+            @if ((settingsFormErrors$ | async)?.heartRateMonitor?.pattern) {
+                <mat-error>Invalid value</mat-error>
+            }
         </mat-form-field>
         <mat-form-field>
             <mat-label>Log Level</mat-label>
             <mat-select name="logLevel" placeholder="Select log level" formControlName="logLevel" required>
-                <mat-option *ngFor="let logLevel of LogLevel | enumToArray" [value]="logLevel.key">{{
-                    logLevel.value
-                }}</mat-option>
+                @for (logLevel of LogLevel | enumToArray; track logLevel.value) {
+                    <mat-option [value]="logLevel.key">{{ logLevel.value }}</mat-option>
+                }
             </mat-select>
-            <mat-error *ngIf="(settingsFormErrors$ | async)?.logLevel?.required"
-                >Log level is required</mat-error
-            >
-            <mat-error
-                *ngIf="
-                    (settingsFormErrors$ | async)?.logLevel?.min ||
-                    (settingsFormErrors$ | async)?.logLevel?.max
-                "
-                >Invalid value</mat-error
-            >
+            @if ((settingsFormErrors$ | async)?.logLevel?.required) {
+                <mat-error>Log level is required</mat-error>
+            }
+            @if (
+                (settingsFormErrors$ | async)?.logLevel?.min || (settingsFormErrors$ | async)?.logLevel?.max
+            ) {
+                <mat-error>Invalid value</mat-error>
+            }
         </mat-form-field>
         <h4>Delta Time Logging</h4>
         <mat-checkbox formControlName="deltaTimeLogging">Bluetooth</mat-checkbox>

@@ -1,27 +1,30 @@
 <app-settings-bar></app-settings-bar>
 <div class="dashboard">
+    @let rowingData = rowingData$ | async;
+    @let heartRateData = heartRateData$ | async;
+
     <app-metric
         title="Distance"
         icon="distance"
-        [value]="(((rowingData$ | async)?.distance ?? 0) / 100 | number: '0.0-0') ?? '--'"
+        [value]="((rowingData?.distance ?? 0) / 100 | number: '0.0-0') ?? '--'"
         unit="m"
     ></app-metric>
     <app-metric
         title="Pace"
         icon="speed"
-        [value]="500 / ((rowingData$ | async)?.speed ?? 0) | secondsToTime: 'pace'"
+        [value]="500 / (rowingData?.speed ?? 0) | secondsToTime: 'pace'"
         unit="/500m"
     ></app-metric>
     <app-metric
         title="Power"
         icon="bolt"
-        [value]="((rowingData$ | async)?.avgStrokePower ?? 0 | number: '0.0-0') ?? '--'"
+        [value]="(rowingData?.avgStrokePower ?? 0 | number: '0.0-0') ?? '--'"
         unit="watt"
     ></app-metric>
     <app-metric
         title="Stroke rate"
         icon="rowing"
-        [value]="(rowingData$ | async)?.strokeRate ?? 0 | roundNumber"
+        [value]="rowingData?.strokeRate ?? 0 | roundNumber"
         unit="stk/min"
     ></app-metric>
     <app-metric
@@ -29,46 +32,39 @@
         icon="timer"
         [value]="(elapseTime$ | async) ?? 0 | secondsToTime: 'pace'"
     ></app-metric>
-    <app-force-curve [handleForces]="(rowingData$ | async)?.handleForces ?? []"></app-force-curve>
+    <app-force-curve [handleForces]="rowingData?.handleForces ?? []"></app-force-curve>
     <app-metric
         title="Distance per stroke"
         icon="route"
-        [value]="((rowingData$ | async)?.distPerStroke ?? 0 | number: '0.0-1') ?? '--'"
+        [value]="(rowingData?.distPerStroke ?? 0 | number: '0.0-1') ?? '--'"
         unit="m/stk"
     ></app-metric>
-    <app-metric
-        title="Total Strokes"
-        unit="stk"
-        [value]="(rowingData$ | async)?.strokeCount ?? 0"
-    ></app-metric>
-    <app-metric
-        title="Drag Factor"
-        [value]="(rowingData$ | async)?.dragFactor ?? 0 | roundNumber"
-    ></app-metric>
+    <app-metric title="Total Strokes" unit="stk" [value]="rowingData?.strokeCount ?? 0"></app-metric>
+    <app-metric title="Drag Factor" [value]="rowingData?.dragFactor ?? 0 | roundNumber"></app-metric>
     <app-metric
         title="Drive"
-        [value]="(rowingData$ | async)?.driveDuration ?? 0 | roundNumber: 2"
+        [value]="rowingData?.driveDuration ?? 0 | roundNumber: 2"
         unit="sec"
     ></app-metric>
-    <app-metric
-        *ngIf="(heartRateData$ | async)?.contactDetected !== true"
-        title="Recovery"
-        [value]="(rowingData$ | async)?.recoveryDuration ?? 0 | roundNumber: 2"
-        unit="sec"
-    ></app-metric>
-    <app-metric
-        title="Heart rate"
-        *ngIf="(heartRateData$ | async)?.contactDetected === true"
-        icon="ecg_heart"
-        [value]="
-            ((heartRateData$ | async)?.contactDetected === true
-                ? (heartRateData$ | async)?.heartRate ?? 0
-                : 0
-            ) | roundNumber
-        "
-        unit="bpm"
-        ><mat-icon *ngIf="(heartRateData$ | async)?.batteryLevel as batteryLevel">{{
-            batteryLevel | batteryLevel
-        }}</mat-icon></app-metric
-    >
+    @if (heartRateData?.contactDetected !== true) {
+        <app-metric
+            title="Recovery"
+            [value]="rowingData?.recoveryDuration ?? 0 | roundNumber: 2"
+            unit="sec"
+        ></app-metric>
+    }
+    @if (heartRateData?.contactDetected === true) {
+        <app-metric
+            title="Heart rate"
+            icon="ecg_heart"
+            [value]="
+                (heartRateData?.contactDetected === true ? (heartRateData?.heartRate ?? 0) : 0) | roundNumber
+            "
+            unit="bpm"
+        >
+            @if (heartRateData?.batteryLevel; as batteryLevel) {
+                <mat-icon>{{ batteryLevel | batteryLevel }}</mat-icon>
+            }
+        </app-metric>
+    }
 </div>

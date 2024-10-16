@@ -14,32 +14,42 @@
         <button matTooltip="Reset" (click)="reset()" mat-icon-button>
             <mat-icon>laps</mat-icon>
         </button>
-        <button
-            [matTooltip]="
-                (hrConnectionStatus$ | async)?.deviceName ??
-                ((hrConnectionStatus$ | async)?.status === 'searching' ? 'Searching' : 'Connect HRM')
-            "
-            *ngIf="((configManager.heartRateMonitorChanged$ | async) ?? 'off') !== 'off' && isBleAvailable"
-            (click)="heartRateMonitorDiscovery()"
-            mat-icon-button
-        >
-            <mat-icon [ngClass]="(hrConnectionStatus$ | async)?.status === 'connecting' ? 'blink' : ''">{{
-                (hrConnectionStatus$ | async)?.status === "disconnected" ? "favorite" : "ecg_heart"
-            }}</mat-icon>
-        </button>
-        <button
-            [matTooltip]="
-                (ergConnectionStatus$ | async)?.deviceName ??
-                ((ergConnectionStatus$ | async)?.status === 'searching' ? 'Searching' : 'Connect ESPRM')
-            "
-            *ngIf="isBleAvailable"
-            (click)="ergoMonitorDiscovery()"
-            mat-icon-button
-        >
-            <mat-icon [ngClass]="(ergConnectionStatus$ | async)?.status === 'connecting' ? 'blink' : ''">{{
-                bleConnectionStatusIcons[(ergConnectionStatus$ | async)?.status ?? "disconnected"]
-            }}</mat-icon>
-        </button>
+        @if (isBleAvailable) {
+            @if (((configManager.heartRateMonitorChanged$ | async) ?? "off") !== "off") {
+                <button
+                    [matTooltip]="
+                        (hrConnectionStatus$ | async)?.deviceName ??
+                        ((hrConnectionStatus$ | async)?.status === 'searching' ? 'Searching' : 'Connect HRM')
+                    "
+                    (click)="heartRateMonitorDiscovery()"
+                    mat-icon-button
+                >
+                    <mat-icon
+                        [ngClass]="(hrConnectionStatus$ | async)?.status === 'connecting' ? 'blink' : ''"
+                        >{{
+                            (hrConnectionStatus$ | async)?.status === "disconnected"
+                                ? "favorite"
+                                : "ecg_heart"
+                        }}</mat-icon
+                    >
+                </button>
+            }
+            <button
+                [matTooltip]="
+                    (ergConnectionStatus$ | async)?.deviceName ??
+                    ((ergConnectionStatus$ | async)?.status === 'searching' ? 'Searching' : 'Connect ESPRM')
+                "
+                (click)="ergoMonitorDiscovery()"
+                mat-icon-button
+            >
+                <mat-icon
+                    [ngClass]="(ergConnectionStatus$ | async)?.status === 'connecting' ? 'blink' : ''"
+                    >{{
+                        bleConnectionStatusIcons[(ergConnectionStatus$ | async)?.status ?? "disconnected"]
+                    }}</mat-icon
+                >
+            </button>
+        }
         <span>{{
             ((settingsData$ | async)?.bleServiceFlag ?? BleServiceFlag.CpsService) ===
             BleServiceFlag.CpsService
