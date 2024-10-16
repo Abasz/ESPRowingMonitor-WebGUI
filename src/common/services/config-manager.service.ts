@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, filter, map, Observable, shareReplay } from "rxjs";
+import { BehaviorSubject, filter, map, Observable, pairwise, startWith } from "rxjs";
 
 import { Config, HeartRateMonitorMode, IConfig } from "../common.interfaces";
 
@@ -7,58 +7,56 @@ import { Config, HeartRateMonitorMode, IConfig } from "../common.interfaces";
     providedIn: "root",
 })
 export class ConfigManagerService {
-    heartRateMonitorChanged$: Observable<HeartRateMonitorMode>;
-
-    private config: Config;
-    private config$: Observable<Config>;
+    readonly heartRateMonitorChanged$: Observable<HeartRateMonitorMode>;
 
     private configSubject: BehaviorSubject<Config>;
 
-    private heartRateMonitor: HeartRateMonitorMode = "off";
-
     constructor() {
-        this.config = new Config();
-        (Object.keys(this.config) as Array<keyof Config>).forEach((key: keyof Config): void => {
-            this.config[key] = (localStorage.getItem(key) as HeartRateMonitorMode) ?? this.config[key];
-        });
+        let config = Object.fromEntries(
+            (Object.keys(new Config()) as Array<keyof Config>).map(
+                (key: keyof Config): [keyof Config, string] => [
+                    key,
+                    localStorage.getItem(key) ?? new Config()[key],
+                ],
+            ),
+        ) as unknown as Config;
+
         if (!isSecureContext || navigator.bluetooth === undefined) {
-            this.config.heartRateMonitor = "off";
-            this.config.heartRateBleId = "";
-            this.config.ergoMonitorBleId = "";
+            config = {
+                ...config,
+                heartRateMonitor: "off",
+                heartRateBleId: "",
+                ergoMonitorBleId: "",
+            };
+
             localStorage.setItem("heartRateMonitor", "off");
             localStorage.setItem("heartRateBleId", "");
-            localStorage.setItem("monitorBleId", "");
+            localStorage.setItem("ergoMonitorBleId", "");
         }
 
-        this.configSubject = new BehaviorSubject(this.config);
-        this.config$ = this.configSubject.asObservable();
+        this.configSubject = new BehaviorSubject(config);
 
-        this.heartRateMonitorChanged$ = this.config$.pipe(
-            filter((config: Config): boolean => {
-                if (config.heartRateMonitor !== this.heartRateMonitor) {
-                    this.heartRateMonitor = config.heartRateMonitor;
-
-                    return true;
-                }
-
-                return false;
-            }),
-            map((config: Config): HeartRateMonitorMode => config.heartRateMonitor),
-            shareReplay(1),
+        this.heartRateMonitorChanged$ = this.configSubject.pipe(
+            pairwise(),
+            filter(
+                ([previous, current]: [Config, Config]): boolean =>
+                    previous.heartRateMonitor !== current.heartRateMonitor,
+            ),
+            map(([_, current]: [Config, Config]): HeartRateMonitorMode => current.heartRateMonitor),
+            startWith(this.configSubject.value.heartRateMonitor),
         );
     }
 
     getConfig(): IConfig {
-        return { ...this.config };
+        return { ...this.configSubject.value };
     }
 
     getItem(name: keyof Config): Config[keyof Config] {
-        return this.config[name];
+        return this.configSubject.value[name];
     }
 
     setItem(name: keyof Config, value: Config[keyof Config]): void {
-        this.config[name] = value as HeartRateMonitorMode;
         localStorage.setItem(name, value);
-        this.configSubject.next(this.config);
+        this.configSubject.next({ ...this.configSubject.value, [name]: value });
     }
 }
