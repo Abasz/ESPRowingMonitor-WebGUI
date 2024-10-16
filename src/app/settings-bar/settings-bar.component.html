@@ -32,7 +32,7 @@
                 (ergConnectionStatus$ | async)?.deviceName ??
                 ((ergConnectionStatus$ | async)?.status === 'searching' ? 'Searching' : 'Connect ESPRM')
             "
-            *ngIf="(configManager.useBluetoothChanged$ | async) === true && isBleAvailable"
+            *ngIf="isBleAvailable"
             (click)="ergoMonitorDiscovery()"
             mat-icon-button
         >
@@ -40,11 +40,6 @@
                 bleConnectionStatusIcons[(ergConnectionStatus$ | async)?.status ?? "disconnected"]
             }}</mat-icon>
         </button>
-        <div *ngIf="(configManager.useBluetoothChanged$ | async) === false">
-            <mat-icon [matTooltip]="(ergConnectionStatus$ | async)?.deviceName ?? 'Not connected'">{{
-                (ergConnectionStatus$ | async)?.status === "connected" ? "wifi" : "wifi_off"
-            }}</mat-icon>
-        </div>
         <span>{{
             ((settingsData$ | async)?.bleServiceFlag ?? BleServiceFlag.CpsService) ===
             BleServiceFlag.CpsService

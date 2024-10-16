@@ -8,10 +8,6 @@ import { Config, HeartRateMonitorMode, IConfig } from "../common.interfaces";
 })
 export class ConfigManagerService {
     heartRateMonitorChanged$: Observable<HeartRateMonitorMode>;
-    useBluetoothChanged$: Observable<boolean>;
-    websocketAddressChanged$: Observable<string>;
-
-    private address: string = "";
 
     private config: Config;
     private config$: Observable<Config>;
@@ -19,7 +15,6 @@ export class ConfigManagerService {
     private configSubject: BehaviorSubject<Config>;
 
     private heartRateMonitor: HeartRateMonitorMode = "off";
-    private useBluetooth: string = "";
 
     constructor() {
         this.config = new Config();
@@ -49,34 +44,6 @@ export class ConfigManagerService {
                 return false;
             }),
             map((config: Config): HeartRateMonitorMode => config.heartRateMonitor),
-            shareReplay(1),
-        );
-
-        this.useBluetoothChanged$ = this.config$.pipe(
-            filter((config: Config): boolean => {
-                if (config.useBluetooth !== this.useBluetooth) {
-                    this.useBluetooth = config.useBluetooth;
-
-                    return true;
-                }
-
-                return false;
-            }),
-            map((config: Config): boolean => config.useBluetooth === "true"),
-            shareReplay(1),
-        );
-
-        this.websocketAddressChanged$ = this.config$.pipe(
-            filter((config: Config): boolean => {
-                if (config.webSocketAddress !== this.address) {
-                    this.address = config.webSocketAddress;
-
-                    return true;
-                }
-
-                return false;
-            }),
-            map((config: Config): string => config.webSocketAddress),
             shareReplay(1),
         );
     }

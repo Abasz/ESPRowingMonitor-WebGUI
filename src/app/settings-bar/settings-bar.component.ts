@@ -9,10 +9,10 @@ import {
     IRowerSettings,
     ISessionSummary,
 } from "../../common/common.interfaces";
-import { BluetoothMetricsService } from "../../common/services/ble-data.service";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { DataRecorderService } from "../../common/services/data-recorder.service";
 import { DataService } from "../../common/services/data.service";
+import { ErgMetricsService } from "../../common/services/erg-metric-data.service";
 import { HeartRateService } from "../../common/services/heart-rate.service";
 import { UtilsService } from "../../common/services/utils.service";
 import { LogbookDialogComponent } from "../logbook-dialog/logbook-dialog.component";
@@ -53,7 +53,7 @@ export class SettingsBarComponent {
     constructor(
         private dataService: DataService,
         private dataRecorder: DataRecorderService,
-        private metricsService: BluetoothMetricsService,
+        private metricsService: ErgMetricsService,
         private dialog: MatDialog,
         private heartRateService: HeartRateService,
         private utils: UtilsService,

@@ -1,16 +1,6 @@
 <h1 mat-dialog-title>Settings</h1>
 <div mat-dialog-content>
     <form [formGroup]="settingsForm" (ngSubmit)="submitLoginForm()" novalidate>
-        <div>
-            <mat-slide-toggle
-                hideIcon="true"
-                labelPosition="before"
-                formControlName="useBluetooth"
-                (change)="useBluetoothClick($event)"
-                name="useBluetooth"
-                >Use Bluetooth:
-            </mat-slide-toggle>
-        </div>
         <mat-form-field>
             <mat-label>BLE Mode</mat-label>
             <mat-select
@@ -27,16 +17,6 @@
             >
             <mat-error *ngIf="(settingsFormErrors$ | async)?.heartRateMonitor?.pattern"
                 >Invalid value</mat-error
-            >
-        </mat-form-field>
-        <mat-form-field>
-            <mat-label>Web Socket URL</mat-label>
-            <input matInput formControlName="websocketAddress" name="websocketAddress" required />
-            <mat-error *ngIf="(settingsFormErrors$ | async)?.websocketAddress?.required"
-                >URL is required</mat-error
-            >
-            <mat-error *ngIf="(settingsFormErrors$ | async)?.websocketAddress?.pattern"
-                >Invalid URL</mat-error
             >
         </mat-form-field>
         <mat-form-field>
@@ -77,9 +57,7 @@
             >
         </mat-form-field>
         <h4>Delta Time Logging</h4>
-        <mat-checkbox formControlName="deltaTimeLogging">{{
-            settingsForm.value.useBluetooth ? "Bluetooth" : "WebSocket"
-        }}</mat-checkbox>
+        <mat-checkbox formControlName="deltaTimeLogging">Bluetooth</mat-checkbox>
         <mat-checkbox formControlName="logToSdCard">SdCard</mat-checkbox>
     </form>
     <div versionInfo>

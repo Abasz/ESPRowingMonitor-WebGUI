@@ -24,8 +24,6 @@ export class Config {
     ergoMonitorBleId: string = "";
     heartRateBleId: string = "";
     heartRateMonitor: HeartRateMonitorMode = "off";
-    useBluetooth: string = "true";
-    webSocketAddress: string = `ws://${window.location.host}/ws`;
 }
 
 type BleConnectionStatus = "disconnected" | "connected" | "connecting" | "searching";

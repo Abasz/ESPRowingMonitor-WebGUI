@@ -42,21 +42,21 @@ import {
     SETTINGS_CONTROL_POINT,
     SETTINGS_SERVICE,
 } from "../ble.interfaces";
-import { observeValue$, withDelay } from "../utils/utility.functions";
-
 import {
     IBaseMetrics,
     IErgConnectionStatus,
     IExtendedMetrics,
     IRowerDataService,
     IRowerSettings,
-} from "./../common.interfaces";
+} from "../common.interfaces";
+import { observeValue$, withDelay } from "../utils/utility.functions";
+
 import { ConfigManagerService } from "./config-manager.service";
 
 @Injectable({
     providedIn: "root",
 })
-export class BluetoothMetricsService implements IRowerDataService {
+export class ErgMetricsService implements IRowerDataService {
     private batteryCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
     private bluetoothDevice: BluetoothDevice | undefined;

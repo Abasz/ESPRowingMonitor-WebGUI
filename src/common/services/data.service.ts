@@ -8,7 +8,6 @@ import {
     pairwise,
     shareReplay,
     Subject,
-    switchMap,
     take,
     tap,
     withLatestFrom,
@@ -25,11 +24,9 @@ import {
     IRowerSettings,
 } from "../common.interfaces";
 
-import { BluetoothMetricsService } from "./ble-data.service";
-import { ConfigManagerService } from "./config-manager.service";
 import { DataRecorderService } from "./data-recorder.service";
+import { ErgMetricsService } from "./erg-metric-data.service";
 import { HeartRateService } from "./heart-rate.service";
-import { WebSocketService } from "./websocket.service";
 
 @Injectable({
     providedIn: "root",
@@ -53,9 +50,7 @@ export class DataService {
     private resetSubject: Subject<IBaseMetrics> = new Subject();
 
     constructor(
-        private webSocketService: WebSocketService,
-        private bleDataService: BluetoothMetricsService,
-        private configManager: ConfigManagerService,
+        private ergMetricService: ErgMetricsService,
         private dataRecorder: DataRecorderService,
         private heartRateService: HeartRateService,
     ) {
@@ -75,69 +70,29 @@ export class DataService {
                 this.activityStartTime = new Date();
             });
 
-        // TODO: Serves backward compatibility with WS API, remove once WS connection is removed
-        this.configManager.useBluetoothChanged$.subscribe((useBluetooth: boolean): void => {
-            this.baseMetrics = {
-                revTime: 0,
-                distance: 0,
-                strokeTime: 0,
-                strokeCount: 0,
-            };
-            this.resetSubject.next(this.baseMetrics);
-            this.activityStartTime = new Date();
-
-            if (!useBluetooth) {
-                this.bleDataService.disconnectDevice();
-            } else {
-                if (isSecureContext && navigator.bluetooth) {
-                    this.bleDataService.reconnect();
-                }
-            }
-        });
+        if (isSecureContext && navigator.bluetooth) {
+            this.ergMetricService.reconnect();
+        }
     }
 
     changeBleServiceType(bleService: BleServiceFlag): Promise<void> {
-        return this.configManager.getItem("useBluetooth") === "true"
-            ? this.bleDataService.changeBleServiceType(bleService)
-            : Promise.resolve(this.webSocketService.changeBleServiceType(bleService));
+        return this.ergMetricService.changeBleServiceType(bleService);
     }
 
     changeDeltaTimeLogging(shouldEnable: boolean): Promise<void> {
-        return this.configManager.getItem("useBluetooth") === "true"
-            ? this.bleDataService.changeDeltaTimeLogging(shouldEnable)
-            : Promise.resolve(this.webSocketService.changeDeltaTimeLogging(shouldEnable));
+        return this.ergMetricService.changeDeltaTimeLogging(shouldEnable);
     }
 
     changeLogLevel(logLevel: LogLevel): Promise<void> {
-        return this.configManager.getItem("useBluetooth") === "true"
-            ? this.bleDataService.changeLogLevel(logLevel)
-            : Promise.resolve(this.webSocketService.changeLogLevel(logLevel));
+        return this.ergMetricService.changeLogLevel(logLevel);
     }
 
     changeLogToSdCard(shouldEnable: boolean): Promise<void> {
-        return this.configManager.getItem("useBluetooth") === "true"
-            ? this.bleDataService.changeLogToSdCard(shouldEnable)
-            : Promise.resolve(this.webSocketService.changeLogToSdCard(shouldEnable));
+        return this.ergMetricService.changeLogToSdCard(shouldEnable);
     }
 
     ergConnectionStatus$(): Observable<IErgConnectionStatus> {
-        return this.configManager.useBluetoothChanged$.pipe(
-            switchMap(
-                (useBluetooth: boolean): Observable<IErgConnectionStatus> =>
-                    useBluetooth
-                        ? this.bleDataService.connectionStatus$()
-                        : this.webSocketService.connectionStatus().pipe(
-                              map(
-                                  (isConnected: boolean): IErgConnectionStatus => ({
-                                      deviceName: isConnected
-                                          ? new URL(this.configManager.getItem("webSocketAddress")).hostname
-                                          : undefined,
-                                      status: isConnected ? "connected" : "disconnected",
-                                  }),
-                              ),
-                          ),
-            ),
-        );
+        return this.ergMetricService.connectionStatus$();
     }
 
     getActivityStartTime(): Date {
@@ -166,99 +121,22 @@ export class DataService {
         return this.calculatedMetrics$;
     }
 
-    streamExtended$(): Observable<IExtendedMetrics> {
-        return merge(
-            this.configManager.useBluetoothChanged$.pipe(
-                switchMap(
-                    (useBluetooth: boolean): Observable<IExtendedMetrics> =>
-                        useBluetooth
-                            ? this.bleDataService.streamExtended$()
-                            : this.webSocketService.streamExtended$(),
-                ),
-                shareReplay(1),
-            ),
-            this.resetSubject.pipe(
-                map(
-                    (): IExtendedMetrics => ({
-                        avgStrokePower: 0,
-                        dragFactor: 0,
-                        driveDuration: 0,
-                        recoveryDuration: 0,
-                    }),
-                ),
-            ),
-        );
-    }
-
-    streamHandleForces$(): Observable<Array<number>> {
-        return merge(
-            this.configManager.useBluetoothChanged$.pipe(
-                switchMap(
-                    (useBluetooth: boolean): Observable<Array<number>> =>
-                        useBluetooth
-                            ? this.bleDataService.streamHandleForces$()
-                            : this.webSocketService.streamHandleForces$(),
-                ),
-                shareReplay(1),
-            ),
-            this.resetSubject.pipe(map((): Array<number> => [])),
-        );
-    }
-
     streamHeartRate$(): Observable<IHeartRate | undefined> {
         return this.heartRateData$;
     }
 
-    streamMeasurement$(): Observable<IBaseMetrics> {
-        return merge(
-            this.configManager.useBluetoothChanged$.pipe(
-                switchMap(
-                    (useBluetooth: boolean): Observable<IBaseMetrics> =>
-                        useBluetooth
-                            ? this.bleDataService.streamMeasurement$()
-                            : this.webSocketService.streamMeasurement$(),
-                ),
-                shareReplay(1),
-            ),
-            this.resetSubject,
-        );
-    }
-
     streamMonitorBatteryLevel$(): Observable<number> {
-        return this.configManager.useBluetoothChanged$.pipe(
-            switchMap(
-                (useBluetooth: boolean): Observable<number> =>
-                    useBluetooth
-                        ? this.bleDataService.streamMonitorBatteryLevel$()
-                        : this.webSocketService.streamMonitorBatteryLevel$(),
-            ),
-            shareReplay(1),
-        );
+        return this.ergMetricService.streamMonitorBatteryLevel$();
     }
 
     streamSettings$(): Observable<IRowerSettings> {
-        return this.configManager.useBluetoothChanged$.pipe(
-            switchMap(
-                (useBluetooth: boolean): Observable<IRowerSettings> =>
-                    useBluetooth
-                        ? this.bleDataService.streamSettings$()
-                        : this.webSocketService.streamSettings$(),
-            ),
-            shareReplay(1),
-        );
+        return this.ergMetricService.streamSettings$().pipe(shareReplay(1));
     }
 
     private setupLogging(): void {
-        this.configManager.useBluetoothChanged$
-            .pipe(
-                switchMap(
-                    (useBluetooth: boolean): Observable<Array<number>> =>
-                        useBluetooth
-                            ? this.bleDataService.streamDeltaTimes$()
-                            : this.webSocketService.streamDeltaTimes$(),
-                ),
-                filter((deltaTimes: Array<number>): boolean => deltaTimes.length > 0),
-            )
+        this.ergMetricService
+            .streamDeltaTimes$()
+            .pipe(filter((deltaTimes: Array<number>): boolean => deltaTimes.length > 0))
             .subscribe((deltaTimes: Array<number>): void => {
                 this.dataRecorder.addDeltaTimes(deltaTimes);
             });
@@ -357,5 +235,32 @@ export class DataService {
             ),
             shareReplay(),
         );
+    }
+
+    private streamExtended$(): Observable<IExtendedMetrics> {
+        return merge(
+            this.ergMetricService.streamExtended$(),
+            this.resetSubject.pipe(
+                map(
+                    (): IExtendedMetrics => ({
+                        avgStrokePower: 0,
+                        dragFactor: 0,
+                        driveDuration: 0,
+                        recoveryDuration: 0,
+                    }),
+                ),
+            ),
+        );
+    }
+
+    private streamHandleForces$(): Observable<Array<number>> {
+        return merge(
+            this.ergMetricService.streamHandleForces$(),
+            this.resetSubject.pipe(map((): Array<number> => [])),
+        );
+    }
+
+    private streamMeasurement$(): Observable<IBaseMetrics> {
+        return merge(this.ergMetricService.streamMeasurement$(), this.resetSubject);
     }
 }
