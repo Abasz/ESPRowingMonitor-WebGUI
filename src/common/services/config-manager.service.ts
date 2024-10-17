@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, filter, map, Observable, pairwise, startWith } from "rxjs";
+import { BehaviorSubject, filter, map, Observable, pairwise, shareReplay, startWith } from "rxjs";
 
 import { Config, HeartRateMonitorMode, IConfig } from "../common.interfaces";
 
@@ -44,6 +44,7 @@ export class ConfigManagerService {
             ),
             map(([_, current]: [Config, Config]): HeartRateMonitorMode => current.heartRateMonitor),
             startWith(this.configSubject.value.heartRateMonitor),
+            shareReplay(1),
         );
     }
 

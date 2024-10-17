@@ -61,10 +61,10 @@ export class SettingsBarComponent {
         private destroyRef: DestroyRef,
         public configManager: ConfigManagerService,
     ) {
-        this.ergConnectionStatus$ = this.dataService.ergConnectionStatus$();
+        this.ergConnectionStatus$ = this.dataService.ergConnectionStatus$;
         this.hrConnectionStatus$ = this.heartRateService.connectionStatus$();
-        this.settingsData$ = this.dataService.streamSettings$();
-        this.batteryLevel$ = this.dataService.streamMonitorBatteryLevel$();
+        this.settingsData$ = this.dataService.streamSettings$;
+        this.batteryLevel$ = this.dataService.ergBatteryLevel$;
     }
 
     downloadSession(): void {

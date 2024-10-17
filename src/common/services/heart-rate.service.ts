@@ -24,7 +24,7 @@ export class HeartRateService {
         if (!this.isBleAvailable) {
             this.snack.open("Heart Rate features are not available, refer to documentation", "Dismiss");
 
-            return EMPTY.pipe(startWith({ status: "disconnected" } as IHRConnectionStatus), shareReplay());
+            return EMPTY.pipe(startWith({ status: "disconnected" } as IHRConnectionStatus));
         }
 
         return this.configManager.heartRateMonitorChanged$.pipe(
@@ -39,7 +39,7 @@ export class HeartRateService {
                 }
             }),
             startWith({ status: "disconnected" } as IHRConnectionStatus),
-            shareReplay(),
+            shareReplay(1),
         );
     }
 
@@ -58,7 +58,7 @@ export class HeartRateService {
         if (!this.isBleAvailable) {
             this.snack.open("Heart Rate features are not available, refer to documentation", "Dismiss");
 
-            return EMPTY.pipe(startWith(undefined), shareReplay());
+            return EMPTY.pipe(startWith(undefined));
         }
 
         return this.configManager.heartRateMonitorChanged$.pipe(
@@ -66,7 +66,7 @@ export class HeartRateService {
                 switch (heartRateMonitorMode) {
                     case "ble":
                         if (navigator.bluetooth === undefined) {
-                            return EMPTY.pipe(startWith(undefined), shareReplay());
+                            return EMPTY.pipe(startWith(undefined));
                         }
 
                         this.ant.disconnectDevice();
@@ -86,7 +86,7 @@ export class HeartRateService {
                 }
             }),
             startWith(undefined),
-            shareReplay(),
+            shareReplay(1),
         );
     }
 }

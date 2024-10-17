@@ -352,7 +352,6 @@ export class ErgMetricsService implements IRowerDataService {
                     return timer(2000);
                 },
             }),
-            startWith([]),
         );
     }
 
@@ -382,12 +381,6 @@ export class ErgMetricsService implements IRowerDataService {
 
                     return timer(2000);
                 },
-            }),
-            startWith({
-                avgStrokePower: 0,
-                dragFactor: 0,
-                driveDuration: 0,
-                recoveryDuration: 0,
             }),
         );
     }
@@ -419,7 +412,6 @@ export class ErgMetricsService implements IRowerDataService {
                     return timer(2000);
                 },
             }),
-            startWith([]),
         );
     }
 
@@ -460,12 +452,6 @@ export class ErgMetricsService implements IRowerDataService {
                     return timer(2000);
                 },
             }),
-            startWith({
-                distance: 0,
-                revTime: 0,
-                strokeCount: 0,
-                strokeTime: 0,
-            }),
         );
     }
 
@@ -502,7 +488,6 @@ export class ErgMetricsService implements IRowerDataService {
 
                 return of(0);
             }),
-            startWith(0),
         );
     }
 
@@ -532,12 +517,6 @@ export class ErgMetricsService implements IRowerDataService {
 
                     return timer(2000);
                 },
-            }),
-            startWith({
-                logDeltaTimes: undefined,
-                logToSdCard: undefined,
-                logLevel: 0,
-                bleServiceFlag: BleServiceFlag.CpsService,
             }),
         );
     }

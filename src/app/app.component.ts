@@ -41,8 +41,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     ) {
         this.matIconReg.setDefaultFontSetClass("material-symbols-sharp");
 
-        this.heartRateData$ = this.dataService.streamHeartRate$();
-        this.elapseTime$ = this.dataService.ergConnectionStatus$().pipe(
+        this.heartRateData$ = this.dataService.heartRateData$;
+        this.elapseTime$ = this.dataService.ergConnectionStatus$.pipe(
             filter(
                 (connectionStatus: IErgConnectionStatus): boolean => connectionStatus.status === "connected",
             ),
@@ -67,7 +67,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
                     ),
             ),
         );
-        this.rowingData$ = this.dataService.streamAllMetrics$().pipe(
+        this.rowingData$ = this.dataService.allMetrics$.pipe(
             tap((): void => {
                 this.cd.detectChanges();
             }),

@@ -13,6 +13,7 @@ import {
     Observable,
     of,
     retry,
+    shareReplay,
     skip,
     startWith,
     switchMap,
@@ -171,6 +172,7 @@ export class BLEHeartRateService implements IHeartRateService {
                 return of(undefined);
             }),
             startWith(undefined as number | undefined),
+            shareReplay(1),
         );
     }
 
@@ -185,7 +187,22 @@ export class BLEHeartRateService implements IHeartRateService {
             switchMap(
                 (
                     heartRateCharacteristic: BluetoothRemoteGATTCharacteristic,
-                ): Observable<IHeartRate | undefined> => this.observeHeartRate(heartRateCharacteristic),
+                ): Observable<IHeartRate | undefined> =>
+                    this.observeHeartRate(heartRateCharacteristic).pipe(
+                        withLatestFrom(this.streamHRMonitorBatteryLevel$()),
+                        map(
+                            ([heartRateData, batteryLevel]: [
+                                Omit<IHeartRate, "batteryLevel"> | undefined,
+                                number | undefined,
+                            ]): IHeartRate | undefined =>
+                                heartRateData
+                                    ? {
+                                          ...heartRateData,
+                                          batteryLevel,
+                                      }
+                                    : undefined,
+                        ),
+                    ),
             ),
             retry({
                 count: 4,
@@ -205,6 +222,7 @@ export class BLEHeartRateService implements IHeartRateService {
                 },
             }),
             startWith(undefined as IHeartRate | undefined),
+            shareReplay(1),
         );
     }
 
@@ -259,8 +277,6 @@ export class BLEHeartRateService implements IHeartRateService {
 
             throw error;
         }
-
-        return;
     }
 
     private async connectToHearRate(
@@ -313,14 +329,12 @@ export class BLEHeartRateService implements IHeartRateService {
 
     private observeHeartRate(
         heartRateCharacteristic: BluetoothRemoteGATTCharacteristic,
-    ): Observable<IHeartRate | undefined> {
+    ): Observable<Omit<IHeartRate, "batteryLevel"> | undefined> {
         return observeValue$(heartRateCharacteristic)
             .pipe(
-                withLatestFrom(this.streamHRMonitorBatteryLevel$()),
                 map(
-                    ([heartRateData, batteryLevel]: [DataView, number | undefined]): IHeartRate => ({
+                    (heartRateData: DataView): Omit<IHeartRate, "batteryLevel"> => ({
                         ...this.parseHeartRate(heartRateData),
-                        batteryLevel,
                     }),
                 ),
             )

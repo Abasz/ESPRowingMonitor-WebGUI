@@ -8,6 +8,7 @@ import {
     Observable,
     pairwise,
     shareReplay,
+    startWith,
     Subject,
     take,
     tap,
@@ -33,6 +34,13 @@ import { HeartRateService } from "./heart-rate.service";
     providedIn: "root",
 })
 export class DataService {
+    readonly allMetrics$: Observable<ICalculatedMetrics>;
+    readonly ergBatteryLevel$: Observable<number>;
+    readonly ergConnectionStatus$: Observable<IErgConnectionStatus>;
+    readonly heartRateData$: Observable<IHeartRate | undefined>;
+    readonly hrConnectionStatus$: Observable<IHRConnectionStatus>;
+    readonly streamSettings$: Observable<IRowerSettings>;
+
     private activityStartDistance: number = 0;
     private activityStartStrokeCount: number = 0;
     private activityStartTime: Date = new Date();
@@ -44,10 +52,6 @@ export class DataService {
         strokeCount: 0,
     };
 
-    private calculatedMetrics$: Observable<ICalculatedMetrics>;
-
-    private heartRateData$: Observable<IHeartRate | undefined>;
-
     private resetSubject: Subject<IBaseMetrics> = new Subject();
 
     constructor(
@@ -56,11 +60,24 @@ export class DataService {
         private heartRateService: HeartRateService,
         private destroyRef: DestroyRef,
     ) {
+        this.allMetrics$ = this.setupMetricStream$();
         this.heartRateData$ = this.heartRateService.streamHeartRate$();
-        this.calculatedMetrics$ = this.setupMetricStream();
+        this.ergBatteryLevel$ = this.ergMetricService.streamMonitorBatteryLevel$();
+        this.ergConnectionStatus$ = this.ergMetricService.connectionStatus$();
+        this.hrConnectionStatus$ = this.heartRateService.connectionStatus$();
+        this.streamSettings$ = this.ergMetricService.streamSettings$().pipe(
+            startWith({
+                logDeltaTimes: undefined,
+                logToSdCard: undefined,
+                logLevel: 0,
+                bleServiceFlag: BleServiceFlag.CpsService,
+            }),
+            shareReplay(1),
+        );
+
         this.setupLogging();
 
-        this.ergConnectionStatus$()
+        this.ergConnectionStatus$
             .pipe(
                 filter(
                     (connectionStatus: IErgConnectionStatus): boolean =>
@@ -94,16 +111,8 @@ export class DataService {
         return this.ergMetricService.changeLogToSdCard(shouldEnable);
     }
 
-    ergConnectionStatus$(): Observable<IErgConnectionStatus> {
-        return this.ergMetricService.connectionStatus$();
-    }
-
     getActivityStartTime(): Date {
         return this.activityStartTime;
-    }
-
-    hrConnectionStatus$(): Observable<IHRConnectionStatus> {
-        return this.heartRateService.connectionStatus$();
     }
 
     reset(): void {
@@ -120,20 +129,51 @@ export class DataService {
         });
     }
 
-    streamAllMetrics$(): Observable<ICalculatedMetrics> {
-        return this.calculatedMetrics$;
+    private calculateSpeed(baseMetricsPrevious: IBaseMetrics, baseMetricsCurrent: IBaseMetrics): number {
+        if (
+            baseMetricsCurrent.distance === baseMetricsPrevious.distance ||
+            baseMetricsCurrent.revTime === baseMetricsPrevious.revTime
+        ) {
+            return 0;
+        }
+
+        return (
+            (baseMetricsCurrent.distance - baseMetricsPrevious.distance) /
+            100 /
+            ((baseMetricsCurrent.revTime - baseMetricsPrevious.revTime) / 1e6)
+        );
+    }
+    private calculateStrokeDistance(
+        baseMetricsPrevious: IBaseMetrics,
+        baseMetricsCurrent: IBaseMetrics,
+    ): number {
+        if (
+            baseMetricsCurrent.distance === baseMetricsPrevious.distance ||
+            baseMetricsCurrent.strokeCount === baseMetricsPrevious.strokeCount
+        ) {
+            return 0;
+        }
+
+        return (
+            (baseMetricsCurrent.distance - baseMetricsPrevious.distance) /
+            100 /
+            (baseMetricsCurrent.strokeCount - baseMetricsPrevious.strokeCount)
+        );
     }
 
-    streamHeartRate$(): Observable<IHeartRate | undefined> {
-        return this.heartRateData$;
-    }
+    private calculateStrokeRate(baseMetricsPrevious: IBaseMetrics, baseMetricsCurrent: IBaseMetrics): number {
+        if (
+            baseMetricsCurrent.strokeCount === baseMetricsPrevious.strokeCount ||
+            baseMetricsCurrent.strokeTime === baseMetricsPrevious.strokeTime
+        ) {
+            return 0;
+        }
 
-    streamMonitorBatteryLevel$(): Observable<number> {
-        return this.ergMetricService.streamMonitorBatteryLevel$();
-    }
-
-    streamSettings$(): Observable<IRowerSettings> {
-        return this.ergMetricService.streamSettings$().pipe(shareReplay(1));
+        return (
+            ((baseMetricsCurrent.strokeCount - baseMetricsPrevious.strokeCount) /
+                ((baseMetricsCurrent.strokeTime - baseMetricsPrevious.strokeTime) / 1e6)) *
+            60
+        );
     }
 
     private setupLogging(): void {
@@ -149,7 +189,7 @@ export class DataService {
 
         this.streamMeasurement$()
             .pipe(
-                withLatestFrom(this.calculatedMetrics$, this.streamHeartRate$(), this.ergConnectionStatus$()),
+                withLatestFrom(this.allMetrics$, this.heartRateData$, this.ergConnectionStatus$),
                 filter(
                     ([_, calculatedMetrics]: [
                         IBaseMetrics,
@@ -165,7 +205,7 @@ export class DataService {
                     IBaseMetrics,
                     ICalculatedMetrics,
                     IHeartRate | undefined,
-                    IHRConnectionStatus,
+                    IErgConnectionStatus,
                 ]): void => {
                     this.dataRecorder.addSessionData({
                         ...calculatedMetrics,
@@ -178,7 +218,7 @@ export class DataService {
             );
     }
 
-    private setupMetricStream(): Observable<ICalculatedMetrics> {
+    private setupMetricStream$(): Observable<ICalculatedMetrics> {
         return combineLatest([
             this.streamMeasurement$().pipe(
                 tap((baseMetrics: IBaseMetrics): void => {
@@ -202,28 +242,6 @@ export class DataService {
                     const strokeCount: number =
                         baseMetricsCurrent.strokeCount - this.activityStartStrokeCount;
 
-                    const strokeRate: number =
-                        baseMetricsCurrent.strokeCount === baseMetricsPrevious.strokeCount ||
-                        baseMetricsCurrent.strokeTime === baseMetricsPrevious.strokeTime
-                            ? 0
-                            : ((baseMetricsCurrent.strokeCount - baseMetricsPrevious.strokeCount) /
-                                  ((baseMetricsCurrent.strokeTime - baseMetricsPrevious.strokeTime) / 1e6)) *
-                              60;
-                    const speed: number =
-                        baseMetricsCurrent.distance === baseMetricsPrevious.distance ||
-                        baseMetricsCurrent.revTime === baseMetricsPrevious.revTime
-                            ? 0
-                            : (baseMetricsCurrent.distance - baseMetricsPrevious.distance) /
-                              100 /
-                              ((baseMetricsCurrent.revTime - baseMetricsPrevious.revTime) / 1e6);
-                    const distPerStroke: number =
-                        baseMetricsCurrent.distance === baseMetricsPrevious.distance ||
-                        baseMetricsCurrent.strokeCount === baseMetricsPrevious.strokeCount
-                            ? 0
-                            : (baseMetricsCurrent.distance - baseMetricsPrevious.distance) /
-                              100 /
-                              (baseMetricsCurrent.strokeCount - baseMetricsPrevious.strokeCount);
-
                     return {
                         activityStartTime: this.activityStartTime,
                         avgStrokePower: extendedMetrics.avgStrokePower,
@@ -234,13 +252,12 @@ export class DataService {
                         strokeCount: strokeCount > 0 ? strokeCount : 0,
                         handleForces: handleForces,
                         peakForce: Math.max(...handleForces, 0),
-                        strokeRate,
-                        speed,
-                        distPerStroke,
+                        strokeRate: this.calculateStrokeRate(baseMetricsPrevious, baseMetricsCurrent),
+                        speed: this.calculateSpeed(baseMetricsPrevious, baseMetricsCurrent),
+                        distPerStroke: this.calculateStrokeDistance(baseMetricsPrevious, baseMetricsCurrent),
                     };
                 },
             ),
-            shareReplay(),
         );
     }
 
@@ -257,6 +274,13 @@ export class DataService {
                     }),
                 ),
             ),
+        ).pipe(
+            startWith({
+                avgStrokePower: 0,
+                dragFactor: 0,
+                driveDuration: 0,
+                recoveryDuration: 0,
+            }),
         );
     }
 
@@ -264,7 +288,7 @@ export class DataService {
         return merge(
             this.ergMetricService.streamHandleForces$(),
             this.resetSubject.pipe(map((): Array<number> => [])),
-        );
+        ).pipe(startWith([]));
     }
 
     private streamMeasurement$(): Observable<IBaseMetrics> {
