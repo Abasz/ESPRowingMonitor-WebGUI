@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
+import { ChangeDetectionStrategy, Component, effect, input, InputSignal } from "@angular/core";
 import { ChartConfiguration, ChartOptions, Point } from "chart.js";
 import { Context } from "chartjs-plugin-datalabels";
 
@@ -9,14 +9,7 @@ import { Context } from "chartjs-plugin-datalabels";
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ForceCurveComponent {
-    @Input() set handleForces(value: Array<number>) {
-        this._handleForcesChart.datasets[0].data = value.map(
-            (currentForce: number, index: number): Point => ({
-                y: currentForce,
-                x: index,
-            }),
-        );
-    }
+    readonly handleForces: InputSignal<Array<number>> = input.required<Array<number>>();
 
     get forceChartOptions(): ChartOptions<"line"> {
         return {
@@ -97,4 +90,15 @@ export class ForceCurveComponent {
             },
         ],
     };
+
+    constructor() {
+        effect((): void => {
+            this._handleForcesChart.datasets[0].data = this.handleForces().map(
+                (currentForce: number, index: number): Point => ({
+                    y: currentForce,
+                    x: index,
+                }),
+            );
+        });
+    }
 }

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, Input, OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, ElementRef, input, InputSignal, OnInit } from "@angular/core";
 
 import { Position } from "./dialog-close-button";
 
@@ -9,7 +9,7 @@ import { Position } from "./dialog-close-button";
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DialogCloseButtonComponent implements OnInit {
-    @Input() position: Position = "relative";
+    readonly position: InputSignal<Position> = input("relative" as Position);
 
     constructor(private elRef: ElementRef) {}
 

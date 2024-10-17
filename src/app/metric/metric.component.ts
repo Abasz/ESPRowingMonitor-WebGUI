@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
+import { ChangeDetectionStrategy, Component, input, InputSignal } from "@angular/core";
 
 @Component({
     selector: "app-metric",
@@ -7,8 +7,8 @@ import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MetricComponent {
-    @Input() icon: string | undefined;
-    @Input() title: string | undefined;
-    @Input() unit: string | undefined;
-    @Input() value: string | number = "";
+    readonly icon: InputSignal<string | undefined> = input();
+    readonly title: InputSignal<string | undefined> = input();
+    readonly unit: InputSignal<string | undefined> = input();
+    readonly value: InputSignal<string | number> = input.required<string | number>();
 }

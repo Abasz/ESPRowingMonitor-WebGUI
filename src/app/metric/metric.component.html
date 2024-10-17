@@ -1,16 +1,16 @@
 <mat-card>
     <ng-content></ng-content>
     <div class="metric">
-        @if (icon === undefined) {
+        @if (icon() === undefined) {
             <span class="title">
-                {{ title }}
+                {{ title() }}
             </span>
         }
-        @if (icon) {
-            <mat-icon matTooltipPosition="above" [matTooltip]="title ?? ''">{{ icon }}</mat-icon>
+        @if (icon()) {
+            <mat-icon matTooltipPosition="above" [matTooltip]="title() ?? ''">{{ icon() }}</mat-icon>
         }
         <div class="value">
-            <span> {{ value }} </span> <span class="unit"> {{ unit }} </span>
+            <span> {{ value() }} </span> <span class="unit"> {{ unit() }} </span>
         </div>
     </div>
 </mat-card>
