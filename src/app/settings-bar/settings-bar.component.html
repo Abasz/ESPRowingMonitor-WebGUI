@@ -1,11 +1,11 @@
 <mat-toolbar>
     <div>
         <div>
-            <mat-icon class="battery-level" [matTooltip]="((batteryLevel$ | async) ?? 0) + '%'">{{
-                (batteryLevel$ | async) ?? 0 | batteryLevel
+            <mat-icon class="battery-level" [matTooltip]="batteryLevel() + '%'">{{
+                batteryLevel() | batteryLevel
             }}</mat-icon>
         </div>
-        <button matTooltip="Logbook" (click)="downloadSession()" mat-icon-button>
+        <button matTooltip="Logbook" (click)="openLogbook()" mat-icon-button>
             <mat-icon>sports_score</mat-icon>
         </button>
         <button *ngIf="isBleAvailable" matTooltip="Settings" (click)="openSettings()" mat-icon-button>
@@ -15,50 +15,41 @@
             <mat-icon>laps</mat-icon>
         </button>
         @if (isBleAvailable) {
-            @if (((configManager.heartRateMonitorChanged$ | async) ?? "off") !== "off") {
+            @if (heartRateMonitorMode() !== "off") {
                 <button
                     [matTooltip]="
-                        (hrConnectionStatus$ | async)?.deviceName ??
-                        ((hrConnectionStatus$ | async)?.status === 'searching' ? 'Searching' : 'Connect HRM')
+                        hrConnectionStatus().deviceName ??
+                        (hrConnectionStatus().status === 'searching' ? 'Searching' : 'Connect HRM')
                     "
                     (click)="heartRateMonitorDiscovery()"
                     mat-icon-button
                 >
-                    <mat-icon
-                        [ngClass]="(hrConnectionStatus$ | async)?.status === 'connecting' ? 'blink' : ''"
-                        >{{
-                            (hrConnectionStatus$ | async)?.status === "disconnected"
-                                ? "favorite"
-                                : "ecg_heart"
-                        }}</mat-icon
-                    >
+                    <mat-icon [ngClass]="hrConnectionStatus().status === 'connecting' ? 'blink' : ''">{{
+                        hrConnectionStatus().status === "disconnected" ? "favorite" : "ecg_heart"
+                    }}</mat-icon>
                 </button>
             }
             <button
                 [matTooltip]="
-                    (ergConnectionStatus$ | async)?.deviceName ??
-                    ((ergConnectionStatus$ | async)?.status === 'searching' ? 'Searching' : 'Connect ESPRM')
+                    ergConnectionStatus().deviceName ??
+                    (ergConnectionStatus().status === 'searching' ? 'Searching' : 'Connect ESPRM')
                 "
                 (click)="ergoMonitorDiscovery()"
                 mat-icon-button
             >
-                <mat-icon
-                    [ngClass]="(ergConnectionStatus$ | async)?.status === 'connecting' ? 'blink' : ''"
-                    >{{
-                        bleConnectionStatusIcons[(ergConnectionStatus$ | async)?.status ?? "disconnected"]
-                    }}</mat-icon
-                >
+                <mat-icon [ngClass]="ergConnectionStatus().status === 'connecting' ? 'blink' : ''">{{
+                    bleConnectionStatusIcons[ergConnectionStatus().status]
+                }}</mat-icon>
             </button>
         }
         <span>{{
-            ((settingsData$ | async)?.bleServiceFlag ?? BleServiceFlag.CpsService) ===
-            BleServiceFlag.CpsService
+            settings().bleServiceFlag === BleServiceFlag.CpsService
                 ? "Cycling Power"
                 : "Cycling Speed and Cadence"
         }}</span>
     </div>
     <span class="time-of-day">
-        {{ timeOfDay$ | async | date: "HH:mm" }}
+        {{ timeOfDay() | date: "HH:mm" }}
     </span>
     <span class="title">ESP Rowing Monitor</span>
 </mat-toolbar>

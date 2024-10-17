@@ -1,5 +1,5 @@
-import { DestroyRef, Injectable } from "@angular/core";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { DestroyRef, Injectable, Signal } from "@angular/core";
+import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
 import {
     combineLatest,
     filter,
@@ -7,7 +7,6 @@ import {
     merge,
     Observable,
     pairwise,
-    shareReplay,
     startWith,
     Subject,
     take,
@@ -39,7 +38,7 @@ export class DataService {
     readonly ergConnectionStatus$: Observable<IErgConnectionStatus>;
     readonly heartRateData$: Observable<IHeartRate | undefined>;
     readonly hrConnectionStatus$: Observable<IHRConnectionStatus>;
-    readonly streamSettings$: Observable<IRowerSettings>;
+    readonly settings: Signal<IRowerSettings>;
 
     private activityStartDistance: number = 0;
     private activityStartStrokeCount: number = 0;
@@ -65,15 +64,14 @@ export class DataService {
         this.ergBatteryLevel$ = this.ergMetricService.streamMonitorBatteryLevel$();
         this.ergConnectionStatus$ = this.ergMetricService.connectionStatus$();
         this.hrConnectionStatus$ = this.heartRateService.connectionStatus$();
-        this.streamSettings$ = this.ergMetricService.streamSettings$().pipe(
-            startWith({
+        this.settings = toSignal(this.ergMetricService.streamSettings$(), {
+            initialValue: {
                 logDeltaTimes: undefined,
                 logToSdCard: undefined,
                 logLevel: 0,
                 bleServiceFlag: BleServiceFlag.CpsService,
-            }),
-            shareReplay(1),
-        );
+            },
+        });
 
         this.setupLogging();
 

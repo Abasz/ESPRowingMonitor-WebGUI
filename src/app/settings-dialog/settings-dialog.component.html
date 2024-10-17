@@ -12,11 +12,8 @@
                 <mat-option [value]="BleServiceFlag.CpsService">Cycling Power</mat-option>
                 <mat-option [value]="BleServiceFlag.CscService">Cycling Speed and Cadence</mat-option>
             </mat-select>
-            @if ((settingsFormErrors$ | async)?.heartRateMonitor?.required) {
-                <mat-error>Heart rate monitor mode is required</mat-error>
-            }
-            @if ((settingsFormErrors$ | async)?.heartRateMonitor?.pattern) {
-                <mat-error>Invalid value</mat-error>
+            @if (settingsFormErrors()?.bleMode?.required) {
+                <mat-error>BLE mode is required</mat-error>
             }
         </mat-form-field>
         <mat-form-field>
@@ -31,10 +28,10 @@
                 <mat-option value="ble">ble</mat-option>
                 <mat-option value="ant">ant</mat-option>
             </mat-select>
-            @if ((settingsFormErrors$ | async)?.heartRateMonitor?.required) {
+            @if (settingsFormErrors()?.heartRateMonitor?.required) {
                 <mat-error>Heart rate monitor mode is required</mat-error>
             }
-            @if ((settingsFormErrors$ | async)?.heartRateMonitor?.pattern) {
+            @if (settingsFormErrors()?.heartRateMonitor?.pattern) {
                 <mat-error>Invalid value</mat-error>
             }
         </mat-form-field>
@@ -45,12 +42,10 @@
                     <mat-option [value]="logLevel.key">{{ logLevel.value }}</mat-option>
                 }
             </mat-select>
-            @if ((settingsFormErrors$ | async)?.logLevel?.required) {
+            @if (settingsFormErrors()?.logLevel?.required) {
                 <mat-error>Log level is required</mat-error>
             }
-            @if (
-                (settingsFormErrors$ | async)?.logLevel?.min || (settingsFormErrors$ | async)?.logLevel?.max
-            ) {
+            @if (settingsFormErrors()?.logLevel?.min || settingsFormErrors()?.logLevel?.max) {
                 <mat-error>Invalid value</mat-error>
             }
         </mat-form-field>

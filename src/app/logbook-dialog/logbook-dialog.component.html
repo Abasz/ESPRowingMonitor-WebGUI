@@ -5,7 +5,7 @@
 <div mat-dialog-content>
     <table
         mat-table
-        [dataSource]="(sessionsTableData$ | async) ?? []"
+        [dataSource]="dataSource"
         [trackBy]="trackBySessionId"
         matSort
         matSortStart="desc"
@@ -70,25 +70,18 @@
 </div>
 
 <div mat-dialog-actions align="start">
-    <button mat-raised-button [disabled]="((importExportProgress$ | async) ?? -1) >= 0" (click)="export()">
+    <button mat-raised-button [disabled]="importExportProgress() !== undefined" (click)="export()">
         Export
     </button>
-    <button
-        mat-raised-button
-        [disabled]="((importExportProgress$ | async) ?? -1) >= 0"
-        (click)="fileInput.click()"
-    >
+    <button mat-raised-button [disabled]="importExportProgress() !== undefined" (click)="fileInput.click()">
         Import
     </button>
     <input #fileInput hidden accept="application/json" type="file" id="file" (change)="import($event)" />
-    @if (((importExportProgress$ | async) ?? -1) >= 0) {
-        <mat-progress-bar
-            [value]="(importExportProgress$ | async) ?? 0"
-            mode="determinate"
-            value="40"
-        ></mat-progress-bar>
+    @if (importExportProgress() !== undefined) {
+        <mat-progress-bar [value]="importExportProgress()" mode="determinate" value="40"></mat-progress-bar>
     }
 </div>
+
 <mat-menu #menu="matMenu">
     <ng-template matMenuContent let-sessionId="sessionId">
         <button mat-menu-item (click)="exportToJson(sessionId)">JSON</button>

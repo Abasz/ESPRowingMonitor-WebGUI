@@ -9,7 +9,7 @@ import { Position } from "./dialog-close-button";
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DialogCloseButtonComponent implements OnInit {
-    readonly position: InputSignal<Position> = input("relative" as Position);
+    readonly position: InputSignal<Position> = input<Position>("relative");
 
     constructor(private elRef: ElementRef) {}
 

@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, DestroyRef } from "@angular/core";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { ChangeDetectionStrategy, Component, DestroyRef, Signal } from "@angular/core";
+import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
 import { MatDialog } from "@angular/material/dialog";
-import { interval, map, Observable, startWith, take } from "rxjs";
+import { interval, map, take } from "rxjs";
 
 import { BleServiceFlag } from "../../common/ble.interfaces";
 import {
+    HeartRateMonitorMode,
     IErgConnectionStatus,
     IHRConnectionStatus,
     IRowerSettings,
@@ -28,7 +29,9 @@ import { SettingsDialogComponent } from "../settings-dialog/settings-dialog.comp
 export class SettingsBarComponent {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
 
-    batteryLevel$: Observable<number>;
+    batteryLevel: Signal<number> = toSignal(this.dataService.ergBatteryLevel$, {
+        initialValue: 0,
+    });
 
     bleConnectionStatusIcons: {
         connected: string;
@@ -42,14 +45,21 @@ export class SettingsBarComponent {
         disconnected: "bluetooth",
     };
 
-    ergConnectionStatus$: Observable<IErgConnectionStatus>;
-    hrConnectionStatus$: Observable<IHRConnectionStatus>;
-    isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
-    settingsData$: Observable<IRowerSettings>;
-    timeOfDay$: Observable<number> = interval(1000).pipe(
-        startWith(Date.now()),
-        map((): number => Date.now()),
+    ergConnectionStatus: Signal<IErgConnectionStatus> = toSignal(this.dataService.ergConnectionStatus$, {
+        requireSync: true,
+    });
+    heartRateMonitorMode: Signal<HeartRateMonitorMode> = toSignal(
+        this.configManager.heartRateMonitorChanged$,
+        { requireSync: true },
     );
+    hrConnectionStatus: Signal<IHRConnectionStatus> = toSignal(this.dataService.hrConnectionStatus$, {
+        requireSync: true,
+    });
+    isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
+    settings: Signal<IRowerSettings> = this.dataService.settings;
+    timeOfDay: Signal<number> = toSignal(interval(1000).pipe(map((): number => Date.now())), {
+        initialValue: Date.now(),
+    });
 
     constructor(
         private dataService: DataService,
@@ -59,15 +69,18 @@ export class SettingsBarComponent {
         private heartRateService: HeartRateService,
         private utils: UtilsService,
         private destroyRef: DestroyRef,
-        public configManager: ConfigManagerService,
-    ) {
-        this.ergConnectionStatus$ = this.dataService.ergConnectionStatus$;
-        this.hrConnectionStatus$ = this.heartRateService.connectionStatus$();
-        this.settingsData$ = this.dataService.streamSettings$;
-        this.batteryLevel$ = this.dataService.ergBatteryLevel$;
+        private configManager: ConfigManagerService,
+    ) {}
+
+    async ergoMonitorDiscovery(): Promise<void> {
+        await this.metricsService.discover();
     }
 
-    downloadSession(): void {
+    async heartRateMonitorDiscovery(): Promise<void> {
+        await this.heartRateService.discover();
+    }
+
+    openLogbook(): void {
         this.utils.mainSpinner().open();
         this.dataRecorder
             .getSessionSummaries$()
@@ -82,23 +95,11 @@ export class SettingsBarComponent {
             });
     }
 
-    async ergoMonitorDiscovery(): Promise<void> {
-        await this.metricsService.discover();
-    }
-
-    async heartRateMonitorDiscovery(): Promise<void> {
-        await this.heartRateService.discover();
-    }
-
     openSettings(): void {
-        this.settingsData$
-            .pipe(take(1), takeUntilDestroyed(this.destroyRef))
-            .subscribe((settings: IRowerSettings): void => {
-                this.dialog.open(SettingsDialogComponent, {
-                    autoFocus: false,
-                    data: settings,
-                });
-            });
+        this.dialog.open(SettingsDialogComponent, {
+            autoFocus: false,
+            data: this.settings(),
+        });
     }
 
     reset(): void {

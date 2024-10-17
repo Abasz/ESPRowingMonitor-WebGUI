@@ -1,16 +1,16 @@
 import {
     AfterViewInit,
     ChangeDetectionStrategy,
-    ChangeDetectorRef,
     Component,
     isDevMode,
     OnDestroy,
+    Signal,
 } from "@angular/core";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
 import { MatIconRegistry } from "@angular/material/icon";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { SwUpdate, VersionEvent, VersionReadyEvent } from "@angular/service-worker";
-import { filter, interval, map, merge, Observable, pairwise, startWith, switchMap, take, tap } from "rxjs";
+import { filter, interval, map, merge, Observable, pairwise, startWith, switchMap, take } from "rxjs";
 
 import { BleServiceFlag } from "../common/ble.interfaces";
 import { ICalculatedMetrics, IErgConnectionStatus, IHeartRate } from "../common/common.interfaces";
@@ -27,12 +27,26 @@ import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-
 export class AppComponent implements AfterViewInit, OnDestroy {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
 
-    elapseTime$: Observable<number>;
-    heartRateData$: Observable<IHeartRate | undefined>;
-    rowingData$: Observable<ICalculatedMetrics>;
+    elapseTime: Signal<number>;
+    heartRateData: Signal<IHeartRate | undefined> = toSignal(this.dataService.heartRateData$);
+    rowingData: Signal<ICalculatedMetrics> = toSignal(this.dataService.allMetrics$, {
+        initialValue: {
+            activityStartTime: new Date(),
+            avgStrokePower: 0,
+            driveDuration: 0,
+            recoveryDuration: 0,
+            dragFactor: 0,
+            distance: 0,
+            strokeCount: 0,
+            handleForces: [],
+            peakForce: 0,
+            strokeRate: 0,
+            speed: 0,
+            distPerStroke: 0,
+        },
+    });
 
     constructor(
-        private cd: ChangeDetectorRef,
         private dataService: DataService,
         private utils: UtilsService,
         private swUpdate: SwUpdate,
@@ -41,36 +55,36 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     ) {
         this.matIconReg.setDefaultFontSetClass("material-symbols-sharp");
 
-        this.heartRateData$ = this.dataService.heartRateData$;
-        this.elapseTime$ = this.dataService.ergConnectionStatus$.pipe(
-            filter(
-                (connectionStatus: IErgConnectionStatus): boolean => connectionStatus.status === "connected",
-            ),
-            take(1),
-            switchMap(
-                (): Observable<number> =>
-                    merge(
-                        interval(1000),
-                        this.rowingData$.pipe(
-                            pairwise(),
-                            filter(
-                                ([previous, current]: [ICalculatedMetrics, ICalculatedMetrics]): boolean =>
-                                    previous.activityStartTime !== current.activityStartTime,
+        this.elapseTime = toSignal(
+            this.dataService.ergConnectionStatus$.pipe(
+                filter(
+                    (connectionStatus: IErgConnectionStatus): boolean =>
+                        connectionStatus.status === "connected",
+                ),
+                take(1),
+                switchMap(
+                    (): Observable<number> =>
+                        merge(
+                            interval(1000),
+                            this.dataService.allMetrics$.pipe(
+                                pairwise(),
+                                filter(
+                                    ([previous, current]: [
+                                        ICalculatedMetrics,
+                                        ICalculatedMetrics,
+                                    ]): boolean => previous.activityStartTime !== current.activityStartTime,
+                                ),
+                            ),
+                        ).pipe(
+                            startWith(0),
+                            map(
+                                (): number =>
+                                    (Date.now() - this.dataService.getActivityStartTime().getTime()) / 1000,
                             ),
                         ),
-                    ).pipe(
-                        startWith(0),
-                        map(
-                            (): number =>
-                                (Date.now() - this.dataService.getActivityStartTime().getTime()) / 1000,
-                        ),
-                    ),
+                ),
             ),
-        );
-        this.rowingData$ = this.dataService.allMetrics$.pipe(
-            tap((): void => {
-                this.cd.detectChanges();
-            }),
+            { initialValue: 0 },
         );
 
         if (!isDevMode()) {

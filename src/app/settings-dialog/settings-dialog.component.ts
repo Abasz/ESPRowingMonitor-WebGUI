@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, Inject, isDevMode } from "@angular/core";
+import { ChangeDetectionStrategy, Component, Inject, isDevMode, Signal } from "@angular/core";
+import { toSignal } from "@angular/core/rxjs-interop";
 import { FormControl, FormGroup, NonNullableFormBuilder, ValidationErrors, Validators } from "@angular/forms";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { SwUpdate } from "@angular/service-worker";
-import { map, Observable, startWith } from "rxjs";
+import { map, startWith } from "rxjs";
 
 import { BleServiceFlag, LogLevel } from "../../common/ble.interfaces";
 import { IRowerSettings, IValidationErrors } from "../../common/common.interfaces";
@@ -54,9 +55,12 @@ export class SettingsDialogComponent {
         ],
     });
 
-    settingsFormErrors$: Observable<ValidationErrors | null> = this.settingsForm.statusChanges.pipe(
-        startWith("INVALID"),
-        map((): IValidationErrors => getValidationErrors(this.settingsForm.controls)),
+    settingsFormErrors: Signal<ValidationErrors | null> = toSignal(
+        this.settingsForm.statusChanges.pipe(
+            startWith("INVALID"),
+            map((): IValidationErrors => getValidationErrors(this.settingsForm.controls)),
+        ),
+        { requireSync: true },
     );
 
     constructor(

@@ -5,7 +5,10 @@ import {
     DestroyRef,
     Inject,
     OnDestroy,
-    ViewChild,
+    Signal,
+    signal,
+    viewChild,
+    WritableSignal,
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MAT_DIALOG_DATA } from "@angular/material/dialog";
@@ -14,7 +17,7 @@ import { MatSort, SortDirection } from "@angular/material/sort";
 import { MatTableDataSource } from "@angular/material/table";
 import { ExportProgress } from "dexie-export-import";
 import { ImportProgress } from "dexie-export-import/dist/import";
-import { finalize, from, map, Observable, startWith, Subject, switchMap } from "rxjs";
+import { finalize, from, Observable, switchMap } from "rxjs";
 
 import { ISessionSummary } from "../../common/common.interfaces";
 import { DataRecorderService } from "../../common/services/data-recorder.service";
@@ -27,6 +30,10 @@ import { SnackBarConfirmComponent } from "../../common/snack-bar-confirm/snack-b
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
+    dataSource: MatTableDataSource<ISessionSummary> = new MatTableDataSource<ISessionSummary>(
+        this.sessionSummary,
+    );
+
     displayedColumns: Array<string> = [
         "sessionId",
         "time",
@@ -36,16 +43,11 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
         "actions",
     ];
 
-    importExportProgress$: Observable<number | undefined>;
+    importExportProgress: WritableSignal<number | undefined> = signal(undefined);
 
-    sessionsTableData$: Observable<MatTableDataSource<ISessionSummary>>;
-    @ViewChild(MatSort, { static: true }) sort!: MatSort;
+    sort: Signal<MatSort> = viewChild.required(MatSort);
 
     private confirmSnackBarRef: MatSnackBarRef<SnackBarConfirmComponent> | undefined;
-    private dataSource: MatTableDataSource<ISessionSummary> = new MatTableDataSource<ISessionSummary>(
-        this.sessionSummary,
-    );
-    private progressBarSubject$: Subject<number | undefined> = new Subject();
 
     constructor(
         private dataRecorder: DataRecorderService,
@@ -53,15 +55,12 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
         @Inject(MAT_DIALOG_DATA) private sessionSummary: Array<ISessionSummary>,
         private destroyRef: DestroyRef,
     ) {
-        this.importExportProgress$ = this.progressBarSubject$.asObservable();
-        this.sessionsTableData$ = this.dataRecorder.getSessionSummaries$().pipe(
-            map((sessions: Array<ISessionSummary>): MatTableDataSource<ISessionSummary> => {
+        this.dataRecorder
+            .getSessionSummaries$()
+            .pipe(takeUntilDestroyed())
+            .subscribe((sessions: Array<ISessionSummary>): void => {
                 this.dataSource.data = sessions;
-
-                return this.dataSource;
-            }),
-            startWith(this.dataSource),
-        );
+            });
     }
 
     deleteSession(sessionId: number): void {
@@ -105,11 +104,11 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
     }
 
     async export(): Promise<void> {
-        this.progressBarSubject$.next(0);
+        this.importExportProgress.set(0);
         try {
             await this.dataRecorder.export((progress: ExportProgress): boolean => {
                 const status = Math.floor((progress.completedRows / (progress.totalRows ?? 0)) * 100);
-                this.progressBarSubject$.next(status);
+                this.importExportProgress.set(status);
 
                 return true;
             });
@@ -118,7 +117,7 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
                 .afterDismissed()
                 .pipe(takeUntilDestroyed(this.destroyRef))
                 .subscribe((): void => {
-                    this.progressBarSubject$.next(undefined);
+                    this.importExportProgress.set(undefined);
                 });
         } catch (e) {
             if (e instanceof Error) {
@@ -127,7 +126,7 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
                     .afterDismissed()
                     .pipe(takeUntilDestroyed(this.destroyRef))
                     .subscribe((): void => {
-                        this.progressBarSubject$.next(undefined);
+                        this.importExportProgress.set(undefined);
                     });
             }
             console.error(e);
@@ -159,7 +158,7 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
     }
 
     async import(event: Event): Promise<void> {
-        this.progressBarSubject$.next(0);
+        this.importExportProgress.set(0);
         const file = (event.target as HTMLInputElement)?.files?.[0];
 
         if (!file) {
@@ -169,7 +168,7 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
         try {
             await this.dataRecorder.import(file, (progress: ImportProgress): boolean => {
                 const status = Math.floor((progress.completedRows / (progress.totalRows ?? 0)) * 100);
-                this.progressBarSubject$.next(status);
+                this.importExportProgress.set(status);
 
                 return true;
             });
@@ -178,7 +177,7 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
                 .afterDismissed()
                 .pipe(takeUntilDestroyed(this.destroyRef))
                 .subscribe((): void => {
-                    this.progressBarSubject$.next(undefined);
+                    this.importExportProgress.set(undefined);
                 });
         } catch (e) {
             if (e instanceof Error) {
@@ -189,7 +188,7 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
                     .afterDismissed()
                     .pipe(takeUntilDestroyed(this.destroyRef))
                     .subscribe((): void => {
-                        this.progressBarSubject$.next(undefined);
+                        this.importExportProgress.set(undefined);
                     });
 
                 console.error(e);
@@ -199,7 +198,7 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
     }
 
     ngAfterViewInit(): void {
-        this.dataSource.sort = this.sort;
+        this.dataSource.sort = this.sort();
         this.dataSource.sortData = (data: Array<ISessionSummary>, sort: MatSort): Array<ISessionSummary> => {
             const active: string = sort.active;
             const direction: SortDirection = sort.direction;
@@ -233,6 +232,6 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
     }
 
     trackBySessionId(_: number, session: ISessionSummary | undefined): number {
-        return session?.sessionId ?? 0;
+        return (session?.finishTime ?? 0) - (session?.startTime ?? 0);
     }
 }
