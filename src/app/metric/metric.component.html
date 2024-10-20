@@ -7,7 +7,9 @@
             </span>
         }
         @if (icon()) {
-            <mat-icon matTooltipPosition="above" [matTooltip]="title() ?? ''">{{ icon() }}</mat-icon>
+            <mat-icon matTooltipPosition="above" matTooltipShowDelay="1000" [matTooltip]="title() ?? ''">{{
+                icon()
+            }}</mat-icon>
         }
         <div class="value">
             <span> {{ value() }} </span> <span class="unit"> {{ unit() }} </span>

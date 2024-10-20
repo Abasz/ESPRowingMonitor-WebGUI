@@ -1,22 +1,29 @@
 <mat-toolbar>
     <div>
         <div>
-            <mat-icon class="battery-level" [matTooltip]="batteryLevel() + '%'">{{
+            <mat-icon class="battery-level" matTooltipShowDelay="1000" [matTooltip]="batteryLevel() + '%'">{{
                 batteryLevel() | batteryLevel
             }}</mat-icon>
         </div>
-        <button matTooltip="Logbook" (click)="openLogbook()" mat-icon-button>
+        <button matTooltipShowDelay="1000" matTooltip="Logbook" (click)="openLogbook()" mat-icon-button>
             <mat-icon>sports_score</mat-icon>
         </button>
-        <button *ngIf="isBleAvailable" matTooltip="Settings" (click)="openSettings()" mat-icon-button>
+        <button
+            *ngIf="isBleAvailable"
+            matTooltipShowDelay="1000"
+            matTooltip="Settings"
+            (click)="openSettings()"
+            mat-icon-button
+        >
             <mat-icon>settings</mat-icon>
         </button>
-        <button matTooltip="Reset" (click)="reset()" mat-icon-button>
+        <button matTooltipShowDelay="1000" matTooltip="Reset" (click)="reset()" mat-icon-button>
             <mat-icon>laps</mat-icon>
         </button>
         @if (isBleAvailable) {
             @if (heartRateMonitorMode() !== "off") {
                 <button
+                    matTooltipShowDelay="1000"
                     [matTooltip]="
                         hrConnectionStatus().deviceName ??
                         (hrConnectionStatus().status === 'searching' ? 'Searching' : 'Connect HRM')
@@ -30,6 +37,7 @@
                 </button>
             }
             <button
+                matTooltipShowDelay="1000"
                 [matTooltip]="
                     ergConnectionStatus().deviceName ??
                     (ergConnectionStatus().status === 'searching' ? 'Searching' : 'Connect ESPRM')
