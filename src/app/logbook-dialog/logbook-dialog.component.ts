@@ -1,3 +1,5 @@
+import { CdkScrollable } from "@angular/cdk/scrolling";
+import { DatePipe } from "@angular/common";
 import {
     AfterViewInit,
     ChangeDetectionStrategy,
@@ -11,23 +13,78 @@ import {
     WritableSignal,
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { MAT_DIALOG_DATA } from "@angular/material/dialog";
+import { MatButton, MatIconButton } from "@angular/material/button";
+import {
+    MAT_DIALOG_DATA,
+    MatDialogActions,
+    MatDialogClose,
+    MatDialogContent,
+    MatDialogTitle,
+} from "@angular/material/dialog";
+import { MatIcon } from "@angular/material/icon";
+import { MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger } from "@angular/material/menu";
+import { MatProgressBar } from "@angular/material/progress-bar";
 import { MatSnackBar, MatSnackBarRef } from "@angular/material/snack-bar";
-import { MatSort, SortDirection } from "@angular/material/sort";
-import { MatTableDataSource } from "@angular/material/table";
+import { MatSort, MatSortHeader, SortDirection } from "@angular/material/sort";
+import {
+    MatCell,
+    MatCellDef,
+    MatColumnDef,
+    MatHeaderCell,
+    MatHeaderCellDef,
+    MatHeaderRow,
+    MatHeaderRowDef,
+    MatRow,
+    MatRowDef,
+    MatTable,
+    MatTableDataSource,
+} from "@angular/material/table";
 import { ExportProgress } from "dexie-export-import";
 import { ImportProgress } from "dexie-export-import/dist/import";
 import { finalize, from, Observable, switchMap } from "rxjs";
 
 import { ISessionSummary } from "../../common/common.interfaces";
+import { DialogCloseButtonComponent } from "../../common/dialog-close-button/dialog-close-button.component";
 import { DataRecorderService } from "../../common/services/data-recorder.service";
 import { SnackBarConfirmComponent } from "../../common/snack-bar-confirm/snack-bar-confirm.component";
+import { SecondsToTimePipe } from "../../common/utils/seconds-to-time.pipe";
 
 @Component({
     selector: "app-logbook-dialog",
     templateUrl: "./logbook-dialog.component.html",
     styleUrls: ["./logbook-dialog.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    standalone: true,
+    imports: [
+        MatDialogTitle,
+        DialogCloseButtonComponent,
+        MatDialogClose,
+        CdkScrollable,
+        MatDialogContent,
+        MatTable,
+        MatSort,
+        MatColumnDef,
+        MatHeaderCellDef,
+        MatHeaderCell,
+        MatSortHeader,
+        MatCellDef,
+        MatCell,
+        MatIconButton,
+        MatMenuTrigger,
+        MatIcon,
+        MatHeaderRowDef,
+        MatHeaderRow,
+        MatRowDef,
+        MatRow,
+        MatDialogActions,
+        MatButton,
+        MatProgressBar,
+        MatMenu,
+        MatMenuContent,
+        MatMenuItem,
+        DatePipe,
+        SecondsToTimePipe,
+    ],
 })
 export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
     dataSource: MatTableDataSource<ISessionSummary> = new MatTableDataSource<ISessionSummary>(

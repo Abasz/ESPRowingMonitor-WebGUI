@@ -8,7 +8,7 @@ describe("FurceCurveComponent", (): void => {
 
     beforeEach(async (): Promise<void> => {
         await TestBed.configureTestingModule({
-            declarations: [ForceCurveComponent],
+            imports: [ForceCurveComponent],
         }).compileComponents();
 
         fixture = TestBed.createComponent(ForceCurveComponent);

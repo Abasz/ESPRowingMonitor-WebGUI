@@ -6,7 +6,7 @@ import { SpinnerOverlayRef } from "./spinner-overlay-ref";
 import { SpinnerOverlayComponent } from "./spinner-overlay.component";
 
 @Injectable()
-export class SpinnerOverlayService {
+export class SpinnerOverlay {
     private DEFAULT_CONFIG: OverlayConfig = {
         positionStrategy: this.overlay.position().global().centerHorizontally().centerVertically(),
         hasBackdrop: true,

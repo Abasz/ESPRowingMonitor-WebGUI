@@ -1,12 +1,43 @@
 import { ChangeDetectionStrategy, Component, computed, input, InputSignal, Signal } from "@angular/core";
-import { ChartConfiguration, ChartOptions, Point } from "chart.js";
-import { Context } from "chartjs-plugin-datalabels";
+import { MatCard } from "@angular/material/card";
+import {
+    CategoryScale,
+    ChartConfiguration,
+    ChartOptions,
+    Filler,
+    Legend,
+    LinearScale,
+    LineController,
+    LineElement,
+    Point,
+    PointElement,
+    Title,
+} from "chart.js";
+import ChartDataLabels, { Context } from "chartjs-plugin-datalabels";
+import { BaseChartDirective, provideCharts } from "ng2-charts";
 
 @Component({
     selector: "app-force-curve",
     templateUrl: "./force-curve.component.html",
     styleUrls: ["./force-curve.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    standalone: true,
+    imports: [MatCard, BaseChartDirective],
+    providers: [
+        provideCharts({
+            registerables: [
+                LineController,
+                LineElement,
+                PointElement,
+                LinearScale,
+                CategoryScale,
+                Filler,
+                Title,
+                Legend,
+                ChartDataLabels,
+            ],
+        }),
+    ],
 })
 export class ForceCurveComponent {
     forceChartOptions: ChartOptions<"line"> = {

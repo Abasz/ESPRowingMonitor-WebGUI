@@ -1,10 +1,19 @@
 import { ChangeDetectionStrategy, Component, Inject } from "@angular/core";
-import { MAT_SNACK_BAR_DATA, MatSnackBarRef } from "@angular/material/snack-bar";
+import { MatButton } from "@angular/material/button";
+import {
+    MAT_SNACK_BAR_DATA,
+    MatSnackBarAction,
+    MatSnackBarActions,
+    MatSnackBarLabel,
+    MatSnackBarRef,
+} from "@angular/material/snack-bar";
 
 @Component({
     templateUrl: "./snack-bar-confirm.component.html",
     styleUrls: ["./snack-bar-confirm.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    standalone: true,
+    imports: [MatSnackBarLabel, MatSnackBarActions, MatButton, MatSnackBarAction],
 })
 export class SnackBarConfirmComponent {
     constructor(

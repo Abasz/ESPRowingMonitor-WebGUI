@@ -8,7 +8,7 @@ describe("MetricComponent", (): void => {
 
     beforeEach(async (): Promise<void> => {
         await TestBed.configureTestingModule({
-            declarations: [MetricComponent],
+            imports: [MetricComponent],
         }).compileComponents();
 
         fixture = TestBed.createComponent(MetricComponent);

@@ -2,6 +2,7 @@ import { Pipe, PipeTransform } from "@angular/core";
 
 @Pipe({
     name: "roundNumber",
+    standalone: true,
 })
 export class RoundNumberPipe implements PipeTransform {
     transform(value: number, precision: number = 0): string | number {

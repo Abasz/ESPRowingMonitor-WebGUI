@@ -2,6 +2,7 @@ import { Pipe, PipeTransform } from "@angular/core";
 
 @Pipe({
     name: "secondsToTime",
+    standalone: true,
 })
 export class SecondsToTimePipe implements PipeTransform {
     private days: number = 0;

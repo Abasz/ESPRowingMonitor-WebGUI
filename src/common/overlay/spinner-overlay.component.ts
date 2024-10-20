@@ -1,5 +1,6 @@
 import { animate, AnimationEvent, state, style, transition, trigger } from "@angular/animations";
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter } from "@angular/core";
+import { MatProgressSpinner } from "@angular/material/progress-spinner";
 
 import { SpinnerOverlayRef } from "./spinner-overlay-ref";
 
@@ -17,6 +18,8 @@ import { SpinnerOverlayRef } from "./spinner-overlay-ref";
         ]),
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    standalone: true,
+    imports: [MatProgressSpinner],
 })
 export class SpinnerOverlayComponent {
     animationState: "void" | "enter" | "leave" = "enter";

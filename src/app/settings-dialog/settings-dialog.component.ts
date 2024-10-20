@@ -1,7 +1,30 @@
+import { CdkScrollable } from "@angular/cdk/scrolling";
+import { DatePipe } from "@angular/common";
 import { ChangeDetectionStrategy, Component, Inject, isDevMode, Signal } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
-import { FormControl, FormGroup, NonNullableFormBuilder, ValidationErrors, Validators } from "@angular/forms";
-import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
+import {
+    FormControl,
+    FormGroup,
+    NonNullableFormBuilder,
+    ReactiveFormsModule,
+    ValidationErrors,
+    Validators,
+} from "@angular/forms";
+import { MatButton, MatIconButton } from "@angular/material/button";
+import { MatCheckbox } from "@angular/material/checkbox";
+import { MatOption } from "@angular/material/core";
+import {
+    MAT_DIALOG_DATA,
+    MatDialogActions,
+    MatDialogClose,
+    MatDialogContent,
+    MatDialogRef,
+    MatDialogTitle,
+} from "@angular/material/dialog";
+import { MatError, MatFormField, MatLabel } from "@angular/material/form-field";
+import { MatIcon } from "@angular/material/icon";
+import { MatSelect } from "@angular/material/select";
+import { MatTooltip } from "@angular/material/tooltip";
 import { SwUpdate } from "@angular/service-worker";
 import { map, startWith } from "rxjs";
 
@@ -9,6 +32,7 @@ import { BleServiceFlag, LogLevel } from "../../common/ble.interfaces";
 import { IRowerSettings, IValidationErrors } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { DataService } from "../../common/services/data.service";
+import { EnumToArrayPipe } from "../../common/utils/enum-to-array.pipe";
 import { getValidationErrors } from "../../common/utils/utility.functions";
 import { versionInfo } from "../../version";
 
@@ -27,6 +51,27 @@ type SettingsFormGroup = FormGroup<{
     templateUrl: "./settings-dialog.component.html",
     styleUrls: ["./settings-dialog.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    standalone: true,
+    imports: [
+        MatDialogTitle,
+        CdkScrollable,
+        MatDialogContent,
+        ReactiveFormsModule,
+        MatFormField,
+        MatLabel,
+        MatSelect,
+        MatOption,
+        MatError,
+        MatCheckbox,
+        MatIconButton,
+        MatTooltip,
+        MatIcon,
+        MatDialogActions,
+        MatButton,
+        MatDialogClose,
+        DatePipe,
+        EnumToArrayPipe,
+    ],
 })
 export class SettingsDialogComponent {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;

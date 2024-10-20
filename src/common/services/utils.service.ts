@@ -8,7 +8,7 @@ import { filter, map, startWith, take, tap } from "rxjs/operators";
 
 import { IMediaQuery } from "../common.interfaces";
 import { SpinnerOverlayRef } from "../overlay/spinner-overlay-ref";
-import { SpinnerOverlayService } from "../overlay/spinner-overlay.service";
+import { SpinnerOverlay } from "../overlay/spinner-overlay.service";
 
 @Injectable({
     providedIn: "root",
@@ -23,7 +23,7 @@ export class UtilsService {
 
     constructor(
         private snack: MatSnackBar,
-        private spinner: SpinnerOverlayService,
+        private spinner: SpinnerOverlay,
         private mediaMatcher: MediaMatcher,
         private breakpointObserver: BreakpointObserver,
         private destroyRef: DestroyRef,

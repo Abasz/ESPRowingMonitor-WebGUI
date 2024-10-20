@@ -8,7 +8,7 @@ describe("SettingsBarComponent", (): void => {
 
     beforeEach(async (): Promise<void> => {
         await TestBed.configureTestingModule({
-            declarations: [SettingsBarComponent],
+            imports: [SettingsBarComponent],
         }).compileComponents();
 
         fixture = TestBed.createComponent(SettingsBarComponent);

@@ -1,6 +1,11 @@
+import { DatePipe, NgClass, NgIf } from "@angular/common";
 import { ChangeDetectionStrategy, Component, DestroyRef, Signal } from "@angular/core";
 import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
+import { MatIconButton } from "@angular/material/button";
 import { MatDialog } from "@angular/material/dialog";
+import { MatIcon } from "@angular/material/icon";
+import { MatToolbar } from "@angular/material/toolbar";
+import { MatTooltip } from "@angular/material/tooltip";
 import { interval, map, take } from "rxjs";
 
 import { BleServiceFlag } from "../../common/ble.interfaces";
@@ -17,6 +22,7 @@ import { DataService } from "../../common/services/data.service";
 import { ErgMetricsService } from "../../common/services/erg-metric-data.service";
 import { HeartRateService } from "../../common/services/heart-rate.service";
 import { UtilsService } from "../../common/services/utils.service";
+import { BatteryLevelPipe } from "../../common/utils/battery-level.pipe";
 import { LogbookDialogComponent } from "../logbook-dialog/logbook-dialog.component";
 import { SettingsDialogComponent } from "../settings-dialog/settings-dialog.component";
 
@@ -25,6 +31,8 @@ import { SettingsDialogComponent } from "../settings-dialog/settings-dialog.comp
     templateUrl: "./settings-bar.component.html",
     styleUrls: ["./settings-bar.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    standalone: true,
+    imports: [MatToolbar, MatIcon, MatTooltip, MatIconButton, NgIf, NgClass, DatePipe, BatteryLevelPipe],
 })
 export class SettingsBarComponent {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
