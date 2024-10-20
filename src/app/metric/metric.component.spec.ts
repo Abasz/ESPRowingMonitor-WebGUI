@@ -13,7 +13,6 @@ describe("MetricComponent", (): void => {
 
         fixture = TestBed.createComponent(MetricComponent);
         component = fixture.componentInstance;
-        fixture.detectChanges();
     });
 
     it("should create", (): void => {
