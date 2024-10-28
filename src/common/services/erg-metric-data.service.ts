@@ -1,5 +1,4 @@
-import { DestroyRef, Injectable } from "@angular/core";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { Injectable } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import {
     BehaviorSubject,
@@ -8,10 +7,13 @@ import {
     combineLatest,
     concat,
     distinctUntilChanged,
+    EmptyError,
     filter,
     finalize,
+    firstValueFrom,
     from,
     fromEvent,
+    interval,
     map,
     Observable,
     of,
@@ -19,7 +21,6 @@ import {
     skip,
     startWith,
     switchMap,
-    take,
     takeUntil,
     timer,
 } from "rxjs";
@@ -82,7 +83,6 @@ export class ErgMetricsService implements IRowerDataService {
     constructor(
         private configManager: ConfigManagerService,
         private snackBar: MatSnackBar,
-        private destroyRef: DestroyRef,
     ) {}
 
     async changeBleServiceType(bleService: BleServiceFlag): Promise<void> {
@@ -99,27 +99,30 @@ export class ErgMetricsService implements IRowerDataService {
             const characteristic =
                 await this.settingsCharacteristic.value?.service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
-            observeValue$(characteristic)
-                .pipe(take(1), takeUntilDestroyed(this.destroyRef))
-                .subscribe((response: DataView): void => {
-                    if (response.getUint8(2) === BleResponseOpCodes.Successful) {
-                        this.discover();
-                    }
-                    this.snackBar.open(
-                        response.getUint8(2) === BleResponseOpCodes.Successful
-                            ? "BLE service changed, device is restarting"
-                            : "An error occurred while changing BLE service",
-                        "Dismiss",
-                    );
-                });
+            const responseTask = firstValueFrom(
+                observeValue$(characteristic).pipe(takeUntil(interval(1000))),
+            );
 
-            await characteristic.startNotifications();
             await characteristic.writeValueWithoutResponse(
                 new Uint8Array([BleOpCodes.ChangeBleService, bleService]),
             );
+
+            const response = await responseTask;
+
+            if (response.getUint8(2) === BleResponseOpCodes.Successful) {
+                this.discover();
+            }
+            this.snackBar.open(
+                response.getUint8(2) === BleResponseOpCodes.Successful
+                    ? "BLE service changed, device is restarting"
+                    : "An error occurred while changing BLE service",
+                "Dismiss",
+            );
         } catch (error) {
+            const errorMessage = `Failed to change BLE service${error instanceof EmptyError ? ", request timed out" : ""}`;
+
+            this.snackBar.open(errorMessage, "Dismiss");
             console.error("changeBleServiceType:", error);
-            this.snackBar.open("Failed to change BLE service", "Dismiss");
         }
     }
 
@@ -137,27 +140,25 @@ export class ErgMetricsService implements IRowerDataService {
             const characteristic =
                 await this.settingsCharacteristic.value?.service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
-            observeValue$(characteristic)
-                .pipe(take(1), takeUntilDestroyed(this.destroyRef))
-                .subscribe((response: DataView): void => {
-                    this.snackBar.open(
-                        response.getUint8(2) === BleResponseOpCodes.Successful
-                            ? `Delta time logging ${shouldEnable ? "enabled" : "disabled"}`
-                            : "An error occurred while changing delta time logging",
-                        "Dismiss",
-                    );
-                });
+            const responseTask = firstValueFrom(
+                observeValue$(characteristic).pipe(takeUntil(interval(1000))),
+            );
 
-            await characteristic.startNotifications();
-            await characteristic.writeValueWithResponse(
+            await characteristic.writeValueWithoutResponse(
                 new Uint8Array([BleOpCodes.SetDeltaTimeLogging, shouldEnable ? 1 : 0]),
             );
-        } catch (error) {
-            console.error("changeDeltaTimeLogging:", error);
+
             this.snackBar.open(
-                `Failed to ${shouldEnable ? "enabled" : "disabled"} delta time logging`,
+                (await responseTask).getUint8(2) === BleResponseOpCodes.Successful
+                    ? `Delta time logging ${shouldEnable ? "enabled" : "disabled"}`
+                    : "An error occurred while changing delta time logging",
                 "Dismiss",
             );
+        } catch (error) {
+            const errorMessage = `Failed to ${shouldEnable ? "enabled" : "disabled"} delta time logging ${error instanceof EmptyError ? ", request timed out" : ""}`;
+
+            this.snackBar.open(errorMessage, "Dismiss");
+            console.error("changeDeltaTimeLogging:", error);
         }
     }
 
@@ -175,22 +176,25 @@ export class ErgMetricsService implements IRowerDataService {
             const characteristic =
                 await this.settingsCharacteristic.value?.service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
-            observeValue$(characteristic)
-                .pipe(take(1), takeUntilDestroyed(this.destroyRef))
-                .subscribe((response: DataView): void => {
-                    this.snackBar.open(
-                        response.getUint8(2) === BleResponseOpCodes.Successful
-                            ? "Log level changed"
-                            : "An error occurred while changing Log level",
-                        "Dismiss",
-                    );
-                });
+            const responseTask = firstValueFrom(
+                observeValue$(characteristic).pipe(takeUntil(interval(1000))),
+            );
 
-            await characteristic.startNotifications();
-            await characteristic.writeValueWithResponse(new Uint8Array([BleOpCodes.SetLogLevel, logLevel]));
+            await characteristic.writeValueWithoutResponse(
+                new Uint8Array([BleOpCodes.SetLogLevel, logLevel]),
+            );
+
+            this.snackBar.open(
+                (await responseTask).getUint8(2) === BleResponseOpCodes.Successful
+                    ? "Log level changed"
+                    : "An error occurred while changing Log level",
+                "Dismiss",
+            );
         } catch (error) {
+            const errorMessage = `Failed to set Log Level${error instanceof EmptyError ? ", request timed out" : ""}`;
+
+            this.snackBar.open(errorMessage, "Dismiss");
             console.error("changeLogLevel:", error);
-            this.snackBar.open("Failed to set Log Level", "Dismiss");
         }
     }
 
@@ -208,27 +212,25 @@ export class ErgMetricsService implements IRowerDataService {
             const characteristic =
                 await this.settingsCharacteristic.value?.service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
-            observeValue$(characteristic)
-                .pipe(take(1), takeUntilDestroyed(this.destroyRef))
-                .subscribe((response: DataView): void => {
-                    this.snackBar.open(
-                        response.getUint8(2) === BleResponseOpCodes.Successful
-                            ? `Sd Card logging ${shouldEnable ? "enabled" : "disabled"}`
-                            : "An error occurred while changing Sd Card logging",
-                        "Dismiss",
-                    );
-                });
+            const responseTask = firstValueFrom(
+                observeValue$(characteristic).pipe(takeUntil(interval(1000))),
+            );
 
-            await characteristic.startNotifications();
-            await characteristic.writeValueWithResponse(
+            await characteristic.writeValueWithoutResponse(
                 new Uint8Array([BleOpCodes.SetSdCardLogging, shouldEnable ? 1 : 0]),
             );
-        } catch (error) {
-            console.error("changeLogToSdCard:", error);
+
             this.snackBar.open(
-                `Failed to ${shouldEnable ? "enabled" : "disabled"} Sd Card logging`,
+                (await responseTask).getUint8(2) === BleResponseOpCodes.Successful
+                    ? `Sd Card logging ${shouldEnable ? "enabled" : "disabled"}`
+                    : "An error occurred while changing Sd Card logging",
                 "Dismiss",
             );
+        } catch (error) {
+            const errorMessage = `Failed to ${shouldEnable ? "enabled" : "disabled"} Sd Card logging${error instanceof EmptyError ? ", request timed out" : ""}`;
+
+            this.snackBar.open(errorMessage, "Dismiss");
+            console.error("changeLogToSdCard:", error);
         }
     }
 
