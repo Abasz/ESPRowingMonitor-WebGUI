@@ -54,6 +54,7 @@
         <mat-checkbox formControlName="logToSdCard">SdCard</mat-checkbox>
     </form>
     <div versionInfo>
+        <span>GUI Version: {{ compileDate | date: "yyMMddHHmmss" }}</span>
         <button
             matTooltipShowDelay="1000"
             matTooltip="Check for update"
@@ -63,7 +64,6 @@
         >
             <mat-icon>replay</mat-icon>
         </button>
-        <span>SW Version: {{ compileDate | date: "yyMMddHHmmss" }}</span>
     </div>
 </div>
 <div mat-dialog-actions align="end">

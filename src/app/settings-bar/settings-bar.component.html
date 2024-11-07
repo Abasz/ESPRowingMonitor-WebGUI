@@ -51,9 +51,11 @@
             </button>
         }
         <span>{{
-            settings().bleServiceFlag === BleServiceFlag.CpsService
-                ? "Cycling Power"
-                : "Cycling Speed and Cadence"
+            ergConnectionStatus().status !== "connected"
+                ? ""
+                : settings().bleServiceFlag === BleServiceFlag.CpsService
+                  ? "Cycling Power"
+                  : "Cycling Speed and Cadence"
         }}</span>
     </div>
     <span class="time-of-day">

@@ -29,7 +29,7 @@ import { SwUpdate } from "@angular/service-worker";
 import { map, startWith } from "rxjs";
 
 import { BleServiceFlag, LogLevel } from "../../common/ble.interfaces";
-import { IRowerSettings, IValidationErrors } from "../../common/common.interfaces";
+import { IErgConnectionStatus, IRowerSettings, IValidationErrors } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { DataService } from "../../common/services/data.service";
 import { EnumToArrayPipe } from "../../common/utils/enum-to-array.pipe";
@@ -79,34 +79,11 @@ export class SettingsDialogComponent {
 
     compileDate: Date = new Date(versionInfo.timeStamp);
 
-    settingsForm: SettingsFormGroup = this.fb.group({
-        bleMode: [this.settings.bleServiceFlag],
-        logLevel: [this.settings.logLevel, [Validators.min(0), Validators.max(6)]],
-        heartRateMonitor: [
-            this.configManager.getItem("heartRateMonitor") as HeartRateMonitorMode,
-            Validators.pattern(/^(off|ble|ant)$/),
-        ],
-        deltaTimeLogging: [
-            {
-                value: this.settings.logDeltaTimes ?? false,
-                disabled: this.settings.logDeltaTimes === undefined,
-            },
-        ],
-        logToSdCard: [
-            {
-                value: this.settings.logToSdCard ?? false,
-                disabled: this.settings.logToSdCard === undefined ? true : false,
-            },
-        ],
-    });
+    settingsForm: SettingsFormGroup;
 
-    settingsFormErrors: Signal<ValidationErrors | null> = toSignal(
-        this.settingsForm.statusChanges.pipe(
-            startWith("INVALID"),
-            map((): IValidationErrors => getValidationErrors(this.settingsForm.controls)),
-        ),
-        { requireSync: true },
-    );
+    settingsFormErrors: Signal<ValidationErrors | null>;
+
+    private isConnected: boolean = this.data.ergConnectionStatus.status === "connected";
 
     constructor(
         private configManager: ConfigManagerService,
@@ -114,8 +91,44 @@ export class SettingsDialogComponent {
         private fb: NonNullableFormBuilder,
         private dialogRef: MatDialogRef<SettingsDialogComponent>,
         private swUpdate: SwUpdate,
-        @Inject(MAT_DIALOG_DATA) private settings: IRowerSettings,
-    ) {}
+        @Inject(MAT_DIALOG_DATA)
+        private data: {
+            settings: IRowerSettings;
+            ergConnectionStatus: IErgConnectionStatus;
+        },
+    ) {
+        this.settingsForm = this.fb.group({
+            bleMode: [{ value: this.data.settings.bleServiceFlag, disabled: !this.isConnected }],
+            logLevel: [
+                { value: this.data.settings.logLevel, disabled: !this.isConnected },
+                [Validators.min(0), Validators.max(6)],
+            ],
+            heartRateMonitor: [
+                this.configManager.getItem("heartRateMonitor") as HeartRateMonitorMode,
+                Validators.pattern(/^(off|ble|ant)$/),
+            ],
+            deltaTimeLogging: [
+                {
+                    value: this.data.settings.logDeltaTimes ?? false,
+                    disabled: this.data.settings.logDeltaTimes === undefined || !this.isConnected,
+                },
+            ],
+            logToSdCard: [
+                {
+                    value: this.data.settings.logToSdCard ?? false,
+                    disabled: this.data.settings.logToSdCard === undefined || !this.isConnected,
+                },
+            ],
+        });
+
+        this.settingsFormErrors = toSignal(
+            this.settingsForm.statusChanges.pipe(
+                startWith("INVALID"),
+                map((): IValidationErrors => getValidationErrors(this.settingsForm.controls)),
+            ),
+            { requireSync: true },
+        );
+    }
 
     checkForUpdates(): void {
         if (!isDevMode()) {

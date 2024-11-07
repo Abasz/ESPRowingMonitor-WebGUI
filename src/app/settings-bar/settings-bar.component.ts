@@ -106,7 +106,10 @@ export class SettingsBarComponent {
     openSettings(): void {
         this.dialog.open(SettingsDialogComponent, {
             autoFocus: false,
-            data: this.settings(),
+            data: {
+                settings: this.settings(),
+                ergConnectionStatus: this.ergConnectionStatus(),
+            },
         });
     }
 
