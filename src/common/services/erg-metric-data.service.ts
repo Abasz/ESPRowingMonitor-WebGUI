@@ -884,7 +884,7 @@ export class ErgMetricsService implements IRowerDataService {
                 };
             }),
             finalize((): void => {
-                this.extendedCharacteristic.next(undefined);
+                this.settingsCharacteristic.next(undefined);
             }),
         );
     }
