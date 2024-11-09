@@ -14,7 +14,7 @@ import {
     withLatestFrom,
 } from "rxjs";
 
-import { BleServiceFlag, LogLevel } from "../ble.interfaces";
+import { BleServiceFlag, IDeviceInformation, LogLevel } from "../ble.interfaces";
 import {
     IBaseMetrics,
     ICalculatedMetrics,
@@ -111,6 +111,10 @@ export class DataService {
 
     getActivityStartTime(): Date {
         return this.activityStartTime;
+    }
+
+    readDeviceInfo(): Promise<IDeviceInformation> {
+        return this.ergMetricService.readDeviceInfo();
     }
 
     reset(): void {

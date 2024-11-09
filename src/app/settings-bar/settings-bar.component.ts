@@ -103,12 +103,16 @@ export class SettingsBarComponent {
             });
     }
 
-    openSettings(): void {
+    async openSettings(): Promise<void> {
+        this.utils.mainSpinner().open();
+        const deviceInfo = await this.dataService.readDeviceInfo();
+        this.utils.mainSpinner().close();
         this.dialog.open(SettingsDialogComponent, {
             autoFocus: false,
             data: {
                 settings: this.settings(),
                 ergConnectionStatus: this.ergConnectionStatus(),
+                deviceInfo,
             },
         });
     }

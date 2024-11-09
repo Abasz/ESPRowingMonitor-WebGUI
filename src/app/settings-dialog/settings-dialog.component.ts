@@ -28,7 +28,7 @@ import { MatTooltip } from "@angular/material/tooltip";
 import { SwUpdate } from "@angular/service-worker";
 import { map, startWith } from "rxjs";
 
-import { BleServiceFlag, LogLevel } from "../../common/ble.interfaces";
+import { BleServiceFlag, IDeviceInformation, LogLevel } from "../../common/ble.interfaces";
 import { IErgConnectionStatus, IRowerSettings, IValidationErrors } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { DataService } from "../../common/services/data.service";
@@ -79,11 +79,13 @@ export class SettingsDialogComponent {
 
     compileDate: Date = new Date(versionInfo.timeStamp);
 
+    deviceInfo: IDeviceInformation = this.data.deviceInfo;
+
+    isConnected: boolean = this.data.ergConnectionStatus.status === "connected";
+
     settingsForm: SettingsFormGroup;
 
     settingsFormErrors: Signal<ValidationErrors | null>;
-
-    private isConnected: boolean = this.data.ergConnectionStatus.status === "connected";
 
     constructor(
         private configManager: ConfigManagerService,
@@ -95,6 +97,7 @@ export class SettingsDialogComponent {
         private data: {
             settings: IRowerSettings;
             ergConnectionStatus: IErgConnectionStatus;
+            deviceInfo: IDeviceInformation;
         },
     ) {
         this.settingsForm = this.fb.group({

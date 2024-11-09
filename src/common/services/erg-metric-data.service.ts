@@ -36,10 +36,15 @@ import {
     CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC,
     CYCLING_SPEED_AND_CADENCE_SERVICE,
     DELTA_TIMES_CHARACTERISTIC,
+    DEVICE_INFO_SERVICE,
     EXTENDED_CHARACTERISTIC,
     EXTENDED_METRICS_SERVICE,
+    FIRMWARE_NUMBER_CHARACTERISTIC,
     HANDLE_FORCES_CHARACTERISTIC,
+    IDeviceInformation,
     LogLevel,
+    MANUFACTURER_NAME_CHARACTERISTIC,
+    MODEL_NUMBER_CHARACTERISTIC,
     SETTINGS_CHARACTERISTIC,
     SETTINGS_CONTROL_POINT,
     SETTINGS_SERVICE,
@@ -277,13 +282,77 @@ export class ErgMetricsService implements IRowerDataService {
                     { services: [CYCLING_POWER_SERVICE] },
                     { services: [CYCLING_SPEED_AND_CADENCE_SERVICE] },
                 ],
-                optionalServices: [BATTERY_LEVEL_SERVICE, SETTINGS_SERVICE, EXTENDED_METRICS_SERVICE],
+                optionalServices: [
+                    DEVICE_INFO_SERVICE,
+                    BATTERY_LEVEL_SERVICE,
+                    SETTINGS_SERVICE,
+                    EXTENDED_METRICS_SERVICE,
+                ],
             });
 
             await this.connect(device);
         } catch {
             await this.reconnect();
         }
+    }
+
+    async readDeviceInfo(): Promise<IDeviceInformation> {
+        const deviceInfo: IDeviceInformation = {};
+
+        if (this.bluetoothDevice?.gatt === undefined) {
+            this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
+
+            return deviceInfo;
+        }
+
+        try {
+            const service = await this.bluetoothDevice.gatt.getPrimaryService(DEVICE_INFO_SERVICE);
+
+            try {
+                const modelNumberCharacteristic =
+                    await service.getCharacteristic(MODEL_NUMBER_CHARACTERISTIC);
+                deviceInfo.modelNumber = new TextDecoder().decode(
+                    await modelNumberCharacteristic.readValue(),
+                );
+            } catch (e) {
+                if (e instanceof Error && !e.name.includes("NotFoundError")) {
+                    console.error("modelNumber", e);
+                }
+            }
+
+            try {
+                const firmwareNumberCharacteristic = await service.getCharacteristic(
+                    FIRMWARE_NUMBER_CHARACTERISTIC,
+                );
+                deviceInfo.firmwareNumber = new TextDecoder().decode(
+                    await firmwareNumberCharacteristic.readValue(),
+                );
+            } catch (e) {
+                if (e instanceof Error && !e.name.includes("NotFoundError")) {
+                    console.error("firmwareNumber", e);
+                }
+            }
+
+            try {
+                const manufacturerNameCharacteristic = await service.getCharacteristic(
+                    MANUFACTURER_NAME_CHARACTERISTIC,
+                );
+                deviceInfo.manufacturerName = new TextDecoder().decode(
+                    await manufacturerNameCharacteristic.readValue(),
+                );
+            } catch (e) {
+                if (e instanceof Error && !e.name.includes("NotFoundError")) {
+                    console.error(" manufacturerName", e);
+                }
+            }
+        } catch (error) {
+            if (error instanceof Error) {
+                this.snackBar.open(error.message, "Dismiss");
+            }
+            console.error("readDeviceInfo:", error);
+        }
+
+        return deviceInfo;
     }
 
     async reconnect(): Promise<void> {

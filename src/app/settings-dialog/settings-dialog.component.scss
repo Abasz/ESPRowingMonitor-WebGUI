@@ -12,6 +12,22 @@ div[versionInfo] {
     align-items: center;
 }
 
+div.erg-info {
+    display: flex;
+    flex-direction: column;
+
+    > span {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        user-select: none;
+        font-size: 12px;
+        font-style: italic;
+        margin-right: 6px;
+        min-height: 24px;
+    }
+}
+
 mat-option {
     font-size: 16px;
 }

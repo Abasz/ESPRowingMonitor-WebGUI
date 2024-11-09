@@ -53,6 +53,13 @@
         <mat-checkbox formControlName="deltaTimeLogging">Bluetooth</mat-checkbox>
         <mat-checkbox formControlName="logToSdCard">SdCard</mat-checkbox>
     </form>
+    <div class="erg-info">
+        <span>Manufacturer: {{ deviceInfo.manufacturerName ?? "unknown" }} </span>
+        @if (deviceInfo.modelNumber) {
+            <span>Model: {{ deviceInfo.modelNumber }}</span>
+        }
+        <span>FW Version: {{ deviceInfo.firmwareNumber ?? "unknown" }}</span>
+    </div>
     <div versionInfo>
         <span>GUI Version: {{ compileDate | date: "yyMMddHHmmss" }}</span>
         <button
