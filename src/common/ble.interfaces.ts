@@ -29,6 +29,11 @@ export enum BleServiceFlag {
     CscService,
 }
 
+export const BleServiceNames: { [key: string]: string } = {
+    CpsService: "Cycling Power",
+    CscService: "Cycling Speed and Cadence",
+};
+
 export interface IOtaCharacteristics {
     responseCharacteristic: BluetoothRemoteGATTCharacteristic;
     sendCharacteristic: BluetoothRemoteGATTCharacteristic;

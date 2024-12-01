@@ -53,9 +53,7 @@
         <span>{{
             ergConnectionStatus().status !== "connected"
                 ? ""
-                : settings().bleServiceFlag === BleServiceFlag.CpsService
-                  ? "Cycling Power"
-                  : "Cycling Speed and Cadence"
+                : BleServiceNames[BleServiceFlag[settings().bleServiceFlag]]
         }}</span>
     </div>
     <span class="time-of-day">

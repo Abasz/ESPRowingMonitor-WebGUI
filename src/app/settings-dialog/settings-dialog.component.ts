@@ -38,6 +38,7 @@ import { getValidationErrors } from "../../common/utils/utility.functions";
 import { versionInfo } from "../../version";
 import { OtaDialogComponent } from "../ota-settings-dialog/ota-dialog.component";
 
+import { BleServiceNames } from "./../../common/ble.interfaces";
 import { HeartRateMonitorMode } from "./../../common/common.interfaces";
 
 type SettingsFormGroup = FormGroup<{
@@ -77,6 +78,7 @@ type SettingsFormGroup = FormGroup<{
 })
 export class SettingsDialogComponent {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
+    BleServiceNames: typeof BleServiceNames = BleServiceNames;
     LogLevel: typeof LogLevel = LogLevel;
 
     compileDate: Date = new Date(versionInfo.timeStamp);

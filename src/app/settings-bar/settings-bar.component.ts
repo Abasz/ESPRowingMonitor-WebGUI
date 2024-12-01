@@ -8,7 +8,7 @@ import { MatToolbar } from "@angular/material/toolbar";
 import { MatTooltip } from "@angular/material/tooltip";
 import { interval, map, take } from "rxjs";
 
-import { BleServiceFlag } from "../../common/ble.interfaces";
+import { BleServiceFlag, BleServiceNames } from "../../common/ble.interfaces";
 import {
     HeartRateMonitorMode,
     IErgConnectionStatus,
@@ -36,6 +36,7 @@ import { SettingsDialogComponent } from "../settings-dialog/settings-dialog.comp
 })
 export class SettingsBarComponent {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
+    BleServiceNames: typeof BleServiceNames = BleServiceNames;
 
     batteryLevel: Signal<number> = toSignal(this.dataService.ergBatteryLevel$, {
         initialValue: 0,

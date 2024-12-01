@@ -9,8 +9,9 @@
                 formControlName="bleMode"
                 required
             >
-                <mat-option [value]="BleServiceFlag.CpsService">Cycling Power</mat-option>
-                <mat-option [value]="BleServiceFlag.CscService">Cycling Speed and Cadence</mat-option>
+                @for (flag of BleServiceFlag | enumToArray; track $index) {
+                    <mat-option [value]="flag.key">{{ BleServiceNames[flag.value] }}</mat-option>
+                }
             </mat-select>
             @if (settingsFormErrors()?.bleMode?.required) {
                 <mat-error>BLE mode is required</mat-error>
