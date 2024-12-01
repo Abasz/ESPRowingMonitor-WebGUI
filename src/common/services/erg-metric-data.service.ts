@@ -40,6 +40,7 @@ import {
     EXTENDED_CHARACTERISTIC,
     EXTENDED_METRICS_SERVICE,
     FIRMWARE_NUMBER_CHARACTERISTIC,
+    FITNESS_MACHINE_SERVICE,
     HANDLE_FORCES_CHARACTERISTIC,
     IDeviceInformation,
     IOtaCharacteristics,
@@ -49,6 +50,7 @@ import {
     OTA_RX_CHARACTERISTIC,
     OTA_SERVICE,
     OTA_TX_CHARACTERISTIC,
+    ROWER_DATA_CHARACTERISTIC,
     SETTINGS_CHARACTERISTIC,
     SETTINGS_CONTROL_POINT,
     SETTINGS_SERVICE,
@@ -285,6 +287,7 @@ export class ErgMetricsService implements IRowerDataService {
                 filters: [
                     { services: [CYCLING_POWER_SERVICE] },
                     { services: [CYCLING_SPEED_AND_CADENCE_SERVICE] },
+                    { services: [FITNESS_MACHINE_SERVICE] },
                 ],
                 optionalServices: [
                     OTA_SERVICE,
@@ -610,6 +613,19 @@ export class ErgMetricsService implements IRowerDataService {
         );
     }
 
+    private calculateBleServiceFlag(uuid: string | undefined): BleServiceFlag {
+        switch (uuid) {
+            case BluetoothUUID.getCharacteristic(CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC):
+                return BleServiceFlag.CscService;
+            case BluetoothUUID.getCharacteristic(CYCLING_POWER_CHARACTERISTIC):
+                return BleServiceFlag.CpsService;
+            case BluetoothUUID.getCharacteristic(ROWER_DATA_CHARACTERISTIC):
+                return BleServiceFlag.FtmsService;
+            default:
+                return BleServiceFlag.CpsService;
+        }
+    }
+
     private async connect(device: BluetoothDevice): Promise<void> {
         this.connectionStatusSubject.next({ status: "connecting" });
 
@@ -740,12 +756,8 @@ export class ErgMetricsService implements IRowerDataService {
         gatt: BluetoothRemoteGATTServer,
     ): Promise<void | BluetoothRemoteGATTCharacteristic> {
         try {
-            const primaryService = await withDelay(1000, this.getService(gatt));
-            const characteristic = await primaryService.getCharacteristic(
-                primaryService.uuid === BluetoothUUID.getService(CYCLING_SPEED_AND_CADENCE_SERVICE)
-                    ? CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC
-                    : CYCLING_POWER_CHARACTERISTIC,
-            );
+            const characteristic = await withDelay(1000, this.getCharacteristic(gatt));
+
             this.measurementCharacteristic.next(characteristic ?? undefined);
 
             return characteristic ?? undefined;
@@ -790,26 +802,40 @@ export class ErgMetricsService implements IRowerDataService {
         this.snackBar.open("Ergometer Monitor disconnected", "Dismiss");
     };
 
-    private async getService(gatt: BluetoothRemoteGATTServer): Promise<BluetoothRemoteGATTService> {
-        let primaryService: BluetoothRemoteGATTService | undefined = undefined;
+    private async getCharacteristic(
+        gatt: BluetoothRemoteGATTServer,
+    ): Promise<BluetoothRemoteGATTCharacteristic> {
+        let characteristic: BluetoothRemoteGATTCharacteristic | undefined = undefined;
         const errorMessages: Array<unknown> = [];
         try {
-            primaryService = await gatt.getPrimaryService(CYCLING_POWER_SERVICE);
+            characteristic = await (
+                await gatt.getPrimaryService(CYCLING_POWER_SERVICE)
+            ).getCharacteristic(CYCLING_POWER_CHARACTERISTIC);
         } catch (error) {
             errorMessages?.push(error);
         }
 
         try {
-            primaryService = await gatt.getPrimaryService(CYCLING_SPEED_AND_CADENCE_SERVICE);
+            characteristic = await (
+                await gatt.getPrimaryService(CYCLING_SPEED_AND_CADENCE_SERVICE)
+            ).getCharacteristic(CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC);
         } catch (error) {
             errorMessages?.push(error);
         }
 
-        if (primaryService === undefined) {
+        try {
+            characteristic = await (
+                await gatt.getPrimaryService(FITNESS_MACHINE_SERVICE)
+            ).getCharacteristic(ROWER_DATA_CHARACTERISTIC);
+        } catch (error) {
+            errorMessages?.push(error);
+        }
+
+        if (characteristic === undefined) {
             throw errorMessages;
         }
 
-        return primaryService;
+        return characteristic;
     }
 
     private observeBattery$(batteryCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<number> {
@@ -891,6 +917,8 @@ export class ErgMetricsService implements IRowerDataService {
         let lastStrokeTime = 0;
         let strokeTime = 0;
 
+        let lastDistance = 0;
+
         return observeValue$(measurementCharacteristic).pipe(
             map((value: DataView): IBaseMetrics => {
                 if (
@@ -921,27 +949,54 @@ export class ErgMetricsService implements IRowerDataService {
                         strokeCount: value.getUint16(2 + 2 + 4 + 2, true),
                     };
                 }
-                const revTimeDelta =
-                    value.getUint16(1 + 4, true) >= lastRevTime
-                        ? value.getUint16(1 + 4, true) - lastRevTime
-                        : 65535 - lastRevTime + value.getUint16(1 + 4, true);
-                revTime += Math.round((revTimeDelta / 1024) * 1e6);
 
-                const strokeTimeDelta =
-                    value.getUint16(1 + 4 + 2 + 2, true) >= lastStrokeTime
-                        ? value.getUint16(1 + 4 + 2 + 2, true) - lastStrokeTime
-                        : 65535 - lastStrokeTime + value.getUint16(1 + 4 + 2 + 2, true);
+                if (
+                    measurementCharacteristic.uuid ===
+                    BluetoothUUID.getCharacteristic(CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC)
+                ) {
+                    const revTimeDelta =
+                        value.getUint16(1 + 4, true) >= lastRevTime
+                            ? value.getUint16(1 + 4, true) - lastRevTime
+                            : 65535 - lastRevTime + value.getUint16(1 + 4, true);
+                    revTime += Math.round((revTimeDelta / 1024) * 1e6);
 
-                strokeTime += Math.round((strokeTimeDelta / 1024) * 1e6);
+                    const strokeTimeDelta =
+                        value.getUint16(1 + 4 + 2 + 2, true) >= lastStrokeTime
+                            ? value.getUint16(1 + 4 + 2 + 2, true) - lastStrokeTime
+                            : 65535 - lastStrokeTime + value.getUint16(1 + 4 + 2 + 2, true);
 
-                lastRevTime = value.getUint16(1 + 4, true);
-                lastStrokeTime = value.getUint16(1 + 4 + 2 + 2, true);
+                    strokeTime += Math.round((strokeTimeDelta / 1024) * 1e6);
+
+                    lastRevTime = value.getUint16(1 + 4, true);
+                    lastStrokeTime = value.getUint16(1 + 4 + 2 + 2, true);
+
+                    return {
+                        revTime,
+                        distance: value.getUint32(1, true),
+                        strokeTime,
+                        strokeCount: value.getUint16(1 + 4 + 2, true),
+                    };
+                }
+
+                const deltaStrokeTime = (60 / (value.getUint8(2) / 2)) * 1e6;
+                strokeTime += deltaStrokeTime;
+
+                const currentDistance =
+                    value.getUint8(2 + 1 + 2) |
+                    (value.getUint8(2 + 1 + 2 + 1) << 8) |
+                    (value.getUint8(2 + 1 + 2 + 2) << 16);
+
+                const deltaRevTime =
+                    (value.getUint16(2 + 1 + 2 + 3, true) / 500) * (currentDistance - lastDistance) * 1e6;
+
+                revTime += deltaRevTime;
+                lastDistance = currentDistance;
 
                 return {
                     revTime,
-                    distance: value.getUint32(1, true),
+                    distance: currentDistance * 100,
                     strokeTime,
-                    strokeCount: value.getUint16(1 + 4 + 2, true),
+                    strokeCount: value.getUint16(2 + 1, true),
                 };
             }),
             finalize((): void => {
@@ -963,11 +1018,7 @@ export class ErgMetricsService implements IRowerDataService {
                     logDeltaTimes: logToWs === 0 ? undefined : logToWs === 1 ? false : true,
                     logToSdCard: logToSd === 0 ? undefined : logToSd === 1 ? false : true,
                     logLevel: logLevel,
-                    bleServiceFlag:
-                        this.measurementCharacteristic.value?.uuid !==
-                        BluetoothUUID.getCharacteristic(CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC)
-                            ? BleServiceFlag.CpsService
-                            : BleServiceFlag.CscService,
+                    bleServiceFlag: this.calculateBleServiceFlag(this.measurementCharacteristic.value?.uuid),
                 };
             }),
             finalize((): void => {

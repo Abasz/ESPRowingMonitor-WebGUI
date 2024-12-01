@@ -27,11 +27,13 @@ export enum LogLevel {
 export enum BleServiceFlag {
     CpsService,
     CscService,
+    FtmsService,
 }
 
 export const BleServiceNames: { [key: string]: string } = {
     CpsService: "Cycling Power",
     CscService: "Cycling Speed and Cadence",
+    FtmsService: "Fitness Machine",
 };
 
 export interface IOtaCharacteristics {
@@ -84,6 +86,9 @@ export const CYCLING_POWER_CONTROL_CHARACTERISTIC = "cycling_power_control_point
 export const CYCLING_SPEED_AND_CADENCE_SERVICE = "cycling_speed_and_cadence";
 export const CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC = "csc_measurement";
 export const CYCLING_SPEED_AND_CADENCE_CONTROL_CHARACTERISTIC = "sc_control_point";
+export const FITNESS_MACHINE_SERVICE = "fitness_machine";
+export const ROWER_DATA_CHARACTERISTIC = "rower_data";
+export const FITNESS_MACHINE_CONTROL_CHARACTERISTIC = "fitness_machine_control_point";
 export const DEVICE_INFO_SERVICE = "device_information";
 export const MODEL_NUMBER_CHARACTERISTIC = "model_number_string";
 export const SERIAL_NUMBER_CHARACTERISTIC = "serial_number_string";
