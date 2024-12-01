@@ -10,7 +10,7 @@ export class SecondsToTimePipe implements PipeTransform {
     private mins: number = 0;
     private seconds: number = 0;
 
-    transform(seconds: number, format: "full" | "simple" | "pace" = "full"): string {
+    transform(seconds: number, format: "full" | "simple" | "pace" = "full", round: boolean = false): string {
         /**
          * Pipe for converting seconds to comma separated elapsed time string
          * (e.g.: 1 day, 20 horus, 3 minutes).
@@ -18,9 +18,15 @@ export class SecondsToTimePipe implements PipeTransform {
          * @param seconds The actual time in seconds.
          */
         const secondsRounded = Math.round(seconds);
-        this.days = Math.floor(secondsRounded / 86400);
-        this.hours = Math.floor((secondsRounded % 86400) / 3600);
-        this.mins = Math.floor(((secondsRounded % 86400) % 3600) / 60);
+        if (!round) {
+            this.days = Math.floor(secondsRounded / 86400);
+            this.hours = Math.floor((secondsRounded % 86400) / 3600);
+            this.mins = Math.floor(((secondsRounded % 86400) % 3600) / 60);
+        } else {
+            this.days = Math.round(secondsRounded / 86400);
+            this.hours = Math.round((secondsRounded % 86400) / 3600);
+            this.mins = Math.round(((secondsRounded % 86400) % 3600) / 60);
+        }
         this.seconds = secondsRounded;
 
         if (format === "simple") {

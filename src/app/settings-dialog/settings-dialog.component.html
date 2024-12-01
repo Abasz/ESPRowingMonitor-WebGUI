@@ -58,7 +58,20 @@
         @if (deviceInfo.modelNumber) {
             <span>Model: {{ deviceInfo.modelNumber }}</span>
         }
-        <span>FW Version: {{ deviceInfo.firmwareNumber ?? "unknown" }}</span>
+        <div versionInfo>
+            <span>FW Version: {{ deviceInfo.firmwareNumber ?? "unknown" }}</span>
+            <button
+                matTooltipShowDelay="1000"
+                matTooltip="Check for update"
+                class="small-icon-button"
+                mat-icon-button
+                (click)="fileInput.click()"
+                [disabled]="!isConnected"
+            >
+                <mat-icon>upload_file</mat-icon>
+            </button>
+            <input #fileInput accept=".bin" style="display: none" type="file" (change)="otaUpdate($event)" />
+        </div>
     </div>
     <div versionInfo>
         <span>GUI Version: {{ compileDate | date: "yyMMddHHmmss" }}</span>

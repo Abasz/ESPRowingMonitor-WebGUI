@@ -15,6 +15,7 @@ import { MatCheckbox } from "@angular/material/checkbox";
 import { MatOption } from "@angular/material/core";
 import {
     MAT_DIALOG_DATA,
+    MatDialog,
     MatDialogActions,
     MatDialogClose,
     MatDialogContent,
@@ -35,6 +36,7 @@ import { DataService } from "../../common/services/data.service";
 import { EnumToArrayPipe } from "../../common/utils/enum-to-array.pipe";
 import { getValidationErrors } from "../../common/utils/utility.functions";
 import { versionInfo } from "../../version";
+import { OtaDialogComponent } from "../ota-settings-dialog/ota-dialog.component";
 
 import { HeartRateMonitorMode } from "./../../common/common.interfaces";
 
@@ -93,6 +95,7 @@ export class SettingsDialogComponent {
         private fb: NonNullableFormBuilder,
         private dialogRef: MatDialogRef<SettingsDialogComponent>,
         private swUpdate: SwUpdate,
+        private dialog: MatDialog,
         @Inject(MAT_DIALOG_DATA)
         private data: {
             settings: IRowerSettings;
@@ -137,6 +140,24 @@ export class SettingsDialogComponent {
         if (!isDevMode()) {
             this.swUpdate.checkForUpdate();
         }
+    }
+
+    async otaUpdate(event: Event): Promise<void> {
+        const inputElement = event.currentTarget;
+        if (!(inputElement instanceof HTMLInputElement) || !inputElement?.files) {
+            return;
+        }
+
+        this.dialog.open(OtaDialogComponent, {
+            autoFocus: false,
+            disableClose: true,
+            data: {
+                firmwareSize: inputElement.files[0].size / 1000,
+                file: inputElement.files[0],
+            },
+        });
+
+        this.dialogRef.close();
     }
 
     async submitLoginForm(): Promise<void> {

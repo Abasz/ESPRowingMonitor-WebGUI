@@ -26,7 +26,8 @@
                             "zone.js"
                         ],
                         "allowedCommonJsDependencies": [
-                            "js2xmlparser"
+                            "js2xmlparser",
+                            "js-md5"
                         ],
                         "tsConfig": "tsconfig.app.json",
                         "inlineStyleLanguage": "scss",

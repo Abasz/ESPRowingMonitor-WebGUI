@@ -263,6 +263,7 @@ declare global {
         camelize(): string;
         pascalize(): string;
         toFirstLowerCase(): string;
+        pascalCaseToSentence(): string;
         toFirstUpperCase(): string;
     }
     interface Date {
@@ -280,6 +281,16 @@ Date.prototype.toDateTimeStringFormat = function (): string {
         .getMinutes()
         .toString()
         .padStart(2, "0")}-${self.getSeconds().toString().padStart(2, "0")}`;
+};
+
+String.prototype.pascalCaseToSentence = function (): string {
+    const self: string = this as string;
+
+    return self
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2")
+        .toLowerCase()
+        .replace(/^./, (char: string): string => char.toUpperCase());
 };
 
 String.prototype.toFirstUpperCase = function (): string {

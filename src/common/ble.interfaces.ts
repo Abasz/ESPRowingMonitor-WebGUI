@@ -29,6 +29,40 @@ export enum BleServiceFlag {
     CscService,
 }
 
+export interface IOtaCharacteristics {
+    responseCharacteristic: BluetoothRemoteGATTCharacteristic;
+    sendCharacteristic: BluetoothRemoteGATTCharacteristic;
+}
+
+export interface IOtaBeginResponse {
+    attr: number;
+    buffer: number;
+}
+
+export enum OtaResponseOpCodes {
+    Ok,
+    NotOk,
+    IncorrectFormat,
+    IncorrectFirmwareSize,
+    ChecksumError,
+    InternalStorageError,
+    TimeOut,
+}
+
+export class OtaError extends Error {
+    constructor(name: string, message?: string) {
+        super(message ?? "OTA error occurred");
+        this.name = name;
+    }
+}
+
+export enum OtaRequestOpCodes {
+    Begin,
+    Package,
+    End,
+    Abort,
+}
+
 export interface IDeviceInformation {
     modelNumber?: string;
     firmwareNumber?: string;
@@ -57,3 +91,7 @@ export const EXTENDED_METRICS_SERVICE = "a72a5762-803b-421d-a759-f0314153da97";
 export const EXTENDED_CHARACTERISTIC = "808a0d51-efae-4f0c-b2e0-48bc180d65c3";
 export const HANDLE_FORCES_CHARACTERISTIC = "3d9c2760-cf91-41ee-87e9-fd99d5f129a4";
 export const DELTA_TIMES_CHARACTERISTIC = "ae5d11ea-62f6-4789-b809-6fc93fee92b9";
+
+export const OTA_SERVICE = "ed249319-32c3-4e9f-83d7-7bb5aa5d5d4b";
+export const OTA_RX_CHARACTERISTIC = "fbac1540-698b-40ff-a34e-f39e5b78d1cf";
+export const OTA_TX_CHARACTERISTIC = "b31126a7-a29b-450a-b0c2-c0516f46b699";

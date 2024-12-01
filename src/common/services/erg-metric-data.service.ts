@@ -42,9 +42,13 @@ import {
     FIRMWARE_NUMBER_CHARACTERISTIC,
     HANDLE_FORCES_CHARACTERISTIC,
     IDeviceInformation,
+    IOtaCharacteristics,
     LogLevel,
     MANUFACTURER_NAME_CHARACTERISTIC,
     MODEL_NUMBER_CHARACTERISTIC,
+    OTA_RX_CHARACTERISTIC,
+    OTA_SERVICE,
+    OTA_TX_CHARACTERISTIC,
     SETTINGS_CHARACTERISTIC,
     SETTINGS_CONTROL_POINT,
     SETTINGS_SERVICE,
@@ -283,6 +287,7 @@ export class ErgMetricsService implements IRowerDataService {
                     { services: [CYCLING_SPEED_AND_CADENCE_SERVICE] },
                 ],
                 optionalServices: [
+                    OTA_SERVICE,
                     DEVICE_INFO_SERVICE,
                     BATTERY_LEVEL_SERVICE,
                     SETTINGS_SERVICE,
@@ -294,6 +299,19 @@ export class ErgMetricsService implements IRowerDataService {
         } catch {
             await this.reconnect();
         }
+    }
+
+    async getOtaCharacteristics(): Promise<IOtaCharacteristics> {
+        const primaryService = await this.bluetoothDevice?.gatt?.getPrimaryService(OTA_SERVICE);
+
+        const responseCharacteristic = await primaryService?.getCharacteristic(OTA_TX_CHARACTERISTIC);
+        const sendCharacteristic = await primaryService?.getCharacteristic(OTA_RX_CHARACTERISTIC);
+
+        if (responseCharacteristic === undefined || sendCharacteristic === undefined) {
+            throw new Error("Not able to connect to OTA service");
+        }
+
+        return { responseCharacteristic, sendCharacteristic };
     }
 
     async readDeviceInfo(): Promise<IDeviceInformation> {

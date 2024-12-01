@@ -1,0 +1,30 @@
+<h1 mat-dialog-title>Update in progress</h1>
+<div mat-dialog-content>
+    <p>Please do not navigate away from this page and do not restart the device</p>
+    <mat-progress-bar
+        [mode]="updateState() === UpdateState.Aborting ? 'indeterminate' : 'determinate'"
+        [value]="(progress() / data.firmwareSize) * 100"
+    ></mat-progress-bar>
+    <div class="progress-state">
+        <span
+            >ETA:
+            @if (updateState() === UpdateState.InProgress) {
+                @if ((data.firmwareSize - progress()) / 6 > 59) {
+                    {{
+                        ((data.firmwareSize - progress()) / 6 | secondsToTime: "full") <
+                        ((data.firmwareSize - progress()) / 6 | secondsToTime: "full" : true)
+                            ? "<"
+                            : ">"
+                    }}
+                }
+                {{ (data.firmwareSize - progress()) / 6 | secondsToTime: "full" : true }}
+            } @else {
+                {{ UpdateState[updateState()] }}
+            }
+        </span>
+        <span>{{ progress() | number: "0.1-1" }}/{{ data.firmwareSize | byte }}</span>
+    </div>
+</div>
+<div mat-dialog-actions>
+    <button mat-button (click)="cancelUpdate()">Cancel</button>
+</div>
