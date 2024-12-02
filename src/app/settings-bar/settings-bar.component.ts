@@ -18,13 +18,16 @@ import {
 } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { DataRecorderService } from "../../common/services/data-recorder.service";
-import { DataService } from "../../common/services/data.service";
-import { ErgMetricsService } from "../../common/services/erg-metric-data.service";
+import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
+import { ErgGenericDataService } from "../../common/services/ergometer/erg-generic-data.service";
 import { HeartRateService } from "../../common/services/heart-rate/heart-rate.service";
+import { MetricsService } from "../../common/services/metrics.service";
 import { UtilsService } from "../../common/services/utils.service";
 import { BatteryLevelPipe } from "../../common/utils/battery-level.pipe";
 import { LogbookDialogComponent } from "../logbook-dialog/logbook-dialog.component";
 import { SettingsDialogComponent } from "../settings-dialog/settings-dialog.component";
+
+import { ErgSettingsService } from "./../../common/services/ergometer/erg-settings.service";
 
 @Component({
     selector: "app-settings-bar",
@@ -38,7 +41,7 @@ export class SettingsBarComponent {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
     BleServiceNames: typeof BleServiceNames = BleServiceNames;
 
-    batteryLevel: Signal<number> = toSignal(this.dataService.ergBatteryLevel$, {
+    batteryLevel: Signal<number> = toSignal(this.ergGenericDataService.streamMonitorBatteryLevel$(), {
         initialValue: 0,
     });
 
@@ -54,26 +57,31 @@ export class SettingsBarComponent {
         disconnected: "bluetooth",
     };
 
-    ergConnectionStatus: Signal<IErgConnectionStatus> = toSignal(this.dataService.ergConnectionStatus$, {
-        requireSync: true,
-    });
+    ergConnectionStatus: Signal<IErgConnectionStatus> = toSignal(
+        this.ergConnectionService.connectionStatus$(),
+        {
+            requireSync: true,
+        },
+    );
     heartRateMonitorMode: Signal<HeartRateMonitorMode> = toSignal(
         this.configManager.heartRateMonitorChanged$,
         { requireSync: true },
     );
-    hrConnectionStatus: Signal<IHRConnectionStatus> = toSignal(this.dataService.hrConnectionStatus$, {
+    hrConnectionStatus: Signal<IHRConnectionStatus> = toSignal(this.metricsService.hrConnectionStatus$, {
         requireSync: true,
     });
     isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
-    settings: Signal<IRowerSettings> = this.dataService.settings;
+    settings: Signal<IRowerSettings> = this.ergSettingsService.settings;
     timeOfDay: Signal<number> = toSignal(interval(1000).pipe(map((): number => Date.now())), {
         initialValue: Date.now(),
     });
 
     constructor(
-        private dataService: DataService,
+        private metricsService: MetricsService,
         private dataRecorder: DataRecorderService,
-        private metricsService: ErgMetricsService,
+        private ergConnectionService: ErgConnectionService,
+        private ergGenericDataService: ErgGenericDataService,
+        private ergSettingsService: ErgSettingsService,
         private dialog: MatDialog,
         private heartRateService: HeartRateService,
         private utils: UtilsService,
@@ -82,7 +90,7 @@ export class SettingsBarComponent {
     ) {}
 
     async ergoMonitorDiscovery(): Promise<void> {
-        await this.metricsService.discover();
+        await this.ergConnectionService.discover();
     }
 
     async heartRateMonitorDiscovery(): Promise<void> {
@@ -106,7 +114,7 @@ export class SettingsBarComponent {
 
     async openSettings(): Promise<void> {
         this.utils.mainSpinner().open();
-        const deviceInfo = await this.dataService.readDeviceInfo();
+        const deviceInfo = await this.ergGenericDataService.readDeviceInfo();
         this.utils.mainSpinner().close();
         this.dialog.open(SettingsDialogComponent, {
             autoFocus: false,
@@ -119,6 +127,6 @@ export class SettingsBarComponent {
     }
 
     reset(): void {
-        this.dataService.reset();
+        this.metricsService.reset();
     }
 }

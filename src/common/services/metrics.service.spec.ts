@@ -1,4 +1,4 @@
-import { DestroyRef, provideExperimentalZonelessChangeDetection } from "@angular/core";
+import { DestroyRef } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { Observable, of } from "rxjs";
 
@@ -12,12 +12,12 @@ import {
 } from "../common.interfaces";
 
 import { DataRecorderService } from "./data-recorder.service";
-import { DataService } from "./data.service";
-import { ErgMetricsService } from "./erg-metric-data.service";
-import { HeartRateService } from "./heart-rate.service";
+import { ErgMetricsService } from "./ergometer/erg-metric-data.service";
+import { HeartRateService } from "./heart-rate/heart-rate.service";
+import { MetricsService } from "./metrics.service";
 
 describe("DataService", (): void => {
-    let service: DataService;
+    let service: MetricsService;
 
     const mockDataService = {
         ergBatteryLevel$: of(80),
@@ -71,7 +71,7 @@ describe("DataService", (): void => {
                 { provide: DestroyRef, useValue: mockDestroyRef },
             ],
         });
-        service = TestBed.inject(DataService);
+        service = TestBed.inject(MetricsService);
     });
 
     it("should be created", (): void => {

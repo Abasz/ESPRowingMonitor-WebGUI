@@ -32,7 +32,7 @@ import { map, startWith } from "rxjs";
 import { BleServiceFlag, IDeviceInformation, LogLevel } from "../../common/ble.interfaces";
 import { IErgConnectionStatus, IRowerSettings, IValidationErrors } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
-import { DataService } from "../../common/services/data.service";
+import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
 import { EnumToArrayPipe } from "../../common/utils/enum-to-array.pipe";
 import { getValidationErrors } from "../../common/utils/utility.functions";
 import { versionInfo } from "../../version";
@@ -93,7 +93,7 @@ export class SettingsDialogComponent {
 
     constructor(
         private configManager: ConfigManagerService,
-        private dataService: DataService,
+        private ergSettingsService: ErgSettingsService,
         private fb: NonNullableFormBuilder,
         private dialogRef: MatDialogRef<SettingsDialogComponent>,
         private swUpdate: SwUpdate,
@@ -164,21 +164,23 @@ export class SettingsDialogComponent {
 
     async submitLoginForm(): Promise<void> {
         if (this.settingsForm.get("logLevel")?.dirty) {
-            await this.dataService.changeLogLevel(this.settingsForm.value.logLevel as LogLevel);
+            await this.ergSettingsService.changeLogLevel(this.settingsForm.value.logLevel as LogLevel);
         }
 
         if (this.settingsForm.get("deltaTimeLogging")?.dirty) {
-            await this.dataService.changeDeltaTimeLogging(
+            await this.ergSettingsService.changeDeltaTimeLogging(
                 this.settingsForm.value.deltaTimeLogging as boolean,
             );
         }
 
         if (this.settingsForm.get("logToSdCard")?.dirty) {
-            await this.dataService.changeLogToSdCard(this.settingsForm.value.logToSdCard as boolean);
+            await this.ergSettingsService.changeLogToSdCard(this.settingsForm.value.logToSdCard as boolean);
         }
 
         if (this.settingsForm.get("bleMode")?.dirty) {
-            await this.dataService.changeBleServiceType(this.settingsForm.value.bleMode as BleServiceFlag);
+            await this.ergSettingsService.changeBleServiceType(
+                this.settingsForm.value.bleMode as BleServiceFlag,
+            );
         }
 
         if (this.settingsForm.get("heartRateMonitor")?.dirty) {

@@ -6,14 +6,14 @@ import { Observable, of } from "rxjs";
 
 import { ICalculatedMetrics, IErgConnectionStatus, IHeartRate } from "../common/common.interfaces";
 import { DataRecorderService } from "../common/services/data-recorder.service";
-import { DataService } from "../common/services/data.service";
+import { MetricsService } from "../common/services/metrics.service";
 import { UtilsService } from "../common/services/utils.service";
 
 import { AppComponent } from "./app.component";
 
 describe("AppComponent", (): void => {
     beforeEach(async (): Promise<void> => {
-        const mockDataService = {
+        const mockMetricsService = {
             heartRateData$: of({ heartRate: 75 } as IHeartRate),
             allMetrics$: of({
                 activityStartTime: new Date(),
@@ -62,7 +62,7 @@ describe("AppComponent", (): void => {
 
         await TestBed.configureTestingModule({
             providers: [
-                { provide: DataService, useValue: mockDataService },
+                { provide: MetricsService, useValue: mockMetricsService },
                 { provide: UtilsService, useValue: mockUtilsService },
                 { provide: MatSnackBar, useValue: mockMatSnackBar },
                 { provide: MatIconRegistry, useValue: mockMatIconRegistry },

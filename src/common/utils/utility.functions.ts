@@ -8,7 +8,6 @@ import {
     ValidationErrors,
     ValidatorFn,
 } from "@angular/forms";
-import { EMPTY, fromEvent, map, Observable, takeUntil } from "rxjs";
 
 import { IValidationError, IValidationErrors } from "../common.interfaces";
 import { ExportSessionData } from "../database.interfaces";
@@ -239,22 +238,6 @@ export function createSessionTcxObject(
             },
         },
     };
-}
-
-export function observeValue$(characteristic: BluetoothRemoteGATTCharacteristic): Observable<DataView> {
-    if (characteristic.service === undefined) {
-        return EMPTY;
-    }
-
-    characteristic.startNotifications();
-    const disconnected = fromEvent(characteristic.service.device, "gattserverdisconnected");
-
-    return fromEvent(characteristic, "characteristicvaluechanged").pipe(
-        map(
-            (event: Event): DataView => (event.target as BluetoothRemoteGATTCharacteristic).value as DataView,
-        ),
-        takeUntil(disconnected),
-    );
 }
 
 declare global {

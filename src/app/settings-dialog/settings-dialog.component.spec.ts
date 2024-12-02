@@ -4,7 +4,7 @@ import { SwUpdate } from "@angular/service-worker";
 
 import { IRowerSettings } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
-import { DataService } from "../../common/services/data.service";
+import { MetricsService } from "../../common/services/metrics.service";
 
 import { SettingsDialogComponent } from "./settings-dialog.component";
 
@@ -48,7 +48,7 @@ describe("SettingsDialogComponent", (): void => {
             providers: [
                 { provide: SwUpdate, useValue: mockSwUpdate },
                 { provide: ConfigManagerService, useValue: mockConfigManagerService },
-                { provide: DataService, useValue: mockDataService },
+                { provide: MetricsService, useValue: mockDataService },
                 { provide: MAT_DIALOG_DATA, useValue: mockDialogData },
                 { provide: MatDialogRef, useValue: mockMatDialogRef },
             ],

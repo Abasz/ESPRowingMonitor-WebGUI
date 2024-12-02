@@ -4,9 +4,9 @@ import { Observable, of } from "rxjs";
 
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { DataRecorderService } from "../../common/services/data-recorder.service";
-import { DataService } from "../../common/services/data.service";
+import { ErgMetricsService } from "../../common/services/ergometer/erg-metric-data.service";
 import { HeartRateService } from "../../common/services/heart-rate/heart-rate.service";
-import { HeartRateService } from "../../common/services/heart-rate.service";
+import { MetricsService } from "../../common/services/metrics.service";
 import { UtilsService } from "../../common/services/utils.service";
 
 import { SettingsBarComponent } from "./settings-bar.component";
@@ -54,7 +54,7 @@ describe("SettingsBarComponent", (): void => {
 
         await TestBed.configureTestingModule({
             providers: [
-                { provide: DataService, useValue: mockDataService },
+                { provide: MetricsService, useValue: mockDataService },
                 { provide: DataRecorderService, useValue: mockDataRecorderService },
                 { provide: ErgMetricsService, useValue: mockErgMetricsService },
                 { provide: HeartRateService, useValue: mockHeartRateService },

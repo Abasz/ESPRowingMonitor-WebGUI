@@ -9,8 +9,8 @@ import {
     OtaRequestOpCodes,
     OtaResponseOpCodes,
 } from "../../common/ble.interfaces";
-import { ErgMetricsService } from "../../common/services/erg-metric-data.service";
-import { observeValue$ } from "../../common/utils/utility.functions";
+import { observeValue$ } from "../../common/services/ble.utilities";
+import { ErgGenericDataService } from "../../common/services/ergometer/erg-generic-data.service";
 
 @Injectable()
 export class OtaService {
@@ -20,7 +20,7 @@ export class OtaService {
     private responseCharacteristic: BluetoothRemoteGATTCharacteristic | undefined;
     private sendCharacteristic: BluetoothRemoteGATTCharacteristic | undefined;
 
-    constructor(private ergService: ErgMetricsService) {}
+    constructor(private ergGenericDataService: ErgGenericDataService) {}
 
     async abortOta(): Promise<void> {
         if (this.sendCharacteristic === undefined || this.responseCharacteristic === undefined) {
@@ -58,7 +58,7 @@ export class OtaService {
 
     async performOta(file: File): Promise<void> {
         const { responseCharacteristic, sendCharacteristic }: IOtaCharacteristics =
-            await this.ergService.getOtaCharacteristics();
+            await this.ergGenericDataService.getOtaCharacteristics();
 
         this.responseCharacteristic = responseCharacteristic;
         this.sendCharacteristic = sendCharacteristic;

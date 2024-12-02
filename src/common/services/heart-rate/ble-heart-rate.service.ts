@@ -29,7 +29,8 @@ import {
     HEART_RATE_SERVICE,
 } from "../../ble.interfaces";
 import { IHeartRate, IHeartRateService, IHRConnectionStatus } from "../../common.interfaces";
-import { observeValue$, withDelay } from "../../utils/utility.functions";
+import { withDelay } from "../../utils/utility.functions";
+import { connectToCharacteristic, observeValue$ } from "../ble.utilities";
 import { ConfigManagerService } from "../config-manager.service";
 
 @Injectable({
@@ -282,9 +283,9 @@ export class BLEHeartRateService implements IHeartRateService {
         gatt: BluetoothRemoteGATTServer,
     ): Promise<void | BluetoothRemoteGATTCharacteristic> {
         try {
-            const primaryService = await withDelay(1000, gatt.getPrimaryService(HEART_RATE_SERVICE));
-            const characteristic = await primaryService.getCharacteristic(HEART_RATE_CHARACTERISTIC);
-            this.heartRateCharacteristic.next(characteristic ?? undefined);
+            this.heartRateCharacteristic.next(
+                await connectToCharacteristic(gatt, HEART_RATE_SERVICE, HEART_RATE_CHARACTERISTIC),
+            );
             this.connectionStatusSubject.next({
                 deviceName:
                     this.bluetoothDevice?.gatt?.connected === true && this.bluetoothDevice.name
@@ -293,7 +294,7 @@ export class BLEHeartRateService implements IHeartRateService {
                 status: this.bluetoothDevice?.gatt?.connected ? "connected" : "disconnected",
             });
 
-            return characteristic ?? undefined;
+            return this.heartRateCharacteristic.value;
         } catch (error) {
             if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("Error connecting Heart Rate monitor", "Dismiss");

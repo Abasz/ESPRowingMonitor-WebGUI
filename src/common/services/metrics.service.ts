@@ -1,5 +1,5 @@
-import { DestroyRef, Injectable, Signal } from "@angular/core";
-import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
+import { DestroyRef, Injectable } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import {
     combineLatest,
     filter,
@@ -14,7 +14,6 @@ import {
     withLatestFrom,
 } from "rxjs";
 
-import { BleServiceFlag, IDeviceInformation, LogLevel } from "../ble.interfaces";
 import {
     IBaseMetrics,
     ICalculatedMetrics,
@@ -22,23 +21,20 @@ import {
     IExtendedMetrics,
     IHeartRate,
     IHRConnectionStatus,
-    IRowerSettings,
 } from "../common.interfaces";
 
 import { DataRecorderService } from "./data-recorder.service";
-import { ErgMetricsService } from "./erg-metric-data.service";
+import { ErgConnectionService } from "./ergometer/erg-connection.service";
+import { ErgMetricsService } from "./ergometer/erg-metric-data.service";
 import { HeartRateService } from "./heart-rate/heart-rate.service";
 
 @Injectable({
     providedIn: "root",
 })
-export class DataService {
+export class MetricsService {
     readonly allMetrics$: Observable<ICalculatedMetrics>;
-    readonly ergBatteryLevel$: Observable<number>;
-    readonly ergConnectionStatus$: Observable<IErgConnectionStatus>;
     readonly heartRateData$: Observable<IHeartRate | undefined>;
     readonly hrConnectionStatus$: Observable<IHRConnectionStatus>;
-    readonly settings: Signal<IRowerSettings>;
 
     private activityStartDistance: number = 0;
     private activityStartStrokeCount: number = 0;
@@ -55,27 +51,19 @@ export class DataService {
 
     constructor(
         private ergMetricService: ErgMetricsService,
+        private ergConnectionService: ErgConnectionService,
         private dataRecorder: DataRecorderService,
         private heartRateService: HeartRateService,
         private destroyRef: DestroyRef,
     ) {
         this.allMetrics$ = this.setupMetricStream$();
         this.heartRateData$ = this.heartRateService.streamHeartRate$();
-        this.ergBatteryLevel$ = this.ergMetricService.streamMonitorBatteryLevel$();
-        this.ergConnectionStatus$ = this.ergMetricService.connectionStatus$();
         this.hrConnectionStatus$ = this.heartRateService.connectionStatus$();
-        this.settings = toSignal(this.ergMetricService.streamSettings$(), {
-            initialValue: {
-                logDeltaTimes: undefined,
-                logToSdCard: undefined,
-                logLevel: 0,
-                bleServiceFlag: BleServiceFlag.CpsService,
-            },
-        });
 
         this.setupLogging();
 
-        this.ergConnectionStatus$
+        this.ergConnectionService
+            .connectionStatus$()
             .pipe(
                 filter(
                     (connectionStatus: IErgConnectionStatus): boolean =>
@@ -89,32 +77,12 @@ export class DataService {
             });
 
         if (isSecureContext && navigator.bluetooth) {
-            this.ergMetricService.reconnect();
+            this.ergConnectionService.reconnect();
         }
-    }
-
-    changeBleServiceType(bleService: BleServiceFlag): Promise<void> {
-        return this.ergMetricService.changeBleServiceType(bleService);
-    }
-
-    changeDeltaTimeLogging(shouldEnable: boolean): Promise<void> {
-        return this.ergMetricService.changeDeltaTimeLogging(shouldEnable);
-    }
-
-    changeLogLevel(logLevel: LogLevel): Promise<void> {
-        return this.ergMetricService.changeLogLevel(logLevel);
-    }
-
-    changeLogToSdCard(shouldEnable: boolean): Promise<void> {
-        return this.ergMetricService.changeLogToSdCard(shouldEnable);
     }
 
     getActivityStartTime(): Date {
         return this.activityStartTime;
-    }
-
-    readDeviceInfo(): Promise<IDeviceInformation> {
-        return this.ergMetricService.readDeviceInfo();
     }
 
     reset(): void {
@@ -191,7 +159,11 @@ export class DataService {
 
         this.streamMeasurement$()
             .pipe(
-                withLatestFrom(this.allMetrics$, this.heartRateData$, this.ergConnectionStatus$),
+                withLatestFrom(
+                    this.allMetrics$,
+                    this.heartRateData$,
+                    this.ergConnectionService.connectionStatus$(),
+                ),
                 filter(
                     ([_, calculatedMetrics]: [
                         IBaseMetrics,

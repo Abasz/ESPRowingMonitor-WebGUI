@@ -97,19 +97,6 @@ export interface IHeartRateService {
     streamHeartRate$(): Observable<IHeartRate | undefined>;
 }
 
-export interface IRowerDataService {
-    streamDeltaTimes$(): Observable<Array<number>>;
-    streamExtended$(): Observable<IExtendedMetrics>;
-    streamHandleForces$(): Observable<Array<number>>;
-    streamMeasurement$(): Observable<IBaseMetrics>;
-    streamMonitorBatteryLevel$(): Observable<number>;
-    streamSettings$(): Observable<IRowerSettings>;
-    changeBleServiceType(bleService: BleServiceFlag): Promise<void> | void;
-    changeDeltaTimeLogging(shouldEnable: boolean): Promise<void> | void;
-    changeLogLevel(logLevel: LogLevel): Promise<void> | void;
-    changeLogToSdCard(shouldEnable: boolean): Promise<void> | void;
-}
-
 /**
  * A WakeLockSentinel provides a handle to a platform wake lock, and it holds on
  * to it until it is either manually released or until the underlying platform

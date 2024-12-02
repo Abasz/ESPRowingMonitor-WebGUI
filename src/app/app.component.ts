@@ -15,13 +15,14 @@ import { filter, interval, map, merge, Observable, pairwise, startWith, switchMa
 
 import { BleServiceFlag } from "../common/ble.interfaces";
 import { ICalculatedMetrics, IErgConnectionStatus, IHeartRate } from "../common/common.interfaces";
-import { DataService } from "../common/services/data.service";
+import { MetricsService } from "../common/services/metrics.service";
 import { UtilsService } from "../common/services/utils.service";
 import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-confirm.component";
 import { BatteryLevelPipe } from "../common/utils/battery-level.pipe";
 import { RoundNumberPipe } from "../common/utils/round-number.pipe";
 import { SecondsToTimePipe } from "../common/utils/seconds-to-time.pipe";
 
+import { ErgConnectionService } from "./../common/services/ergometer/erg-connection.service";
 import { ForceCurveComponent } from "./force-curve/force-curve.component";
 import { MetricComponent } from "./metric/metric.component";
 import { SettingsBarComponent } from "./settings-bar/settings-bar.component";
@@ -47,8 +48,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
 
     elapseTime: Signal<number>;
-    heartRateData: Signal<IHeartRate | undefined> = toSignal(this.dataService.heartRateData$);
-    rowingData: Signal<ICalculatedMetrics> = toSignal(this.dataService.allMetrics$, {
+    heartRateData: Signal<IHeartRate | undefined> = toSignal(this.metricsService.heartRateData$);
+    rowingData: Signal<ICalculatedMetrics> = toSignal(this.metricsService.allMetrics$, {
         initialValue: {
             activityStartTime: new Date(),
             avgStrokePower: 0,
@@ -66,7 +67,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     });
 
     constructor(
-        private dataService: DataService,
+        private metricsService: MetricsService,
+        private ergConnectionService: ErgConnectionService,
         private utils: UtilsService,
         private swUpdate: SwUpdate,
         private snackBar: MatSnackBar,
@@ -75,7 +77,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         this.matIconReg.setDefaultFontSetClass("material-symbols-sharp");
 
         this.elapseTime = toSignal(
-            this.dataService.ergConnectionStatus$.pipe(
+            this.ergConnectionService.connectionStatus$().pipe(
                 filter(
                     (connectionStatus: IErgConnectionStatus): boolean =>
                         connectionStatus.status === "connected",
@@ -85,7 +87,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
                     (): Observable<number> =>
                         merge(
                             interval(1000),
-                            this.dataService.allMetrics$.pipe(
+                            this.metricsService.allMetrics$.pipe(
                                 pairwise(),
                                 filter(
                                     ([previous, current]: [
@@ -98,7 +100,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
                             startWith(0),
                             map(
                                 (): number =>
-                                    (Date.now() - this.dataService.getActivityStartTime().getTime()) / 1000,
+                                    (Date.now() - this.metricsService.getActivityStartTime().getTime()) /
+                                    1000,
                             ),
                         ),
                 ),
