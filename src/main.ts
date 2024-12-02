@@ -7,8 +7,8 @@ import { ServiceWorkerModule } from "@angular/service-worker";
 
 import { AppComponent } from "./app/app.component";
 import { SpinnerOverlay } from "./common/overlay/spinner-overlay.service";
-import { AntHeartRateService } from "./common/services/ant-heart-rate.service";
 import { ErrorInterceptor } from "./common/services/error.interceptor.service";
+import { AntHeartRateService } from "./common/services/heart-rate/ant-heart-rate.service";
 
 bootstrapApplication(AppComponent, {
     providers: [

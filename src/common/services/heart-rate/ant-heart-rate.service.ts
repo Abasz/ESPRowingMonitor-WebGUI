@@ -19,7 +19,7 @@ import {
 } from "rxjs";
 import { HeartRateSensor, HeartRateSensorState, USBDriver } from "web-ant-plus";
 
-import { IHeartRate, IHeartRateService, IHRConnectionStatus } from "../common.interfaces";
+import { IHeartRate, IHeartRateService, IHRConnectionStatus } from "../../common.interfaces";
 
 @Injectable({
     providedIn: "root",

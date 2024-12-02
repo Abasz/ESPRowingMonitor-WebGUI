@@ -20,7 +20,7 @@ import { ConfigManagerService } from "../../common/services/config-manager.servi
 import { DataRecorderService } from "../../common/services/data-recorder.service";
 import { DataService } from "../../common/services/data.service";
 import { ErgMetricsService } from "../../common/services/erg-metric-data.service";
-import { HeartRateService } from "../../common/services/heart-rate.service";
+import { HeartRateService } from "../../common/services/heart-rate/heart-rate.service";
 import { UtilsService } from "../../common/services/utils.service";
 import { BatteryLevelPipe } from "../../common/utils/battery-level.pipe";
 import { LogbookDialogComponent } from "../logbook-dialog/logbook-dialog.component";

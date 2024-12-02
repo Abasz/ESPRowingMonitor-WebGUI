@@ -2,11 +2,11 @@ import { Injectable } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { EMPTY, Observable, of, shareReplay, startWith, switchMap } from "rxjs";
 
-import { HeartRateMonitorMode, IHeartRate, IHRConnectionStatus } from "../common.interfaces";
+import { HeartRateMonitorMode, IHeartRate, IHRConnectionStatus } from "../../common.interfaces";
+import { ConfigManagerService } from "../config-manager.service";
 
 import { AntHeartRateService } from "./ant-heart-rate.service";
 import { BLEHeartRateService } from "./ble-heart-rate.service";
-import { ConfigManagerService } from "./config-manager.service";
 
 @Injectable({
     providedIn: "root",

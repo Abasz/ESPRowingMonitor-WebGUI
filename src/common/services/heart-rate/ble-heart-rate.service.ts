@@ -27,11 +27,10 @@ import {
     BATTERY_LEVEL_SERVICE,
     HEART_RATE_CHARACTERISTIC,
     HEART_RATE_SERVICE,
-} from "../ble.interfaces";
-import { IHeartRate, IHeartRateService, IHRConnectionStatus } from "../common.interfaces";
-import { observeValue$, withDelay } from "../utils/utility.functions";
-
-import { ConfigManagerService } from "./config-manager.service";
+} from "../../ble.interfaces";
+import { IHeartRate, IHeartRateService, IHRConnectionStatus } from "../../common.interfaces";
+import { observeValue$, withDelay } from "../../utils/utility.functions";
+import { ConfigManagerService } from "../config-manager.service";
 
 @Injectable({
     providedIn: "root",

@@ -27,7 +27,7 @@ import {
 
 import { DataRecorderService } from "./data-recorder.service";
 import { ErgMetricsService } from "./erg-metric-data.service";
-import { HeartRateService } from "./heart-rate.service";
+import { HeartRateService } from "./heart-rate/heart-rate.service";
 
 @Injectable({
     providedIn: "root",
