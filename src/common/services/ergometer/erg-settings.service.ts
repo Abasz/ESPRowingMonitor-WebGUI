@@ -2,18 +2,17 @@ import { Injectable, Signal } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import {
-    concat,
     EmptyError,
     filter,
     finalize,
     firstValueFrom,
     from,
-    interval,
     map,
+    mergeWith,
     Observable,
     retry,
     switchMap,
-    takeUntil,
+    timeout,
     timer,
 } from "rxjs";
 
@@ -61,10 +60,9 @@ export class ErgSettingsService {
         try {
             const characteristic = await service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
-            const responseTask = firstValueFrom(
-                observeValue$(characteristic).pipe(takeUntil(interval(1000))),
-            );
+            const responseTask = firstValueFrom(observeValue$(characteristic).pipe(timeout(1000)));
 
+            await characteristic.startNotifications();
             await characteristic.writeValueWithoutResponse(
                 new Uint8Array([BleOpCodes.ChangeBleService, bleService]),
             );
@@ -80,6 +78,8 @@ export class ErgSettingsService {
                     : "An error occurred while changing BLE service",
                 "Dismiss",
             );
+
+            await characteristic.stopNotifications();
         } catch (error) {
             const errorMessage = `Failed to change BLE service${error instanceof EmptyError ? ", request timed out" : ""}`;
 
@@ -99,10 +99,9 @@ export class ErgSettingsService {
         try {
             const characteristic = await service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
-            const responseTask = firstValueFrom(
-                observeValue$(characteristic).pipe(takeUntil(interval(1000))),
-            );
+            const responseTask = firstValueFrom(observeValue$(characteristic).pipe(timeout(1000)));
 
+            await characteristic.startNotifications();
             await characteristic.writeValueWithoutResponse(
                 new Uint8Array([BleOpCodes.SetDeltaTimeLogging, shouldEnable ? 1 : 0]),
             );
@@ -113,6 +112,8 @@ export class ErgSettingsService {
                     : "An error occurred while changing delta time logging",
                 "Dismiss",
             );
+
+            await characteristic.stopNotifications();
         } catch (error) {
             const errorMessage = `Failed to ${shouldEnable ? "enabled" : "disabled"} delta time logging ${error instanceof EmptyError ? ", request timed out" : ""}`;
 
@@ -132,10 +133,9 @@ export class ErgSettingsService {
         try {
             const characteristic = await service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
-            const responseTask = firstValueFrom(
-                observeValue$(characteristic).pipe(takeUntil(interval(1000))),
-            );
+            const responseTask = firstValueFrom(observeValue$(characteristic).pipe(timeout(1000)));
 
+            await characteristic.startNotifications();
             await characteristic.writeValueWithoutResponse(
                 new Uint8Array([BleOpCodes.SetLogLevel, logLevel]),
             );
@@ -146,6 +146,8 @@ export class ErgSettingsService {
                     : "An error occurred while changing Log level",
                 "Dismiss",
             );
+
+            await characteristic.stopNotifications();
         } catch (error) {
             const errorMessage = `Failed to set Log Level${error instanceof EmptyError ? ", request timed out" : ""}`;
 
@@ -165,10 +167,9 @@ export class ErgSettingsService {
         try {
             const characteristic = await service.getCharacteristic(SETTINGS_CONTROL_POINT);
 
-            const responseTask = firstValueFrom(
-                observeValue$(characteristic).pipe(takeUntil(interval(1000))),
-            );
+            const responseTask = firstValueFrom(observeValue$(characteristic).pipe(timeout(1000)));
 
+            await characteristic.startNotifications();
             await characteristic.writeValueWithoutResponse(
                 new Uint8Array([BleOpCodes.SetSdCardLogging, shouldEnable ? 1 : 0]),
             );
@@ -179,6 +180,8 @@ export class ErgSettingsService {
                     : "An error occurred while changing Sd Card logging",
                 "Dismiss",
             );
+
+            await characteristic.stopNotifications();
         } catch (error) {
             const errorMessage = `Failed to ${shouldEnable ? "enabled" : "disabled"} Sd Card logging${error instanceof EmptyError ? ", request timed out" : ""}`;
 
@@ -190,7 +193,8 @@ export class ErgSettingsService {
     private observeSettings$(
         settingsCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<IRowerSettings> {
-        return concat(from(settingsCharacteristic.readValue()), observeValue$(settingsCharacteristic)).pipe(
+        return observeValue$(settingsCharacteristic).pipe(
+            mergeWith(from(settingsCharacteristic.readValue())),
             map((value: DataView): IRowerSettings => {
                 const logToWs = value.getUint8(0) & 3;
                 const logToSd = (value.getUint8(0) >> 2) & 3;
@@ -228,7 +232,7 @@ export class ErgSettingsService {
                 delay: (error: Error, count: number): Observable<0> => {
                     const gatt = this.ergConnectionService.readSettingsCharacteristic()?.service.device.gatt;
                     if (gatt && error.message.includes("unknown")) {
-                        console.warn(`Extended metrics characteristic error: ${error}; retrying: ${count}`);
+                        console.warn(`Settings metrics characteristic error: ${error}; retrying: ${count}`);
 
                         this.ergConnectionService.connectToSettings(gatt);
                     }

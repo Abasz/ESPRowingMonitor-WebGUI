@@ -2,11 +2,11 @@ import { Injectable } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import {
     catchError,
-    concat,
     filter,
     finalize,
     from,
     map,
+    mergeWith,
     Observable,
     of,
     retry,
@@ -114,7 +114,8 @@ export class ErgGenericDataService {
     }
 
     private observeBattery$(batteryCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<number> {
-        return concat(from(batteryCharacteristic.readValue()), observeValue$(batteryCharacteristic)).pipe(
+        return observeValue$(batteryCharacteristic).pipe(
+            mergeWith(from(batteryCharacteristic.readValue())),
             map((value: DataView): number => value.getInt8(0)),
             finalize((): void => {
                 this.ergConnectionService.resetBatteryCharacteristic();

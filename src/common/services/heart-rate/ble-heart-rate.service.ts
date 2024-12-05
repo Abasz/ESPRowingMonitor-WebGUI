@@ -3,13 +3,13 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import {
     BehaviorSubject,
     catchError,
-    concat,
     endWith,
     filter,
     finalize,
     from,
     fromEvent,
     map,
+    mergeWith,
     Observable,
     of,
     retry,
@@ -318,7 +318,8 @@ export class BLEHeartRateService implements IHeartRateService {
     private observeBattery(
         batteryCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<number | undefined> {
-        return concat(from(batteryCharacteristic.readValue()), observeValue$(batteryCharacteristic)).pipe(
+        return observeValue$(batteryCharacteristic).pipe(
+            mergeWith(from(batteryCharacteristic.readValue())),
             map((value: DataView): number => value.getInt8(0)),
             finalize((): void => {
                 this.batteryCharacteristic.next(undefined);
