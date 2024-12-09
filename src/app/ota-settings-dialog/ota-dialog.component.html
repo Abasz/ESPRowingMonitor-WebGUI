@@ -2,22 +2,14 @@
 <div mat-dialog-content>
     <p>Please do not navigate away from this page and do not restart the device</p>
     <mat-progress-bar
-        [mode]="updateState() === UpdateState.Aborting ? 'indeterminate' : 'determinate'"
+        [mode]="progress() === 0 || data.firmwareSize === progress() ? 'indeterminate' : 'determinate'"
         [value]="(progress() / data.firmwareSize) * 100"
     ></mat-progress-bar>
     <div class="progress-state">
         <span
             >ETA:
-            @if (updateState() === UpdateState.InProgress) {
-                @if ((data.firmwareSize - progress()) / 6 > 59) {
-                    {{
-                        ((data.firmwareSize - progress()) / 6 | secondsToTime: "full") <
-                        ((data.firmwareSize - progress()) / 6 | secondsToTime: "full" : true)
-                            ? "<"
-                            : ">"
-                    }}
-                }
-                {{ (data.firmwareSize - progress()) / 6 | secondsToTime: "full" : true }}
+            @if (uploadSpeed() > 0 && data.firmwareSize !== progress()) {
+                {{ (data.firmwareSize - progress()) / uploadSpeed() | secondsToTime: "verbose" }}
             } @else {
                 {{ UpdateState[updateState()] }}
             }

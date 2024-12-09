@@ -10,7 +10,11 @@ export class SecondsToTimePipe implements PipeTransform {
     private mins: number = 0;
     private seconds: number = 0;
 
-    transform(seconds: number, format: "full" | "simple" | "pace" = "full", round: boolean = false): string {
+    transform(
+        seconds: number,
+        format: "verbose" | "full" | "simple" | "pace" = "full",
+        round: boolean = false,
+    ): string {
         /**
          * Pipe for converting seconds to comma separated elapsed time string
          * (e.g.: 1 day, 20 horus, 3 minutes).
@@ -29,15 +33,19 @@ export class SecondsToTimePipe implements PipeTransform {
         }
         this.seconds = secondsRounded;
 
-        if (format === "simple") {
-            return this.formatSimple();
-        }
+        switch (format) {
+            case "simple":
+                return this.formatSimple();
 
-        if (format === "pace") {
-            return this.formatPace();
-        }
+            case "pace":
+                return this.formatPace();
 
-        return this.formatFull();
+            case "verbose":
+                return this.formatVerbose();
+
+            default:
+                return this.formatFull();
+        }
     }
 
     private formatFull(): string {
@@ -96,6 +104,41 @@ export class SecondsToTimePipe implements PipeTransform {
                 }
                 if (this.mins > 0) {
                     timeString += `${this.mins}m`;
+                }
+
+                return timeString;
+        }
+    }
+
+    private formatVerbose(): string {
+        switch (true) {
+            case this.seconds === 0:
+                return "0";
+            case this.seconds === 1:
+                return "1 second";
+            case this.seconds < 60:
+                return `${this.seconds} seconds`;
+            default:
+                let timeString = "";
+                if (this.days > 0) {
+                    timeString += `${this.days} ${this.days === 1 ? "day" : "days"}${
+                        this.hours + this.mins > 0 ? ", " : ""
+                    }`;
+                }
+                if (this.hours > 0) {
+                    timeString += `${this.hours} ${this.hours === 1 ? "hour" : "hours"}${
+                        this.mins > 0 ? ", " : ""
+                    }`;
+                }
+
+                const seconds = Math.round(((this.seconds % 86400) % 3600) % 60);
+                if (this.mins > 0) {
+                    timeString += `${this.mins} ${this.mins === 1 ? "minute" : "minutes"}${
+                        seconds > 0 ? ", " : ""
+                    }`;
+                }
+                if (seconds > 0) {
+                    timeString += `${seconds} ${this.mins === 1 ? "second" : "seconds"}`;
                 }
 
                 return timeString;

@@ -38,7 +38,8 @@ const fullMessage: { [key: string]: string } = {
 };
 
 enum UpdateState {
-    InProgress,
+    Starting,
+    Installing,
     Completed,
     Errored,
     Aborting,
@@ -65,7 +66,11 @@ enum UpdateState {
 export class OtaDialogComponent {
     readonly UpdateState: typeof UpdateState = UpdateState;
     readonly progress: Signal<number>;
-    readonly updateState: WritableSignal<UpdateState> = signal(UpdateState.InProgress);
+    readonly updateState: Signal<UpdateState>;
+    readonly uploadSpeed: Signal<number>;
+
+    private _updateState: WritableSignal<UpdateState> = signal(UpdateState.Starting);
+    private startTime: number = Date.now();
 
     constructor(
         private snack: MatSnackBar,
@@ -79,7 +84,13 @@ export class OtaDialogComponent {
         },
     ) {
         this.progress = computed((): number => this.otaService.progress() / 1000);
+        this.uploadSpeed = computed((): number => this.progress() / ((Date.now() - this.startTime) / 1000));
+        this.updateState = computed(
+            (): UpdateState =>
+                this.progress() === data.firmwareSize ? UpdateState.Installing : this._updateState(),
+        );
         this.initOta();
+        this.startTime = Date.now();
     }
 
     async cancelUpdate(): Promise<void> {
@@ -98,7 +109,7 @@ export class OtaDialogComponent {
         }
 
         try {
-            this.updateState.set(UpdateState.Aborting);
+            this._updateState.set(UpdateState.Aborting);
             await this.otaService.abortOta();
         } catch (e: unknown) {
             if (e instanceof OtaError) {
@@ -112,13 +123,14 @@ export class OtaDialogComponent {
             }
         }
         this.dialogRef.close();
+        this.startTime = Date.now();
     }
 
     async initOta(): Promise<void> {
         try {
             await this.otaService.performOta(this.data.file);
             if (this.progress() === this.data.firmwareSize) {
-                this.updateState.set(UpdateState.Completed);
+                this._updateState.set(UpdateState.Completed);
                 this.openOtaResultDialog(
                     "Update complete",
                     "Firmware update was successful, device will restart",
@@ -126,7 +138,7 @@ export class OtaDialogComponent {
                 this.dialogRef.close();
             }
         } catch (e: unknown) {
-            this.updateState.set(UpdateState.Errored);
+            this._updateState.set(UpdateState.Errored);
             if (e instanceof OtaError) {
                 this.openOtaResultDialog(
                     e.name.pascalCaseToSentence(),
@@ -137,6 +149,7 @@ export class OtaDialogComponent {
                 this.openOtaResultDialog("Update error", fullMessage.default);
             }
             this.dialogRef.close();
+            this.startTime = Date.now();
         }
     }
 
