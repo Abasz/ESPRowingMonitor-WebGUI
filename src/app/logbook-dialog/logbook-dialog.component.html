@@ -16,9 +16,9 @@
             <mat-header-cell justify="center" mat-sort-header *matHeaderCellDef class="date"
                 >Date</mat-header-cell
             >
-            <mat-cell *matCellDef="let sessionData" class="date date-cell">
+            <mat-cell *matCellDef="let sessionData" class="date flex-col justify-center items-start ate-cell">
                 <span>{{ sessionData.sessionId | date: "yyyy-MM-dd" }}</span>
-                <span>{{ sessionData.sessionId | date: "HH:mm:ss" }}</span>
+                <span style="font-size: 0.75rem">{{ sessionData.sessionId | date: "HH:mm:ss" }}</span>
             </mat-cell>
         </ng-container>
         <ng-container matColumnDef="time">
@@ -46,8 +46,8 @@
             </mat-cell>
         </ng-container>
         <ng-container matColumnDef="actions">
-            <mat-header-cell *matHeaderCellDef class="actions">Actions</mat-header-cell>
-            <mat-cell *matCellDef="let sessionData" class="actions">
+            <mat-header-cell *matHeaderCellDef class="actions justify-center">Actions</mat-header-cell>
+            <mat-cell *matCellDef="let sessionData" class="actions justify-center">
                 <button
                     [matMenuTriggerFor]="menu"
                     [matMenuTriggerData]="{ sessionId: sessionData.sessionId }"

@@ -1,0 +1,264 @@
+@mixin xs {
+    @media screen and (max-width: 599px) {
+        @content;
+    }
+}
+
+@mixin sm {
+    @media screen and (min-width: 600px) and (max-width: 959px) {
+        @content;
+    }
+}
+
+// md	'screen and (min-width: 960px) and (max-width: 1279px)'
+// lg	'screen and (min-width: 1280px) and (max-width: 1919px)'
+// xl	'screen and (min-width: 1920px) and (max-width: 5000px)'
+@mixin lt-sm {
+    @media screen and (max-width: 599px) {
+        @content;
+    }
+}
+
+// lt-md	'screen and (max-width: 959px)'
+// lt-lg	'screen and (max-width: 1279px)'
+// lt-xl	'screen and (max-width: 1919px)'
+@mixin gt-xs {
+    @media screen and (min-width: 600px) {
+        @content;
+    }
+}
+
+@mixin gt-sm {
+    @media screen and (min-width: 960px) {
+        @content;
+    }
+}
+
+// gt-md	'screen and (min-width: 1280px)'
+// gt-lg	'screen and (min-width: 1920px)'
+
+// Flex row/col + grid.
+.flex-row {
+    display: flex;
+    flex-direction: row;
+}
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+.grid {
+    display: grid;
+}
+
+// Flex-wrap utils.
+.flex-wrap {
+    flex-wrap: wrap;
+} // Mostly used with flex-row, when wrapping is desired.
+.flex-col-xs {
+    @media screen and (max-width: 599px) {
+        flex-direction: column;
+    }
+} // Switch from flex-row to flex-col on mobile.
+
+// Gap.
+.gap-8 {
+    gap: 8px;
+}
+.gap-16 {
+    gap: 16px;
+}
+
+// Justify content.
+.justify-space-between {
+    justify-content: space-between;
+}
+.justify-center {
+    justify-content: center;
+}
+.justify-start {
+    justify-content: flex-start;
+}
+.justify-end {
+    justify-content: flex-end;
+}
+
+// Align items. (Naming inspiration: https://tailwindcss.com/docs/align-items.)
+.items-center {
+    align-items: center;
+}
+.items-start {
+    align-items: flex-start;
+}
+.items-end {
+    align-items: flex-end;
+}
+
+.flex-1 {
+    flex: 1 1 0%;
+}
+.flex-grow {
+    flex: 1 1 100%;
+} // Same as flex: 1 1 auto (grow, shrink, basis auto). For spacer, etc.
+.flex-none {
+    flex: 0 0 auto;
+}
+.flex-auto {
+    flex: auto;
+}
+
+.grid-span- {
+    &1 {
+        grid-column: span 1;
+    }
+    &2 {
+        grid-column: span 2;
+    }
+    &3 {
+        grid-column: span 3;
+    }
+    &4 {
+        grid-column: span 4;
+    }
+    &6 {
+        grid-column: span 6;
+    }
+}
+
+@include xs {
+    .xs- {
+        &hide {
+            display: none;
+        }
+
+        &flex-col {
+            display: flex;
+            flex-direction: column;
+        }
+        &flex-row {
+            display: flex;
+            flex-direction: row;
+        }
+        &flex-1 {
+            flex: 1 1 0%;
+        }
+
+        &grid-span- {
+            &1 {
+                grid-column: span 1;
+            }
+            &2 {
+                grid-column: span 2;
+            }
+            &3 {
+                grid-column: span 3;
+            }
+            &4 {
+                grid-column: span 4;
+            }
+            &6 {
+                grid-column: span 6;
+            }
+        }
+    }
+}
+
+@include sm {
+    .sm- {
+        &grid-span- {
+            &1 {
+                grid-column: span 1;
+            }
+            &2 {
+                grid-column: span 2;
+            }
+            &3 {
+                grid-column: span 3;
+            }
+            &4 {
+                grid-column: span 4;
+            }
+        }
+    }
+}
+
+// md	'screen and (min-width: 960px) and (max-width: 1279px)'
+// lg	'screen and (min-width: 1280px) and (max-width: 1919px)'
+// xl	'screen and (min-width: 1920px) and (max-width: 5000px)'
+@include lt-sm {
+    .lt-sm- {
+        &grid-span- {
+            &1 {
+                grid-column: span 1;
+            }
+            &2 {
+                grid-column: span 2;
+            }
+            &3 {
+                grid-column: span 3;
+            }
+            &4 {
+                grid-column: span 4;
+            }
+            &5 {
+                grid-column: span 5;
+            }
+            &6 {
+                grid-column: span 6;
+            }
+        }
+    }
+}
+// lt-md	'screen and (max-width: 959px)'
+// lt-lg	'screen and (max-width: 1279px)'
+// lt-xl	'screen and (max-width: 1919px)'
+@include gt-xs {
+    .gt-xs- {
+        &hide {
+            display: none;
+        }
+
+        &items-center {
+            align-items: center;
+        }
+
+        &flex-row {
+            display: flex;
+            flex-direction: row;
+        }
+
+        &grid-span- {
+            &1 {
+                grid-column: span 1;
+            }
+            &2 {
+                grid-column: span 2;
+            }
+            &3 {
+                grid-column: span 3;
+            }
+            &4 {
+                grid-column: span 4;
+            }
+        }
+    }
+}
+
+@include gt-sm {
+    .gt-sm- {
+        &justify-center {
+            justify-content: center;
+        }
+
+        &items-center {
+            align-items: center;
+        }
+        &items-start {
+            align-items: flex-start;
+        }
+        &items-end {
+            align-items: flex-end;
+        }
+    }
+}
+// gt-md	'screen and (min-width: 1280px)'
+// gt-lg	'screen and (min-width: 1920px)'

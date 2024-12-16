@@ -5,7 +5,7 @@
         [mode]="progress() === 0 || data.firmwareSize === progress() ? 'indeterminate' : 'determinate'"
         [value]="(progress() / data.firmwareSize) * 100"
     ></mat-progress-bar>
-    <div class="progress-state">
+    <div class="flex-row items-center justify-space-between gap-8">
         <span
             >ETA:
             @if (uploadSpeed() > 0 && data.firmwareSize !== progress()) {

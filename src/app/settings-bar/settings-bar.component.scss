@@ -1,6 +1,6 @@
 @use "@angular/material" as mat;
 
-@use "../../theme.scss";
+@use "../../flex-layout" as flex-layout;
 
 mat-icon.battery-level {
     padding: 0px 8px;
@@ -24,16 +24,8 @@ mat-toolbar {
     }
 
     > div {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-
-        > button,
-        div {
-            display: flex;
-            justify-content: center;
-
-            @media screen and (min-width: 600px) {
+        > *:not(span) {
+            @include flex-layout.gt-xs {
                 margin: 0px 8px;
             }
         }

@@ -1,31 +1,17 @@
-form {
-    display: flex;
-    flex-direction: column;
-
-    mat-slide-toggle {
-        margin: 8px 0;
-        display: block;
-    }
+form mat-slide-toggle {
+    margin: 8px 0;
+    display: block;
 }
 
-div[versionInfo] {
+div.erg-info > span {
+    flex: 1;
+    display: flex;
     align-items: center;
-}
-
-div.erg-info {
-    display: flex;
-    flex-direction: column;
-
-    > span {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        user-select: none;
-        font-size: 12px;
-        font-style: italic;
-        margin-right: 6px;
-        min-height: 24px;
-    }
+    user-select: none;
+    font-size: 12px;
+    font-style: italic;
+    margin-right: 6px;
+    min-height: 24px;
 }
 
 mat-option {

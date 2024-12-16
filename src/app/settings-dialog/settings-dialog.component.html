@@ -1,6 +1,6 @@
 <h1 mat-dialog-title>Settings</h1>
 <div mat-dialog-content>
-    <form [formGroup]="settingsForm" (ngSubmit)="submitLoginForm()" novalidate>
+    <form [formGroup]="settingsForm" (ngSubmit)="submitLoginForm()" novalidate class="flex-col">
         <mat-form-field>
             <mat-label>BLE Mode</mat-label>
             <mat-select
@@ -54,12 +54,12 @@
         <mat-checkbox formControlName="deltaTimeLogging">Bluetooth</mat-checkbox>
         <mat-checkbox formControlName="logToSdCard">SdCard</mat-checkbox>
     </form>
-    <div class="erg-info">
+    <div class="erg-info flex-col">
         <span>Manufacturer: {{ deviceInfo.manufacturerName ?? "unknown" }} </span>
         @if (deviceInfo.modelNumber) {
             <span>Model: {{ deviceInfo.modelNumber }}</span>
         }
-        <div versionInfo>
+        <div versionInfo class="items-center">
             <span>FW Version: {{ deviceInfo.firmwareNumber ?? "unknown" }}</span>
             <button
                 matTooltipShowDelay="1000"
@@ -74,7 +74,7 @@
             <input #fileInput accept=".bin" style="display: none" type="file" (change)="otaUpdate($event)" />
         </div>
     </div>
-    <div versionInfo>
+    <div versionInfo class="items-center">
         <span>GUI Version: {{ compileDate | date: "yyMMddHHmmss" }}</span>
         <button
             matTooltipShowDelay="1000"
