@@ -1,0 +1,17 @@
+@if (isBleAvailable) {
+    @if (heartRateMonitorMode() !== "off") {
+        <button
+            matTooltipShowDelay="1000"
+            [matTooltip]="
+                hrConnectionStatus().deviceName ??
+                (hrConnectionStatus().status === 'searching' ? 'Searching' : 'Connect HRM')
+            "
+            (click)="heartRateMonitorDiscovery()"
+            mat-icon-button
+        >
+            <mat-icon [ngClass]="hrConnectionStatus().status === 'connecting' ? 'blink' : ''">{{
+                hrConnectionStatus().status === "disconnected" ? "favorite" : "ecg_heart"
+            }}</mat-icon>
+        </button>
+    }
+}

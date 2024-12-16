@@ -1,0 +1,15 @@
+@if (isBleAvailable) {
+    <button
+        matTooltipShowDelay="1000"
+        [matTooltip]="
+            ergConnectionStatus().deviceName ??
+            (ergConnectionStatus().status === 'searching' ? 'Searching' : 'Connect ESPRM')
+        "
+        (click)="ergoMonitorDiscovery()"
+        mat-icon-button
+    >
+        <mat-icon [ngClass]="ergConnectionStatus().status === 'connecting' ? 'blink' : ''">{{
+            BleConnectionStatusIcons[ergConnectionStatus().status]
+        }}</mat-icon>
+    </button>
+}

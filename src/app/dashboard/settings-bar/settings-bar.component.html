@@ -8,48 +8,12 @@
         <button matTooltipShowDelay="1000" matTooltip="Logbook" (click)="openLogbook()" mat-icon-button>
             <mat-icon>sports_score</mat-icon>
         </button>
-        <button
-            *ngIf="isBleAvailable"
-            matTooltipShowDelay="1000"
-            matTooltip="Settings"
-            (click)="openSettings()"
-            mat-icon-button
-        >
-            <mat-icon>settings</mat-icon>
-        </button>
+        <app-open-settings-button></app-open-settings-button>
         <button matTooltipShowDelay="1000" matTooltip="Reset" (click)="reset()" mat-icon-button>
             <mat-icon>laps</mat-icon>
         </button>
-        @if (isBleAvailable) {
-            @if (heartRateMonitorMode() !== "off") {
-                <button
-                    matTooltipShowDelay="1000"
-                    [matTooltip]="
-                        hrConnectionStatus().deviceName ??
-                        (hrConnectionStatus().status === 'searching' ? 'Searching' : 'Connect HRM')
-                    "
-                    (click)="heartRateMonitorDiscovery()"
-                    mat-icon-button
-                >
-                    <mat-icon [ngClass]="hrConnectionStatus().status === 'connecting' ? 'blink' : ''">{{
-                        hrConnectionStatus().status === "disconnected" ? "favorite" : "ecg_heart"
-                    }}</mat-icon>
-                </button>
-            }
-            <button
-                matTooltipShowDelay="1000"
-                [matTooltip]="
-                    ergConnectionStatus().deviceName ??
-                    (ergConnectionStatus().status === 'searching' ? 'Searching' : 'Connect ESPRM')
-                "
-                (click)="ergoMonitorDiscovery()"
-                mat-icon-button
-            >
-                <mat-icon [ngClass]="ergConnectionStatus().status === 'connecting' ? 'blink' : ''">{{
-                    BleConnectionStatusIcons[ergConnectionStatus().status]
-                }}</mat-icon>
-            </button>
-        }
+        <app-connect-heart-rate-button></app-connect-heart-rate-button>
+        <app-connect-erg-button></app-connect-erg-button>
         <span>{{
             ergConnectionStatus().status !== "connected"
                 ? ""
