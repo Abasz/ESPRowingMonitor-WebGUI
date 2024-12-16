@@ -46,7 +46,7 @@
                 mat-icon-button
             >
                 <mat-icon [ngClass]="ergConnectionStatus().status === 'connecting' ? 'blink' : ''">{{
-                    bleConnectionStatusIcons[ergConnectionStatus().status]
+                    BleConnectionStatusIcons[ergConnectionStatus().status]
                 }}</mat-icon>
             </button>
         }

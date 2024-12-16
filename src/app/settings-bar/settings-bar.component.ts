@@ -37,14 +37,7 @@ import { ErgSettingsService } from "./../../common/services/ergometer/erg-settin
     imports: [MatToolbar, MatIcon, MatTooltip, MatIconButton, NgIf, NgClass, DatePipe, BatteryLevelPipe]
 })
 export class SettingsBarComponent {
-    BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
-    BleServiceNames: typeof BleServiceNames = BleServiceNames;
-
-    batteryLevel: Signal<number> = toSignal(this.ergGenericDataService.streamMonitorBatteryLevel$(), {
-        initialValue: 0,
-    });
-
-    bleConnectionStatusIcons: {
+    BleConnectionStatusIcons: {
         connected: string;
         connecting: string;
         searching: string;
@@ -55,6 +48,12 @@ export class SettingsBarComponent {
         searching: "bluetooth_searching",
         disconnected: "bluetooth",
     };
+    BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
+    BleServiceNames: typeof BleServiceNames = BleServiceNames;
+
+    batteryLevel: Signal<number> = toSignal(this.ergGenericDataService.streamMonitorBatteryLevel$(), {
+        initialValue: 0,
+    });
 
     ergConnectionStatus: Signal<IErgConnectionStatus> = toSignal(
         this.ergConnectionService.connectionStatus$(),
