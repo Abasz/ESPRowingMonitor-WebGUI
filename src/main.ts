@@ -3,8 +3,10 @@ import { DestroyRef, importProvidersFrom, isDevMode } from "@angular/core";
 import { MAT_SNACK_BAR_DEFAULT_OPTIONS, MatSnackBar } from "@angular/material/snack-bar";
 import { bootstrapApplication } from "@angular/platform-browser";
 import { provideAnimations } from "@angular/platform-browser/animations";
+import { provideRouter } from "@angular/router";
 import { ServiceWorkerModule } from "@angular/service-worker";
 
+import { DashboardComponent } from "./app/dashboard/dashboard.component";
 import { AppComponent } from "./app/app.component";
 import { SpinnerOverlay } from "./common/overlay/spinner-overlay.service";
 import { ErrorInterceptor } from "./common/services/error.interceptor.service";
@@ -12,6 +14,14 @@ import { AntHeartRateService } from "./common/services/heart-rate/ant-heart-rate
 
 bootstrapApplication(AppComponent, {
     providers: [
+        provideRouter([
+            {
+                path: "",
+                loadComponent: async (): Promise<typeof DashboardComponent> =>
+                    (await import("./app/dashboard/dashboard.component")).DashboardComponent,
+            },
+            { path: "**", redirectTo: "" },
+        ]),
         SpinnerOverlay,
         provideAnimations(),
         importProvidersFrom(

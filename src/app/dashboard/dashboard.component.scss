@@ -1,0 +1,47 @@
+.main-loading-spinner {
+    margin: auto;
+    z-index: 990;
+}
+
+.backdrop {
+    background-color: rgba(0, 0, 0, 0.2);
+    z-index: 1091;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.dashboard {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    height: calc(100% - 80px);
+    margin: 10px;
+}
+
+app-metric[icon="ecg_heart"],
+app-metric[title="Drive"],
+app-metric[title="Recovery"] {
+    @media (max-width: 890px) {
+        display: none;
+    }
+}
+
+app-metric[icon="ecg_heart"] mat-icon {
+    width: 1.1em;
+    height: 1.1em;
+    font-size: 1.1em;
+    position: absolute;
+    bottom: 0.3em;
+    right: 0.2em;
+}
+
+app-force-curve {
+    grid-row: span 2;
+
+    @media (max-width: 890px) {
+        grid-column: span 2;
+    }
+}
