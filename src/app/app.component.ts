@@ -23,9 +23,9 @@ import { RoundNumberPipe } from "../common/utils/round-number.pipe";
 import { SecondsToTimePipe } from "../common/utils/seconds-to-time.pipe";
 
 import { ErgConnectionService } from "./../common/services/ergometer/erg-connection.service";
-import { ForceCurveComponent } from "./force-curve/force-curve.component";
-import { MetricComponent } from "./metric/metric.component";
-import { SettingsBarComponent } from "./settings-bar/settings-bar.component";
+import { ForceCurveComponent } from "./dashboard/force-curve/force-curve.component";
+import { MetricComponent } from "./dashboard/metric/metric.component";
+import { SettingsBarComponent } from "./dashboard/settings-bar/settings-bar.component";
 
 @Component({
     selector: "app-root",

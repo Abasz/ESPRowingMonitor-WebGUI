@@ -2,12 +2,12 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatDialog } from "@angular/material/dialog";
 import { Observable, of } from "rxjs";
 
-import { ConfigManagerService } from "../../common/services/config-manager.service";
-import { DataRecorderService } from "../../common/services/data-recorder.service";
-import { ErgMetricsService } from "../../common/services/ergometer/erg-metric-data.service";
-import { HeartRateService } from "../../common/services/heart-rate/heart-rate.service";
-import { MetricsService } from "../../common/services/metrics.service";
-import { UtilsService } from "../../common/services/utils.service";
+import { ConfigManagerService } from "../../../common/services/config-manager.service";
+import { DataRecorderService } from "../../../common/services/data-recorder.service";
+import { ErgMetricsService } from "../../../common/services/ergometer/erg-metric-data.service";
+import { HeartRateService } from "../../../common/services/heart-rate/heart-rate.service";
+import { MetricsService } from "../../../common/services/metrics.service";
+import { UtilsService } from "../../../common/services/utils.service";
 
 import { SettingsBarComponent } from "./settings-bar.component";
 

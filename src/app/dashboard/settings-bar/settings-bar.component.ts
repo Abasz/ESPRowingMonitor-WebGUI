@@ -8,26 +8,25 @@ import { MatToolbar } from "@angular/material/toolbar";
 import { MatTooltip } from "@angular/material/tooltip";
 import { interval, map, take } from "rxjs";
 
-import { BleServiceFlag, BleServiceNames } from "../../common/ble.interfaces";
+import { BleServiceFlag, BleServiceNames } from "../../../common/ble.interfaces";
 import {
     HeartRateMonitorMode,
     IErgConnectionStatus,
     IHRConnectionStatus,
     IRowerSettings,
     ISessionSummary,
-} from "../../common/common.interfaces";
-import { ConfigManagerService } from "../../common/services/config-manager.service";
-import { DataRecorderService } from "../../common/services/data-recorder.service";
-import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
-import { ErgGenericDataService } from "../../common/services/ergometer/erg-generic-data.service";
-import { HeartRateService } from "../../common/services/heart-rate/heart-rate.service";
-import { MetricsService } from "../../common/services/metrics.service";
-import { UtilsService } from "../../common/services/utils.service";
-import { BatteryLevelPipe } from "../../common/utils/battery-level.pipe";
-import { LogbookDialogComponent } from "../logbook-dialog/logbook-dialog.component";
-import { SettingsDialogComponent } from "../settings-dialog/settings-dialog.component";
-
-import { ErgSettingsService } from "./../../common/services/ergometer/erg-settings.service";
+} from "../../../common/common.interfaces";
+import { ConfigManagerService } from "../../../common/services/config-manager.service";
+import { DataRecorderService } from "../../../common/services/data-recorder.service";
+import { ErgConnectionService } from "../../../common/services/ergometer/erg-connection.service";
+import { ErgGenericDataService } from "../../../common/services/ergometer/erg-generic-data.service";
+import { ErgSettingsService } from "../../../common/services/ergometer/erg-settings.service";
+import { HeartRateService } from "../../../common/services/heart-rate/heart-rate.service";
+import { MetricsService } from "../../../common/services/metrics.service";
+import { UtilsService } from "../../../common/services/utils.service";
+import { BatteryLevelPipe } from "../../../common/utils/battery-level.pipe";
+import { LogbookDialogComponent } from "../../logbook-dialog/logbook-dialog.component";
+import { SettingsDialogComponent } from "../../settings-dialog/settings-dialog.component";
 
 @Component({
     selector: "app-settings-bar",
