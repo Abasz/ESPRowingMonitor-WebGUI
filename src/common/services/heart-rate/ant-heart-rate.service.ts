@@ -56,17 +56,7 @@ export class AntHeartRateService implements IHeartRateService {
     ) {}
 
     connectionStatus$(): Observable<IHRConnectionStatus> {
-        return merge(
-            this.connectionStatusSubject,
-            this.heartRateSensorSubject.pipe(
-                map(
-                    (hrSensor: HeartRateSensor | undefined): IHRConnectionStatus => ({
-                        deviceName: hrSensor?.deviceID?.toString(),
-                        status: hrSensor?.deviceID ? "connected" : "disconnected",
-                    }),
-                ),
-            ),
-        );
+        return this.connectionStatusSubject.asObservable();
     }
 
     async disconnectDevice(): Promise<void> {
@@ -78,6 +68,9 @@ export class AntHeartRateService implements IHeartRateService {
         this.heartRateSensorSubject.next(undefined);
         this.stick = undefined;
         this.onConnect = undefined;
+        this.connectionStatusSubject.next({
+            status: "disconnected",
+        });
     }
 
     async discover(): Promise<void> {
@@ -121,6 +114,10 @@ export class AntHeartRateService implements IHeartRateService {
                             const batteryLevel =
                                 data.BatteryLevel ?? this.parseBatteryStatus(data.BatteryStatus) ?? 0;
                             this.batteryLevelSubject.next(batteryLevel);
+                            this.connectionStatusSubject.next({
+                                deviceName: data.DeviceID !== 0 ? data.DeviceID.toString() : undefined,
+                                status: data.DeviceID === 0 ? "connecting" : "connected",
+                            });
 
                             return {
                                 contactDetected: true,
@@ -165,6 +162,10 @@ export class AntHeartRateService implements IHeartRateService {
                                     this.heartRateSensorSubject.next(undefined);
                                     this.snackBar.open("Heart Rate Monitor connection lost", "Dismiss");
 
+                                    this.connectionStatusSubject.next({
+                                        status: "searching",
+                                    });
+
                                     return from(hrSensor.attachSensor(0, 0));
                                 }),
                             ),
@@ -185,6 +186,9 @@ export class AntHeartRateService implements IHeartRateService {
             if (error instanceof Error) {
                 console.error(error);
                 this.heartRateSensorSubject.next(undefined);
+                this.connectionStatusSubject.next({
+                    status: "disconnected",
+                });
                 this.snackBar.open("An error occurred while communicating with ANT+ Stick", "Dismiss");
             }
         }
