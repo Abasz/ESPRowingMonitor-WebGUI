@@ -79,6 +79,7 @@ export class ForceCurveComponent {
             x: {
                 type: "linear",
                 display: false,
+                ticks: { stepSize: 1 },
             },
             y: {
                 ticks: { color: "rgba(0,0,0)" },
