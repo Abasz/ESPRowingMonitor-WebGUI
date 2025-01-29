@@ -34,8 +34,7 @@ import { ErgSettingsService } from "./../../common/services/ergometer/erg-settin
     templateUrl: "./settings-bar.component.html",
     styleUrls: ["./settings-bar.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    standalone: true,
-    imports: [MatToolbar, MatIcon, MatTooltip, MatIconButton, NgIf, NgClass, DatePipe, BatteryLevelPipe],
+    imports: [MatToolbar, MatIcon, MatTooltip, MatIconButton, NgIf, NgClass, DatePipe, BatteryLevelPipe]
 })
 export class SettingsBarComponent {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;

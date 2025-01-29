@@ -1,21 +1,24 @@
 @use "@angular/material" as mat;
 
-@import "../../theme.scss";
+@use "../../theme.scss";
 
 mat-icon.battery-level {
     padding: 0px 8px;
 }
 
 mat-toolbar {
-    --mat-toolbar-container-background-color: #{mat.get-theme-color($light-theme, primary)};
-    --mat-toolbar-container-text-color: white;
-    --mdc-icon-button-icon-color: white;
-
     display: grid;
     align-items: center;
     justify-content: center;
     grid-template-columns: max-content 1fr max-content;
     font-size: 0.7em;
+
+    @include mat.icon-overrides(
+        (
+            color: white,
+        )
+    );
+
     > div:first-child {
         margin-left: -16px;
     }
@@ -27,11 +30,12 @@ mat-toolbar {
 
         > button,
         div {
+            display: flex;
+            justify-content: center;
+
             @media screen and (min-width: 600px) {
                 margin: 0px 8px;
             }
-            display: flex;
-            justify-content: center;
         }
     }
 

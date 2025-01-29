@@ -1,3 +1,7 @@
+@use "@angular/material" as mat;
+
+@use "../../theme";
+
 table {
     width: 100%;
 
@@ -28,4 +32,12 @@ table {
 
 mat-progress-bar {
     margin-top: 8px;
+}
+
+.delete-button {
+    @include mat.icon-button-overrides(
+        (
+            icon-color: #{mat.get-theme-color(theme.$light-theme, tertiary, 40)},
+        )
+    );
 }

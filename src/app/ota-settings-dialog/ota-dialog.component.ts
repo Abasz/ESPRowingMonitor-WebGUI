@@ -50,7 +50,6 @@ enum UpdateState {
     templateUrl: "./ota-dialog.component.html",
     styleUrls: ["./ota-dialog.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    standalone: true,
     imports: [
         MatProgressBar,
         MatDialogTitle,
@@ -61,7 +60,7 @@ enum UpdateState {
         SecondsToTimePipe,
         DecimalPipe,
     ],
-    providers: [OtaService],
+    providers: [OtaService]
 })
 export class OtaDialogComponent {
     readonly UpdateState: typeof UpdateState = UpdateState;

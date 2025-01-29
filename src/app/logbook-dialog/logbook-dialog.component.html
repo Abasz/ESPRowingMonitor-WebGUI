@@ -55,11 +55,7 @@
                 >
                     <mat-icon>download</mat-icon>
                 </button>
-                <button
-                    [style.color]="'var(--warn-color)'"
-                    (click)="deleteSession(sessionData.sessionId)"
-                    mat-icon-button
-                >
+                <button class="delete-button" (click)="deleteSession(sessionData.sessionId)" mat-icon-button>
                     <mat-icon>delete</mat-icon>
                 </button>
             </mat-cell>

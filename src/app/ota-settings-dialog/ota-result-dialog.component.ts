@@ -15,9 +15,8 @@ import { OtaService } from "./ota.service";
     templateUrl: "./ota-result-dialog.component.html",
     styleUrls: ["./ota-result-dialog.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    standalone: true,
     imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton],
-    providers: [OtaService],
+    providers: [OtaService]
 })
 export class OtaResultDialogComponent {
     constructor(

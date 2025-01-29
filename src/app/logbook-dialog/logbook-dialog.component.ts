@@ -54,7 +54,6 @@ import { SecondsToTimePipe } from "../../common/utils/seconds-to-time.pipe";
     templateUrl: "./logbook-dialog.component.html",
     styleUrls: ["./logbook-dialog.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    standalone: true,
     imports: [
         MatDialogTitle,
         DialogCloseButtonComponent,
@@ -84,7 +83,7 @@ import { SecondsToTimePipe } from "../../common/utils/seconds-to-time.pipe";
         MatMenuItem,
         DatePipe,
         SecondsToTimePipe,
-    ],
+    ]
 })
 export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
     dataSource: MatTableDataSource<ISessionSummary> = new MatTableDataSource<ISessionSummary>(

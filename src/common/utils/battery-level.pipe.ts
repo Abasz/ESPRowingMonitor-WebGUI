@@ -2,7 +2,6 @@ import { Pipe, PipeTransform } from "@angular/core";
 
 @Pipe({
     name: "batteryLevel",
-    standalone: true,
 })
 export class BatteryLevelPipe implements PipeTransform {
     transform(value: number): string {

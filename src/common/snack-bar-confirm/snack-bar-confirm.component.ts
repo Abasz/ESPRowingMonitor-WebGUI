@@ -12,8 +12,7 @@ import {
     templateUrl: "./snack-bar-confirm.component.html",
     styleUrls: ["./snack-bar-confirm.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    standalone: true,
-    imports: [MatSnackBarLabel, MatSnackBarActions, MatButton, MatSnackBarAction],
+    imports: [MatSnackBarLabel, MatSnackBarActions, MatButton, MatSnackBarAction]
 })
 export class SnackBarConfirmComponent {
     constructor(

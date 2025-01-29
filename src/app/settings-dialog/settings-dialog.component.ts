@@ -29,17 +29,19 @@ import { MatTooltip } from "@angular/material/tooltip";
 import { SwUpdate } from "@angular/service-worker";
 import { map, startWith } from "rxjs";
 
-import { BleServiceFlag, IDeviceInformation, LogLevel } from "../../common/ble.interfaces";
-import { IErgConnectionStatus, IRowerSettings, IValidationErrors } from "../../common/common.interfaces";
+import { BleServiceFlag, BleServiceNames, IDeviceInformation, LogLevel } from "../../common/ble.interfaces";
+import {
+    HeartRateMonitorMode,
+    IErgConnectionStatus,
+    IRowerSettings,
+    IValidationErrors,
+} from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
 import { EnumToArrayPipe } from "../../common/utils/enum-to-array.pipe";
 import { getValidationErrors } from "../../common/utils/utility.functions";
 import { versionInfo } from "../../version";
 import { OtaDialogComponent } from "../ota-settings-dialog/ota-dialog.component";
-
-import { BleServiceNames } from "./../../common/ble.interfaces";
-import { HeartRateMonitorMode } from "./../../common/common.interfaces";
 
 type SettingsFormGroup = FormGroup<{
     bleMode: FormControl<BleServiceFlag>;
@@ -54,7 +56,6 @@ type SettingsFormGroup = FormGroup<{
     templateUrl: "./settings-dialog.component.html",
     styleUrls: ["./settings-dialog.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    standalone: true,
     imports: [
         MatDialogTitle,
         CdkScrollable,

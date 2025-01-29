@@ -8,8 +8,7 @@ import { MatTooltip } from "@angular/material/tooltip";
     templateUrl: "./metric.component.html",
     styleUrls: ["./metric.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    standalone: true,
-    imports: [MatCard, MatIcon, MatTooltip],
+    imports: [MatCard, MatIcon, MatTooltip]
 })
 export class MetricComponent {
     readonly icon: InputSignal<string | undefined> = input();

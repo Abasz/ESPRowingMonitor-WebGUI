@@ -1,16 +1,28 @@
 @use "@angular/material" as mat;
 
-@import "./theme.scss";
+@use "theme.scss";
 
-@include mat.core();
+@include mat.elevation-classes();
+@include mat.app-background();
 
 html,
 body {
-    @include mat.all-component-themes($light-theme);
-
     height: 100vh;
     margin: 0px;
     font-family: Roboto, "Helvetica Neue", sans-serif;
+
+    @include mat.all-component-themes(theme.$light-theme);
+    @include mat.core-overrides(
+        (
+            option-selected-state-layer-color: #{mat.get-theme-color(theme.$light-theme, primary, 90)},
+        )
+    );
+    @include mat.toolbar-overrides(
+        (
+            container-background-color: #{mat.get-theme-color(theme.$light-theme, primary)},
+            container-text-color: white,
+        )
+    );
 
     app-root {
         font-size: calc(16px + (50 - 16) * ((100vw - 300px) / (1920 - 300)));
@@ -19,11 +31,6 @@ body {
             font-size: calc(16px + (40 - 16) * ((100vw - 300px) / (1920 - 300)));
         }
     }
-
-    --mat-option-selected-state-layer-color: #{mat.get-theme-color($light-theme, primary, 90)};
-    --primary-color: #{mat.get-theme-color($light-theme, primary)};
-    --accent-color: #{mat.get-theme-color($light-theme, secondary, 60)};
-    --warn-color: #{mat.get-theme-color($light-theme, error)};
 }
 
 *:focus {

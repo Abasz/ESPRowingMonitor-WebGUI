@@ -32,7 +32,6 @@ import { SettingsBarComponent } from "./settings-bar/settings-bar.component";
     templateUrl: "./app.component.html",
     styleUrls: ["./app.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    standalone: true,
     imports: [
         SettingsBarComponent,
         MetricComponent,
@@ -42,7 +41,7 @@ import { SettingsBarComponent } from "./settings-bar/settings-bar.component";
         SecondsToTimePipe,
         RoundNumberPipe,
         BatteryLevelPipe,
-    ],
+    ]
 })
 export class AppComponent implements AfterViewInit, OnDestroy {
     BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;

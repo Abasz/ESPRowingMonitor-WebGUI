@@ -21,7 +21,6 @@ import { BaseChartDirective, provideCharts } from "ng2-charts";
     templateUrl: "./force-curve.component.html",
     styleUrls: ["./force-curve.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    standalone: true,
     imports: [MatCard, BaseChartDirective],
     providers: [
         provideCharts({
@@ -37,7 +36,7 @@ import { BaseChartDirective, provideCharts } from "ng2-charts";
                 ChartDataLabels,
             ],
         }),
-    ],
+    ]
 })
 export class ForceCurveComponent {
     forceChartOptions: ChartOptions<"line"> = {
