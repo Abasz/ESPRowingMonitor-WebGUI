@@ -3,45 +3,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "type": "npm",
-            "script": "start",
-            "isBackground": true,
-            "problemMatcher": {
-                "owner": "typescript",
-                "pattern": "$tsc",
-                "background": {
-                    "activeOnStart": true,
-                    "beginsPattern": {
-                        "regexp": "(.*?)"
-                    },
-                    "endsPattern": {
-                        "regexp": "bundle generation complete"
-                    }
-                }
-            }
-        },
-        {
-            "type": "npm",
-            "script": "test",
-            "isBackground": true,
-            "problemMatcher": {
-                "owner": "typescript",
-                "pattern": "$tsc",
-                "background": {
-                    "activeOnStart": true,
-                    "beginsPattern": {
-                        "regexp": "(.*?)"
-                    },
-                    "endsPattern": {
-                        "regexp": "bundle generation complete"
-                    }
-                }
-            }
-        },
-        {
             "label": "Build PWA",
             "type": "shell",
-            "command": "ng build --output-path=docs --base-href=/ESPRowingMonitor-WebGUI/",
+            "command": "ng build --output-path=dist --base-href=/ESPRowingMonitor-WebGUI/",
             "problemMatcher": {
                 "owner": "typescript",
                 "pattern": "$tsc",
@@ -57,60 +21,5 @@
             },
             "group": "build",
         },
-        {
-            "label": "Build concept2",
-            "type": "shell",
-            "command": "ng build --base-href=/esp-rowingmonitor/ --output-path=dist/esp-rowing-monitor-client/concept2/www && rmdir dist\\esp-rowing-monitor-client\\concept2\\www\\assets /s /q",
-            "problemMatcher": {
-                "owner": "typescript",
-                "pattern": "$tsc",
-                "background": {
-                    "activeOnStart": true,
-                    "beginsPattern": {
-                        "regexp": "(.*?)"
-                    },
-                    "endsPattern": {
-                        "regexp": "bundle generation complete"
-                    }
-                }
-            },
-            "group": "build",
-        },
-        {
-            "label": "Build kayakfirst",
-            "type": "shell",
-            "command": "ng build --output-path=dist/esp-rowing-monitor-client/kayakfirst/www && rmdir dist\\esp-rowing-monitor-client\\kayakfirst\\www\\assets /s /q && (if exist dist\\esp-rowing-monitor-client\\kayakfirstblue rmdir dist\\esp-rowing-monitor-client\\kayakfirstblue /s /q) && mkdir dist\\esp-rowing-monitor-client\\kayakfirstblue && xcopy .\\dist\\esp-rowing-monitor-client\\kayakfirst .\\dist\\esp-rowing-monitor-client\\kayakfirstblue /E",
-            "problemMatcher": {
-                "owner": "typescript",
-                "pattern": "$tsc",
-                "background": {
-                    "activeOnStart": true,
-                    "beginsPattern": {
-                        "regexp": "(.*?)"
-                    },
-                    "endsPattern": {
-                        "regexp": "bundle generation complete"
-                    }
-                }
-            },
-            "group": "build",
-        },
-        {
-            "label": "clear dist",
-            "type": "shell",
-            "command": "if exist .\\dist rmdir .\\dist /s /q"
-        },
-        {
-            "label": "Build All",
-            "type": "shell",
-            "group": "build",
-            "dependsOn": [
-                "clear dist",
-                "Build concept2",
-                "Build PWA",
-                "Build kayakfirst"
-            ],
-            "dependsOrder": "sequence"
-        }
     ]
 }
