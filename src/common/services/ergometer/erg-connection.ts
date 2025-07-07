@@ -12,6 +12,7 @@ export class ErgConnections {
     readonly measurementCharacteristic$: Observable<BluetoothRemoteGATTCharacteristic | undefined>;
 
     readonly settingsCharacteristic$: Observable<BluetoothRemoteGATTCharacteristic | undefined>;
+    readonly strokeSettingsCharacteristic$: Observable<BluetoothRemoteGATTCharacteristic | undefined>;
 
     protected batteryCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
@@ -32,6 +33,9 @@ export class ErgConnections {
     protected settingsCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
         new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
 
+    protected strokeSettingsCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined> =
+        new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(undefined);
+
     constructor() {
         this.batteryCharacteristic$ = this.batteryCharacteristic.asObservable();
         this.deltaTimesCharacteristic$ = this.deltaTimesCharacteristic.asObservable();
@@ -39,6 +43,7 @@ export class ErgConnections {
         this.handleForceCharacteristic$ = this.handleForceCharacteristic.asObservable();
         this.measurementCharacteristic$ = this.measurementCharacteristic.asObservable();
         this.settingsCharacteristic$ = this.settingsCharacteristic.asObservable();
+        this.strokeSettingsCharacteristic$ = this.strokeSettingsCharacteristic.asObservable();
     }
 
     readBatteryCharacteristic(): BluetoothRemoteGATTCharacteristic | undefined {
@@ -59,6 +64,9 @@ export class ErgConnections {
     readSettingsCharacteristic(): BluetoothRemoteGATTCharacteristic | undefined {
         return this.settingsCharacteristic.value;
     }
+    readStrokeSettingsCharacteristic(): BluetoothRemoteGATTCharacteristic | undefined {
+        return this.strokeSettingsCharacteristic.value;
+    }
 
     resetBatteryCharacteristic(): void {
         return this.batteryCharacteristic.next(undefined);
@@ -77,5 +85,8 @@ export class ErgConnections {
     }
     resetSettingsCharacteristic(): void {
         return this.settingsCharacteristic.next(undefined);
+    }
+    resetStrokeSettingsCharacteristic(): void {
+        return this.strokeSettingsCharacteristic.next(undefined);
     }
 }

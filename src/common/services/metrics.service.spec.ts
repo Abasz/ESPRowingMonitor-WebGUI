@@ -23,7 +23,7 @@ describe("DataService", (): void => {
         ergBatteryLevel$: of(80),
         ergConnectionStatus$: of({ status: "connected" } as IErgConnectionStatus),
         hrConnectionStatus$: of({ status: "connected" } as IHRConnectionStatus),
-        settings: of({ bleServiceFlag: 0, logLevel: 1 } as IRowerSettings),
+        rowerSettings: of({ bleServiceFlag: 0, logLevel: 1 } as IRowerSettings),
     };
 
     const mockDataRecorderService = {
@@ -36,7 +36,7 @@ describe("DataService", (): void => {
     const mockErgMetricsService = {
         streamMonitorBatteryLevel$: (): Observable<number> => mockDataService.ergBatteryLevel$,
         connectionStatus$: (): Observable<IErgConnectionStatus> => mockDataService.ergConnectionStatus$,
-        streamSettings$: (): Observable<IRowerSettings> => mockDataService.settings,
+        streamRowerSettings$: (): Observable<IRowerSettings> => mockDataService.rowerSettings,
         streamExtended$: (): Observable<IExtendedMetrics> =>
             of({ avgStrokePower: 0, driveDuration: 0, recoveryDuration: 0, dragFactor: 0 }),
         streamHandleForces$: (): Observable<Array<number>> => of([] as Array<number>),

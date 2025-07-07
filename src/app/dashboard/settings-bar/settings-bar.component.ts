@@ -54,7 +54,7 @@ export class SettingsBarComponent {
         },
     );
 
-    settings: Signal<IRowerSettings> = this.ergSettingsService.settings;
+    settings: Signal<IRowerSettings> = this.ergSettingsService.rowerSettings;
     timeOfDay: Signal<number> = toSignal(interval(1000).pipe(map((): number => Date.now())), {
         initialValue: Date.now(),
     });

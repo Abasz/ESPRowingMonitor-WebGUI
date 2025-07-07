@@ -57,6 +57,49 @@ export interface IRowerSettings {
     logToSdCard: boolean | undefined;
     bleServiceFlag: BleServiceFlag;
     logLevel: LogLevel;
+    isRuntimeSettingsEnabled: boolean;
+    machineSettings: IMachineSettings;
+    sensorSignalSettings: ISensorSignalSettings;
+    dragFactorSettings: IDragFactorSettings;
+}
+
+export interface IMachineSettings {
+    flywheelInertia: number;
+    magicConstant: number;
+    sprocketRadius: number;
+    impulsePerRevolution: number;
+}
+
+export interface ISensorSignalSettings {
+    rotationDebounceTime: number;
+    rowingStoppedThreshold: number;
+}
+
+export interface IDragFactorSettings {
+    goodnessOfFitThreshold: number;
+    maxDragFactorRecoveryPeriod: number;
+    dragFactorLowerThreshold: number;
+    dragFactorUpperThreshold: number;
+    dragCoefficientsArrayLength: number;
+}
+
+export interface IStrokeDetectionSettings {
+    strokeDetectionType: StrokeDetectionType;
+    impulseDataArrayLength: number;
+    minimumPoweredTorque: number;
+    minimumDragTorque: number;
+    minimumRecoverySlopeMargin: number;
+    minimumRecoverySlope: number;
+    minimumRecoveryTime: number;
+    minimumDriveTime: number;
+    driveHandleForcesMaxCapacity: number;
+    isCompiledWithDouble: boolean;
+}
+
+export enum StrokeDetectionType {
+    Torque = 0,
+    Slope = 1,
+    Both = 2,
 }
 
 export interface ICalculatedMetrics extends Omit<IExtendedMetrics & IBaseMetrics, "revTime" | "strokeTime"> {

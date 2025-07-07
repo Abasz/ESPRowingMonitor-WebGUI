@@ -34,6 +34,7 @@ import {
     HeartRateMonitorMode,
     IErgConnectionStatus,
     IRowerSettings,
+    IStrokeDetectionSettings,
     IValidationErrors,
 } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
@@ -100,16 +101,17 @@ export class SettingsDialogComponent {
         private swUpdate: SwUpdate,
         private dialog: MatDialog,
         @Inject(MAT_DIALOG_DATA)
-        private data: {
-            settings: IRowerSettings;
+        public data: {
+            rowerSettings: IRowerSettings;
+            strokeDetectionSettings: IStrokeDetectionSettings;
             ergConnectionStatus: IErgConnectionStatus;
             deviceInfo: IDeviceInformation;
         },
     ) {
         this.settingsForm = this.fb.group({
-            bleMode: [{ value: this.data.settings.bleServiceFlag, disabled: !this.isConnected }],
+            bleMode: [{ value: this.data.rowerSettings.bleServiceFlag, disabled: !this.isConnected }],
             logLevel: [
-                { value: this.data.settings.logLevel, disabled: !this.isConnected },
+                { value: this.data.rowerSettings.logLevel, disabled: !this.isConnected },
                 [Validators.min(0), Validators.max(6)],
             ],
             heartRateMonitor: [
@@ -118,14 +120,14 @@ export class SettingsDialogComponent {
             ],
             deltaTimeLogging: [
                 {
-                    value: this.data.settings.logDeltaTimes ?? false,
-                    disabled: this.data.settings.logDeltaTimes === undefined || !this.isConnected,
+                    value: this.data.rowerSettings.logDeltaTimes ?? false,
+                    disabled: this.data.rowerSettings.logDeltaTimes === undefined || !this.isConnected,
                 },
             ],
             logToSdCard: [
                 {
-                    value: this.data.settings.logToSdCard ?? false,
-                    disabled: this.data.settings.logToSdCard === undefined || !this.isConnected,
+                    value: this.data.rowerSettings.logToSdCard ?? false,
+                    disabled: this.data.rowerSettings.logToSdCard === undefined || !this.isConnected,
                 },
             ],
         });

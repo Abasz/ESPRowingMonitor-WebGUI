@@ -16,6 +16,7 @@ import {
     OTA_SERVICE,
     SETTINGS_CHARACTERISTIC,
     SETTINGS_SERVICE,
+    STROKE_SETTINGS_CHARACTERISTIC,
 } from "../../ble.interfaces";
 import { IErgConnectionStatus } from "../../common.interfaces";
 import { withDelay } from "../../utils/utility.functions";
@@ -163,6 +164,26 @@ export class ErgConnectionService extends ErgConnections {
         }
     }
 
+    async connectToStrokeSettings(
+        gatt: BluetoothRemoteGATTServer,
+    ): Promise<void | BluetoothRemoteGATTCharacteristic> {
+        try {
+            this.strokeSettingsCharacteristic.next(
+                await connectToCharacteristic(gatt, SETTINGS_SERVICE, STROKE_SETTINGS_CHARACTERISTIC),
+            );
+
+            return this.strokeSettingsCharacteristic.value;
+        } catch (error) {
+            if (this._bluetoothDevice?.gatt?.connected) {
+                this.snackBar.open("Error connecting to Stroke Detection Settings", "Dismiss");
+                console.error("strokeSettingsCharacteristics:", error);
+
+                return;
+            }
+            throw error;
+        }
+    }
+
     connectionStatus$(): Observable<IErgConnectionStatus> {
         return this.connectionStatusSubject.asObservable();
     }
@@ -186,6 +207,7 @@ export class ErgConnectionService extends ErgConnections {
         this.cancellationToken.abort();
         this.batteryCharacteristic.next(undefined);
         this.settingsCharacteristic.next(undefined);
+        this.strokeSettingsCharacteristic.next(undefined);
         this.extendedCharacteristic.next(undefined);
         this.handleForceCharacteristic.next(undefined);
         this.measurementCharacteristic.next(undefined);
@@ -283,6 +305,7 @@ export class ErgConnectionService extends ErgConnections {
             await this.connectToHandleForces(gatt);
             await this.connectToDeltaTimes(gatt);
             await this.connectToSettings(gatt);
+            await this.connectToStrokeSettings(gatt);
             await this.connectToBattery(gatt);
 
             this.connectionStatusSubject.next({
