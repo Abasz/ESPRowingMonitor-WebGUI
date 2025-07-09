@@ -102,7 +102,7 @@
                                 "protected-instance-method",
                                 "private-instance-method"
                             ],
-                            "order": "alphabetically"
+                            "order": "as-written"
                         }
                     }
                 ],
