@@ -1,5 +1,5 @@
 <span matSnackBarLabel [innerHTML]="data.text"></span>
 <span matSnackBarActions>
     <button mat-button matSnackBarAction (click)="confirmed()">{{ data.confirm ?? "Yes" }}</button>
-    <button mat-button matSnackBarAction (click)="cancel()">Dismiss</button>
+    <button mat-button matSnackBarAction (click)="cancel()">{{ data.cancel ?? "Dismiss" }}</button>
 </span>

@@ -12,11 +12,11 @@ import {
     templateUrl: "./snack-bar-confirm.component.html",
     styleUrls: ["./snack-bar-confirm.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatSnackBarLabel, MatSnackBarActions, MatButton, MatSnackBarAction]
+    imports: [MatSnackBarLabel, MatSnackBarActions, MatButton, MatSnackBarAction],
 })
 export class SnackBarConfirmComponent {
     constructor(
-        @Inject(MAT_SNACK_BAR_DATA) public data: { text: string; confirm?: string },
+        @Inject(MAT_SNACK_BAR_DATA) public data: { text: string; confirm?: string; cancel?: string },
         private snackRef: MatSnackBarRef<SnackBarConfirmComponent>,
     ) {}
 
