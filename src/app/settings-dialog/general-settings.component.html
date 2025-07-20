@@ -1,0 +1,100 @@
+<div class="tab-content">
+    <form [formGroup]="settingsForm" novalidate class="flex-col">
+        <mat-form-field>
+            <mat-label>BLE Mode</mat-label>
+            <mat-select
+                name="bleMode"
+                placeholder="Select heart rate monitor mode"
+                formControlName="bleMode"
+                required
+            >
+                @for (flag of BleServiceFlag | enumToArray; track $index) {
+                    <mat-option [value]="flag.key">{{ BleServiceNames[flag.value] }}</mat-option>
+                }
+            </mat-select>
+            @if (settingsFormErrors()?.bleMode) {
+                <mat-error>
+                    @if (settingsFormErrors()?.bleMode?.required) {
+                        BLE mode is required
+                    }
+                </mat-error>
+            }
+        </mat-form-field>
+        <mat-form-field>
+            <mat-label>Heart Rate Monitor</mat-label>
+            <mat-select
+                name="heartRateMonitor"
+                placeholder="Select heart rate monitor mode"
+                formControlName="heartRateMonitor"
+                required
+            >
+                <mat-option value="off">off</mat-option>
+                <mat-option value="ble">ble</mat-option>
+                <mat-option value="ant">ant</mat-option>
+            </mat-select>
+            @if (settingsFormErrors()?.heartRateMonitor) {
+                <mat-error>
+                    @if (settingsFormErrors()?.heartRateMonitor?.required) {
+                        Heart rate monitor mode is required
+                    }
+                    @if (settingsFormErrors()?.heartRateMonitor?.pattern) {
+                        Invalid value
+                    }
+                </mat-error>
+            }
+        </mat-form-field>
+        <mat-form-field>
+            <mat-label>Log Level</mat-label>
+            <mat-select name="logLevel" placeholder="Select log level" formControlName="logLevel" required>
+                @for (logLevel of LogLevel | enumToArray; track logLevel.value) {
+                    <mat-option [value]="logLevel.key">{{ logLevel.value }}</mat-option>
+                }
+            </mat-select>
+            @if (settingsFormErrors()?.logLevel) {
+                <mat-error>
+                    @if (settingsFormErrors()?.logLevel?.required) {
+                        Log level is required
+                    }
+                    @if (settingsFormErrors()?.logLevel?.min || settingsFormErrors()?.logLevel?.max) {
+                        Invalid value
+                    }
+                </mat-error>
+            }
+        </mat-form-field>
+        <h4>Delta Time Logging</h4>
+        <mat-checkbox formControlName="deltaTimeLogging">Bluetooth</mat-checkbox>
+        <mat-checkbox formControlName="logToSdCard">SdCard</mat-checkbox>
+    </form>
+    <div class="erg-info flex-col">
+        <span>Manufacturer: {{ deviceInfo().manufacturerName ?? "unknown" }} </span>
+        @if (deviceInfo().modelNumber) {
+            <span>Model: {{ deviceInfo().modelNumber }}</span>
+        }
+        <div versionInfo class="items-center">
+            <span>FW Version: {{ deviceInfo().firmwareNumber ?? "unknown" }}</span>
+            <button
+                matTooltipShowDelay="1000"
+                matTooltip="Check for update"
+                class="small-icon-button"
+                mat-icon-button
+                (click)="fileInput.click()"
+                [disabled]="!isConnected()"
+            >
+                <mat-icon>upload_file</mat-icon>
+            </button>
+            <input #fileInput accept=".bin" style="display: none" type="file" (change)="otaUpdate($event)" />
+        </div>
+    </div>
+    <div versionInfo class="items-center">
+        <span>GUI Version: {{ compileDate | date: "yyMMddHHmmss" }}</span>
+        <button
+            matTooltipShowDelay="1000"
+            matTooltip="Check for update"
+            class="small-icon-button"
+            mat-icon-button
+            (click)="checkForUpdates()"
+        >
+            <mat-icon>replay</mat-icon>
+        </button>
+    </div>
+</div>

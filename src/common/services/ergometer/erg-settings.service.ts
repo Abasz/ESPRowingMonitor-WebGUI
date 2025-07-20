@@ -34,6 +34,7 @@ import { observeValue$ } from "../ble.utilities";
 
 import { ErgConnectionService } from "./erg-connection.service";
 import { calculateBleServiceFlag } from "./erg.utilities";
+import { withDelay } from "../../utils/utility.functions";
 
 @Injectable({
     providedIn: "root",
@@ -227,6 +228,214 @@ export class ErgSettingsService {
 
             this.snackBar.open(errorMessage, "Dismiss");
             console.error("changeLogToSdCard:", error);
+        }
+    }
+
+    async changeMachineSettings(machineSettings: IMachineSettings): Promise<void> {
+        const service = this.ergConnectionService.readSettingsCharacteristic()?.service;
+        if (this.ergConnectionService.bluetoothDevice?.gatt === undefined || service === undefined) {
+            this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
+
+            return;
+        }
+
+        try {
+            const characteristic = await service.getCharacteristic(SETTINGS_CONTROL_POINT);
+
+            const responseTask = firstValueFrom(observeValue$(characteristic).pipe(timeout(1000)));
+
+            const payload = new DataView(new ArrayBuffer(9));
+            payload.setUint8(0, BleOpCodes.SetMachineSettings);
+            payload.setFloat32(1, machineSettings.flywheelInertia, true);
+            payload.setUint8(5, Math.round(machineSettings.magicConstant * 35) & 0xff);
+            payload.setUint8(6, machineSettings.impulsePerRevolution & 0xff);
+            payload.setUint16(7, Math.round(machineSettings.sprocketRadius * 1000), true);
+
+            await characteristic.startNotifications();
+            await characteristic.writeValueWithoutResponse(payload);
+
+            this.snackBar.open(
+                (await responseTask).getUint8(2) === BleResponseOpCodes.Successful
+                    ? "Machine settings changed"
+                    : `An error occurred while changing machine settings (${BleResponseOpCodes[(await responseTask).getUint8(2)]})`,
+                "Dismiss",
+            );
+
+            await characteristic.stopNotifications();
+        } catch (error) {
+            const errorMessage = `Failed to set machine settings${error instanceof EmptyError ? ", request timed out" : ""}`;
+
+            this.snackBar.open(errorMessage, "Dismiss");
+            console.error("changeMachineSettings:", error);
+        }
+    }
+
+    async changeSensorSignalSettings(sensorSignalSettings: ISensorSignalSettings): Promise<void> {
+        const service = this.ergConnectionService.readSettingsCharacteristic()?.service;
+        if (this.ergConnectionService.bluetoothDevice?.gatt === undefined || service === undefined) {
+            this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
+
+            return;
+        }
+
+        try {
+            const characteristic = await service.getCharacteristic(SETTINGS_CONTROL_POINT);
+
+            const responseTask = firstValueFrom(observeValue$(characteristic).pipe(timeout(1000)));
+
+            const payload = new DataView(new ArrayBuffer(3));
+            payload.setUint8(0, BleOpCodes.SetSensorSignalSettings);
+            payload.setUint8(1, sensorSignalSettings.rotationDebounceTime);
+            payload.setUint8(2, sensorSignalSettings.rowingStoppedThreshold);
+
+            await characteristic.startNotifications();
+            await characteristic.writeValueWithoutResponse(payload);
+
+            this.snackBar.open(
+                (await responseTask).getUint8(2) === BleResponseOpCodes.Successful
+                    ? "Sensor signal settings changed"
+                    : `An error occurred while changing sensor signal settings (${BleResponseOpCodes[(await responseTask).getUint8(2)]})`,
+                "Dismiss",
+            );
+
+            await characteristic.stopNotifications();
+        } catch (error) {
+            const errorMessage = `Failed to set sensor signal settings${error instanceof EmptyError ? ", request timed out" : ""}`;
+
+            this.snackBar.open(errorMessage, "Dismiss");
+            console.error("changeSensorSignalSettings:", error);
+        }
+    }
+
+    async changeDragFactorSettings(dragFactorSettings: IDragFactorSettings): Promise<void> {
+        const service = this.ergConnectionService.readSettingsCharacteristic()?.service;
+        if (this.ergConnectionService.bluetoothDevice?.gatt === undefined || service === undefined) {
+            this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
+
+            return;
+        }
+
+        try {
+            const characteristic = await service.getCharacteristic(SETTINGS_CONTROL_POINT);
+
+            const responseTask = firstValueFrom(observeValue$(characteristic).pipe(timeout(1000)));
+
+            const payload = new DataView(new ArrayBuffer(8));
+            payload.setUint8(0, BleOpCodes.SetDragFactorSettings);
+            payload.setUint8(1, Math.round(dragFactorSettings.goodnessOfFitThreshold * 255) & 0xff);
+            payload.setUint8(2, dragFactorSettings.maxDragFactorRecoveryPeriod & 0xff);
+            payload.setUint16(3, dragFactorSettings.dragFactorLowerThreshold, true);
+            payload.setUint16(5, dragFactorSettings.dragFactorUpperThreshold, true);
+            payload.setUint8(7, dragFactorSettings.dragCoefficientsArrayLength & 0xff);
+
+            await characteristic.startNotifications();
+            await characteristic.writeValueWithoutResponse(payload);
+
+            this.snackBar.open(
+                (await responseTask).getUint8(2) === BleResponseOpCodes.Successful
+                    ? "Drag factor settings changed"
+                    : `An error occurred while changing machine settings (${BleResponseOpCodes[(await responseTask).getUint8(2)]})`,
+                "Dismiss",
+            );
+
+            await characteristic.stopNotifications();
+        } catch (error) {
+            const errorMessage = `Failed to set machine settings${error instanceof EmptyError ? ", request timed out" : ""}`;
+
+            this.snackBar.open(errorMessage, "Dismiss");
+            console.error("changeDragFactorSettings:", error);
+
+            throw error;
+        }
+    }
+
+    async changeStrokeSettings(
+        strokeDetectionSettings: Omit<IStrokeDetectionSettings, "isCompiledWithDouble">,
+    ): Promise<void> {
+        const service = this.ergConnectionService.readSettingsCharacteristic()?.service;
+        if (this.ergConnectionService.bluetoothDevice?.gatt === undefined || service === undefined) {
+            this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
+
+            return;
+        }
+
+        try {
+            const characteristic = await service.getCharacteristic(SETTINGS_CONTROL_POINT);
+
+            const responseTask = firstValueFrom(observeValue$(characteristic).pipe(timeout(1000)));
+
+            const payload = new DataView(new ArrayBuffer(16));
+            payload.setUint8(0, BleOpCodes.SetStrokeDetectionSettings);
+
+            const strokeDetectionTypeBits = strokeDetectionSettings.strokeDetectionType & 0x03;
+            const impulseDataArrayLengthBits = (strokeDetectionSettings.impulseDataArrayLength & 0x3f) << 2;
+            payload.setUint8(1, strokeDetectionTypeBits | impulseDataArrayLengthBits);
+
+            payload.setInt16(2, Math.round(strokeDetectionSettings.minimumPoweredTorque * 10000), true);
+            payload.setInt16(4, Math.round(strokeDetectionSettings.minimumDragTorque * 10000), true);
+            payload.setFloat32(6, strokeDetectionSettings.minimumRecoverySlopeMargin, true);
+            payload.setInt16(10, Math.round(strokeDetectionSettings.minimumRecoverySlope * 1000), true);
+
+            const recoveryTimeBits = strokeDetectionSettings.minimumRecoveryTime & 0x0fff;
+            const driveTimeBits = (strokeDetectionSettings.minimumDriveTime & 0x0fff) << 12;
+            const strokeTimingValue = recoveryTimeBits | driveTimeBits;
+            payload.setUint8(12, strokeTimingValue & 0xff);
+            payload.setUint8(13, (strokeTimingValue >> 8) & 0xff);
+            payload.setUint8(14, (strokeTimingValue >> 16) & 0xff);
+            payload.setUint8(15, strokeDetectionSettings.driveHandleForcesMaxCapacity);
+
+            await characteristic.startNotifications();
+            await characteristic.writeValueWithoutResponse(payload);
+
+            this.snackBar.open(
+                (await responseTask).getUint8(2) === BleResponseOpCodes.Successful
+                    ? "Stroke detection settings changed"
+                    : `An error occurred while changing stroke detection settings (${BleResponseOpCodes[(await responseTask).getUint8(2)]}`,
+                "Dismiss",
+            );
+
+            await characteristic.stopNotifications();
+        } catch (error) {
+            const errorMessage = `Failed to set stroke detection settings${error instanceof EmptyError ? ", request timed out" : ""}`;
+
+            this.snackBar.open(errorMessage, "Dismiss");
+            console.error("changeStrokeDetectionSettings:", error);
+        }
+    }
+
+    async restartDevice(): Promise<void> {
+        const service = this.ergConnectionService.readSettingsCharacteristic()?.service;
+        if (this.ergConnectionService.bluetoothDevice?.gatt === undefined || service === undefined) {
+            this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
+
+            return;
+        }
+
+        try {
+            const characteristic = await service.getCharacteristic(SETTINGS_CONTROL_POINT);
+
+            const responseTask = firstValueFrom(observeValue$(characteristic).pipe(timeout(1000)));
+
+            await characteristic.startNotifications();
+            await characteristic.writeValueWithoutResponse(new Uint8Array([BleOpCodes.RestartDevice]));
+
+            const response = (await responseTask).getUint8(2);
+            if (response === BleResponseOpCodes.Successful) {
+                await this.ergConnectionService.disconnectDevice();
+                await withDelay(1000);
+            }
+
+            this.snackBar.open(
+                response === BleResponseOpCodes.Successful
+                    ? "Restarting device"
+                    : "An error occurred while restarting device",
+                "Dismiss",
+            );
+        } catch (error) {
+            const errorMessage = `Failed to set restart device${error instanceof EmptyError ? ", request timed out" : ""}`;
+
+            this.snackBar.open(errorMessage, "Dismiss");
+            console.error("restartDevice:", error);
         }
     }
 

@@ -1,0 +1,368 @@
+<form [formGroup]="settingsForm" novalidate class="tab-content">
+    <mat-accordion>
+        <mat-expansion-panel>
+            <mat-expansion-panel-header>
+                <mat-panel-title>Machine</mat-panel-title>
+                @if (!isSmallScreen()) {
+                    <mat-panel-description> Physical parameters of the rowing machine </mat-panel-description>
+                }
+            </mat-expansion-panel-header>
+            <div class="expansion-content" formGroupName="machineSettings">
+                <mat-form-field>
+                    <mat-label>Flywheel Inertia</mat-label>
+                    <input matInput formControlName="flywheelInertia" type="number" step="0.01" />
+                    @if (settingsFormErrors()?.machineSettings?.flywheelInertia) {
+                        <mat-error>
+                            @if (settingsFormErrors()?.machineSettings?.flywheelInertia?.required) {
+                                Field is required
+                            }
+                            @if (settingsFormErrors()?.machineSettings?.flywheelInertia?.min) {
+                                Minimum value is 0.0001
+                            }
+                            @if (settingsFormErrors()?.machineSettings?.flywheelInertia?.max) {
+                                Maximum value is 100
+                            }
+                        </mat-error>
+                    }
+                </mat-form-field>
+
+                <mat-form-field>
+                    <mat-label>Magic Constant</mat-label>
+                    <input matInput formControlName="magicConstant" type="number" step="0.01" />
+                    @if (settingsFormErrors()?.machineSettings?.magicConstant) {
+                        <mat-error>
+                            @if (settingsFormErrors()?.machineSettings?.magicConstant?.required) {
+                                Field is required
+                            }
+                            @if (settingsFormErrors()?.machineSettings?.magicConstant?.min) {
+                                Minimum value is {{ 1 / 35 | number: "1.4-4" }}
+                            }
+                            @if (settingsFormErrors()?.machineSettings?.magicConstant?.max) {
+                                Maximum value is {{ 255 / 35 | number: "1.4-4" }}
+                            }
+                        </mat-error>
+                    }
+                </mat-form-field>
+
+                <mat-form-field>
+                    <mat-label>Sprocket Radius</mat-label>
+                    <input matInput formControlName="sprocketRadius" type="number" step="0.001" />
+                    @if (settingsFormErrors()?.machineSettings?.sprocketRadius) {
+                        <mat-error>
+                            @if (settingsFormErrors()?.machineSettings?.sprocketRadius?.required) {
+                                Field is required
+                            }
+                            @if (settingsFormErrors()?.machineSettings?.sprocketRadius?.min) {
+                                Minimum value is 0.001
+                            }
+                            @if (settingsFormErrors()?.machineSettings?.sprocketRadius?.max) {
+                                Maximum value is 65.535
+                            }
+                        </mat-error>
+                    }
+                </mat-form-field>
+
+                <div class="slider-container">
+                    <span>Impulses Per Revolution:</span>
+                    <mat-slider min="1" max="12" step="1" discrete>
+                        <input matSliderThumb formControlName="impulsePerRevolution" />
+                    </mat-slider>
+                </div>
+            </div>
+        </mat-expansion-panel>
+
+        <mat-expansion-panel>
+            <mat-expansion-panel-header>
+                <mat-panel-title>Sensor Signal</mat-panel-title>
+                @if (!isSmallScreen()) {
+                    <mat-panel-description>
+                        Configuration for sensor signal processing
+                    </mat-panel-description>
+                }
+            </mat-expansion-panel-header>
+            <div class="expansion-content" formGroupName="sensorSignalSettings">
+                <div
+                    class="slider-container"
+                    matTooltip="Minimum value depends on drag factor recovery period"
+                    [matTooltipDisabled]="
+                        settingsForm.controls.sensorSignalSettings.controls.rotationDebounceTime.value !==
+                        settingsForm.controls.dragFactorSettings.controls.maxDragFactorRecoveryPeriod.value
+                    "
+                    matTooltipShowDelay="1000"
+                >
+                    <span>Rotation Debounce (ms):</span>
+                    <mat-slider
+                        [min]="
+                            settingsForm.controls.dragFactorSettings.controls.maxDragFactorRecoveryPeriod
+                                .value
+                        "
+                        max="50"
+                        step="1"
+                        discrete
+                    >
+                        <input matSliderThumb formControlName="rotationDebounceTime" />
+                    </mat-slider>
+                </div>
+
+                <div class="slider-container">
+                    <span>Rowing Stop Threshold (sec):</span>
+                    <mat-slider min="4" max="20" step="1" discrete>
+                        <input matSliderThumb formControlName="rowingStoppedThreshold" />
+                    </mat-slider>
+                </div>
+            </div>
+        </mat-expansion-panel>
+
+        <mat-expansion-panel>
+            <mat-expansion-panel-header>
+                <mat-panel-title>Drag Factor</mat-panel-title>
+                @if (!isSmallScreen()) {
+                    <mat-panel-description> Parameters for drag factor calculation </mat-panel-description>
+                }
+            </mat-expansion-panel-header>
+            <div class="expansion-content" formGroupName="dragFactorSettings">
+                <mat-form-field>
+                    <mat-label>Drag Factor Lower Threshold</mat-label>
+                    <input matInput formControlName="dragFactorLowerThreshold" type="number" />
+                    @if (settingsFormErrors()?.dragFactorSettings?.dragFactorLowerThreshold) {
+                        <mat-error>
+                            @if (
+                                !!settingsFormErrors()?.dragFactorSettings?.dragFactorLowerThreshold?.required
+                            ) {
+                                Field is required
+                            }
+                            @if (!!settingsFormErrors()?.dragFactorSettings?.dragFactorLowerThreshold?.min) {
+                                Minimum value is 0
+                            }
+                            @if (!!settingsFormErrors()?.dragFactorSettings?.dragFactorLowerThreshold?.max) {
+                                Maximum value is 65535
+                            }
+                        </mat-error>
+                    }
+                </mat-form-field>
+
+                <mat-form-field>
+                    <mat-label>Drag Factor Upper Threshold</mat-label>
+                    <input matInput formControlName="dragFactorUpperThreshold" type="number" />
+                    @if (settingsFormErrors()?.dragFactorSettings?.dragFactorUpperThreshold) {
+                        <mat-error>
+                            @if (
+                                settingsFormErrors()?.dragFactorSettings?.dragFactorUpperThreshold?.required
+                            ) {
+                                Field is required
+                            }
+                            @if (settingsFormErrors()?.dragFactorSettings?.dragFactorUpperThreshold?.min) {
+                                Minimum value is 0
+                            }
+                            @if (settingsFormErrors()?.dragFactorSettings?.dragFactorUpperThreshold?.max) {
+                                Maximum value is 65535
+                            }
+                        </mat-error>
+                    }
+                </mat-form-field>
+
+                <div
+                    class="slider-container"
+                    matTooltip="Maximum value depends on the rotation debounce time"
+                    [matTooltipDisabled]="
+                        settingsForm.controls.sensorSignalSettings.controls.rotationDebounceTime.value !==
+                        settingsForm.controls.dragFactorSettings.controls.maxDragFactorRecoveryPeriod.value
+                    "
+                    matTooltipShowDelay="1000"
+                >
+                    <span>Drag Factor Period:</span>
+                    <mat-slider
+                        min="1"
+                        [max]="settingsForm.controls.sensorSignalSettings.controls.rotationDebounceTime.value"
+                        step="1"
+                        discrete
+                    >
+                        <input matSliderThumb formControlName="maxDragFactorRecoveryPeriod" />
+                    </mat-slider>
+                    @if (settingsFormErrors()?.maxDragFactorRecoveryPeriodExceeded) {
+                        <mat-error>Value yields too many data points (max 1000)</mat-error>
+                    }
+                </div>
+
+                <div class="slider-container">
+                    <span>Drag Coefficients Array Size:</span>
+                    <mat-slider min="1" max="15" step="1" discrete>
+                        <input matSliderThumb formControlName="dragCoefficientsArrayLength" />
+                    </mat-slider>
+                </div>
+
+                <div class="slider-container gt-xs-grid-span-2">
+                    <span>Goodness of Fit Threshold:</span>
+                    <mat-slider
+                        min="0"
+                        [max]="254 / 255"
+                        [step]="1 / 255"
+                        discrete
+                        [displayWith]="formatPercent"
+                    >
+                        <input matSliderThumb formControlName="goodnessOfFitThreshold" />
+                    </mat-slider>
+                </div>
+            </div>
+        </mat-expansion-panel>
+
+        <mat-expansion-panel>
+            <mat-expansion-panel-header>
+                <mat-panel-title>Stroke Detection</mat-panel-title>
+                @if (!isSmallScreen()) {
+                    <mat-panel-description> Parameters for stroke detection algorithm </mat-panel-description>
+                }
+            </mat-expansion-panel-header>
+            <div class="expansion-content" formGroupName="strokeDetectionSettings">
+                <mat-form-field>
+                    <mat-label>Stroke Detection Type</mat-label>
+                    <mat-select formControlName="strokeDetectionType">
+                        @for (type of StrokeDetectionType | enumToArray; track $index) {
+                            <mat-option [value]="type.key">{{ type.value }}</mat-option>
+                        }
+                    </mat-select>
+                </mat-form-field>
+
+                <div class="slider-container">
+                    <span>Impulse Data Array Size:</span>
+                    <mat-slider
+                        min="1"
+                        [max]="strokeSettings().isCompiledWithDouble ? 15 : 18"
+                        step="1"
+                        discrete
+                    >
+                        <input matSliderThumb formControlName="impulseDataArrayLength" />
+                    </mat-slider>
+                </div>
+
+                <mat-form-field>
+                    <mat-label>Minimum Powered Torque</mat-label>
+                    <input matInput formControlName="minimumPoweredTorque" type="number" step="0.01" />
+                    @if (settingsFormErrors()?.strokeDetectionSettings?.minimumPoweredTorque) {
+                        <mat-error>
+                            @if (
+                                settingsFormErrors()?.strokeDetectionSettings?.minimumPoweredTorque?.required
+                            ) {
+                                Field is required
+                            }
+                            @if (settingsFormErrors()?.strokeDetectionSettings?.minimumPoweredTorque?.min) {
+                                Minimum value is {{ -32767 / 10000 | number: "1.4-4" }}
+                            }
+                            @if (settingsFormErrors()?.strokeDetectionSettings?.minimumPoweredTorque?.max) {
+                                Maximum value is {{ 32767 / 10000 | number: "1.4-4" }}
+                            }
+                        </mat-error>
+                    }
+                </mat-form-field>
+
+                <mat-form-field>
+                    <mat-label>Minimum Drag Torque</mat-label>
+                    <input matInput formControlName="minimumDragTorque" type="number" step="0.01" />
+                    @if (settingsFormErrors()?.strokeDetectionSettings?.minimumDragTorque) {
+                        <mat-error>
+                            @if (settingsFormErrors()?.strokeDetectionSettings?.minimumDragTorque?.required) {
+                                Field is required
+                            }
+                            @if (settingsFormErrors()?.strokeDetectionSettings?.minimumDragTorque?.min) {
+                                Minimum value is {{ -32767 / 10000 | number: "1.4-4" }}
+                            }
+                            @if (settingsFormErrors()?.strokeDetectionSettings?.minimumDragTorque?.max) {
+                                Maximum value is {{ 32767 / 10000 | number: "1.4-4" }}
+                            }
+                        </mat-error>
+                    }
+                </mat-form-field>
+
+                <mat-form-field>
+                    <mat-label>Minimum Recovery Slope Margin</mat-label>
+                    <input matInput formControlName="minimumRecoverySlopeMargin" type="number" step="0.01" />
+                    @if (settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlopeMargin) {
+                        <mat-error>
+                            @if (
+                                settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlopeMargin
+                                    ?.required
+                            ) {
+                                Field is required
+                            }
+                            @if (
+                                settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlopeMargin?.min
+                            ) {
+                                Minimum value is 0
+                            }
+                            @if (
+                                settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlopeMargin?.max
+                            ) {
+                                Maximum value is 1
+                            }
+                        </mat-error>
+                    }
+                </mat-form-field>
+
+                <mat-form-field>
+                    <mat-label>Minimum Recovery Slope</mat-label>
+                    <input matInput formControlName="minimumRecoverySlope" type="number" step="0.01" />
+                    @if (settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlope) {
+                        <mat-error>
+                            @if (
+                                settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlope?.required
+                            ) {
+                                Field is required
+                            }
+                            @if (settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlope?.min) {
+                                Minimum value is {{ -32767 / 1000 | number: "1.3-3" }}
+                            }
+                            @if (settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlope?.max) {
+                                Maximum value is {{ 32767 / 1000 | number: "1.3-3" }}
+                            }
+                        </mat-error>
+                    }
+                </mat-form-field>
+
+                <mat-form-field>
+                    <mat-label>Minimum Recovery Time</mat-label>
+                    <input matInput formControlName="minimumRecoveryTime" type="number" />
+                    @if (settingsFormErrors()?.strokeDetectionSettings?.minimumRecoveryTime) {
+                        <mat-error>
+                            @if (
+                                settingsFormErrors()?.strokeDetectionSettings?.minimumRecoveryTime?.required
+                            ) {
+                                Field is required
+                            }
+                            @if (settingsFormErrors()?.strokeDetectionSettings?.minimumRecoveryTime?.min) {
+                                Minimum value is 0
+                            }
+                            @if (settingsFormErrors()?.strokeDetectionSettings?.minimumRecoveryTime?.max) {
+                                Maximum value is 4095
+                            }
+                        </mat-error>
+                    }
+                </mat-form-field>
+
+                <mat-form-field>
+                    <mat-label>Minimum Drive Time</mat-label>
+                    <input matInput formControlName="minimumDriveTime" type="number" />
+                    @if (settingsFormErrors()?.strokeDetectionSettings?.minimumDriveTime) {
+                        <mat-error>
+                            @if (settingsFormErrors()?.strokeDetectionSettings?.minimumDriveTime?.required) {
+                                Field is required
+                            }
+                            @if (settingsFormErrors()?.strokeDetectionSettings?.minimumDriveTime?.min) {
+                                Minimum value is 0
+                            }
+                            @if (settingsFormErrors()?.strokeDetectionSettings?.minimumDriveTime?.max) {
+                                Maximum value is 4095
+                            }
+                        </mat-error>
+                    }
+                </mat-form-field>
+
+                <div class="slider-container gt-xs-grid-span-2">
+                    <span>Drive Handle Forces Size:</span>
+                    <mat-slider min="0" max="255" step="1" discrete>
+                        <input matSliderThumb formControlName="driveHandleForcesMaxCapacity" />
+                    </mat-slider>
+                </div>
+            </div>
+        </mat-expansion-panel>
+    </mat-accordion>
+</form>

@@ -1,0 +1,34 @@
+@use "../../flex-layout";
+
+.expansion-content {
+    display: grid;
+    gap: 8px;
+    grid-gap: 8px;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+
+    @include flex-layout.xs {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        grid-gap: 12px;
+    }
+
+    .slider-container {
+        display: flex;
+        flex-direction: column;
+
+        > span {
+            text-wrap-mode: nowrap;
+            font-size: var(--mdc-filled-text-field-label-text-size, 1rem);
+            margin-left: 4px;
+        }
+    }
+
+    .mat-mdc-slider {
+        margin: 0px 4px;
+    }
+}
+
+.tab-content {
+    padding: 16px 2px;
+}

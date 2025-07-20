@@ -3,6 +3,11 @@ export enum BleOpCodes {
     ChangeBleService = 18,
     SetDeltaTimeLogging = 19,
     SetSdCardLogging = 20,
+    SetMachineSettings = 21,
+    SetSensorSignalSettings = 22,
+    SetDragFactorSettings = 23,
+    SetStrokeDetectionSettings = 24,
+    RestartDevice = 31,
 }
 
 export enum BleResponseOpCodes {

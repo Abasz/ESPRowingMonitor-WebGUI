@@ -54,6 +54,7 @@ describe("SettingsDialogComponent", (): void => {
             minimumRecoveryTime: 400,
             minimumDriveTime: 200,
             driveHandleForcesMaxCapacity: 20,
+            isCompiledWithDouble: true,
         };
 
         const mockErgConnectionStatus: IErgConnectionStatus = {

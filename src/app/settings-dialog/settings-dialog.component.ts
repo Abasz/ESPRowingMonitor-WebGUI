@@ -1,56 +1,43 @@
 import { CdkScrollable } from "@angular/cdk/scrolling";
-import { DatePipe } from "@angular/common";
-import { ChangeDetectionStrategy, Component, Inject, isDevMode, Signal } from "@angular/core";
-import { toSignal } from "@angular/core/rxjs-interop";
+import { AsyncPipe } from "@angular/common";
 import {
-    FormControl,
-    FormGroup,
-    NonNullableFormBuilder,
-    ReactiveFormsModule,
-    ValidationErrors,
-    Validators,
-} from "@angular/forms";
-import { MatButton, MatIconButton } from "@angular/material/button";
-import { MatCheckbox } from "@angular/material/checkbox";
-import { MatOption } from "@angular/material/core";
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    Inject,
+    Signal,
+    signal,
+    viewChild,
+    WritableSignal,
+} from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { MatButton } from "@angular/material/button";
 import {
     MAT_DIALOG_DATA,
-    MatDialog,
     MatDialogActions,
-    MatDialogClose,
     MatDialogContent,
     MatDialogRef,
     MatDialogTitle,
 } from "@angular/material/dialog";
-import { MatError, MatFormField, MatLabel } from "@angular/material/form-field";
-import { MatIcon } from "@angular/material/icon";
-import { MatSelect } from "@angular/material/select";
-import { MatTooltip } from "@angular/material/tooltip";
-import { SwUpdate } from "@angular/service-worker";
-import { map, startWith } from "rxjs";
+import { MatSnackBar } from "@angular/material/snack-bar";
+import { MatTab, MatTabGroup } from "@angular/material/tabs";
+import { firstValueFrom, map, Observable } from "rxjs";
 
-import { BleServiceFlag, BleServiceNames, IDeviceInformation, LogLevel } from "../../common/ble.interfaces";
+import { IDeviceInformation } from "../../common/ble.interfaces";
 import {
     HeartRateMonitorMode,
     IErgConnectionStatus,
     IRowerSettings,
     IStrokeDetectionSettings,
-    IValidationErrors,
 } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
+import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
-import { EnumToArrayPipe } from "../../common/utils/enum-to-array.pipe";
-import { getValidationErrors } from "../../common/utils/utility.functions";
-import { versionInfo } from "../../version";
-import { OtaDialogComponent } from "../ota-settings-dialog/ota-dialog.component";
+import { UtilsService } from "../../common/services/utils.service";
+import { SnackBarConfirmComponent } from "../../common/snack-bar-confirm/snack-bar-confirm.component";
 
-type SettingsFormGroup = FormGroup<{
-    bleMode: FormControl<BleServiceFlag>;
-    logLevel: FormControl<LogLevel>;
-    heartRateMonitor: FormControl<HeartRateMonitorMode>;
-    deltaTimeLogging: FormControl<boolean>;
-    logToSdCard: FormControl<boolean>;
-}>;
+import { GeneralSettingsComponent } from "./general-settings.component";
+import { RowingSettingsComponent, RowingSettingsFormGroup } from "./rowing-settings.component";
 
 @Component({
     selector: "app-settings-dialog",
@@ -61,45 +48,43 @@ type SettingsFormGroup = FormGroup<{
         MatDialogTitle,
         CdkScrollable,
         MatDialogContent,
-        ReactiveFormsModule,
-        MatFormField,
-        MatLabel,
-        MatSelect,
-        MatOption,
-        MatError,
-        MatCheckbox,
-        MatIconButton,
-        MatTooltip,
-        MatIcon,
         MatDialogActions,
         MatButton,
-        MatDialogClose,
-        DatePipe,
-        EnumToArrayPipe,
+        MatTab,
+        MatTabGroup,
+        GeneralSettingsComponent,
+        RowingSettingsComponent,
+        AsyncPipe,
     ],
 })
 export class SettingsDialogComponent {
-    BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
-    BleServiceNames: typeof BleServiceNames = BleServiceNames;
-    LogLevel: typeof LogLevel = LogLevel;
+    readonly rowingSettings: Signal<RowingSettingsComponent> = viewChild.required(RowingSettingsComponent);
+    readonly generalSettings: Signal<GeneralSettingsComponent> = viewChild.required(GeneralSettingsComponent);
 
-    compileDate: Date = new Date(versionInfo.timeStamp);
+    readonly isSaveButtonEnabled: Signal<boolean> = computed((): boolean => {
+        const currentTab = this.currentTabIndex();
+        const isGeneralFormSaveable = this.isGeneralFormSaveable();
+        const isRowingFormSaveable = this.isRowingFormSaveable();
 
-    deviceInfo: IDeviceInformation = this.data.deviceInfo;
+        return (currentTab === 0 && isGeneralFormSaveable) || (currentTab === 1 && isRowingFormSaveable);
+    });
 
-    isConnected: boolean = this.data.ergConnectionStatus.status === "connected";
+    breakPoints$: Observable<boolean> = this.utils
+        .breakpointHelper([[599, "max"]])
+        .pipe(map((value: { [key: string]: boolean }): boolean => value.maxW599));
 
-    settingsForm: SettingsFormGroup;
+    currentTabIndex: WritableSignal<number> = signal<number>(0);
 
-    settingsFormErrors: Signal<ValidationErrors | null>;
+    private readonly isGeneralFormSaveable: WritableSignal<boolean> = signal<boolean>(true);
+    private readonly isRowingFormSaveable: WritableSignal<boolean> = signal<boolean>(true);
 
     constructor(
+        private dialogRef: MatDialogRef<SettingsDialogComponent>,
+        private utils: UtilsService,
         private configManager: ConfigManagerService,
         private ergSettingsService: ErgSettingsService,
-        private fb: NonNullableFormBuilder,
-        private dialogRef: MatDialogRef<SettingsDialogComponent>,
-        private swUpdate: SwUpdate,
-        private dialog: MatDialog,
+        private ergConnectionService: ErgConnectionService,
+        private snackBar: MatSnackBar,
         @Inject(MAT_DIALOG_DATA)
         public data: {
             rowerSettings: IRowerSettings;
@@ -108,91 +93,177 @@ export class SettingsDialogComponent {
             deviceInfo: IDeviceInformation;
         },
     ) {
-        this.settingsForm = this.fb.group({
-            bleMode: [{ value: this.data.rowerSettings.bleServiceFlag, disabled: !this.isConnected }],
-            logLevel: [
-                { value: this.data.rowerSettings.logLevel, disabled: !this.isConnected },
-                [Validators.min(0), Validators.max(6)],
-            ],
-            heartRateMonitor: [
-                this.configManager.getItem("heartRateMonitor") as HeartRateMonitorMode,
-                Validators.pattern(/^(off|ble|ant)$/),
-            ],
-            deltaTimeLogging: [
-                {
-                    value: this.data.rowerSettings.logDeltaTimes ?? false,
-                    disabled: this.data.rowerSettings.logDeltaTimes === undefined || !this.isConnected,
-                },
-            ],
-            logToSdCard: [
-                {
-                    value: this.data.rowerSettings.logToSdCard ?? false,
-                    disabled: this.data.rowerSettings.logToSdCard === undefined || !this.isConnected,
-                },
-            ],
+        this.breakPoints$.pipe(takeUntilDestroyed()).subscribe((isSmallScreen: boolean): void => {
+            if (isSmallScreen) {
+                this.dialogRef.updateSize("90%");
+
+                return;
+            }
+
+            this.dialogRef.updateSize("560px");
         });
 
-        this.settingsFormErrors = toSignal(
-            this.settingsForm.statusChanges.pipe(
-                startWith("INVALID"),
-                map((): IValidationErrors => getValidationErrors(this.settingsForm.controls)),
-            ),
-            { requireSync: true },
-        );
+        this.dialogRef.disableClose = true;
+        this.dialogRef
+            .backdropClick()
+            .pipe(takeUntilDestroyed())
+            .subscribe((): Promise<void> => this.handleDialogClose());
+        this.dialogRef
+            .keydownEvents()
+            .pipe(takeUntilDestroyed())
+            .subscribe((event: KeyboardEvent): void => {
+                if (event.key === "Escape") {
+                    this.handleDialogClose();
+                }
+            });
     }
 
-    checkForUpdates(): void {
-        if (!isDevMode()) {
-            this.swUpdate.checkForUpdate();
+    onGeneralFormValidityChange(isValid: boolean): void {
+        this.isGeneralFormSaveable.set(isValid && this.generalSettings().getForm().dirty);
+    }
+
+    onRowingFormValidityChange(isValid: boolean): void {
+        this.isRowingFormSaveable.set(isValid && this.rowingSettings().getForm().dirty);
+    }
+
+    async saveSettings(): Promise<void> {
+        if (
+            ((this.currentTabIndex() === 0 && this.isRowingFormSaveable()) ||
+                (this.currentTabIndex() === 1 && this.isGeneralFormSaveable())) &&
+            (await this.showSaveConfirmation())
+        ) {
+            await this.saveGeneralSettings();
+            await this.saveRowingSettings();
+        } else {
+            this.currentTabIndex() === 0 ? await this.saveGeneralSettings() : await this.saveRowingSettings();
+        }
+
+        this.dialogRef.close();
+    }
+
+    onTabChange(newTabIndex: number): void {
+        this.currentTabIndex.set(newTabIndex);
+    }
+
+    async handleDialogClose(): Promise<void> {
+        if (
+            (!this.rowingSettings().getForm().dirty && !this.generalSettings().getForm().dirty) ||
+            (await firstValueFrom(
+                this.snackBar
+                    .openFromComponent(SnackBarConfirmComponent, {
+                        duration: undefined,
+                        data: {
+                            text: "You have unsaved changes. Close without saving?",
+                            cancel: "No",
+                        },
+                    })
+                    .onAction()
+                    .pipe(map((): boolean => true)),
+                { defaultValue: false },
+            ))
+        ) {
+            this.dialogRef.close();
         }
     }
 
-    async otaUpdate(event: Event): Promise<void> {
-        const inputElement = event.currentTarget;
-        if (!(inputElement instanceof HTMLInputElement) || !inputElement?.files) {
+    private async saveGeneralSettings(): Promise<void> {
+        const settingsForm = this.generalSettings().getForm();
+
+        if (settingsForm.controls.logLevel.dirty) {
+            await this.ergSettingsService.changeLogLevel(settingsForm.controls.logLevel.value);
+        }
+
+        if (settingsForm.controls.deltaTimeLogging.dirty) {
+            await this.ergSettingsService.changeDeltaTimeLogging(
+                settingsForm.controls.deltaTimeLogging.value,
+            );
+        }
+
+        if (settingsForm.controls.logToSdCard.dirty) {
+            await this.ergSettingsService.changeLogToSdCard(settingsForm.controls.logToSdCard.value);
+        }
+
+        if (settingsForm.controls.bleMode.dirty) {
+            await this.ergSettingsService.changeBleServiceType(settingsForm.controls.bleMode.value);
+        }
+
+        if (settingsForm.controls.heartRateMonitor.dirty) {
+            this.configManager.setItem(
+                "heartRateMonitor",
+                settingsForm.value.heartRateMonitor as HeartRateMonitorMode,
+            );
+        }
+    }
+
+    private async saveRowingSettings(): Promise<void> {
+        const rowingSettingsForm = this.rowingSettings().getForm();
+
+        if (rowingSettingsForm.controls.machineSettings.dirty) {
+            const machineSettings = rowingSettingsForm.controls.machineSettings.getRawValue();
+            await this.ergSettingsService.changeMachineSettings(machineSettings);
+        }
+
+        await this.handleSensorAndDragSettings(rowingSettingsForm);
+
+        if (rowingSettingsForm.controls.strokeDetectionSettings.dirty) {
+            const strokeDetectionSettings = rowingSettingsForm.controls.strokeDetectionSettings.getRawValue();
+
+            await this.ergSettingsService.changeStrokeSettings(strokeDetectionSettings);
+        }
+
+        if (rowingSettingsForm.dirty) {
+            await this.ergSettingsService.restartDevice();
+            await this.ergConnectionService.reconnect();
+        }
+    }
+
+    private async handleSensorAndDragSettings(form: RowingSettingsFormGroup): Promise<void> {
+        const sensorSettingsForm = form.controls.sensorSignalSettings;
+        const dragSettingsForm = form.controls.dragFactorSettings;
+
+        if (!sensorSettingsForm.dirty && !dragSettingsForm.dirty) {
             return;
         }
 
-        this.dialog.open(OtaDialogComponent, {
-            autoFocus: false,
-            disableClose: true,
-            data: {
-                firmwareSize: inputElement.files[0].size / 1000,
-                file: inputElement.files[0],
-            },
-        });
+        const newSensorSettings = sensorSettingsForm.getRawValue();
+        const newDragSettings = dragSettingsForm.getRawValue();
 
-        this.dialogRef.close();
+        const isRotationDebounceIncreased =
+            newSensorSettings.rotationDebounceTime >
+            this.data.rowerSettings.sensorSignalSettings.rotationDebounceTime;
+        const isMaxDragFactorRecoveryPeriodIncreased =
+            newDragSettings.maxDragFactorRecoveryPeriod >
+            this.data.rowerSettings.dragFactorSettings.maxDragFactorRecoveryPeriod;
+
+        if (isRotationDebounceIncreased && isMaxDragFactorRecoveryPeriodIncreased) {
+            await this.ergSettingsService.changeSensorSignalSettings(newSensorSettings);
+            await this.ergSettingsService.changeDragFactorSettings(newDragSettings);
+
+            return;
+        }
+
+        if (dragSettingsForm.dirty) {
+            await this.ergSettingsService.changeDragFactorSettings(newDragSettings);
+        }
+
+        if (sensorSettingsForm.dirty) {
+            await this.ergSettingsService.changeSensorSignalSettings(newSensorSettings);
+        }
     }
 
-    async submitLoginForm(): Promise<void> {
-        if (this.settingsForm.get("logLevel")?.dirty) {
-            await this.ergSettingsService.changeLogLevel(this.settingsForm.value.logLevel as LogLevel);
-        }
-
-        if (this.settingsForm.get("deltaTimeLogging")?.dirty) {
-            await this.ergSettingsService.changeDeltaTimeLogging(
-                this.settingsForm.value.deltaTimeLogging as boolean,
-            );
-        }
-
-        if (this.settingsForm.get("logToSdCard")?.dirty) {
-            await this.ergSettingsService.changeLogToSdCard(this.settingsForm.value.logToSdCard as boolean);
-        }
-
-        if (this.settingsForm.get("bleMode")?.dirty) {
-            await this.ergSettingsService.changeBleServiceType(
-                this.settingsForm.value.bleMode as BleServiceFlag,
-            );
-        }
-
-        if (this.settingsForm.get("heartRateMonitor")?.dirty) {
-            this.configManager.setItem(
-                "heartRateMonitor",
-                this.settingsForm.value.heartRateMonitor as HeartRateMonitorMode,
-            );
-        }
-
-        this.dialogRef.close();
+    private showSaveConfirmation(): Promise<boolean> {
+        return firstValueFrom(
+            this.snackBar
+                .openFromComponent(SnackBarConfirmComponent, {
+                    duration: undefined,
+                    data: {
+                        text: `${this.currentTabIndex() === 1 ? "General" : "Rowing"} tab has changes, save those too?`,
+                        cancel: "No",
+                    },
+                })
+                .onAction()
+                .pipe(map((): boolean => true)),
+            { defaultValue: false },
+        );
     }
 }
