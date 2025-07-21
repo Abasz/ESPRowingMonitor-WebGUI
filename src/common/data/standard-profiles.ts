@@ -1,0 +1,110 @@
+import { RowingProfileSettings, StrokeDetectionType } from "../common.interfaces";
+
+export interface ProfileData {
+    name: string;
+    settings: RowingProfileSettings;
+}
+
+export const STANDARD_PROFILES: Record<string, ProfileData> = {
+    concept2ModelD: {
+        name: "Concept2 Model D",
+        settings: {
+            machineSettings: {
+                flywheelInertia: 0.07848,
+                magicConstant: 2.8,
+                sprocketRadius: 1.5,
+                impulsePerRevolution: 3,
+            },
+            sensorSignalSettings: {
+                rotationDebounceTime: 7,
+                rowingStoppedThreshold: 7, // 7'000ms converted to seconds
+            },
+            dragFactorSettings: {
+                goodnessOfFitThreshold: 0.97,
+                maxDragFactorRecoveryPeriod: 6, // 6'000ms converted to seconds
+                dragFactorLowerThreshold: 75,
+                dragFactorUpperThreshold: 250,
+                dragCoefficientsArrayLength: 1,
+            },
+            strokeDetectionSettings: {
+                strokeDetectionType: StrokeDetectionType.Torque,
+                impulseDataArrayLength: 7,
+                minimumPoweredTorque: 0,
+                minimumDragTorque: 0.14,
+                minimumRecoverySlopeMargin: 0.00002,
+                minimumRecoverySlope: 0.01,
+                minimumRecoveryTime: 800,
+                minimumDriveTime: 400,
+                driveHandleForcesMaxCapacity: 255,
+            },
+        },
+    },
+    kayakFirstOrange: {
+        name: "KayakFirst Orange",
+        settings: {
+            machineSettings: {
+                flywheelInertia: 0.02527962,
+                magicConstant: 2.75,
+                sprocketRadius: 2.7,
+                impulsePerRevolution: 3,
+            },
+            sensorSignalSettings: {
+                rotationDebounceTime: 7,
+                rowingStoppedThreshold: 7, // 7'000ms converted to seconds
+            },
+            dragFactorSettings: {
+                goodnessOfFitThreshold: 0.94,
+                maxDragFactorRecoveryPeriod: 5, // 5'000ms converted to seconds
+                dragFactorLowerThreshold: 10,
+                dragFactorUpperThreshold: 200,
+                dragCoefficientsArrayLength: 1,
+            },
+            strokeDetectionSettings: {
+                strokeDetectionType: StrokeDetectionType.Torque,
+                impulseDataArrayLength: 7,
+                minimumPoweredTorque: 0,
+                minimumDragTorque: 0.214,
+                minimumRecoverySlopeMargin: 0.00001,
+                minimumRecoverySlope: 0,
+                minimumRecoveryTime: 145,
+                minimumDriveTime: 170,
+                driveHandleForcesMaxCapacity: 255,
+            },
+        },
+    },
+    kayakFirstBlue: {
+        name: "KayakFirst Blue",
+        settings: {
+            machineSettings: {
+                flywheelInertia: 0.04,
+                magicConstant: 3.54,
+                sprocketRadius: 2.7,
+                impulsePerRevolution: 6,
+            },
+            sensorSignalSettings: {
+                rotationDebounceTime: 5,
+                rowingStoppedThreshold: 7, // 7'000ms converted to seconds
+            },
+            dragFactorSettings: {
+                goodnessOfFitThreshold: 0.752,
+                maxDragFactorRecoveryPeriod: 5, // 5'000ms converted to seconds
+                dragFactorLowerThreshold: 10,
+                dragFactorUpperThreshold: 200,
+                dragCoefficientsArrayLength: 4,
+            },
+            strokeDetectionSettings: {
+                strokeDetectionType: StrokeDetectionType.Torque,
+                impulseDataArrayLength: 12,
+                minimumPoweredTorque: 0.186,
+                minimumDragTorque: 0.397,
+                minimumRecoverySlopeMargin: 0.0000151,
+                minimumRecoverySlope: 0,
+                minimumRecoveryTime: 145,
+                minimumDriveTime: 170,
+                driveHandleForcesMaxCapacity: 255,
+            },
+        },
+    },
+};
+
+export const CUSTOM_PROFILE_KEY = "custom";

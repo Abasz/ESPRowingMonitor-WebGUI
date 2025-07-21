@@ -63,6 +63,13 @@ export interface IRowerSettings {
     dragFactorSettings: IDragFactorSettings;
 }
 
+export interface RowingProfileSettings {
+    machineSettings: IMachineSettings;
+    sensorSignalSettings: ISensorSignalSettings;
+    dragFactorSettings: IDragFactorSettings;
+    strokeDetectionSettings: Omit<IStrokeDetectionSettings, "isCompiledWithDouble">;
+}
+
 export interface IMachineSettings {
     flywheelInertia: number;
     magicConstant: number;

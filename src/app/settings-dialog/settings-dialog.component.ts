@@ -123,7 +123,9 @@ export class SettingsDialogComponent {
     }
 
     onRowingFormValidityChange(isValid: boolean): void {
-        this.isRowingFormSaveable.set(isValid && this.rowingSettings().getForm().dirty);
+        this.isRowingFormSaveable.set(
+            isValid && (this.rowingSettings().getForm().dirty || this.rowingSettings().isProfileLoaded),
+        );
     }
 
     async saveSettings(): Promise<void> {
@@ -197,31 +199,43 @@ export class SettingsDialogComponent {
 
     private async saveRowingSettings(): Promise<void> {
         const rowingSettingsForm = this.rowingSettings().getForm();
+        const isProfileLoaded = this.rowingSettings().isProfileLoaded;
 
-        if (rowingSettingsForm.controls.machineSettings.dirty) {
+        if (rowingSettingsForm.dirty) {
+            this.rowingSettings().saveAsCustomProfile();
+        }
+
+        if (isProfileLoaded || rowingSettingsForm.controls.machineSettings.dirty) {
             const machineSettings = rowingSettingsForm.controls.machineSettings.getRawValue();
+
             await this.ergSettingsService.changeMachineSettings(machineSettings);
         }
 
-        await this.handleSensorAndDragSettings(rowingSettingsForm);
+        await this.handleSensorAndDragSettings(rowingSettingsForm, isProfileLoaded);
 
-        if (rowingSettingsForm.controls.strokeDetectionSettings.dirty) {
+        if (isProfileLoaded || rowingSettingsForm.controls.strokeDetectionSettings.dirty) {
             const strokeDetectionSettings = rowingSettingsForm.controls.strokeDetectionSettings.getRawValue();
 
             await this.ergSettingsService.changeStrokeSettings(strokeDetectionSettings);
         }
 
-        if (rowingSettingsForm.dirty) {
+        if (isProfileLoaded || rowingSettingsForm.dirty) {
             await this.ergSettingsService.restartDevice();
             await this.ergConnectionService.reconnect();
         }
     }
 
-    private async handleSensorAndDragSettings(form: RowingSettingsFormGroup): Promise<void> {
+    private async handleSensorAndDragSettings(
+        form: RowingSettingsFormGroup,
+        isLoaded: boolean,
+    ): Promise<void> {
         const sensorSettingsForm = form.controls.sensorSignalSettings;
         const dragSettingsForm = form.controls.dragFactorSettings;
 
-        if (!sensorSettingsForm.dirty && !dragSettingsForm.dirty) {
+        const isSensorSettingsDirty = isLoaded || sensorSettingsForm.dirty;
+        const isDragSettingsDirty = isLoaded || dragSettingsForm.dirty;
+
+        if (!isSensorSettingsDirty && !isDragSettingsDirty) {
             return;
         }
 
@@ -242,11 +256,11 @@ export class SettingsDialogComponent {
             return;
         }
 
-        if (dragSettingsForm.dirty) {
+        if (isDragSettingsDirty) {
             await this.ergSettingsService.changeDragFactorSettings(newDragSettings);
         }
 
-        if (sensorSettingsForm.dirty) {
+        if (isSensorSettingsDirty) {
             await this.ergSettingsService.changeSensorSignalSettings(newSensorSettings);
         }
     }

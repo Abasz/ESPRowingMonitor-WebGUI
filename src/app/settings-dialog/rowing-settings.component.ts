@@ -1,4 +1,4 @@
-import { DecimalPipe } from "@angular/common";
+import { DecimalPipe, KeyValuePipe } from "@angular/common";
 import {
     ChangeDetectionStrategy,
     Component,
@@ -9,6 +9,8 @@ import {
     output,
     OutputEmitterRef,
     Signal,
+    signal,
+    WritableSignal,
 } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import {
@@ -21,6 +23,7 @@ import {
     ValidatorFn,
     Validators,
 } from "@angular/forms";
+import { MatButton } from "@angular/material/button";
 import { MatOption } from "@angular/material/core";
 import {
     MatAccordion,
@@ -45,6 +48,8 @@ import {
     IValidationErrors,
     StrokeDetectionType,
 } from "../../common/common.interfaces";
+import { CUSTOM_PROFILE_KEY, ProfileData } from "../../common/data/standard-profiles";
+import { RowingProfileService } from "../../common/services/rowing-profile.service";
 import { EnumToArrayPipe } from "../../common/utils/enum-to-array.pipe";
 import { getValidationErrors } from "../../common/utils/utility.functions";
 
@@ -87,6 +92,7 @@ export type RowingSettingsFormGroup = FormGroup<{
     imports: [
         ReactiveFormsModule,
         DecimalPipe,
+        KeyValuePipe,
         MatError,
         MatFormField,
         MatLabel,
@@ -94,6 +100,7 @@ export type RowingSettingsFormGroup = FormGroup<{
         MatOption,
         MatInput,
         MatSliderModule,
+        MatButton,
         MatAccordion,
         MatExpansionPanel,
         MatExpansionPanelHeader,
@@ -117,6 +124,13 @@ export class RowingSettingsComponent implements OnInit {
     settingsFormErrors: Signal<ValidationErrors | null>;
     strokeDetectionType: Signal<StrokeDetectionType>;
 
+    selectedProfileKey: string | undefined;
+    availableProfiles: WritableSignal<Record<string, ProfileData>>;
+
+    get isProfileLoaded(): boolean {
+        return this._isProfileLoaded;
+    }
+
     private readonly formValueChanged: Signal<
         Partial<IMachineSettings> &
             Partial<ISensorSignalSettings> &
@@ -124,7 +138,14 @@ export class RowingSettingsComponent implements OnInit {
             Partial<IStrokeDetectionSettings>
     >;
 
-    constructor(private fb: NonNullableFormBuilder) {
+    private _isProfileLoaded: boolean = false;
+
+    constructor(
+        private fb: NonNullableFormBuilder,
+        private rowerProfileService: RowingProfileService,
+    ) {
+        this.availableProfiles = signal(this.rowerProfileService.getAllProfiles());
+
         this.settingsForm = this.fb.group(
             {
                 machineSettings: this.fb.group({
@@ -301,6 +322,45 @@ export class RowingSettingsComponent implements OnInit {
     getForm(): RowingSettingsFormGroup {
         return this.settingsForm;
     }
+
+    loadProfile(profileKey: string | undefined): void {
+        if (!profileKey || !this.rowerSettings().isRuntimeSettingsEnabled) {
+            return;
+        }
+
+        const profileData = this.rowerProfileService.getProfile(profileKey);
+        if (!profileData) {
+            return;
+        }
+
+        this.settingsForm.reset({
+            machineSettings: profileData.settings.machineSettings,
+            sensorSignalSettings: profileData.settings.sensorSignalSettings,
+            dragFactorSettings: profileData.settings.dragFactorSettings,
+            strokeDetectionSettings: profileData.settings.strokeDetectionSettings,
+        });
+
+        this._isProfileLoaded = true;
+    }
+
+    saveAsCustomProfile(): void {
+        if (this.settingsForm.dirty) {
+            this.rowerProfileService.saveAsCustomProfile(this.settingsForm.getRawValue());
+            this.availableProfiles.set(this.rowerProfileService.getAllProfiles());
+        }
+    }
+
+    profileCompareFn = (
+        a: { key: string; value: ProfileData },
+        b: { key: string; value: ProfileData },
+    ): number => {
+        // custom profile should always come last
+        if (a.key === CUSTOM_PROFILE_KEY) return 1;
+        if (b.key === CUSTOM_PROFILE_KEY) return -1;
+
+        // for standard profiles, maintain original order (or alphabetical)
+        return a.key.localeCompare(b.key);
+    };
 
     formatPercent(value: number): string {
         return `${Math.floor(value * 100)}%`;

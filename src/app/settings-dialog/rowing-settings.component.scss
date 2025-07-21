@@ -1,5 +1,18 @@
 @use "../../flex-layout";
 
+.profile-selector-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+
+    @include flex-layout.xs {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+    }
+}
+
 .expansion-content {
     display: grid;
     gap: 8px;

@@ -1,4 +1,23 @@
 <form [formGroup]="settingsForm" novalidate class="tab-content">
+    <div class="profile-selector-grid">
+        <mat-form-field subscriptSizing="dynamic">
+            <mat-select [(value)]="selectedProfileKey" placeholder="Select Profile">
+                @for (profile of availableProfiles() | keyvalue: profileCompareFn; track profile.key) {
+                    <mat-option [value]="profile.key">{{ profile.value.name }}</mat-option>
+                }
+            </mat-select>
+        </mat-form-field>
+        <button
+            mat-raised-button
+            color="primary"
+            type="button"
+            [disabled]="!selectedProfileKey || !rowerSettings().isRuntimeSettingsEnabled"
+            (click)="loadProfile(selectedProfileKey)"
+        >
+            Apply Profile
+        </button>
+    </div>
+
     <mat-accordion>
         <mat-expansion-panel>
             <mat-expansion-panel-header>
