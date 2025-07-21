@@ -142,9 +142,9 @@ export class RowingSettingsComponent implements OnInit {
 
     constructor(
         private fb: NonNullableFormBuilder,
-        private rowerProfileService: RowingProfileService,
+        private rowingProfileService: RowingProfileService,
     ) {
-        this.availableProfiles = signal(this.rowerProfileService.getAllProfiles());
+        this.availableProfiles = signal(this.rowingProfileService.getAllProfiles());
 
         this.settingsForm = this.fb.group(
             {
@@ -328,7 +328,7 @@ export class RowingSettingsComponent implements OnInit {
             return;
         }
 
-        const profileData = this.rowerProfileService.getProfile(profileKey);
+        const profileData = this.rowingProfileService.getProfile(profileKey);
         if (!profileData) {
             return;
         }
@@ -345,8 +345,8 @@ export class RowingSettingsComponent implements OnInit {
 
     saveAsCustomProfile(): void {
         if (this.settingsForm.dirty) {
-            this.rowerProfileService.saveAsCustomProfile(this.settingsForm.getRawValue());
-            this.availableProfiles.set(this.rowerProfileService.getAllProfiles());
+            this.rowingProfileService.saveAsCustomProfile(this.settingsForm.getRawValue());
+            this.availableProfiles.set(this.rowingProfileService.getAllProfiles());
         }
     }
 

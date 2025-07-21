@@ -17,6 +17,9 @@ import { MetricsService } from "../../common/services/metrics.service";
     styleUrls: ["./connect-heart-rate-button.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [MatIcon, MatTooltip, MatIconButton, NgClass],
+    host: {
+        "[style.display]": "this.heartRateMonitorMode() === 'off' ? 'contents' : 'block'",
+    },
 })
 export class ConnectHeartRateButtonComponent {
     BleServiceNames: typeof BleServiceNames = BleServiceNames;
