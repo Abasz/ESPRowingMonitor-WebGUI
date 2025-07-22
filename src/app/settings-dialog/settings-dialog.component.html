@@ -15,7 +15,7 @@
             </app-general-settings>
         </mat-tab>
 
-        <mat-tab label="Rowing" [disabled]="!data.rowerSettings.isRuntimeSettingsEnabled">
+        <mat-tab label="Rowing" [disabled]="data.rowerSettings.isRuntimeSettingsEnabled === undefined">
             <app-rowing-settings
                 [rowerSettings]="data.rowerSettings"
                 [strokeSettings]="data.strokeDetectionSettings"

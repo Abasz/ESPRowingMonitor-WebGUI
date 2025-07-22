@@ -36,6 +36,27 @@ import { ErgConnectionService } from "./erg-connection.service";
 import { calculateBleServiceFlag } from "./erg.utilities";
 import { withDelay } from "../../utils/utility.functions";
 
+const DEFAULT_ROW_SETTINGS = {
+    isRuntimeSettingsEnabled: undefined,
+    machineSettings: {
+        flywheelInertia: 0,
+        magicConstant: 0,
+        sprocketRadius: 0,
+        impulsePerRevolution: 0,
+    },
+    sensorSignalSettings: {
+        rotationDebounceTime: 0,
+        rowingStoppedThreshold: 0,
+    },
+    dragFactorSettings: {
+        goodnessOfFitThreshold: 0,
+        maxDragFactorRecoveryPeriod: 0,
+        dragFactorLowerThreshold: 0,
+        dragFactorUpperThreshold: 0,
+        dragCoefficientsArrayLength: 0,
+    },
+};
+
 @Injectable({
     providedIn: "root",
 })
@@ -53,24 +74,7 @@ export class ErgSettingsService {
                 logToSdCard: undefined,
                 logLevel: 0,
                 bleServiceFlag: BleServiceFlag.CpsService,
-                isRuntimeSettingsEnabled: false,
-                machineSettings: {
-                    flywheelInertia: 0,
-                    magicConstant: 0,
-                    sprocketRadius: 0,
-                    impulsePerRevolution: 0,
-                },
-                sensorSignalSettings: {
-                    rotationDebounceTime: 0,
-                    rowingStoppedThreshold: 0,
-                },
-                dragFactorSettings: {
-                    goodnessOfFitThreshold: 0,
-                    maxDragFactorRecoveryPeriod: 0,
-                    dragFactorLowerThreshold: 0,
-                    dragFactorUpperThreshold: 0,
-                    dragCoefficientsArrayLength: 0,
-                },
+                ...DEFAULT_ROW_SETTINGS,
             },
         });
 
@@ -448,6 +452,25 @@ export class ErgSettingsService {
                 const logToWs = value.getUint8(0) & 3;
                 const logToSd = (value.getUint8(0) >> 2) & 3;
                 const logLevel = (value.getUint8(0) >> 4) & 6;
+
+                const generalSettings = {
+                    logDeltaTimes: logToWs === 0 ? undefined : logToWs === 1 ? false : true,
+                    logToSdCard: logToSd === 0 ? undefined : logToSd === 1 ? false : true,
+                    logLevel: logLevel,
+                    bleServiceFlag: calculateBleServiceFlag(
+                        this.ergConnectionService.readMeasurementCharacteristic()?.uuid,
+                    ),
+                };
+
+                // added for backward compatibility with old firmware that do not support broadcasting settings at all
+                if (value.byteLength === 1) {
+                    return {
+                        ...generalSettings,
+                        ...DEFAULT_ROW_SETTINGS,
+                        isRuntimeSettingsEnabled: undefined,
+                    };
+                }
+
                 const isRuntimeSettingsEnabled = Boolean(value.getUint8(0) >> 7);
 
                 const flywheelInertia = value.getFloat32(1, true);
@@ -465,12 +488,7 @@ export class ErgSettingsService {
                 const dragCoefficientsArrayLength = value.getUint8(17);
 
                 return {
-                    logDeltaTimes: logToWs === 0 ? undefined : logToWs === 1 ? false : true,
-                    logToSdCard: logToSd === 0 ? undefined : logToSd === 1 ? false : true,
-                    logLevel: logLevel,
-                    bleServiceFlag: calculateBleServiceFlag(
-                        this.ergConnectionService.readMeasurementCharacteristic()?.uuid,
-                    ),
+                    ...generalSettings,
                     isRuntimeSettingsEnabled,
                     machineSettings: {
                         flywheelInertia,

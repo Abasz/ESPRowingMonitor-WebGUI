@@ -57,7 +57,7 @@ export interface IRowerSettings {
     logToSdCard: boolean | undefined;
     bleServiceFlag: BleServiceFlag;
     logLevel: LogLevel;
-    isRuntimeSettingsEnabled: boolean;
+    isRuntimeSettingsEnabled: boolean | undefined;
     machineSettings: IMachineSettings;
     sensorSignalSettings: ISensorSignalSettings;
     dragFactorSettings: IDragFactorSettings;
