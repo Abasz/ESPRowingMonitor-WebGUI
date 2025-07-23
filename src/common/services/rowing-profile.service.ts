@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
 
-import { RowingProfileSettings } from "../common.interfaces";
-import { CUSTOM_PROFILE_KEY, ProfileData, STANDARD_PROFILES } from "../data/standard-profiles";
+import { ProfileData, RowingProfileSettings } from "../common.interfaces";
+import { CUSTOM_PROFILE_KEY, STANDARD_PROFILES } from "../data/standard-profiles";
 
 @Injectable({
     providedIn: "root",
@@ -16,6 +16,7 @@ export class RowingProfileService {
         if (customSettings) {
             profiles[CUSTOM_PROFILE_KEY] = {
                 name: "Custom Profile",
+                profileId: CUSTOM_PROFILE_KEY,
                 settings: customSettings,
             };
         }
@@ -29,6 +30,7 @@ export class RowingProfileService {
             if (customSettings) {
                 return {
                     name: "Custom Profile",
+                    profileId: CUSTOM_PROFILE_KEY,
                     settings: customSettings,
                 };
             }

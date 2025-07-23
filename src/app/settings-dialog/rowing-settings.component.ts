@@ -46,9 +46,10 @@ import {
     ISensorSignalSettings,
     IStrokeDetectionSettings,
     IValidationErrors,
+    ProfileData,
     StrokeDetectionType,
 } from "../../common/common.interfaces";
-import { CUSTOM_PROFILE_KEY, ProfileData } from "../../common/data/standard-profiles";
+import { CUSTOM_PROFILE_KEY } from "../../common/data/standard-profiles";
 import { RowingProfileService } from "../../common/services/rowing-profile.service";
 import { EnumToArrayPipe } from "../../common/utils/enum-to-array.pipe";
 import { getValidationErrors } from "../../common/utils/utility.functions";

@@ -1,0 +1,31 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "CommonJS",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "outDir": "../out-tsc",
+        "baseUrl": "..",
+        "sourceMap": false,
+        "declaration": false,
+        "lib": [
+            "ES2022",
+            "DOM"
+        ],
+        "types": [
+            "web-bluetooth",
+            "node"
+        ],
+        "skipLibCheck": true
+    },
+    "include": [
+        "*.ts",
+        "../src/common/common.interfaces.ts"
+    ],
+    "exclude": [
+        "*.spec.ts",
+        "node_modules"
+    ]
+}

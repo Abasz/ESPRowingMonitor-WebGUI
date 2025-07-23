@@ -33,10 +33,10 @@ import { map, startWith } from "rxjs";
 
 import { BleServiceFlag, BleServiceNames, IDeviceInformation, LogLevel } from "../../common/ble.interfaces";
 import { HeartRateMonitorMode, IRowerSettings, IValidationErrors } from "../../common/common.interfaces";
+import { versionInfo } from "../../common/data/version";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { EnumToArrayPipe } from "../../common/utils/enum-to-array.pipe";
 import { getValidationErrors } from "../../common/utils/utility.functions";
-import { versionInfo } from "../../version";
 import { OtaDialogComponent } from "../ota-settings-dialog/ota-dialog.component";
 
 type GeneralSettingsFormGroup = FormGroup<{

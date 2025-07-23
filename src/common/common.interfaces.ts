@@ -70,6 +70,11 @@ export interface RowingProfileSettings {
     strokeDetectionSettings: Omit<IStrokeDetectionSettings, "isCompiledWithDouble">;
 }
 
+export interface ProfileData {
+    name: string;
+    settings: RowingProfileSettings;
+}
+
 export interface IMachineSettings {
     flywheelInertia: number;
     magicConstant: number;
@@ -145,6 +150,12 @@ export interface IHeartRateService {
     reconnect(): Promise<void>;
     streamHRMonitorBatteryLevel$(): Observable<number | undefined>;
     streamHeartRate$(): Observable<IHeartRate | undefined>;
+}
+
+export interface ProfileData {
+    name: string;
+    profileId: string;
+    settings: RowingProfileSettings;
 }
 
 /**

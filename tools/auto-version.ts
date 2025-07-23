@@ -4,7 +4,7 @@
 import { writeFile } from "fs/promises";
 
 writeFile(
-    "./src/version.ts",
+    "./src/common/data/version.ts",
     `export const versionInfo = {
     timeStamp: "${new Date().toJSON()}",
 };
