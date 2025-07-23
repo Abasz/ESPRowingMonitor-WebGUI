@@ -81,13 +81,10 @@ export class CustomValidators {
                     return { invalidRecoveryDelta: true };
                 }
 
-                // eslint-disable-next-line no-null/no-null
                 controlFieldControl1.setErrors(null);
-                // eslint-disable-next-line no-null/no-null
                 controlFieldControl2.setErrors(null);
             }
 
-            // eslint-disable-next-line no-null/no-null
             return null;
         };
     }
@@ -241,7 +238,6 @@ export function createSessionTcxObject(
 }
 
 declare global {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, id-blacklist
     interface String {
         camelize(): string;
         pascalize(): string;

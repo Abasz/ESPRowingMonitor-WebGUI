@@ -398,7 +398,6 @@ export class RowingSettingsComponent implements OnInit {
             );
 
             if (!rotationDebounceTime || !maxDragFactorRecoveryPeriod?.value) {
-                // eslint-disable-next-line no-null/no-null
                 return null;
             }
 
@@ -417,10 +416,8 @@ export class RowingSettingsComponent implements OnInit {
                 };
             }
 
-            // eslint-disable-next-line no-null/no-null
             maxDragFactorRecoveryPeriod.setErrors(null);
 
-            // eslint-disable-next-line no-null/no-null
             return null;
         };
     }

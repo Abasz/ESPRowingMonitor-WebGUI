@@ -55,7 +55,7 @@ export class SecondsToTimePipe implements PipeTransform {
                 return "1 second";
             case this.seconds < 60:
                 return `${this.seconds} seconds`;
-            default:
+            default: {
                 let timeString = "";
                 if (this.days > 0) {
                     timeString += `${this.days} ${this.days === 1 ? "day" : "days"}${
@@ -72,6 +72,7 @@ export class SecondsToTimePipe implements PipeTransform {
                 }
 
                 return timeString;
+            }
         }
     }
 
@@ -94,7 +95,7 @@ export class SecondsToTimePipe implements PipeTransform {
                 return "0";
             case this.seconds < 60:
                 return `${this.seconds}s`;
-            default:
+            default: {
                 if (this.days > 0) {
                     timeString += `${this.days}d${this.hours + this.mins > 0 ? " " : ""}`;
                 }
@@ -106,6 +107,7 @@ export class SecondsToTimePipe implements PipeTransform {
                 }
 
                 return timeString;
+            }
         }
     }
 
@@ -117,7 +119,7 @@ export class SecondsToTimePipe implements PipeTransform {
                 return "1 second";
             case this.seconds < 60:
                 return `${this.seconds} seconds`;
-            default:
+            default: {
                 let timeString = "";
                 if (this.days > 0) {
                     timeString += `${this.days} ${this.days === 1 ? "day" : "days"}${
@@ -141,6 +143,7 @@ export class SecondsToTimePipe implements PipeTransform {
                 }
 
                 return timeString;
+            }
         }
     }
 }

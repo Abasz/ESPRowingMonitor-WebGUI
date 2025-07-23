@@ -36,7 +36,7 @@ import { BaseChartDirective, provideCharts } from "ng2-charts";
                 ChartDataLabels,
             ],
         }),
-    ]
+    ],
 })
 export class ForceCurveComponent {
     forceChartOptions: ChartOptions<"line"> = {

@@ -6,8 +6,8 @@ import { provideAnimations } from "@angular/platform-browser/animations";
 import { provideRouter } from "@angular/router";
 import { ServiceWorkerModule } from "@angular/service-worker";
 
-import { DashboardComponent } from "./app/dashboard/dashboard.component";
 import { AppComponent } from "./app/app.component";
+import { DashboardComponent } from "./app/dashboard/dashboard.component";
 import { SpinnerOverlay } from "./common/overlay/spinner-overlay.service";
 import { ErrorInterceptor } from "./common/services/error.interceptor.service";
 import { AntHeartRateService } from "./common/services/heart-rate/ant-heart-rate.service";

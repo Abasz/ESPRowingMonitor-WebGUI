@@ -18,7 +18,7 @@ import { SpinnerOverlayRef } from "./spinner-overlay-ref";
         ]),
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatProgressSpinner]
+    imports: [MatProgressSpinner],
 })
 export class SpinnerOverlayComponent {
     animationState: "void" | "enter" | "leave" = "enter";

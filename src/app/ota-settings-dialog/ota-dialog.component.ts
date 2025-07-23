@@ -60,7 +60,7 @@ enum UpdateState {
         SecondsToTimePipe,
         DecimalPipe,
     ],
-    providers: [OtaService]
+    providers: [OtaService],
 })
 export class OtaDialogComponent {
     readonly UpdateState: typeof UpdateState = UpdateState;

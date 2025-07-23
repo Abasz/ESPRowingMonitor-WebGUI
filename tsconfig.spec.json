@@ -5,7 +5,8 @@
         "outDir": "./out-tsc/spec",
         "types": [
             "jasmine",
-            "web-bluetooth"
+            "web-bluetooth",
+            "w3c-web-usb"
         ]
     },
     "include": [

@@ -6,7 +6,8 @@
         "noUnusedParameters": true,
         "outDir": "./out-tsc/app",
         "types": [
-            "web-bluetooth"
+            "web-bluetooth",
+            "w3c-web-usb"
         ]
     },
     "files": [

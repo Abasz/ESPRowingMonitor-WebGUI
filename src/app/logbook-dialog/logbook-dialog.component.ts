@@ -83,7 +83,7 @@ import { SecondsToTimePipe } from "../../common/utils/seconds-to-time.pipe";
         MatMenuItem,
         DatePipe,
         SecondsToTimePipe,
-    ]
+    ],
 })
 export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
     dataSource: MatTableDataSource<ISessionSummary> = new MatTableDataSource<ISessionSummary>(
