@@ -78,6 +78,8 @@ export class SettingsDialogComponent {
     private readonly isGeneralFormSaveable: WritableSignal<boolean> = signal<boolean>(true);
     private readonly isRowingFormSaveable: WritableSignal<boolean> = signal<boolean>(true);
 
+    private isSaving: boolean = false;
+
     constructor(
         private dialogRef: MatDialogRef<SettingsDialogComponent>,
         private utils: UtilsService,
@@ -129,18 +131,30 @@ export class SettingsDialogComponent {
     }
 
     async saveSettings(): Promise<void> {
-        if (
-            ((this.currentTabIndex() === 0 && this.isRowingFormSaveable()) ||
-                (this.currentTabIndex() === 1 && this.isGeneralFormSaveable())) &&
-            (await this.showSaveConfirmation())
-        ) {
-            await this.saveGeneralSettings();
-            await this.saveRowingSettings();
-        } else {
-            this.currentTabIndex() === 0 ? await this.saveGeneralSettings() : await this.saveRowingSettings();
+        if (this.isSaving) {
+            return;
         }
 
-        this.dialogRef.close();
+        this.isSaving = true;
+
+        try {
+            if (
+                ((this.currentTabIndex() === 0 && this.isRowingFormSaveable()) ||
+                    (this.currentTabIndex() === 1 && this.isGeneralFormSaveable())) &&
+                (await this.showSaveConfirmation())
+            ) {
+                await this.saveGeneralSettings();
+                await this.saveRowingSettings();
+            } else {
+                this.currentTabIndex() === 0
+                    ? await this.saveGeneralSettings()
+                    : await this.saveRowingSettings();
+            }
+
+            this.dialogRef.close();
+        } finally {
+            this.isSaving = false;
+        }
     }
 
     onTabChange(newTabIndex: number): void {
