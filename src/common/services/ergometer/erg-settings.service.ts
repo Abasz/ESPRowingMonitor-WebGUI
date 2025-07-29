@@ -451,7 +451,7 @@ export class ErgSettingsService {
             map((value: DataView): IRowerSettings => {
                 const logToWs = value.getUint8(0) & 3;
                 const logToSd = (value.getUint8(0) >> 2) & 3;
-                const logLevel = (value.getUint8(0) >> 4) & 6;
+                const logLevel = (value.getUint8(0) >> 4) & 7;
 
                 const generalSettings = {
                     logDeltaTimes: logToWs === 0 ? undefined : logToWs === 1 ? false : true,
