@@ -1,4 +1,3 @@
-import { AnimationEvent } from "@angular/animations";
 import { OverlayRef } from "@angular/cdk/overlay";
 import { filter, take } from "rxjs/operators";
 
@@ -10,31 +9,24 @@ export class SpinnerOverlayRef {
     constructor(private overlayRef: OverlayRef) {}
 
     close(): void {
-        this.componentInstance &&
-            this.componentInstance.animationStateChanged
-                .pipe(
-                    filter((event: AnimationEvent): boolean => event.phaseName === "start"),
-                    take(1),
-                )
-                .subscribe((): void => {
-                    this.overlayRef.detachBackdrop();
-                });
+        if (!this.componentInstance) {
+            return;
+        }
 
-        this.componentInstance &&
-            this.componentInstance.animationStateChanged
-                .pipe(
-                    filter(
-                        (event: AnimationEvent): boolean =>
-                            event.phaseName === "done" && event.toState === "leave",
-                    ),
-                    take(1),
-                )
-                .subscribe((): void => {
-                    this.overlayRef.dispose();
+        this.componentInstance.animationStateChanged.pipe(take(1)).subscribe((): void => {
+            this.overlayRef.detachBackdrop();
+        });
 
-                    this.componentInstance = undefined;
-                });
+        this.componentInstance.animationStateChanged
+            .pipe(
+                filter((event: AnimationEvent): boolean => event.type === "animationend"),
+                take(1),
+            )
+            .subscribe((): void => {
+                this.overlayRef.dispose();
+                this.componentInstance = undefined;
+            });
 
-        this.componentInstance && this.componentInstance.startExitAnimation();
+        this.componentInstance.startExitAnimation();
     }
 }

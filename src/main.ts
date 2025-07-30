@@ -1,8 +1,8 @@
+import { MediaMatcher } from "@angular/cdk/layout";
 import { HTTP_INTERCEPTORS } from "@angular/common/http";
 import { DestroyRef, importProvidersFrom, isDevMode } from "@angular/core";
 import { MAT_SNACK_BAR_DEFAULT_OPTIONS, MatSnackBar } from "@angular/material/snack-bar";
 import { bootstrapApplication } from "@angular/platform-browser";
-import { provideAnimations } from "@angular/platform-browser/animations";
 import { provideRouter } from "@angular/router";
 import { ServiceWorkerModule } from "@angular/service-worker";
 
@@ -11,6 +11,7 @@ import { DashboardComponent } from "./app/dashboard/dashboard.component";
 import { SpinnerOverlay } from "./common/overlay/spinner-overlay.service";
 import { ErrorInterceptor } from "./common/services/error.interceptor.service";
 import { AntHeartRateService } from "./common/services/heart-rate/ant-heart-rate.service";
+import { CustomMediaMatcher } from "./common/utils/media-matcher-override";
 
 bootstrapApplication(AppComponent, {
     providers: [
@@ -23,7 +24,8 @@ bootstrapApplication(AppComponent, {
             { path: "**", redirectTo: "" },
         ]),
         SpinnerOverlay,
-        provideAnimations(),
+        // workaround to override Angular Material's no animation in case of reduced motion preference
+        { provide: MediaMatcher, useClass: CustomMediaMatcher },
         importProvidersFrom(
             ServiceWorkerModule.register("ngsw-worker.js", {
                 enabled: !isDevMode(),
