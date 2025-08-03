@@ -60,7 +60,7 @@ export class UtilsService {
             );
     }
 
-    disableWackeLock(): void {
+    disableWakeLock(): void {
         this.wakeLock.disable();
     }
 

@@ -38,7 +38,7 @@ describe("AppComponent", (): void => {
 
         const mockUtilsService = {
             enableWakeLock: jasmine.createSpy("enableWakeLock"),
-            disableWackeLock: jasmine.createSpy("disableWackeLock"),
+            disableWakeLock: jasmine.createSpy("disableWakeLock"),
         };
 
         const mockMatSnackBar = {

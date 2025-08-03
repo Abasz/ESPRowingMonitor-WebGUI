@@ -159,6 +159,6 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
-        this.utils.disableWackeLock();
+        this.utils.disableWakeLock();
     }
 }

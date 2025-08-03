@@ -16,7 +16,7 @@
             <mat-header-cell justify="center" mat-sort-header *matHeaderCellDef class="date"
                 >Date</mat-header-cell
             >
-            <mat-cell *matCellDef="let sessionData" class="date flex-col justify-center items-start ate-cell">
+            <mat-cell *matCellDef="let sessionData" class="date flex-col justify-center items-start">
                 <span>{{ sessionData.sessionId | date: "yyyy-MM-dd" }}</span>
                 <span style="font-size: 0.75rem">{{ sessionData.sessionId | date: "HH:mm:ss" }}</span>
             </mat-cell>

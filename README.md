@@ -23,6 +23,8 @@ The WebGUI supports auto reconnect to previously paired device (reconnects to th
 However currently there are several limitations:
 
 - Theoretically any browser (with sufficient high version) should work that supports the Web Bluetooth API. However, it has only been tested in Chrome
+- WebGUI does not work on iOS because it does not support Web Bluetooth API on a device level (i.e. on iOS non of the browsers would work)
+- While theoretically MacOS support Web Bluetooth API, there are reports that the WebGUI does not work on MacOS in any browser (report if this is not the case)
 - For Chrome at least (but I suspect other browsers may too) require the `chrome://flags/#enable-web-bluetooth-new-permissions-backend` to be enabled for the reconnect feature to work correctly
 
 ## ANT+ Heart Rate Monitor Support
@@ -51,5 +53,6 @@ For further information please see the [here](https://dexie.org/docs/StorageMana
 
 ## Backlog
 
-- Implement an auto calibration feature and web firmware flasher with WebSerial
+- Implement calibration feature within the UI
 - Make sessions repayable, especially the force curves
+- Add web firmware flasher with WebSerial to support full browser setup of devices (i.e. drop the requirement of compiling firmware for supported boards)
