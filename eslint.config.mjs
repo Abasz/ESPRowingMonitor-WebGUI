@@ -40,6 +40,7 @@ export default [
                 ...globals.jasmine,
                 DoneFn: "readonly",
                 // Web Bluetooth API globals
+                Bluetooth: "readonly",
                 BluetoothRemoteGATTServer: "readonly",
                 BluetoothRemoteGATTService: "readonly",
                 BluetoothRemoteGATTCharacteristic: "readonly",
