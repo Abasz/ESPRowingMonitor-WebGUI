@@ -2,12 +2,7 @@ import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ReactiveFormsModule } from "@angular/forms";
 
-import {
-    IRowerSettings,
-    IStrokeDetectionSettings,
-    ProfileData,
-    StrokeDetectionType,
-} from "../../common/common.interfaces";
+import { IRowerSettings, ProfileData, StrokeDetectionType } from "../../common/common.interfaces";
 import { CUSTOM_PROFILE_KEY } from "../../common/data/standard-profiles";
 import { RowingProfileService } from "../../common/services/rowing-profile.service";
 
@@ -19,41 +14,44 @@ describe("RowingSettingsComponent", (): void => {
     let mockRowingProfileService: jasmine.SpyObj<RowingProfileService>;
 
     const mockRowerSettings: IRowerSettings = {
-        bleServiceFlag: 0,
-        logLevel: 1,
-        logToSdCard: false,
-        logDeltaTimes: false,
-        isRuntimeSettingsEnabled: true,
-        machineSettings: {
-            flywheelInertia: 0.05,
-            magicConstant: 2.8,
-            sprocketRadius: 1.5,
-            impulsePerRevolution: 11,
+        generalSettings: {
+            bleServiceFlag: 0,
+            logLevel: 1,
+            logToSdCard: false,
+            logDeltaTimes: false,
+            isRuntimeSettingsEnabled: true,
+            isCompiledWithDouble: true,
         },
-        sensorSignalSettings: {
-            rotationDebounceTime: 25,
-            rowingStoppedThreshold: 3000,
+        rowingSettings: {
+            machineSettings: {
+                flywheelInertia: 0.05,
+                magicConstant: 2.8,
+                sprocketRadius: 1.5,
+                impulsePerRevolution: 11,
+            },
+            sensorSignalSettings: {
+                rotationDebounceTime: 25,
+                rowingStoppedThreshold: 3000,
+            },
+            dragFactorSettings: {
+                goodnessOfFitThreshold: 0.96,
+                maxDragFactorRecoveryPeriod: 8,
+                dragFactorLowerThreshold: 90,
+                dragFactorUpperThreshold: 220,
+                dragCoefficientsArrayLength: 4,
+            },
+            strokeDetectionSettings: {
+                strokeDetectionType: StrokeDetectionType.Torque,
+                impulseDataArrayLength: 6,
+                minimumPoweredTorque: 0.01,
+                minimumDragTorque: 0.005,
+                minimumRecoverySlopeMargin: 0.05,
+                minimumRecoverySlope: 0.1,
+                minimumRecoveryTime: 400,
+                minimumDriveTime: 200,
+                driveHandleForcesMaxCapacity: 20,
+            },
         },
-        dragFactorSettings: {
-            goodnessOfFitThreshold: 0.96,
-            maxDragFactorRecoveryPeriod: 8,
-            dragFactorLowerThreshold: 90,
-            dragFactorUpperThreshold: 220,
-            dragCoefficientsArrayLength: 4,
-        },
-    };
-
-    const mockStrokeDetectionSettings: IStrokeDetectionSettings = {
-        strokeDetectionType: StrokeDetectionType.Torque,
-        impulseDataArrayLength: 6,
-        minimumPoweredTorque: 0.01,
-        minimumDragTorque: 0.005,
-        minimumRecoverySlopeMargin: 0.05,
-        minimumRecoverySlope: 0.1,
-        minimumRecoveryTime: 400,
-        minimumDriveTime: 200,
-        driveHandleForcesMaxCapacity: 20,
-        isCompiledWithDouble: true,
     };
 
     const mockProfileData: ProfileData = {
@@ -117,7 +115,6 @@ describe("RowingSettingsComponent", (): void => {
         component = fixture.componentInstance;
 
         fixture.componentRef.setInput("rowerSettings", mockRowerSettings);
-        fixture.componentRef.setInput("strokeSettings", mockStrokeDetectionSettings);
         fixture.componentRef.setInput("isConnected", true);
         fixture.componentRef.setInput("isSmallScreen", false);
     });
@@ -141,7 +138,7 @@ describe("RowingSettingsComponent", (): void => {
             expect(component.settingsForm.controls.strokeDetectionSettings.disabled).toBe(false);
         });
 
-        it("should patch form values from @Input rowerSettings and strokeSettings on ngOnInit", (): void => {
+        it("should patch form values from @Input rowerSettings on ngOnInit", (): void => {
             fixture.detectChanges();
 
             expect(component.settingsForm.value.machineSettings?.flywheelInertia).toBe(0.05);
@@ -157,7 +154,13 @@ describe("RowingSettingsComponent", (): void => {
     describe("Form Enable/Disable Logic", (): void => {
         it("should enable the form when both isConnected and isRuntimeSettingsEnabled are true", (): void => {
             fixture.componentRef.setInput("isConnected", true);
-            const enabledRowingSettings = { ...mockRowerSettings, isRuntimeSettingsEnabled: true };
+            const enabledRowingSettings = {
+                ...mockRowerSettings,
+                generalSettings: {
+                    ...mockRowerSettings.generalSettings,
+                    isRuntimeSettingsEnabled: true,
+                },
+            };
             fixture.componentRef.setInput("rowerSettings", enabledRowingSettings);
 
             fixture.detectChanges();
@@ -168,7 +171,13 @@ describe("RowingSettingsComponent", (): void => {
         describe("should keep the form disabled", (): void => {
             it("when isConnected is false", (): void => {
                 fixture.componentRef.setInput("isConnected", false);
-                const enabledRowingSettings = { ...mockRowerSettings, isRuntimeSettingsEnabled: true };
+                const enabledRowingSettings = {
+                    ...mockRowerSettings,
+                    generalSettings: {
+                        ...mockRowerSettings.generalSettings,
+                        isRuntimeSettingsEnabled: true,
+                    },
+                };
                 fixture.componentRef.setInput("rowerSettings", enabledRowingSettings);
 
                 fixture.detectChanges();
@@ -178,7 +187,13 @@ describe("RowingSettingsComponent", (): void => {
 
             it("when isRuntimeSettingsEnabled is false", (): void => {
                 fixture.componentRef.setInput("isConnected", true);
-                const disabledRowingSettings = { ...mockRowerSettings, isRuntimeSettingsEnabled: false };
+                const disabledRowingSettings = {
+                    ...mockRowerSettings,
+                    generalSettings: {
+                        ...mockRowerSettings.generalSettings,
+                        isRuntimeSettingsEnabled: false,
+                    },
+                };
                 fixture.componentRef.setInput("rowerSettings", disabledRowingSettings);
 
                 fixture.detectChanges();
@@ -204,11 +219,14 @@ describe("RowingSettingsComponent", (): void => {
             impulseControl.setValue(15);
             expect(impulseControl.hasError("max")).toBe(false);
 
-            const strokeSettingsWithoutDouble = {
-                ...mockStrokeDetectionSettings,
-                isCompiledWithDouble: false,
+            const rowerSettingsWithoutDouble = {
+                ...mockRowerSettings,
+                generalSettings: {
+                    ...mockRowerSettings.generalSettings,
+                    isCompiledWithDouble: false,
+                },
             };
-            fixture.componentRef.setInput("strokeSettings", strokeSettingsWithoutDouble);
+            fixture.componentRef.setInput("rowerSettings", rowerSettingsWithoutDouble);
             component.ngOnInit();
 
             // max should now be 18
@@ -234,7 +252,13 @@ describe("RowingSettingsComponent", (): void => {
 
     describe("Dynamic Field State Management", (): void => {
         beforeEach((): void => {
-            const enabledRowingSettings = { ...mockRowerSettings, isRuntimeSettingsEnabled: true };
+            const enabledRowingSettings = {
+                ...mockRowerSettings,
+                generalSettings: {
+                    ...mockRowerSettings.generalSettings,
+                    isRuntimeSettingsEnabled: true,
+                },
+            };
             fixture.componentRef.setInput("rowerSettings", enabledRowingSettings);
             fixture.componentRef.setInput("isConnected", true);
             fixture.detectChanges();
@@ -299,7 +323,10 @@ describe("RowingSettingsComponent", (): void => {
         });
 
         it("should not change field states when isRuntimeSettingsEnabled is false", (): void => {
-            const disabledRowingSettings = { ...mockRowerSettings, isRuntimeSettingsEnabled: false };
+            const disabledRowingSettings = {
+                ...mockRowerSettings,
+                generalSettings: { ...mockRowerSettings.generalSettings, isRuntimeSettingsEnabled: false },
+            };
             fixture.componentRef.setInput("rowerSettings", disabledRowingSettings);
             fixture.detectChanges();
 
@@ -326,9 +353,14 @@ describe("RowingSettingsComponent", (): void => {
 
     describe("Profile Management", (): void => {
         beforeEach((): void => {
-            const enabledRowingSettings = { ...mockRowerSettings, isRuntimeSettingsEnabled: true };
+            const enabledRowingSettings = {
+                ...mockRowerSettings,
+                generalSettings: {
+                    ...mockRowerSettings.generalSettings,
+                    isRuntimeSettingsEnabled: true,
+                },
+            };
             fixture.componentRef.setInput("rowerSettings", enabledRowingSettings);
-            fixture.detectChanges();
         });
 
         describe("loadProfile", (): void => {
@@ -349,7 +381,13 @@ describe("RowingSettingsComponent", (): void => {
             });
 
             it("should not load a profile when isRuntimeSettingsEnabled is false", (): void => {
-                const disabledRowingSettings = { ...mockRowerSettings, isRuntimeSettingsEnabled: false };
+                const disabledRowingSettings = {
+                    ...mockRowerSettings,
+                    generalSettings: {
+                        ...mockRowerSettings.generalSettings,
+                        isRuntimeSettingsEnabled: false,
+                    },
+                };
                 fixture.componentRef.setInput("rowerSettings", disabledRowingSettings);
                 fixture.detectChanges();
 

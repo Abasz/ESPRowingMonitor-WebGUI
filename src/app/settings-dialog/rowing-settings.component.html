@@ -11,7 +11,7 @@
             mat-raised-button
             color="primary"
             type="button"
-            [disabled]="!selectedProfileKey || !rowerSettings().isRuntimeSettingsEnabled"
+            [disabled]="!selectedProfileKey || !rowerSettings().generalSettings.isRuntimeSettingsEnabled"
             (click)="loadProfile(selectedProfileKey)"
         >
             Apply Profile
@@ -246,7 +246,7 @@
                     <span>Impulse Data Array Size:</span>
                     <mat-slider
                         min="1"
-                        [max]="strokeSettings().isCompiledWithDouble ? 15 : 18"
+                        [max]="rowerSettings().generalSettings.isCompiledWithDouble ? 15 : 18"
                         step="1"
                         discrete
                     >

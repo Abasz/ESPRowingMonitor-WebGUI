@@ -145,11 +145,11 @@ export class GeneralSettingsComponent implements OnInit {
         const isConnected = this.isConnected();
 
         this.settingsForm.patchValue({
-            bleMode: rowerSettings.bleServiceFlag,
-            logLevel: rowerSettings.logLevel,
+            bleMode: rowerSettings.generalSettings.bleServiceFlag,
+            logLevel: rowerSettings.generalSettings.logLevel,
             heartRateMonitor: this.configManager.getItem("heartRateMonitor") as HeartRateMonitorMode,
-            deltaTimeLogging: rowerSettings.logDeltaTimes,
-            logToSdCard: rowerSettings.logToSdCard,
+            deltaTimeLogging: rowerSettings.generalSettings.logDeltaTimes,
+            logToSdCard: rowerSettings.generalSettings.logToSdCard,
         });
 
         if (isConnected) {
@@ -158,10 +158,10 @@ export class GeneralSettingsComponent implements OnInit {
 
         this.settingsForm.controls.heartRateMonitor.enable();
 
-        if (rowerSettings.logDeltaTimes === undefined) {
+        if (rowerSettings.generalSettings.logDeltaTimes === undefined) {
             this.settingsForm.controls.deltaTimeLogging.disable();
         }
-        if (rowerSettings.logToSdCard === undefined) {
+        if (rowerSettings.generalSettings.logToSdCard === undefined) {
             this.settingsForm.controls.logToSdCard.disable();
         }
     }

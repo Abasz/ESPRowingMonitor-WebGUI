@@ -2,6 +2,8 @@ import { Observable } from "rxjs";
 
 import { BleServiceFlag, LogLevel } from "./ble.interfaces";
 
+// general
+
 export interface IValidationErrors {
     [key: string]: Array<{ message: string; validatorKey: string }>;
 }
@@ -17,6 +19,8 @@ export interface IMediaQuery {
     2?: "width" | "height";
 }
 
+// configuration
+
 export type HeartRateMonitorMode = "ant" | "ble" | "off";
 export type IConfig = Config;
 
@@ -25,6 +29,8 @@ export class Config {
     heartRateBleId: string = "";
     heartRateMonitor: HeartRateMonitorMode = "off";
 }
+
+// metrics and connection
 
 type BleConnectionStatus = "disconnected" | "connected" | "connecting" | "searching";
 
@@ -50,68 +56,6 @@ export interface IBaseMetrics {
     distance: number;
     strokeTime: number;
     strokeCount: number;
-}
-
-export interface IRowerSettings {
-    logDeltaTimes: boolean | undefined;
-    logToSdCard: boolean | undefined;
-    bleServiceFlag: BleServiceFlag;
-    logLevel: LogLevel;
-    isRuntimeSettingsEnabled: boolean | undefined;
-    machineSettings: IMachineSettings;
-    sensorSignalSettings: ISensorSignalSettings;
-    dragFactorSettings: IDragFactorSettings;
-}
-
-export interface RowingProfileSettings {
-    machineSettings: IMachineSettings;
-    sensorSignalSettings: ISensorSignalSettings;
-    dragFactorSettings: IDragFactorSettings;
-    strokeDetectionSettings: Omit<IStrokeDetectionSettings, "isCompiledWithDouble">;
-}
-
-export interface ProfileData {
-    name: string;
-    settings: RowingProfileSettings;
-}
-
-export interface IMachineSettings {
-    flywheelInertia: number;
-    magicConstant: number;
-    sprocketRadius: number;
-    impulsePerRevolution: number;
-}
-
-export interface ISensorSignalSettings {
-    rotationDebounceTime: number;
-    rowingStoppedThreshold: number;
-}
-
-export interface IDragFactorSettings {
-    goodnessOfFitThreshold: number;
-    maxDragFactorRecoveryPeriod: number;
-    dragFactorLowerThreshold: number;
-    dragFactorUpperThreshold: number;
-    dragCoefficientsArrayLength: number;
-}
-
-export interface IStrokeDetectionSettings {
-    strokeDetectionType: StrokeDetectionType;
-    impulseDataArrayLength: number;
-    minimumPoweredTorque: number;
-    minimumDragTorque: number;
-    minimumRecoverySlopeMargin: number;
-    minimumRecoverySlope: number;
-    minimumRecoveryTime: number;
-    minimumDriveTime: number;
-    driveHandleForcesMaxCapacity: number;
-    isCompiledWithDouble: boolean;
-}
-
-export enum StrokeDetectionType {
-    Torque = 0,
-    Slope = 1,
-    Both = 2,
 }
 
 export interface ICalculatedMetrics extends Omit<IExtendedMetrics & IBaseMetrics, "revTime" | "strokeTime"> {
@@ -152,10 +96,71 @@ export interface IHeartRateService {
     streamHeartRate$(): Observable<IHeartRate | undefined>;
 }
 
+// rower settings
+
+export interface IGeneralSettings {
+    logDeltaTimes: boolean | undefined;
+    logToSdCard: boolean | undefined;
+    bleServiceFlag: BleServiceFlag;
+    logLevel: LogLevel;
+    isRuntimeSettingsEnabled: boolean | undefined;
+    isCompiledWithDouble: boolean | undefined;
+}
+
+export interface IMachineSettings {
+    flywheelInertia: number;
+    magicConstant: number;
+    sprocketRadius: number;
+    impulsePerRevolution: number;
+}
+
+export interface ISensorSignalSettings {
+    rotationDebounceTime: number;
+    rowingStoppedThreshold: number;
+}
+
+export interface IDragFactorSettings {
+    goodnessOfFitThreshold: number;
+    maxDragFactorRecoveryPeriod: number;
+    dragFactorLowerThreshold: number;
+    dragFactorUpperThreshold: number;
+    dragCoefficientsArrayLength: number;
+}
+
+export interface IStrokeDetectionSettings {
+    strokeDetectionType: StrokeDetectionType;
+    impulseDataArrayLength: number;
+    minimumPoweredTorque: number;
+    minimumDragTorque: number;
+    minimumRecoverySlopeMargin: number;
+    minimumRecoverySlope: number;
+    minimumRecoveryTime: number;
+    minimumDriveTime: number;
+    driveHandleForcesMaxCapacity: number;
+}
+
+export interface IRowerSettings {
+    generalSettings: IGeneralSettings;
+    rowingSettings: IRowingProfileSettings;
+}
+
+export interface IRowingProfileSettings {
+    machineSettings: IMachineSettings;
+    sensorSignalSettings: ISensorSignalSettings;
+    dragFactorSettings: IDragFactorSettings;
+    strokeDetectionSettings: Omit<IStrokeDetectionSettings, "isCompiledWithDouble">;
+}
+
 export interface ProfileData {
     name: string;
     profileId: string;
-    settings: RowingProfileSettings;
+    settings: IRowingProfileSettings;
+}
+
+export enum StrokeDetectionType {
+    Torque = 0,
+    Slope = 1,
+    Both = 2,
 }
 
 /**

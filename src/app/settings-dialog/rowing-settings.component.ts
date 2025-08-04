@@ -115,7 +115,6 @@ export class RowingSettingsComponent implements OnInit {
     StrokeDetectionType: typeof StrokeDetectionType = StrokeDetectionType;
 
     rowerSettings: InputSignal<IRowerSettings> = input.required<IRowerSettings>();
-    strokeSettings: InputSignal<IStrokeDetectionSettings> = input.required<IStrokeDetectionSettings>();
     isConnected: InputSignal<boolean> = input.required<boolean>();
     isSmallScreen: InputSignal<boolean> = input.required<boolean>();
 
@@ -273,33 +272,39 @@ export class RowingSettingsComponent implements OnInit {
 
     ngOnInit(): void {
         const rowerSettings = this.rowerSettings();
-        const strokeSettings = this.strokeSettings();
+        const strokeSettings = rowerSettings.rowingSettings.strokeDetectionSettings;
         const isConnected = this.isConnected();
 
         const impulseDataArrayLengthControl =
             this.settingsForm.controls.strokeDetectionSettings.controls.impulseDataArrayLength;
         impulseDataArrayLengthControl.setValidators([
             Validators.min(1),
-            Validators.max(strokeSettings.isCompiledWithDouble ? 15 : 18),
+            Validators.max(rowerSettings.generalSettings.isCompiledWithDouble ? 15 : 18),
         ]);
 
         this.settingsForm.patchValue({
             machineSettings: {
-                flywheelInertia: rowerSettings.machineSettings.flywheelInertia,
-                magicConstant: rowerSettings.machineSettings.magicConstant,
-                sprocketRadius: rowerSettings.machineSettings.sprocketRadius,
-                impulsePerRevolution: rowerSettings.machineSettings.impulsePerRevolution,
+                flywheelInertia: rowerSettings.rowingSettings.machineSettings.flywheelInertia,
+                magicConstant: rowerSettings.rowingSettings.machineSettings.magicConstant,
+                sprocketRadius: rowerSettings.rowingSettings.machineSettings.sprocketRadius,
+                impulsePerRevolution: rowerSettings.rowingSettings.machineSettings.impulsePerRevolution,
             },
             sensorSignalSettings: {
-                rotationDebounceTime: rowerSettings.sensorSignalSettings.rotationDebounceTime,
-                rowingStoppedThreshold: rowerSettings.sensorSignalSettings.rowingStoppedThreshold,
+                rotationDebounceTime: rowerSettings.rowingSettings.sensorSignalSettings.rotationDebounceTime,
+                rowingStoppedThreshold:
+                    rowerSettings.rowingSettings.sensorSignalSettings.rowingStoppedThreshold,
             },
             dragFactorSettings: {
-                goodnessOfFitThreshold: rowerSettings.dragFactorSettings.goodnessOfFitThreshold,
-                maxDragFactorRecoveryPeriod: rowerSettings.dragFactorSettings.maxDragFactorRecoveryPeriod,
-                dragFactorLowerThreshold: rowerSettings.dragFactorSettings.dragFactorLowerThreshold,
-                dragFactorUpperThreshold: rowerSettings.dragFactorSettings.dragFactorUpperThreshold,
-                dragCoefficientsArrayLength: rowerSettings.dragFactorSettings.dragCoefficientsArrayLength,
+                goodnessOfFitThreshold:
+                    rowerSettings.rowingSettings.dragFactorSettings.goodnessOfFitThreshold,
+                maxDragFactorRecoveryPeriod:
+                    rowerSettings.rowingSettings.dragFactorSettings.maxDragFactorRecoveryPeriod,
+                dragFactorLowerThreshold:
+                    rowerSettings.rowingSettings.dragFactorSettings.dragFactorLowerThreshold,
+                dragFactorUpperThreshold:
+                    rowerSettings.rowingSettings.dragFactorSettings.dragFactorUpperThreshold,
+                dragCoefficientsArrayLength:
+                    rowerSettings.rowingSettings.dragFactorSettings.dragCoefficientsArrayLength,
             },
             strokeDetectionSettings: {
                 strokeDetectionType: strokeSettings.strokeDetectionType,
@@ -314,7 +319,7 @@ export class RowingSettingsComponent implements OnInit {
             },
         });
 
-        if (isConnected && this.rowerSettings().isRuntimeSettingsEnabled) {
+        if (isConnected && this.rowerSettings().generalSettings.isRuntimeSettingsEnabled) {
             this.settingsForm.enable();
             this.updateDynamicFieldStates(strokeSettings.strokeDetectionType);
         }
@@ -325,7 +330,7 @@ export class RowingSettingsComponent implements OnInit {
     }
 
     loadProfile(profileKey: string | undefined): void {
-        if (!profileKey || !this.rowerSettings().isRuntimeSettingsEnabled) {
+        if (!profileKey || !this.rowerSettings().generalSettings.isRuntimeSettingsEnabled) {
             return;
         }
 
@@ -368,7 +373,7 @@ export class RowingSettingsComponent implements OnInit {
     }
 
     private updateDynamicFieldStates(strokeDetectionType: StrokeDetectionType): void {
-        if (!this.rowerSettings().isRuntimeSettingsEnabled || !this.isConnected()) {
+        if (!this.rowerSettings().generalSettings.isRuntimeSettingsEnabled || !this.isConnected()) {
             return;
         }
 

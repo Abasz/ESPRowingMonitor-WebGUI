@@ -1,4 +1,4 @@
-import { Injectable, Signal } from "@angular/core";
+import { computed, Injectable, Signal } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import {
@@ -36,7 +36,38 @@ import { ErgConnectionService } from "./erg-connection.service";
 import { calculateBleServiceFlag } from "./erg.utilities";
 import { withDelay } from "../../utils/utility.functions";
 
-const DEFAULT_ROW_SETTINGS = {
+interface IBleRowerSettingsDTO {
+    logDeltaTimes: boolean | undefined;
+    logToSdCard: boolean | undefined;
+    logLevel: number;
+    bleServiceFlag: BleServiceFlag;
+    isRuntimeSettingsEnabled: boolean | undefined;
+    machineSettings: IMachineSettings;
+    sensorSignalSettings: ISensorSignalSettings;
+    dragFactorSettings: IDragFactorSettings;
+}
+
+interface IBleStrokeDetectionSettingsDTO {
+    strokeDetectionType: number;
+    impulseDataArrayLength: number;
+    minimumPoweredTorque: number;
+    minimumDragTorque: number;
+    minimumRecoverySlopeMargin: number;
+    minimumRecoverySlope: number;
+    minimumRecoveryTime: number;
+    minimumDriveTime: number;
+    driveHandleForcesMaxCapacity: number;
+    isCompiledWithDouble?: boolean;
+}
+
+const DEFAULT_GENERAL_SETTINGS_DTO = {
+    logDeltaTimes: undefined,
+    logToSdCard: undefined,
+    logLevel: 0,
+    bleServiceFlag: BleServiceFlag.CpsService,
+};
+
+const DEFAULT_ROWING_SETTINGS_DTO = {
     isRuntimeSettingsEnabled: undefined,
     machineSettings: {
         flywheelInertia: 0,
@@ -62,23 +93,22 @@ const DEFAULT_ROW_SETTINGS = {
 })
 export class ErgSettingsService {
     readonly rowerSettings: Signal<IRowerSettings>;
-    readonly strokeDetectionSettings: Signal<IStrokeDetectionSettings>;
+
+    private readonly bleRowerSettingsDTO: Signal<IBleRowerSettingsDTO>;
+    private readonly bleStrokeDetectionSettingsDTO: Signal<IBleStrokeDetectionSettingsDTO>;
 
     constructor(
         private snackBar: MatSnackBar,
         private ergConnectionService: ErgConnectionService,
     ) {
-        this.rowerSettings = toSignal(this.streamRowerSettings$(), {
+        this.bleRowerSettingsDTO = toSignal(this.streamRowerSettings$(), {
             initialValue: {
-                logDeltaTimes: undefined,
-                logToSdCard: undefined,
-                logLevel: 0,
-                bleServiceFlag: BleServiceFlag.CpsService,
-                ...DEFAULT_ROW_SETTINGS,
+                ...DEFAULT_GENERAL_SETTINGS_DTO,
+                ...DEFAULT_ROWING_SETTINGS_DTO,
             },
         });
 
-        this.strokeDetectionSettings = toSignal(this.streamStrokeDetectionSettings$(), {
+        this.bleStrokeDetectionSettingsDTO = toSignal(this.streamStrokeDetectionSettings$(), {
             initialValue: {
                 strokeDetectionType: 0,
                 impulseDataArrayLength: 0,
@@ -89,8 +119,39 @@ export class ErgSettingsService {
                 minimumRecoveryTime: 0,
                 minimumDriveTime: 0,
                 driveHandleForcesMaxCapacity: 0,
-                isCompiledWithDouble: true,
             },
+        });
+
+        this.rowerSettings = computed((): IRowerSettings => {
+            const bleSettings = this.bleRowerSettingsDTO();
+            const strokeSettings = this.bleStrokeDetectionSettingsDTO();
+
+            return {
+                generalSettings: {
+                    logDeltaTimes: bleSettings.logDeltaTimes,
+                    logToSdCard: bleSettings.logToSdCard,
+                    logLevel: bleSettings.logLevel,
+                    bleServiceFlag: bleSettings.bleServiceFlag,
+                    isRuntimeSettingsEnabled: bleSettings.isRuntimeSettingsEnabled,
+                    isCompiledWithDouble: strokeSettings.isCompiledWithDouble,
+                },
+                rowingSettings: {
+                    machineSettings: bleSettings.machineSettings,
+                    sensorSignalSettings: bleSettings.sensorSignalSettings,
+                    dragFactorSettings: bleSettings.dragFactorSettings,
+                    strokeDetectionSettings: {
+                        strokeDetectionType: strokeSettings.strokeDetectionType,
+                        impulseDataArrayLength: strokeSettings.impulseDataArrayLength,
+                        minimumPoweredTorque: strokeSettings.minimumPoweredTorque,
+                        minimumDragTorque: strokeSettings.minimumDragTorque,
+                        minimumRecoverySlopeMargin: strokeSettings.minimumRecoverySlopeMargin,
+                        minimumRecoverySlope: strokeSettings.minimumRecoverySlope,
+                        minimumRecoveryTime: strokeSettings.minimumRecoveryTime,
+                        minimumDriveTime: strokeSettings.minimumDriveTime,
+                        driveHandleForcesMaxCapacity: strokeSettings.driveHandleForcesMaxCapacity,
+                    },
+                },
+            };
         });
     }
 
@@ -445,10 +506,10 @@ export class ErgSettingsService {
 
     private observeSettings$(
         settingsCharacteristic: BluetoothRemoteGATTCharacteristic,
-    ): Observable<IRowerSettings> {
+    ): Observable<IBleRowerSettingsDTO> {
         return observeValue$(settingsCharacteristic).pipe(
             mergeWith(from(settingsCharacteristic.readValue())),
-            map((value: DataView): IRowerSettings => {
+            map((value: DataView): IBleRowerSettingsDTO => {
                 const logToWs = value.getUint8(0) & 3;
                 const logToSd = (value.getUint8(0) >> 2) & 3;
                 const logLevel = (value.getUint8(0) >> 4) & 7;
@@ -466,8 +527,7 @@ export class ErgSettingsService {
                 if (value.byteLength === 1) {
                     return {
                         ...generalSettings,
-                        ...DEFAULT_ROW_SETTINGS,
-                        isRuntimeSettingsEnabled: undefined,
+                        ...DEFAULT_ROWING_SETTINGS_DTO,
                     };
                 }
 
@@ -517,10 +577,10 @@ export class ErgSettingsService {
 
     private observeStrokeSettings$(
         strokeDetectionSettingsCharacteristic: BluetoothRemoteGATTCharacteristic,
-    ): Observable<IStrokeDetectionSettings> {
+    ): Observable<IBleStrokeDetectionSettingsDTO> {
         return observeValue$(strokeDetectionSettingsCharacteristic).pipe(
             mergeWith(from(strokeDetectionSettingsCharacteristic.readValue())),
-            map((value: DataView): IStrokeDetectionSettings => {
+            map((value: DataView): IBleStrokeDetectionSettingsDTO => {
                 const strokeDetectionType = value.getUint8(0) & 0x03;
                 const impulseDataArrayLength = (value.getUint8(0) >> 2) & 0x1f;
                 const isCompiledWithDouble = Boolean((value.getUint8(0) >> 7) & 0x01);
@@ -553,7 +613,7 @@ export class ErgSettingsService {
         );
     }
 
-    private streamRowerSettings$(): Observable<IRowerSettings> {
+    private streamRowerSettings$(): Observable<IBleRowerSettingsDTO> {
         return this.ergConnectionService.settingsCharacteristic$.pipe(
             filter(
                 (
@@ -562,8 +622,9 @@ export class ErgSettingsService {
                     settingsCharacteristic !== undefined,
             ),
             switchMap(
-                (settingsCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<IRowerSettings> =>
-                    this.observeSettings$(settingsCharacteristic),
+                (
+                    settingsCharacteristic: BluetoothRemoteGATTCharacteristic,
+                ): Observable<IBleRowerSettingsDTO> => this.observeSettings$(settingsCharacteristic),
             ),
             retry({
                 count: 4,
@@ -581,7 +642,7 @@ export class ErgSettingsService {
         );
     }
 
-    private streamStrokeDetectionSettings$(): Observable<IStrokeDetectionSettings> {
+    private streamStrokeDetectionSettings$(): Observable<IBleStrokeDetectionSettingsDTO> {
         return this.ergConnectionService.strokeSettingsCharacteristic$.pipe(
             filter(
                 (
@@ -592,7 +653,7 @@ export class ErgSettingsService {
             switchMap(
                 (
                     strokeDetectionSettingsCharacteristic: BluetoothRemoteGATTCharacteristic,
-                ): Observable<IStrokeDetectionSettings> =>
+                ): Observable<IBleStrokeDetectionSettingsDTO> =>
                     this.observeStrokeSettings$(strokeDetectionSettingsCharacteristic),
             ),
             retry({

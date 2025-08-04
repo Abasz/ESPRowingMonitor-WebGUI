@@ -5,11 +5,7 @@ import { MatDialog } from "@angular/material/dialog";
 import { MatIcon } from "@angular/material/icon";
 import { MatTooltip } from "@angular/material/tooltip";
 
-import {
-    IErgConnectionStatus,
-    IRowerSettings,
-    IStrokeDetectionSettings,
-} from "../../common/common.interfaces";
+import { IErgConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { ErgGenericDataService } from "../../common/services/ergometer/erg-generic-data.service";
 import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
@@ -35,9 +31,6 @@ export class OpenSettingsButtonComponent {
 
     rowerSettings: Signal<IRowerSettings> = this.ergSettingsService.rowerSettings;
 
-    strokeDetectionSettings: Signal<IStrokeDetectionSettings> =
-        this.ergSettingsService.strokeDetectionSettings;
-
     constructor(
         private ergGenericDataService: ErgGenericDataService,
         private ergSettingsService: ErgSettingsService,
@@ -54,7 +47,6 @@ export class OpenSettingsButtonComponent {
             autoFocus: false,
             data: {
                 rowerSettings: this.rowerSettings(),
-                strokeDetectionSettings: this.strokeDetectionSettings(),
                 ergConnectionStatus: this.ergConnectionStatus(),
                 deviceInfo,
             },

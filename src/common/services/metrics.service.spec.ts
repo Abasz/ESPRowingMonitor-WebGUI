@@ -23,7 +23,46 @@ describe("DataService", (): void => {
         ergBatteryLevel$: of(80),
         ergConnectionStatus$: of({ status: "connected" } as IErgConnectionStatus),
         hrConnectionStatus$: of({ status: "connected" } as IHRConnectionStatus),
-        rowerSettings: of({ bleServiceFlag: 0, logLevel: 1 } as IRowerSettings),
+        rowerSettings: of({
+            generalSettings: {
+                bleServiceFlag: 0,
+                logLevel: 1,
+                logDeltaTimes: false,
+                logToSdCard: false,
+                isRuntimeSettingsEnabled: true,
+                isCompiledWithDouble: true,
+            },
+            rowingSettings: {
+                machineSettings: {
+                    flywheelInertia: 0.05,
+                    magicConstant: 2.8,
+                    sprocketRadius: 0.04,
+                    impulsePerRevolution: 6,
+                },
+                sensorSignalSettings: {
+                    rotationDebounceTime: 25,
+                    rowingStoppedThreshold: 3000,
+                },
+                dragFactorSettings: {
+                    goodnessOfFitThreshold: 0.96,
+                    maxDragFactorRecoveryPeriod: 8000,
+                    dragFactorLowerThreshold: 90,
+                    dragFactorUpperThreshold: 220,
+                    dragCoefficientsArrayLength: 200,
+                },
+                strokeDetectionSettings: {
+                    strokeDetectionType: 0,
+                    impulseDataArrayLength: 15,
+                    minimumPoweredTorque: 0.1,
+                    minimumDragTorque: 0.05,
+                    minimumRecoverySlopeMargin: 0.01,
+                    minimumRecoverySlope: -15,
+                    minimumRecoveryTime: 500,
+                    minimumDriveTime: 300,
+                    driveHandleForcesMaxCapacity: 255,
+                },
+            },
+        } as IRowerSettings),
     };
 
     const mockDataRecorderService = {

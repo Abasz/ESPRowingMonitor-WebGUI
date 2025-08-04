@@ -5,12 +5,7 @@ import { SwUpdate } from "@angular/service-worker";
 import { BehaviorSubject, EMPTY, of, take } from "rxjs";
 
 import { IDeviceInformation } from "../../common/ble.interfaces";
-import {
-    IErgConnectionStatus,
-    IRowerSettings,
-    IStrokeDetectionSettings,
-    StrokeDetectionType,
-} from "../../common/common.interfaces";
+import { IErgConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
 import { SpinnerOverlay } from "../../common/overlay/spinner-overlay.service";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
@@ -176,41 +171,44 @@ describe("SettingsDialogComponent", (): void => {
 
     beforeEach(async (): Promise<void> => {
         const mockRowerSettings: IRowerSettings = {
-            bleServiceFlag: 0,
-            logLevel: 1,
-            logToSdCard: false,
-            logDeltaTimes: false,
-            isRuntimeSettingsEnabled: false,
-            machineSettings: {
-                flywheelInertia: 0.05,
-                magicConstant: 2.8,
-                sprocketRadius: 1.5,
-                impulsePerRevolution: 11,
+            generalSettings: {
+                bleServiceFlag: 0,
+                logLevel: 1,
+                logToSdCard: false,
+                logDeltaTimes: false,
+                isRuntimeSettingsEnabled: false,
+                isCompiledWithDouble: true,
             },
-            sensorSignalSettings: {
-                rotationDebounceTime: 25,
-                rowingStoppedThreshold: 3000,
+            rowingSettings: {
+                machineSettings: {
+                    flywheelInertia: 0.05,
+                    magicConstant: 2.8,
+                    sprocketRadius: 1.5,
+                    impulsePerRevolution: 11,
+                },
+                sensorSignalSettings: {
+                    rotationDebounceTime: 25,
+                    rowingStoppedThreshold: 3000,
+                },
+                dragFactorSettings: {
+                    goodnessOfFitThreshold: 0.96,
+                    maxDragFactorRecoveryPeriod: 8,
+                    dragFactorLowerThreshold: 90,
+                    dragFactorUpperThreshold: 220,
+                    dragCoefficientsArrayLength: 4,
+                },
+                strokeDetectionSettings: {
+                    strokeDetectionType: 0,
+                    impulseDataArrayLength: 6,
+                    minimumPoweredTorque: 0.01,
+                    minimumDragTorque: 0.005,
+                    minimumRecoverySlopeMargin: 0.05,
+                    minimumRecoverySlope: 0.1,
+                    minimumRecoveryTime: 400,
+                    minimumDriveTime: 200,
+                    driveHandleForcesMaxCapacity: 20,
+                },
             },
-            dragFactorSettings: {
-                goodnessOfFitThreshold: 0.96,
-                maxDragFactorRecoveryPeriod: 8,
-                dragFactorLowerThreshold: 90,
-                dragFactorUpperThreshold: 220,
-                dragCoefficientsArrayLength: 4,
-            },
-        };
-
-        const mockStrokeDetectionSettings: IStrokeDetectionSettings = {
-            strokeDetectionType: StrokeDetectionType.Torque,
-            impulseDataArrayLength: 6,
-            minimumPoweredTorque: 0.01,
-            minimumDragTorque: 0.005,
-            minimumRecoverySlopeMargin: 0.05,
-            minimumRecoverySlope: 0.1,
-            minimumRecoveryTime: 400,
-            minimumDriveTime: 200,
-            driveHandleForcesMaxCapacity: 20,
-            isCompiledWithDouble: true,
         };
 
         const mockErgConnectionStatus: IErgConnectionStatus = {
@@ -226,7 +224,6 @@ describe("SettingsDialogComponent", (): void => {
 
         const mockDialogData = {
             rowerSettings: mockRowerSettings,
-            strokeDetectionSettings: mockStrokeDetectionSettings,
             ergConnectionStatus: mockErgConnectionStatus,
             deviceInfo: mockDeviceInfo,
         };
@@ -359,7 +356,8 @@ describe("SettingsDialogComponent", (): void => {
         it("should receive correct data from MAT_DIALOG_DATA injection", (): void => {
             expect(component.data).toBeDefined();
             expect(component.data.rowerSettings).toBeDefined();
-            expect(component.data.strokeDetectionSettings).toBeDefined();
+            expect(component.data.rowerSettings.generalSettings).toBeDefined();
+            expect(component.data.rowerSettings.rowingSettings).toBeDefined();
             expect(component.data.ergConnectionStatus).toBeDefined();
             expect(component.data.deviceInfo).toBeDefined();
 

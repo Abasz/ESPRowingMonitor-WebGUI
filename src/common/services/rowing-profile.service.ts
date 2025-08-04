@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 
-import { ProfileData, RowingProfileSettings } from "../common.interfaces";
+import { IRowingProfileSettings, ProfileData } from "../common.interfaces";
 import { CUSTOM_PROFILE_KEY, STANDARD_PROFILES } from "../data/standard-profiles";
 
 @Injectable({
@@ -41,7 +41,7 @@ export class RowingProfileService {
         return STANDARD_PROFILES[profileKey];
     }
 
-    getCustomProfile(): RowingProfileSettings | undefined {
+    getCustomProfile(): IRowingProfileSettings | undefined {
         try {
             const stored = localStorage.getItem(this.CUSTOM_PROFILE_STORAGE_KEY);
             if (!stored) {
@@ -56,7 +56,7 @@ export class RowingProfileService {
         }
     }
 
-    saveAsCustomProfile(settings: RowingProfileSettings): void {
+    saveAsCustomProfile(settings: IRowingProfileSettings): void {
         try {
             localStorage.setItem(this.CUSTOM_PROFILE_STORAGE_KEY, JSON.stringify(settings));
         } catch (error) {
