@@ -185,7 +185,7 @@ export class MetricsService {
                         ...calculatedMetrics,
                         heartRate,
                     });
-                    if (connectionStatus.deviceName !== undefined) {
+                    if (connectionStatus.deviceName && connectionStatus.deviceName.length > 0) {
                         this.dataRecorder.addConnectedDevice(connectionStatus.deviceName);
                     }
                 },
