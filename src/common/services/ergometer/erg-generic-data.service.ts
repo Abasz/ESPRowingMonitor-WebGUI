@@ -116,7 +116,7 @@ export class ErgGenericDataService {
     private observeBattery$(batteryCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<number> {
         return observeValue$(batteryCharacteristic).pipe(
             mergeWith(from(batteryCharacteristic.readValue())),
-            map((value: DataView): number => value.getInt8(0)),
+            map((value: DataView): number => value.getUint8(0)),
             finalize((): void => {
                 this.ergConnectionService.resetBatteryCharacteristic();
             }),
