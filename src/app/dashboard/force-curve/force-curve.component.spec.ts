@@ -1,3 +1,4 @@
+import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatCard } from "@angular/material/card";
 import {
@@ -35,6 +36,7 @@ describe("FurceCurveComponent", (): void => {
                         ChartDataLabels,
                     ],
                 }),
+                provideZonelessChangeDetection(),
             ],
             imports: [MatCard, BaseChartDirective, ForceCurveComponent],
         }).compileComponents();

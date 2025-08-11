@@ -1,3 +1,4 @@
+import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { MatIconRegistry } from "@angular/material/icon";
 import { MatSnackBar } from "@angular/material/snack-bar";
@@ -67,6 +68,7 @@ describe("AppComponent", (): void => {
                 { provide: MatSnackBar, useValue: mockMatSnackBar },
                 { provide: MatIconRegistry, useValue: mockMatIconRegistry },
                 { provide: SwUpdate, useValue: mockSwUpdate },
+                provideZonelessChangeDetection(),
                 { provide: DataRecorderService, useValue: mockDataRecorderService },
             ],
             imports: [AppComponent],

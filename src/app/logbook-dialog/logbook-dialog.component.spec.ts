@@ -1,3 +1,4 @@
+import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MAT_DIALOG_DATA } from "@angular/material/dialog";
 import { MatSnackBar } from "@angular/material/snack-bar";
@@ -48,6 +49,7 @@ describe("LogbookDialogComponent", (): void => {
                 { provide: MAT_DIALOG_DATA, useValue: mockDialogData },
                 { provide: DataRecorderService, useValue: mockDataRecorderService },
                 { provide: MatSnackBar, useValue: mockSnackBar },
+                provideZonelessChangeDetection(),
             ],
             imports: [LogbookDialogComponent],
         }).compileComponents();

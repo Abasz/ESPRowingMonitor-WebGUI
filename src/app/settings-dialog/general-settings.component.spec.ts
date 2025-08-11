@@ -1,3 +1,4 @@
+import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ReactiveFormsModule } from "@angular/forms";
 import { MatDialog } from "@angular/material/dialog";
@@ -85,6 +86,7 @@ describe("GeneralSettingsComponent", (): void => {
                 { provide: ConfigManagerService, useValue: mockConfigManagerService },
                 { provide: SwUpdate, useValue: mockSwUpdate },
                 { provide: MatDialog, useValue: mockMatDialog },
+                provideZonelessChangeDetection(),
             ],
         }).compileComponents();
 

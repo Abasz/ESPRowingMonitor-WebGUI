@@ -1,3 +1,4 @@
+import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatDialog } from "@angular/material/dialog";
 import { Observable, of } from "rxjs";
@@ -61,6 +62,7 @@ describe("SettingsBarComponent", (): void => {
                 { provide: MatDialog, useValue: mockMatDialog },
                 { provide: UtilsService, useValue: mockUtilsService },
                 { provide: ConfigManagerService, useValue: mockConfigManagerService },
+                provideZonelessChangeDetection(),
             ],
             imports: [SettingsBarComponent],
         }).compileComponents();
