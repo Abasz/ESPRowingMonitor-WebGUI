@@ -37,7 +37,7 @@ export class ConnectErgButtonComponent {
         },
     );
 
-    readonly isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
+    readonly isBleAvailable: boolean = isSecureContext === true && navigator.bluetooth !== undefined;
 
     constructor(private ergConnectionService: ErgConnectionService) {}
 

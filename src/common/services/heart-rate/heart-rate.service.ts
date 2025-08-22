@@ -12,7 +12,7 @@ import { BLEHeartRateService } from "./ble-heart-rate.service";
     providedIn: "root",
 })
 export class HeartRateService {
-    readonly isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
+    readonly isBleAvailable: boolean = isSecureContext === true && navigator.bluetooth !== undefined;
     constructor(
         private configManager: ConfigManagerService,
         private ble: BLEHeartRateService,

@@ -39,7 +39,7 @@ bootstrapApplication(AppComponent, {
         {
             provide: AntHeartRateService,
             useFactory: (snack: MatSnackBar, destroyRef: DestroyRef): AntHeartRateService => {
-                if (isSecureContext) {
+                if (isSecureContext === true) {
                     return new AntHeartRateService(snack, destroyRef);
                 }
 

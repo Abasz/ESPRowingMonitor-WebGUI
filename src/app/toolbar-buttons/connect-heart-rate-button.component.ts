@@ -34,7 +34,7 @@ export class ConnectHeartRateButtonComponent {
             requireSync: true,
         },
     );
-    readonly isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
+    readonly isBleAvailable: boolean = isSecureContext === true && navigator.bluetooth !== undefined;
 
     constructor(
         private configManager: ConfigManagerService,

@@ -76,7 +76,7 @@ export class MetricsService {
                 this.activityStartTime = new Date();
             });
 
-        if (isSecureContext && navigator.bluetooth) {
+        if (isSecureContext === true && navigator.bluetooth !== undefined) {
             this.ergConnectionService.reconnect();
         }
     }
