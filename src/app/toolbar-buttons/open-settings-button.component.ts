@@ -20,16 +20,16 @@ import { SettingsDialogComponent } from "../settings-dialog/settings-dialog.comp
     imports: [MatIcon, MatTooltip, MatIconButton],
 })
 export class OpenSettingsButtonComponent {
-    ergConnectionStatus: Signal<IErgConnectionStatus> = toSignal(
+    readonly ergConnectionStatus: Signal<IErgConnectionStatus> = toSignal(
         this.ergConnectionService.connectionStatus$(),
         {
             requireSync: true,
         },
     );
 
-    isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
+    readonly isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
 
-    rowerSettings: Signal<IRowerSettings> = this.ergSettingsService.rowerSettings;
+    readonly rowerSettings: Signal<IRowerSettings> = this.ergSettingsService.rowerSettings;
 
     constructor(
         private ergGenericDataService: ErgGenericDataService,

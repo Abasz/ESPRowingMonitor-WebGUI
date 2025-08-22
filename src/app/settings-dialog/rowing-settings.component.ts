@@ -112,20 +112,20 @@ export type RowingSettingsFormGroup = FormGroup<{
     ],
 })
 export class RowingSettingsComponent implements OnInit {
-    StrokeDetectionType: typeof StrokeDetectionType = StrokeDetectionType;
+    readonly StrokeDetectionType: typeof StrokeDetectionType = StrokeDetectionType;
 
-    rowerSettings: InputSignal<IRowerSettings> = input.required<IRowerSettings>();
-    isConnected: InputSignal<boolean> = input.required<boolean>();
-    isSmallScreen: InputSignal<boolean> = input.required<boolean>();
+    readonly rowerSettings: InputSignal<IRowerSettings> = input.required<IRowerSettings>();
+    readonly isConnected: InputSignal<boolean> = input.required<boolean>();
+    readonly isSmallScreen: InputSignal<boolean> = input.required<boolean>();
 
     readonly isFormValidChange: OutputEmitterRef<boolean> = output<boolean>();
 
-    settingsForm: RowingSettingsFormGroup;
-    settingsFormErrors: Signal<ValidationErrors | null>;
-    strokeDetectionType: Signal<StrokeDetectionType>;
+    readonly settingsForm: RowingSettingsFormGroup;
+    readonly settingsFormErrors: Signal<ValidationErrors | null>;
+    readonly strokeDetectionType: Signal<StrokeDetectionType>;
 
-    selectedProfileKey: string | undefined;
-    availableProfiles: WritableSignal<Record<string, ProfileData>>;
+    readonly selectedProfileKey: string | undefined;
+    readonly availableProfiles: WritableSignal<Record<string, ProfileData>>;
 
     get isProfileLoaded(): boolean {
         return this._isProfileLoaded;

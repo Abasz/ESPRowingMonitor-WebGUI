@@ -86,11 +86,11 @@ import { SecondsToTimePipe } from "../../common/utils/seconds-to-time.pipe";
     ],
 })
 export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
-    dataSource: MatTableDataSource<ISessionSummary> = new MatTableDataSource<ISessionSummary>(
+    readonly dataSource: MatTableDataSource<ISessionSummary> = new MatTableDataSource<ISessionSummary>(
         this.sessionSummary,
     );
 
-    displayedColumns: Array<string> = [
+    readonly displayedColumns: Array<string> = [
         "sessionId",
         "time",
         "distance",
@@ -99,9 +99,9 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
         "actions",
     ];
 
-    importExportProgress: WritableSignal<number | undefined> = signal(undefined);
+    readonly importExportProgress: WritableSignal<number | undefined> = signal(undefined);
 
-    sort: Signal<MatSort> = viewChild.required(MatSort);
+    readonly sort: Signal<MatSort> = viewChild.required(MatSort);
 
     private confirmSnackBarRef: MatSnackBarRef<SnackBarConfirmComponent> | undefined;
 

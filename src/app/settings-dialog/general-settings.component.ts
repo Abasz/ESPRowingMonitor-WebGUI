@@ -68,20 +68,20 @@ type GeneralSettingsFormGroup = FormGroup<{
     ],
 })
 export class GeneralSettingsComponent implements OnInit {
-    BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
-    BleServiceNames: typeof BleServiceNames = BleServiceNames;
-    LogLevel: typeof LogLevel = LogLevel;
+    readonly BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
+    readonly BleServiceNames: typeof BleServiceNames = BleServiceNames;
+    readonly LogLevel: typeof LogLevel = LogLevel;
 
-    rowerSettings: InputSignal<IRowerSettings> = input.required<IRowerSettings>();
-    deviceInfo: InputSignal<IDeviceInformation> = input.required<IDeviceInformation>();
-    isConnected: InputSignal<boolean> = input.required<boolean>();
+    readonly rowerSettings: InputSignal<IRowerSettings> = input.required<IRowerSettings>();
+    readonly deviceInfo: InputSignal<IDeviceInformation> = input.required<IDeviceInformation>();
+    readonly isConnected: InputSignal<boolean> = input.required<boolean>();
 
     readonly isFormValidChange: OutputEmitterRef<boolean> = output<boolean>();
 
-    settingsForm: GeneralSettingsFormGroup;
-    settingsFormErrors: Signal<ValidationErrors | null>;
+    readonly settingsForm: GeneralSettingsFormGroup;
+    readonly settingsFormErrors: Signal<ValidationErrors | null>;
 
-    compileDate: Date = new Date(versionInfo.timeStamp);
+    readonly compileDate: Date = new Date(versionInfo.timeStamp);
 
     private readonly formValueChanged: Signal<
         Partial<

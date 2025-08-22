@@ -22,16 +22,19 @@ import { MetricsService } from "../../common/services/metrics.service";
     },
 })
 export class ConnectHeartRateButtonComponent {
-    BleServiceNames: typeof BleServiceNames = BleServiceNames;
+    readonly BleServiceNames: typeof BleServiceNames = BleServiceNames;
 
-    heartRateMonitorMode: Signal<HeartRateMonitorMode> = toSignal(
+    readonly heartRateMonitorMode: Signal<HeartRateMonitorMode> = toSignal(
         this.configManager.heartRateMonitorChanged$,
         { requireSync: true },
     );
-    hrConnectionStatus: Signal<IHRConnectionStatus> = toSignal(this.metricsService.hrConnectionStatus$, {
-        requireSync: true,
-    });
-    isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
+    readonly hrConnectionStatus: Signal<IHRConnectionStatus> = toSignal(
+        this.metricsService.hrConnectionStatus$,
+        {
+            requireSync: true,
+        },
+    );
+    readonly isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
 
     constructor(
         private configManager: ConfigManagerService,

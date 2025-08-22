@@ -44,11 +44,11 @@ import { SettingsBarComponent } from "./settings-bar/settings-bar.component";
     ],
 })
 export class DashboardComponent implements AfterViewInit, OnDestroy {
-    BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
+    readonly BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
 
-    elapseTime: Signal<number>;
-    heartRateData: Signal<IHeartRate | undefined> = toSignal(this.metricsService.heartRateData$);
-    rowingData: Signal<ICalculatedMetrics> = toSignal(this.metricsService.allMetrics$, {
+    readonly elapseTime: Signal<number>;
+    readonly heartRateData: Signal<IHeartRate | undefined> = toSignal(this.metricsService.heartRateData$);
+    readonly rowingData: Signal<ICalculatedMetrics> = toSignal(this.metricsService.allMetrics$, {
         initialValue: {
             activityStartTime: new Date(),
             avgStrokePower: 0,

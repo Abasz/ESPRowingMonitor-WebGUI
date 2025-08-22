@@ -40,22 +40,25 @@ import { OpenSettingsButtonComponent } from "../../toolbar-buttons/open-settings
     ],
 })
 export class SettingsBarComponent {
-    BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
-    BleServiceNames: typeof BleServiceNames = BleServiceNames;
+    readonly BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
+    readonly BleServiceNames: typeof BleServiceNames = BleServiceNames;
 
-    batteryLevel: Signal<number> = toSignal(this.ergGenericDataService.streamMonitorBatteryLevel$(), {
-        initialValue: 0,
-    });
+    readonly batteryLevel: Signal<number> = toSignal(
+        this.ergGenericDataService.streamMonitorBatteryLevel$(),
+        {
+            initialValue: 0,
+        },
+    );
 
-    ergConnectionStatus: Signal<IErgConnectionStatus> = toSignal(
+    readonly ergConnectionStatus: Signal<IErgConnectionStatus> = toSignal(
         this.ergConnectionService.connectionStatus$(),
         {
             requireSync: true,
         },
     );
 
-    settings: Signal<IRowerSettings> = this.ergSettingsService.rowerSettings;
-    timeOfDay: Signal<number> = toSignal(interval(1000).pipe(map((): number => Date.now())), {
+    readonly settings: Signal<IRowerSettings> = this.ergSettingsService.rowerSettings;
+    readonly timeOfDay: Signal<number> = toSignal(interval(1000).pipe(map((): number => Date.now())), {
         initialValue: Date.now(),
     });
 

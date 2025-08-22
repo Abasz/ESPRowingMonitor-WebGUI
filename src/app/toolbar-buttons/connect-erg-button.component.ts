@@ -17,7 +17,7 @@ import { ErgConnectionService } from "../../common/services/ergometer/erg-connec
     imports: [MatIcon, MatTooltip, MatIconButton, NgClass],
 })
 export class ConnectErgButtonComponent {
-    BleConnectionStatusIcons: {
+    readonly BleConnectionStatusIcons: {
         connected: string;
         connecting: string;
         searching: string;
@@ -28,16 +28,16 @@ export class ConnectErgButtonComponent {
         searching: "bluetooth_searching",
         disconnected: "bluetooth",
     };
-    BleServiceNames: typeof BleServiceNames = BleServiceNames;
+    readonly BleServiceNames: typeof BleServiceNames = BleServiceNames;
 
-    ergConnectionStatus: Signal<IErgConnectionStatus> = toSignal(
+    readonly ergConnectionStatus: Signal<IErgConnectionStatus> = toSignal(
         this.ergConnectionService.connectionStatus$(),
         {
             requireSync: true,
         },
     );
 
-    isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
+    readonly isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
 
     constructor(private ergConnectionService: ErgConnectionService) {}
 

@@ -64,11 +64,11 @@ export class SettingsDialogComponent {
         return (currentTab === 0 && isGeneralFormSaveable) || (currentTab === 1 && isRowingFormSaveable);
     });
 
-    breakPoints$: Observable<boolean> = this.utils
+    readonly breakPoints$: Observable<boolean> = this.utils
         .breakpointHelper([[599, "max"]])
         .pipe(map((value: { [key: string]: boolean }): boolean => value.maxW599));
 
-    currentTabIndex: WritableSignal<number> = signal<number>(0);
+    readonly currentTabIndex: WritableSignal<number> = signal<number>(0);
 
     private readonly isGeneralFormSaveable: WritableSignal<boolean> = signal<boolean>(true);
     private readonly isRowingFormSaveable: WritableSignal<boolean> = signal<boolean>(true);

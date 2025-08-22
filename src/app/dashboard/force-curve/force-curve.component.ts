@@ -39,7 +39,7 @@ import { BaseChartDirective, provideCharts } from "ng2-charts";
     ],
 })
 export class ForceCurveComponent {
-    forceChartOptions: ChartOptions<"line"> = {
+    readonly forceChartOptions: ChartOptions<"line"> = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -101,7 +101,7 @@ export class ForceCurveComponent {
     };
 
     readonly handleForces: InputSignal<Array<number>> = input.required<Array<number>>();
-    handleForcesChart: Signal<ChartConfiguration<"line">["data"]> = computed(
+    readonly handleForcesChart: Signal<ChartConfiguration<"line">["data"]> = computed(
         (): ChartConfiguration<"line">["data"] => {
             this._handleForcesChart.datasets[0].data = this.handleForces().map(
                 (currentForce: number, index: number): Point => ({
