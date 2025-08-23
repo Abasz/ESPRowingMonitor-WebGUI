@@ -46,10 +46,11 @@ export class ForceCurveComponent {
             datalabels: {
                 anchor: "center",
                 align: "top",
-                formatter: (value: Point): string => `Peak: ${Math.round(value.y)}`,
+                formatter: (value: Point): string => `Peak: ${Math.round(value.y ?? 0)}`,
                 display: (ctx: Context): boolean =>
-                    Math.max(...(ctx.dataset.data as Array<Point>).map((point: Point): number => point.y)) ===
-                    (ctx.dataset.data[ctx.dataIndex] as Point).y,
+                    Math.max(
+                        ...(ctx.dataset.data as Array<Point>).map((point: Point): number => point.y ?? 0),
+                    ) === (ctx.dataset.data[ctx.dataIndex] as Point).y,
 
                 font: {
                     size: 16,
