@@ -92,9 +92,7 @@ export class AntHeartRateService implements IHeartRateService {
         await this.disconnectDevice();
         const stick = await USBDriver.createFromPairedDevice();
 
-        if (this.onConnect === undefined) {
-            this.onConnect = this.onConnect$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
-        }
+        this.onConnect = this.onConnect$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
 
         if (stick !== undefined) {
             await this.connect(stick);
@@ -134,12 +132,16 @@ export class AntHeartRateService implements IHeartRateService {
         );
     }
 
+    private createHeartRateSensor(stick: USBDriver): HeartRateSensor {
+        return new HeartRateSensor(stick);
+    }
+
     private async connect(stick: USBDriver): Promise<void> {
         if (this.onConnect === undefined) {
             this.onConnect = this.onConnect$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
         }
         this.stick = stick;
-        const hrSensor = new HeartRateSensor(this.stick);
+        const hrSensor = this.createHeartRateSensor(this.stick);
 
         fromEvent(this.stick, "startup")
             .pipe(

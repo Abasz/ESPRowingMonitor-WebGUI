@@ -17,6 +17,7 @@ import {
     skip,
     startWith,
     switchMap,
+    take,
     takeUntil,
     timer,
     withLatestFrom,
@@ -60,9 +61,11 @@ export class BLEHeartRateService implements IHeartRateService {
     async disconnectDevice(): Promise<void> {
         await new Promise<void>((resolve: () => void): void => {
             if (this.bluetoothDevice !== undefined && this.bluetoothDevice.gatt?.connected) {
-                this.bluetoothDevice.ongattserverdisconnected = (): void => {
-                    resolve();
-                };
+                fromEvent(this.bluetoothDevice, "gattserverdisconnected")
+                    .pipe(take(1))
+                    .subscribe((): void => {
+                        resolve();
+                    });
 
                 this.bluetoothDevice.gatt?.disconnect();
 
@@ -109,6 +112,10 @@ export class BLEHeartRateService implements IHeartRateService {
             return;
         }
 
+        fromEvent<BluetoothAdvertisingEvent>(device, "advertisementreceived")
+            .pipe(take(1))
+            .subscribe(this.reconnectHandler);
+
         fromEvent(document, "visibilitychange")
             .pipe(
                 startWith(document.visibilityState),
@@ -128,7 +135,6 @@ export class BLEHeartRateService implements IHeartRateService {
             .subscribe(async (): Promise<void> => {
                 this.cancellationToken.abort();
                 this.cancellationToken = new AbortController();
-                device.onadvertisementreceived = this.reconnectHandler;
                 try {
                     await device.watchAdvertisements({ signal: this.cancellationToken.signal });
                     this.connectionStatusSubject.next({ status: "searching" });
@@ -245,7 +251,7 @@ export class BLEHeartRateService implements IHeartRateService {
             await this.connectToBattery(gatt);
 
             this.configManager.setItem("heartRateBleId", device.id);
-            device.ongattserverdisconnected = this.disconnectHandler;
+            fromEvent(device, "gattserverdisconnected").pipe(take(1)).subscribe(this.disconnectHandler);
         } catch (error) {
             this.connectionStatusSubject.next({ status: "disconnected" });
             console.error("connect:", error);
@@ -262,11 +268,12 @@ export class BLEHeartRateService implements IHeartRateService {
         gatt: BluetoothRemoteGATTServer,
     ): Promise<void | BluetoothRemoteGATTCharacteristic> {
         try {
-            const primaryService = await withDelay(1000, gatt.getPrimaryService(BATTERY_LEVEL_SERVICE));
-            const characteristic = await primaryService.getCharacteristic(BATTERY_LEVEL_CHARACTERISTIC);
-            this.batteryCharacteristic.next(characteristic ?? undefined);
+            this.batteryCharacteristic.next(
+                (await connectToCharacteristic(gatt, BATTERY_LEVEL_SERVICE, BATTERY_LEVEL_CHARACTERISTIC)) ??
+                    undefined,
+            );
 
-            return characteristic ?? undefined;
+            return this.batteryCharacteristic.value;
         } catch (error) {
             if (this.bluetoothDevice?.gatt?.connected) {
                 this.snackBar.open("HR Monitor battery service is unavailable", "Dismiss");

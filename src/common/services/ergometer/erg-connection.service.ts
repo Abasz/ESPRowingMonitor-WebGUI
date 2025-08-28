@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { filter, fromEvent, Observable, skip, startWith, takeUntil } from "rxjs";
+import { filter, fromEvent, Observable, skip, startWith, take, takeUntil } from "rxjs";
 
 import {
     BATTERY_LEVEL_CHARACTERISTIC,
@@ -191,9 +191,12 @@ export class ErgConnectionService extends ErgConnections {
     async disconnectDevice(): Promise<void> {
         await new Promise<void>((resolve: () => void): void => {
             if (this._bluetoothDevice !== undefined && this._bluetoothDevice.gatt?.connected) {
-                this._bluetoothDevice.ongattserverdisconnected = (): void => {
-                    resolve();
-                };
+                fromEvent(this._bluetoothDevice, "gattserverdisconnected")
+                    .pipe(take(1))
+                    .subscribe((): void => {
+                        resolve();
+                    });
+
                 this._bluetoothDevice.gatt?.disconnect();
 
                 return;
@@ -256,6 +259,10 @@ export class ErgConnectionService extends ErgConnections {
             return;
         }
 
+        fromEvent<BluetoothAdvertisingEvent>(device, "advertisementreceived")
+            .pipe(take(1))
+            .subscribe(this.reconnectHandler);
+
         fromEvent(document, "visibilitychange")
             .pipe(
                 startWith(document.visibilityState),
@@ -275,7 +282,6 @@ export class ErgConnectionService extends ErgConnections {
             .subscribe(async (): Promise<void> => {
                 this.cancellationToken.abort();
                 this.cancellationToken = new AbortController();
-                device.onadvertisementreceived = this.reconnectHandler;
                 try {
                     await device.watchAdvertisements({ signal: this.cancellationToken.signal });
                     this.connectionStatusSubject.next({ status: "searching" });
@@ -310,14 +316,14 @@ export class ErgConnectionService extends ErgConnections {
 
             this.connectionStatusSubject.next({
                 deviceName:
-                    this._bluetoothDevice.gatt?.connected === true && this._bluetoothDevice.name
+                    gatt.connected === true && this._bluetoothDevice.name
                         ? this._bluetoothDevice.name
                         : undefined,
-                status: this._bluetoothDevice.gatt?.connected ? "connected" : "disconnected",
+                status: gatt.connected ? "connected" : "disconnected",
             });
 
             this.configManager.setItem("ergoMonitorBleId", device.id);
-            device.ongattserverdisconnected = this.disconnectHandler;
+            fromEvent(device, "gattserverdisconnected").pipe(take(1)).subscribe(this.disconnectHandler);
             this.snackBar.open("Ergo monitor connected", "Dismiss");
         } catch (error) {
             this.connectionStatusSubject.next({ status: "disconnected" });
