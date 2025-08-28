@@ -1,4 +1,4 @@
-import { EMPTY, fromEvent, map, Observable, takeUntil } from "rxjs";
+import { EMPTY, fromEvent, map, Observable, take, takeUntil } from "rxjs";
 
 import { withDelay } from "../utils/utility.functions";
 
@@ -19,7 +19,7 @@ export function observeValue$(characteristic: BluetoothRemoteGATTCharacteristic)
     }
 
     characteristic.startNotifications();
-    const disconnected = fromEvent(characteristic.service.device, "gattserverdisconnected");
+    const disconnected = fromEvent(characteristic.service.device, "gattserverdisconnected").pipe(take(1));
 
     return fromEvent(characteristic, "characteristicvaluechanged").pipe(
         map(

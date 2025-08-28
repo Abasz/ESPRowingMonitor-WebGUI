@@ -11,6 +11,7 @@ export class BaseMetrics {
     private lastDistance: number = 0;
     private revTime: number = 0;
     private strokeTime: number = 0;
+    private lastStrokeCount: number = 0;
 
     parseMeasurement(uuid: string, value: DataView): IBaseMetrics {
         switch (uuid) {
@@ -80,8 +81,10 @@ export class BaseMetrics {
     }
 
     private parseFtms(value: DataView): IBaseMetrics {
-        const deltaStrokeTime = (60 / (value.getUint8(2) / 2)) * 1e6;
+        const strokeCount = value.getUint16(2 + 1, true);
+        const deltaStrokeTime = (60 / (value.getUint8(2) / 2)) * 1e6 * (strokeCount - this.lastStrokeCount);
         this.strokeTime += deltaStrokeTime;
+        this.lastStrokeCount = strokeCount;
 
         const currentDistance =
             (value.getUint8(2 + 1 + 2) |
@@ -101,7 +104,7 @@ export class BaseMetrics {
             revTime: this.revTime,
             distance: currentDistance,
             strokeTime: this.strokeTime,
-            strokeCount: value.getUint16(2 + 1, true),
+            strokeCount,
         };
     }
 }

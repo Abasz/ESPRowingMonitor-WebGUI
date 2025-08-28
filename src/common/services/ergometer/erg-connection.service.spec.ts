@@ -1,8 +1,32 @@
 import { provideZonelessChangeDetection } from "@angular/core";
-import { TestBed } from "@angular/core/testing";
+import { fakeAsync, flush, TestBed } from "@angular/core/testing";
 import { MatSnackBar } from "@angular/material/snack-bar";
 
+import {
+    BATTERY_LEVEL_CHARACTERISTIC,
+    BATTERY_LEVEL_SERVICE,
+    CYCLING_POWER_CHARACTERISTIC,
+    CYCLING_POWER_SERVICE,
+    CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC,
+    CYCLING_SPEED_AND_CADENCE_SERVICE,
+    DELTA_TIMES_CHARACTERISTIC,
+    EXTENDED_CHARACTERISTIC,
+    EXTENDED_METRICS_SERVICE,
+    FITNESS_MACHINE_SERVICE,
+    HANDLE_FORCES_CHARACTERISTIC,
+    ROWER_DATA_CHARACTERISTIC,
+    SETTINGS_CHARACTERISTIC,
+    SETTINGS_SERVICE,
+    STROKE_SETTINGS_CHARACTERISTIC,
+} from "../../ble.interfaces";
 import { IErgConnectionStatus } from "../../common.interfaces";
+import {
+    changedListenerReadyFactory,
+    createMockBluetooth,
+    createMockBluetoothDevice,
+    createMockCharacteristic,
+    ListenerTrigger,
+} from "../ble.test.helpers";
 import { ConfigManagerService } from "../config-manager.service";
 
 import { ErgConnectionService } from "./erg-connection.service";
@@ -11,9 +35,24 @@ describe("ErgConnectionService", (): void => {
     let ergConnectionService: ErgConnectionService;
     let matSnackBarSpy: jasmine.SpyObj<MatSnackBar>;
     let configManagerServiceSpy: jasmine.SpyObj<ConfigManagerService>;
-
-    let navigatorSpy: jasmine.Spy<() => Navigator | undefined>;
-    let mockBluetoothDevice: BluetoothDevice;
+    let mockBluetoothDevice: jasmine.SpyObj<BluetoothDevice>;
+    let mockBluetooth: jasmine.Spy<() => Bluetooth | undefined>;
+    let createDisconnectChangedListenerReady: () => Promise<ListenerTrigger<void>>;
+    let mockBatteryCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockCyclingPowerCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockCscCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockRowerDataCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockExtendedCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockHandleForcesCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockDeltaTimesCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockSettingsCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockStrokeSettingsCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockBatteryService: jasmine.SpyObj<BluetoothRemoteGATTService>;
+    let mockCyclingPowerService: jasmine.SpyObj<BluetoothRemoteGATTService>;
+    let mockCscService: jasmine.SpyObj<BluetoothRemoteGATTService>;
+    let mockFitnessService: jasmine.SpyObj<BluetoothRemoteGATTService>;
+    let mockExtendedService: jasmine.SpyObj<BluetoothRemoteGATTService>;
+    let mockSettingsService: jasmine.SpyObj<BluetoothRemoteGATTService>;
     let connectionSpies: {
         connectToMeasurement: jasmine.Spy;
         connectToExtended: jasmine.Spy;
@@ -22,47 +61,6 @@ describe("ErgConnectionService", (): void => {
         connectToSettings: jasmine.Spy;
         connectToStrokeSettings: jasmine.Spy;
         connectToBattery: jasmine.Spy;
-    };
-
-    const createMockBluetoothDevice = (overrides: Partial<BluetoothDevice> = {}): BluetoothDevice => {
-        let baseBluetoothDevice: Partial<BluetoothDevice> = {
-            id: "mock-device-id",
-            name: "Mock Ergo",
-            watchAdvertisements: jasmine.createSpy("watchAdvertisements").and.resolveTo(),
-        };
-
-        const gattServer = {
-            connected: true,
-            connect: jasmine
-                .createSpy("connect")
-                .and.callFake(
-                    (): Promise<BluetoothRemoteGATTServer> =>
-                        Promise.resolve(gattServer as unknown as BluetoothRemoteGATTServer),
-                ),
-            disconnect: (): void => {
-                // noop; replaced by spy in tests
-            },
-            getPrimaryService: jasmine.createSpy("getPrimaryService").and.callFake(
-                (): Promise<BluetoothRemoteGATTService> =>
-                    Promise.resolve({
-                        getCharacteristic: jasmine.createSpy("getCharacteristic").and.callFake(
-                            (): Promise<BluetoothRemoteGATTCharacteristic> =>
-                                Promise.resolve({
-                                    service: {
-                                        device:
-                                            (baseBluetoothDevice as BluetoothDevice) ??
-                                            ({} as BluetoothDevice),
-                                    },
-                                    startNotifications: jasmine
-                                        .createSpy("startNotifications")
-                                        .and.resolveTo(),
-                                } as unknown as BluetoothRemoteGATTCharacteristic),
-                        ),
-                    } as unknown as BluetoothRemoteGATTService),
-            ),
-        };
-
-        return { ...baseBluetoothDevice, gatt: gattServer, ...overrides } as BluetoothDevice;
     };
 
     const setupConnectionSpies = (): typeof connectionSpies => {
@@ -77,34 +75,6 @@ describe("ErgConnectionService", (): void => {
         };
     };
 
-    const setupMockNavigator = (device: BluetoothDevice): void => {
-        navigatorSpy.and.returnValue({
-            bluetooth: {
-                requestDevice: (): Promise<BluetoothDevice> => Promise.resolve(device),
-                getDevices: (): Promise<Array<BluetoothDevice>> => Promise.resolve([device]),
-            },
-        } as Navigator);
-    };
-
-    const setupDisconnectHandler = (device: BluetoothDevice): jasmine.Spy => {
-        let gattServerDisconnectedHandler: ((this: BluetoothDevice, ev: Event) => unknown) | null = null;
-        Object.defineProperty(device, "ongattserverdisconnected", {
-            get: (): typeof gattServerDisconnectedHandler => gattServerDisconnectedHandler,
-            set: (handlerFunction: (this: BluetoothDevice, ev: Event) => unknown): void => {
-                gattServerDisconnectedHandler = handlerFunction;
-            },
-            configurable: true,
-        });
-
-        const gattServer = device.gatt as BluetoothRemoteGATTServer;
-
-        return spyOn(gattServer, "disconnect").and.callFake((): void => {
-            if (gattServerDisconnectedHandler) {
-                gattServerDisconnectedHandler.call(device, new Event("gattserverdisconnected"));
-            }
-        });
-    };
-
     beforeEach((): void => {
         matSnackBarSpy = jasmine.createSpyObj<MatSnackBar>("MatSnackBar", ["open"]);
         configManagerServiceSpy = jasmine.createSpyObj<ConfigManagerService>("ConfigManagerService", [
@@ -116,7 +86,87 @@ describe("ErgConnectionService", (): void => {
 
         spyOnProperty(document, "visibilityState", "get").and.returnValue("visible");
 
-        navigatorSpy = spyOnProperty(globalThis, "navigator", "get").and.returnValue({} as Navigator);
+        mockBluetoothDevice = createMockBluetoothDevice("mock-device-id", "Mock Ergo", true);
+        mockBluetooth = createMockBluetooth(mockBluetoothDevice);
+
+        mockBatteryCharacteristic = createMockCharacteristic(mockBluetoothDevice);
+        mockCyclingPowerCharacteristic = createMockCharacteristic(mockBluetoothDevice);
+        mockCscCharacteristic = createMockCharacteristic(mockBluetoothDevice);
+        mockRowerDataCharacteristic = createMockCharacteristic(mockBluetoothDevice);
+        mockExtendedCharacteristic = createMockCharacteristic(mockBluetoothDevice);
+        mockHandleForcesCharacteristic = createMockCharacteristic(mockBluetoothDevice);
+        mockDeltaTimesCharacteristic = createMockCharacteristic(mockBluetoothDevice);
+        mockSettingsCharacteristic = createMockCharacteristic(mockBluetoothDevice);
+        mockStrokeSettingsCharacteristic = createMockCharacteristic(mockBluetoothDevice);
+
+        mockBatteryService = jasmine.createSpyObj<BluetoothRemoteGATTService>("BluetoothRemoteGATTService", [
+            "getCharacteristic",
+        ]);
+        mockCyclingPowerService = jasmine.createSpyObj<BluetoothRemoteGATTService>(
+            "BluetoothRemoteGATTService",
+            ["getCharacteristic"],
+        );
+        mockCscService = jasmine.createSpyObj<BluetoothRemoteGATTService>("BluetoothRemoteGATTService", [
+            "getCharacteristic",
+        ]);
+        mockFitnessService = jasmine.createSpyObj<BluetoothRemoteGATTService>("BluetoothRemoteGATTService", [
+            "getCharacteristic",
+        ]);
+        mockExtendedService = jasmine.createSpyObj<BluetoothRemoteGATTService>("BluetoothRemoteGATTService", [
+            "getCharacteristic",
+        ]);
+        mockSettingsService = jasmine.createSpyObj<BluetoothRemoteGATTService>("BluetoothRemoteGATTService", [
+            "getCharacteristic",
+        ]);
+
+        const gattServer = mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>;
+        gattServer.connect.and.resolveTo(gattServer);
+        gattServer.getPrimaryService.withArgs(BATTERY_LEVEL_SERVICE).and.resolveTo(mockBatteryService);
+        gattServer.getPrimaryService.withArgs(CYCLING_POWER_SERVICE).and.resolveTo(mockCyclingPowerService);
+        gattServer.getPrimaryService
+            .withArgs(CYCLING_SPEED_AND_CADENCE_SERVICE)
+            .and.resolveTo(mockCscService);
+        gattServer.getPrimaryService.withArgs(FITNESS_MACHINE_SERVICE).and.resolveTo(mockFitnessService);
+        gattServer.getPrimaryService.withArgs(EXTENDED_METRICS_SERVICE).and.resolveTo(mockExtendedService);
+        gattServer.getPrimaryService.withArgs(SETTINGS_SERVICE).and.resolveTo(mockSettingsService);
+
+        mockBatteryService.getCharacteristic
+            .withArgs(BATTERY_LEVEL_CHARACTERISTIC)
+            .and.resolveTo(mockBatteryCharacteristic);
+
+        mockCyclingPowerService.getCharacteristic
+            .withArgs(CYCLING_POWER_CHARACTERISTIC)
+            .and.resolveTo(mockCyclingPowerCharacteristic);
+
+        mockCscService.getCharacteristic
+            .withArgs(CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC)
+            .and.resolveTo(mockCscCharacteristic);
+
+        mockFitnessService.getCharacteristic
+            .withArgs(ROWER_DATA_CHARACTERISTIC)
+            .and.resolveTo(mockRowerDataCharacteristic);
+
+        mockExtendedService.getCharacteristic
+            .withArgs(EXTENDED_CHARACTERISTIC)
+            .and.resolveTo(mockExtendedCharacteristic);
+        mockExtendedService.getCharacteristic
+            .withArgs(HANDLE_FORCES_CHARACTERISTIC)
+            .and.resolveTo(mockHandleForcesCharacteristic);
+        mockExtendedService.getCharacteristic
+            .withArgs(DELTA_TIMES_CHARACTERISTIC)
+            .and.resolveTo(mockDeltaTimesCharacteristic);
+
+        mockSettingsService.getCharacteristic
+            .withArgs(SETTINGS_CHARACTERISTIC)
+            .and.resolveTo(mockSettingsCharacteristic);
+        mockSettingsService.getCharacteristic
+            .withArgs(STROKE_SETTINGS_CHARACTERISTIC)
+            .and.resolveTo(mockStrokeSettingsCharacteristic);
+
+        createDisconnectChangedListenerReady = changedListenerReadyFactory<typeof mockBluetoothDevice, void>(
+            mockBluetoothDevice,
+            "gattserverdisconnected",
+        );
 
         TestBed.configureTestingModule({
             providers: [
@@ -128,12 +178,12 @@ describe("ErgConnectionService", (): void => {
         });
 
         ergConnectionService = TestBed.inject(ErgConnectionService);
-        mockBluetoothDevice = createMockBluetoothDevice();
         connectionSpies = setupConnectionSpies();
     });
 
     it("should instantiate and expose initial 'disconnected' status", (): void => {
         const localStatusEvents: Array<IErgConnectionStatus> = [];
+
         ergConnectionService.connectionStatus$().subscribe((status: IErgConnectionStatus): void => {
             localStatusEvents.push(status);
         });
@@ -145,23 +195,27 @@ describe("ErgConnectionService", (): void => {
 
     describe("disconnectDevice method", (): void => {
         describe("when disconnecting an active device", (): void => {
+            let disconnectTrigger: Promise<ListenerTrigger<void>>;
+
             beforeEach(async (): Promise<void> => {
-                setupMockNavigator(mockBluetoothDevice);
                 await ergConnectionService.discover();
+                disconnectTrigger = createDisconnectChangedListenerReady();
             });
 
             it("should call gattServer.disconnect", async (): Promise<void> => {
-                const disconnectSpy = setupDisconnectHandler(mockBluetoothDevice);
+                const gattServer = mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>;
 
-                await ergConnectionService.disconnectDevice();
+                const disconnectPromise = ergConnectionService.disconnectDevice();
+                (await disconnectTrigger).triggerChanged();
+                await disconnectPromise;
 
-                expect(disconnectSpy).toHaveBeenCalled();
+                expect(gattServer.disconnect).toHaveBeenCalled();
             });
 
             it("should clear the internal bluetoothDevice", async (): Promise<void> => {
-                setupDisconnectHandler(mockBluetoothDevice);
-
-                await ergConnectionService.disconnectDevice();
+                const disconnectPromise = ergConnectionService.disconnectDevice();
+                (await disconnectTrigger).triggerChanged();
+                await disconnectPromise;
 
                 expect(ergConnectionService.bluetoothDevice).toBeUndefined();
             });
@@ -171,9 +225,10 @@ describe("ErgConnectionService", (): void => {
                 ergConnectionService.connectionStatus$().subscribe((status: IErgConnectionStatus): void => {
                     localStatusEvents.push(status);
                 });
-                setupDisconnectHandler(mockBluetoothDevice);
 
-                await ergConnectionService.disconnectDevice();
+                const disconnectPromise = ergConnectionService.disconnectDevice();
+                (await disconnectTrigger).triggerChanged();
+                await disconnectPromise;
 
                 expect(localStatusEvents[localStatusEvents.length - 1]).toEqual({
                     status: "disconnected",
@@ -196,8 +251,15 @@ describe("ErgConnectionService", (): void => {
     });
 
     describe("discover method", (): void => {
-        it("should request device and on success start the connect flow", async (): Promise<void> => {
-            setupMockNavigator(mockBluetoothDevice);
+        it("should request device", async (): Promise<void> => {
+            const connectToMeasurementSpy = connectionSpies.connectToMeasurement;
+
+            await ergConnectionService.discover();
+
+            expect(connectToMeasurementSpy).toHaveBeenCalled();
+        });
+
+        it("should start the connect flow on successful devce request ", async (): Promise<void> => {
             const connectToMeasurementSpy = connectionSpies.connectToMeasurement;
 
             await ergConnectionService.discover();
@@ -207,11 +269,9 @@ describe("ErgConnectionService", (): void => {
         });
 
         it("should fallback to reconnect when user cancels requestDevice", async (): Promise<void> => {
-            navigatorSpy.and.returnValue({
-                bluetooth: {
-                    requestDevice: (): Promise<BluetoothDevice> => Promise.reject(new Error("cancel")),
-                },
-            } as Navigator);
+            mockBluetooth.and.returnValue({
+                requestDevice: (): Promise<BluetoothDevice> => Promise.reject(new Error("cancel")),
+            } as Bluetooth);
             const reconnectMethodSpy = spyOn(ergConnectionService, "reconnect").and.resolveTo();
 
             await ergConnectionService.discover();
@@ -226,12 +286,10 @@ describe("ErgConnectionService", (): void => {
             ergConnectionService.connectionStatus$().subscribe((status: IErgConnectionStatus): void => {
                 localStatusEvents.push(status);
             });
-            navigatorSpy.and.returnValue({
-                bluetooth: {
-                    getDevices: (): Promise<Array<BluetoothDevice>> =>
-                        Promise.resolve([] as Array<BluetoothDevice>),
-                },
-            } as Navigator);
+            mockBluetooth.and.returnValue({
+                getDevices: (): Promise<Array<BluetoothDevice>> =>
+                    Promise.resolve([] as Array<BluetoothDevice>),
+            } as Bluetooth);
 
             await ergConnectionService.reconnect();
 
@@ -245,35 +303,15 @@ describe("ErgConnectionService", (): void => {
             ergConnectionService.connectionStatus$().subscribe((status: IErgConnectionStatus): void => {
                 localStatusEvents.push(status);
             });
-            navigatorSpy.and.returnValue({
-                bluetooth: {
-                    getDevices: (): Promise<Array<BluetoothDevice>> => Promise.resolve([mockBluetoothDevice]),
-                },
-            } as Navigator);
 
             await ergConnectionService.reconnect();
-            // flush microtasks from resolved watchAdvertisements
-            await Promise.resolve();
 
             expect(mockBluetoothDevice.watchAdvertisements).toHaveBeenCalled();
-            expect(
-                localStatusEvents.find(
-                    (status: IErgConnectionStatus): boolean => status.status === "searching",
-                ),
-            ).toBeTruthy();
+            expect(localStatusEvents[localStatusEvents.length - 1].status).toBe("searching");
         });
 
         it("should retry reconnect when watchAdvertisements throws", async (): Promise<void> => {
-            const mockDeviceWithError = createMockBluetoothDevice({
-                watchAdvertisements: jasmine
-                    .createSpy("watchAdvertisements")
-                    .and.rejectWith(new Error("watch failed")),
-            });
-            navigatorSpy.and.returnValue({
-                bluetooth: {
-                    getDevices: (): Promise<Array<BluetoothDevice>> => Promise.resolve([mockDeviceWithError]),
-                },
-            } as Navigator);
+            mockBluetoothDevice.watchAdvertisements.and.rejectWith(new Error("watch failed"));
             const reconnectMethodSpy = spyOn(ergConnectionService, "reconnect").and.resolveTo();
 
             await ergConnectionService.reconnect();
@@ -292,9 +330,7 @@ describe("ErgConnectionService", (): void => {
             ergConnectionService.connectionStatus$().subscribe((status: IErgConnectionStatus): void => {
                 localStatusEvents.push(status);
             });
-            setupMockNavigator(mockBluetoothDevice);
 
-            // setup spies to track connection order
             connectionSpies.connectToMeasurement.and.callFake(async (): Promise<void> => {
                 connectionOrder.push("measurement");
             });
@@ -370,13 +406,22 @@ describe("ErgConnectionService", (): void => {
             });
 
             it("should set disconnect handler", async (): Promise<void> => {
+                const disconnectReady = createDisconnectChangedListenerReady();
+
                 await ergConnectionService.discover();
 
-                expect(typeof mockBluetoothDevice.ongattserverdisconnected).toBe("function");
+                await expectAsync(disconnectReady).toBeResolved();
             });
         });
 
         describe("on connection failure", (): void => {
+            let isGattConnectedSpy: jasmine.Spy<() => boolean>;
+
+            beforeEach((): void => {
+                isGattConnectedSpy = Object.getOwnPropertyDescriptor(mockBluetoothDevice.gatt, "connected")
+                    ?.get as jasmine.Spy;
+            });
+
             it("should set disconnected status when connection error occurs", async (): Promise<void> => {
                 connectionSpies.connectToMeasurement.and.rejectWith(new Error("connection failed"));
 
@@ -395,17 +440,9 @@ describe("ErgConnectionService", (): void => {
             });
 
             it("should trigger reconnect when gatt is not connected after error", async (): Promise<void> => {
-                const mockDisconnectedDevice = createMockBluetoothDevice({
-                    gatt: {
-                        connected: false,
-                        connect: jasmine.createSpy("connect").and.resolveTo({}),
-                    } as unknown as BluetoothRemoteGATTServer,
-                });
-                setupMockNavigator(mockDisconnectedDevice);
+                isGattConnectedSpy.and.returnValue(false);
                 connectionSpies.connectToMeasurement.and.rejectWith(new Error("connection failed"));
-                const reconnectMethodSpy = spyOn(ergConnectionService, "reconnect").and.returnValue(
-                    Promise.resolve(),
-                );
+                const reconnectMethodSpy = spyOn(ergConnectionService, "reconnect").and.resolveTo();
 
                 await ergConnectionService.discover();
 
@@ -413,13 +450,9 @@ describe("ErgConnectionService", (): void => {
             });
 
             it("should handle gatt.connect returning falsy value", async (): Promise<void> => {
-                const mockFailedDevice = createMockBluetoothDevice({
-                    gatt: {
-                        connected: true,
-                        connect: jasmine.createSpy("connect").and.resolveTo(undefined),
-                    } as unknown as BluetoothRemoteGATTServer,
-                });
-                setupMockNavigator(mockFailedDevice);
+                (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).connect.and.resolveTo(
+                    undefined as unknown as BluetoothRemoteGATTServer,
+                );
 
                 await ergConnectionService.discover();
 
@@ -431,59 +464,45 @@ describe("ErgConnectionService", (): void => {
     });
 
     describe("event handling", (): void => {
+        let disconnectReady: Promise<ListenerTrigger<void>>;
+
         beforeEach(async (): Promise<void> => {
-            setupMockNavigator(mockBluetoothDevice);
+            disconnectReady = createDisconnectChangedListenerReady();
             await ergConnectionService.discover();
         });
 
         it("should handle disconnect via gattserverdisconnected event", async (): Promise<void> => {
             const reconnectMethodSpy = spyOn(ergConnectionService, "reconnect").and.resolveTo();
 
-            mockBluetoothDevice.ongattserverdisconnected?.call(
-                mockBluetoothDevice,
-                new Event("gattserverdisconnected"),
-            );
+            (await disconnectReady).triggerChanged();
 
             expect(reconnectMethodSpy).toHaveBeenCalled();
             expect(matSnackBarSpy.open).toHaveBeenCalledWith("Ergometer Monitor disconnected", "Dismiss");
         });
 
         it("should reconnect by handling advertisement event", async (): Promise<void> => {
-            navigatorSpy.and.returnValue({
-                bluetooth: {
-                    getDevices: (): Promise<Array<BluetoothDevice>> => Promise.resolve([mockBluetoothDevice]),
-                },
-            } as Navigator);
-            const gattServer = mockBluetoothDevice.gatt as BluetoothRemoteGATTServer;
-            spyOn(gattServer, "disconnect").and.callFake((): void => {
-                if (typeof mockBluetoothDevice.ongattserverdisconnected === "function") {
-                    mockBluetoothDevice.ongattserverdisconnected.call(
-                        mockBluetoothDevice,
-                        new Event("gattserverdisconnected"),
-                    );
-                }
-            });
+            const advertisementTrigger = changedListenerReadyFactory<typeof mockBluetoothDevice, void>(
+                mockBluetoothDevice,
+                "advertisementreceived",
+            )();
 
+            (await disconnectReady).triggerChanged();
             await ergConnectionService.reconnect();
+            (await advertisementTrigger).triggerChanged();
 
             expect(mockBluetoothDevice.watchAdvertisements).toHaveBeenCalled();
-
-            if (mockBluetoothDevice.onadvertisementreceived) {
-                mockBluetoothDevice.onadvertisementreceived.call(mockBluetoothDevice, {
-                    device: mockBluetoothDevice,
-                } as unknown as BluetoothAdvertisingEvent);
-            }
-
             expect(connectionSpies.connectToMeasurement).toHaveBeenCalled();
         });
     });
 
     describe("individual connectTo* methods", (): void => {
-        let mockGattServer: BluetoothRemoteGATTServer;
+        let mockGattServer: jasmine.SpyObj<BluetoothRemoteGATTServer>;
+        let connectedSpy: jasmine.Spy<() => boolean>;
 
-        beforeEach((): void => {
-            mockGattServer = mockBluetoothDevice.gatt as BluetoothRemoteGATTServer;
-            // reset spies to their original implementation for these tests
+        beforeEach(async (): Promise<void> => {
+            mockGattServer = mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>;
+            connectedSpy = Object.getOwnPropertyDescriptor(mockGattServer, "connected")?.get as jasmine.Spy;
+
             connectionSpies.connectToBattery.and.callThrough();
             connectionSpies.connectToExtended.and.callThrough();
             connectionSpies.connectToHandleForces.and.callThrough();
@@ -491,291 +510,276 @@ describe("ErgConnectionService", (): void => {
             connectionSpies.connectToSettings.and.callThrough();
             connectionSpies.connectToStrokeSettings.and.callThrough();
             connectionSpies.connectToMeasurement.and.callThrough();
+
+            // eslint-disable-next-line no-underscore-dangle
+            (ergConnectionService as unknown as { _bluetoothDevice: BluetoothDevice })._bluetoothDevice =
+                mockBluetoothDevice;
         });
 
         describe("connectToBattery", (): void => {
-            it("should connect successfully when service is available", async (): Promise<void> => {
-                const result = await ergConnectionService.connectToBattery(mockGattServer);
+            it("should connect successfully when service is available", fakeAsync((): void => {
+                ergConnectionService
+                    .connectToBattery(mockGattServer)
+                    .then((result: void | BluetoothRemoteGATTCharacteristic): void => {
+                        expect(result).toBeDefined();
+                    });
 
-                expect(result).toBeDefined();
+                flush();
                 expect(ergConnectionService.readBatteryCharacteristic()).toBeDefined();
-            });
+            }));
 
-            it("should show snackbar when service is unavailable but device is connected", async (): Promise<void> => {
-                const mockGattWithError = createMockBluetoothDevice({
-                    gatt: {
-                        connected: true,
-                        getPrimaryService: jasmine
-                            .createSpy("getPrimaryService")
-                            .and.rejectWith(new Error("Service unavailable - test")),
-                    } as unknown as BluetoothRemoteGATTServer,
-                }).gatt as BluetoothRemoteGATTServer;
-                Object.defineProperty(ergConnectionService, "_bluetoothDevice", {
-                    value: { gatt: { connected: true } },
-                    writable: true,
+            it("should show snackbar when service is unavailable but device is connected", fakeAsync((): void => {
+                connectedSpy.and.returnValue(true);
+                mockGattServer.getPrimaryService
+                    .withArgs(BATTERY_LEVEL_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable device connected - test"));
+
+                ergConnectionService.connectToBattery(mockGattServer).catch((): void => {
+                    // no-op
                 });
+                flush();
 
-                const result = await ergConnectionService.connectToBattery(mockGattWithError);
-
-                expect(result).toBeUndefined();
                 expect(matSnackBarSpy.open).toHaveBeenCalledWith(
                     "Ergo battery service is unavailable",
                     "Dismiss",
                 );
-            });
+            }));
 
             it("should propagate error when device is disconnected", async (): Promise<void> => {
-                const mockGattWithError = createMockBluetoothDevice({
-                    gatt: {
-                        connected: false,
-                        getPrimaryService: jasmine
-                            .createSpy("getPrimaryService")
-                            .and.rejectWith(new Error("Service unavailable - test")),
-                    } as unknown as BluetoothRemoteGATTServer,
-                }).gatt as BluetoothRemoteGATTServer;
-                Object.defineProperty(ergConnectionService, "_bluetoothDevice", {
-                    value: { gatt: { connected: false } },
-                    writable: true,
-                });
+                connectedSpy.and.returnValue(false);
+                mockGattServer.getPrimaryService
+                    .withArgs(BATTERY_LEVEL_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
 
-                await expectAsync(ergConnectionService.connectToBattery(mockGattWithError)).toBeRejected();
+                await expectAsync(ergConnectionService.connectToBattery(mockGattServer)).toBeRejected();
             });
         });
 
         describe("connectToExtended", (): void => {
-            it("should connect successfully when service is available", async (): Promise<void> => {
-                const result = await ergConnectionService.connectToExtended(mockGattServer);
+            it("should connect successfully when service is available", fakeAsync((): void => {
+                ergConnectionService
+                    .connectToExtended(mockGattServer)
+                    .then((result: void | BluetoothRemoteGATTCharacteristic): void => {
+                        expect(result).toBeDefined();
+                    });
 
-                expect(result).toBeDefined();
-            });
+                flush();
 
-            it("should show snackbar when service is unavailable but device is connected", async (): Promise<void> => {
-                const mockGattWithError = createMockBluetoothDevice({
-                    gatt: {
-                        connected: true,
-                        getPrimaryService: jasmine
-                            .createSpy("getPrimaryService")
-                            .and.rejectWith(new Error("Service unavailable - test")),
-                    } as unknown as BluetoothRemoteGATTServer,
-                }).gatt as BluetoothRemoteGATTServer;
-                Object.defineProperty(ergConnectionService, "_bluetoothDevice", {
-                    value: { gatt: { connected: true } },
-                    writable: true,
+                expect(ergConnectionService.readExtendedCharacteristic()).toBeDefined();
+            }));
+
+            it("should show snackbar when service is unavailable but device is connected", fakeAsync((): void => {
+                connectedSpy.and.returnValue(true);
+                mockGattServer.getPrimaryService
+                    .withArgs(EXTENDED_METRICS_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
+
+                ergConnectionService.connectToExtended(mockGattServer).catch((): void => {
+                    // no-op
                 });
+                flush();
 
-                const result = await ergConnectionService.connectToExtended(mockGattWithError);
-
-                expect(result).toBeUndefined();
                 expect(matSnackBarSpy.open).toHaveBeenCalledWith(
                     "Error connecting to Extended Metrics",
                     "Dismiss",
                 );
+            }));
+
+            it("should propagate error when device is disconnected", async (): Promise<void> => {
+                connectedSpy.and.returnValue(false);
+                const gattServer = mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>;
+                gattServer.getPrimaryService
+                    .withArgs(EXTENDED_METRICS_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
+
+                await expectAsync(ergConnectionService.connectToExtended(gattServer)).toBeRejected();
             });
         });
 
         describe("connectToHandleForces", (): void => {
-            it("should connect successfully when service is available", async (): Promise<void> => {
-                const result = await ergConnectionService.connectToHandleForces(mockGattServer);
+            it("should connect successfully when service is available", fakeAsync((): void => {
+                ergConnectionService
+                    .connectToHandleForces(mockGattServer)
+                    .then((result: void | BluetoothRemoteGATTCharacteristic): void => {
+                        expect(result).toBeDefined();
+                    });
+                flush();
 
-                expect(result).toBeDefined();
-            });
+                expect(ergConnectionService.readHandleForceCharacteristic()).toBeDefined();
+            }));
 
-            it("should show snackbar when service is unavailable but device is connected", async (): Promise<void> => {
-                const mockGattWithError = createMockBluetoothDevice({
-                    gatt: {
-                        connected: true,
-                        getPrimaryService: jasmine
-                            .createSpy("getPrimaryService")
-                            .and.rejectWith(new Error("Service unavailable - test")),
-                    } as unknown as BluetoothRemoteGATTServer,
-                }).gatt as BluetoothRemoteGATTServer;
-                Object.defineProperty(ergConnectionService, "_bluetoothDevice", {
-                    value: { gatt: { connected: true } },
-                    writable: true,
+            it("should show snackbar when service is unavailable but device is connected", fakeAsync((): void => {
+                connectedSpy.and.returnValue(true);
+                mockGattServer.getPrimaryService
+                    .withArgs(EXTENDED_METRICS_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
+
+                ergConnectionService.connectToHandleForces(mockGattServer).catch((): void => {
+                    // no-op
                 });
+                flush();
 
-                const result = await ergConnectionService.connectToHandleForces(mockGattWithError);
-
-                expect(result).toBeUndefined();
                 expect(matSnackBarSpy.open).toHaveBeenCalledWith(
                     "Error connecting to Handles Forces",
                     "Dismiss",
                 );
-            });
+            }));
         });
 
         describe("connectToDeltaTimes", (): void => {
-            it("should connect successfully when service is available", async (): Promise<void> => {
-                const result = await ergConnectionService.connectToDeltaTimes(mockGattServer);
+            it("should connect successfully when service is available", fakeAsync((): void => {
+                ergConnectionService
+                    .connectToDeltaTimes(mockGattServer)
+                    .then((result: void | BluetoothRemoteGATTCharacteristic): void => {
+                        expect(result).toBeDefined();
+                    });
+                flush();
 
-                expect(result).toBeDefined();
-            });
+                expect(ergConnectionService.readDeltaTimesCharacteristic()).toBeDefined();
+            }));
 
-            it("should show snackbar when service is unavailable but device is connected", async (): Promise<void> => {
-                const mockGattWithError = createMockBluetoothDevice({
-                    gatt: {
-                        connected: true,
-                        getPrimaryService: jasmine
-                            .createSpy("getPrimaryService")
-                            .and.rejectWith(new Error("Service unavailable - test")),
-                    } as unknown as BluetoothRemoteGATTServer,
-                }).gatt as BluetoothRemoteGATTServer;
-                Object.defineProperty(ergConnectionService, "_bluetoothDevice", {
-                    value: { gatt: { connected: true } },
-                    writable: true,
+            it("should show snackbar when service is unavailable but device is connected", fakeAsync((): void => {
+                connectedSpy.and.returnValue(true);
+                mockGattServer.getPrimaryService
+                    .withArgs(EXTENDED_METRICS_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
+
+                ergConnectionService.connectToDeltaTimes(mockGattServer).catch((): void => {
+                    // no-op
                 });
+                flush();
 
-                const result = await ergConnectionService.connectToDeltaTimes(mockGattWithError);
-
-                expect(result).toBeUndefined();
                 expect(matSnackBarSpy.open).toHaveBeenCalledWith(
                     "Error connecting to Delta Times",
                     "Dismiss",
                 );
-            });
+            }));
         });
 
         describe("connectToMeasurement", (): void => {
-            it("should connect successfully when service is available", async (): Promise<void> => {
-                const result = await ergConnectionService.connectToMeasurement(mockGattServer);
+            it("should connect successfully when service is available", fakeAsync((): void => {
+                ergConnectionService
+                    .connectToMeasurement(mockGattServer)
+                    .then((result: void | BluetoothRemoteGATTCharacteristic): void => {
+                        expect(result).toBeDefined();
+                    });
 
-                expect(result).toBeDefined();
-            });
+                flush();
+                expect(ergConnectionService.readMeasurementCharacteristic()).toBeDefined();
+            }));
 
-            it("should show snackbar when service is unavailable but device is connected", async (): Promise<void> => {
-                const mockGattWithError = createMockBluetoothDevice({
-                    gatt: {
-                        connected: true,
-                        getPrimaryService: jasmine
-                            .createSpy("getPrimaryService")
-                            .and.rejectWith(new Error("Service unavailable - test")),
-                    } as unknown as BluetoothRemoteGATTServer,
-                }).gatt as BluetoothRemoteGATTServer;
-                Object.defineProperty(ergConnectionService, "_bluetoothDevice", {
-                    value: { gatt: { connected: true } },
-                    writable: true,
+            it("should show snackbar when service is unavailable but device is connected", fakeAsync((): void => {
+                connectedSpy.and.returnValue(true);
+                mockGattServer.getPrimaryService
+                    .withArgs(CYCLING_POWER_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
+                mockGattServer.getPrimaryService
+                    .withArgs(CYCLING_SPEED_AND_CADENCE_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
+                mockGattServer.getPrimaryService
+                    .withArgs(FITNESS_MACHINE_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
+
+                ergConnectionService.connectToMeasurement(mockGattServer).catch((): void => {
+                    // no-op
                 });
+                flush();
 
-                const result = await ergConnectionService.connectToMeasurement(mockGattWithError);
-
-                expect(result).toBeUndefined();
                 expect(matSnackBarSpy.open).toHaveBeenCalledWith(
                     "Error connecting to Measurement Characteristic",
                     "Dismiss",
                 );
-            });
+            }));
 
             it("should propagate error when device is disconnected", async (): Promise<void> => {
-                const mockGattWithError = createMockBluetoothDevice({
-                    gatt: {
-                        connected: false,
-                        getPrimaryService: jasmine
-                            .createSpy("getPrimaryService")
-                            .and.rejectWith(new Error("Service unavailable - test")),
-                    } as unknown as BluetoothRemoteGATTServer,
-                }).gatt as BluetoothRemoteGATTServer;
-                Object.defineProperty(ergConnectionService, "_bluetoothDevice", {
-                    value: { gatt: { connected: false } },
-                    writable: true,
-                });
+                connectedSpy.and.returnValue(false);
+                mockGattServer.getPrimaryService
+                    .withArgs(CYCLING_POWER_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
+                mockGattServer.getPrimaryService
+                    .withArgs(CYCLING_SPEED_AND_CADENCE_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
+                mockGattServer.getPrimaryService
+                    .withArgs(FITNESS_MACHINE_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
 
-                await expectAsync(
-                    ergConnectionService.connectToMeasurement(mockGattWithError),
-                ).toBeRejected();
+                await expectAsync(ergConnectionService.connectToMeasurement(mockGattServer)).toBeRejected();
             });
         });
 
         describe("connectToSettings", (): void => {
-            it("should connect successfully when service is available", async (): Promise<void> => {
-                const result = await ergConnectionService.connectToSettings(mockGattServer);
+            it("should connect successfully when service is available", fakeAsync((): void => {
+                ergConnectionService
+                    .connectToSettings(mockGattServer)
+                    .then((result: void | BluetoothRemoteGATTCharacteristic): void => {
+                        expect(result).toBeDefined();
+                    });
+                flush();
 
-                expect(result).toBeDefined();
-            });
+                expect(ergConnectionService.readSettingsCharacteristic()).toBeDefined();
+            }));
 
-            it("should show snackbar when service is unavailable but device is connected", async (): Promise<void> => {
-                const mockGattWithError = createMockBluetoothDevice({
-                    gatt: {
-                        connected: true,
-                        getPrimaryService: jasmine
-                            .createSpy("getPrimaryService")
-                            .and.rejectWith(new Error("Service unavailable - test")),
-                    } as unknown as BluetoothRemoteGATTServer,
-                }).gatt as BluetoothRemoteGATTServer;
-                Object.defineProperty(ergConnectionService, "_bluetoothDevice", {
-                    value: { gatt: { connected: true } },
-                    writable: true,
+            it("should show snackbar when service is unavailable but device is connected", fakeAsync((): void => {
+                connectedSpy.and.returnValue(true);
+                mockGattServer.getPrimaryService
+                    .withArgs(SETTINGS_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
+
+                ergConnectionService.connectToSettings(mockGattServer).catch((): void => {
+                    // no-op
                 });
+                flush();
 
-                const result = await ergConnectionService.connectToSettings(mockGattWithError);
-
-                expect(result).toBeUndefined();
                 expect(matSnackBarSpy.open).toHaveBeenCalledWith("Error connecting to Settings", "Dismiss");
-            });
+            }));
 
             it("should propagate error when device is disconnected", async (): Promise<void> => {
-                const mockGattWithError = createMockBluetoothDevice({
-                    gatt: {
-                        connected: false,
-                        getPrimaryService: jasmine
-                            .createSpy("getPrimaryService")
-                            .and.rejectWith(new Error("Service unavailable - test")),
-                    } as unknown as BluetoothRemoteGATTServer,
-                }).gatt as BluetoothRemoteGATTServer;
-                Object.defineProperty(ergConnectionService, "_bluetoothDevice", {
-                    value: { gatt: { connected: false } },
-                    writable: true,
-                });
+                connectedSpy.and.returnValue(false);
+                mockGattServer.getPrimaryService
+                    .withArgs(SETTINGS_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
 
-                await expectAsync(ergConnectionService.connectToSettings(mockGattWithError)).toBeRejected();
+                await expectAsync(ergConnectionService.connectToSettings(mockGattServer)).toBeRejected();
             });
         });
 
         describe("connectToStrokeSettings", (): void => {
-            it("should connect successfully when service is available", async (): Promise<void> => {
-                const result = await ergConnectionService.connectToStrokeSettings(mockGattServer);
+            it("should connect successfully when service is available", fakeAsync((): void => {
+                ergConnectionService
+                    .connectToStrokeSettings(mockGattServer)
+                    .then((result: void | BluetoothRemoteGATTCharacteristic): void => {
+                        expect(result).toBeDefined();
+                    });
+                flush();
 
-                expect(result).toBeDefined();
-            });
+                expect(ergConnectionService.readStrokeSettingsCharacteristic()).toBeDefined();
+            }));
 
-            it("should show snackbar when service is unavailable but device is connected", async (): Promise<void> => {
-                const mockGattWithError = createMockBluetoothDevice({
-                    gatt: {
-                        connected: true,
-                        getPrimaryService: jasmine
-                            .createSpy("getPrimaryService")
-                            .and.rejectWith(new Error("Service unavailable - test")),
-                    } as unknown as BluetoothRemoteGATTServer,
-                }).gatt as BluetoothRemoteGATTServer;
-                Object.defineProperty(ergConnectionService, "_bluetoothDevice", {
-                    value: { gatt: { connected: true } },
-                    writable: true,
+            it("should show snackbar when service is unavailable but device is connected", fakeAsync((): void => {
+                connectedSpy.and.returnValue(true);
+                mockGattServer.getPrimaryService
+                    .withArgs(SETTINGS_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
+
+                ergConnectionService.connectToStrokeSettings(mockGattServer).catch((): void => {
+                    // no-op
                 });
+                flush();
 
-                const result = await ergConnectionService.connectToStrokeSettings(mockGattWithError);
-
-                expect(result).toBeUndefined();
                 expect(matSnackBarSpy.open).toHaveBeenCalledWith(
                     "Error connecting to Stroke Detection Settings",
                     "Dismiss",
                 );
-            });
+            }));
 
             it("should propagate error when device is disconnected", async (): Promise<void> => {
-                const mockGattWithError = createMockBluetoothDevice({
-                    gatt: {
-                        connected: false,
-                        getPrimaryService: jasmine
-                            .createSpy("getPrimaryService")
-                            .and.rejectWith(new Error("Service unavailable - test")),
-                    } as unknown as BluetoothRemoteGATTServer,
-                }).gatt as BluetoothRemoteGATTServer;
-                Object.defineProperty(ergConnectionService, "_bluetoothDevice", {
-                    value: { gatt: { connected: false } },
-                    writable: true,
-                });
+                connectedSpy.and.returnValue(false);
+                mockGattServer.getPrimaryService
+                    .withArgs(SETTINGS_SERVICE)
+                    .and.rejectWith(new Error("Service unavailable - test"));
 
                 await expectAsync(
-                    ergConnectionService.connectToStrokeSettings(mockGattWithError),
+                    ergConnectionService.connectToStrokeSettings(mockGattServer),
                 ).toBeRejected();
             });
         });
