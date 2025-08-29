@@ -21,5 +21,15 @@
             },
             "group": "build",
         },
+        {
+            "label": "Run ng test",
+            "type": "shell",
+            "command": "ng test",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        }
     ]
 }
