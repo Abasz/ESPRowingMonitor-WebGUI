@@ -90,9 +90,10 @@ export class CustomValidators {
     }
 }
 
-export function withDelay<T>(ms: number, value?: T): Promise<T> {
-    return new Promise<T>((resolve: (value: T | PromiseLike<T>) => void): number =>
-        window.setTimeout(resolve, ms, value),
+export function withDelay<T>(ms: number, value?: Promise<T>): Promise<T> {
+    return new Promise<T>(
+        (resolve: (value: Promise<T>) => void, reject: (reason?: unknown) => void): number =>
+            window.setTimeout(resolve, ms, value?.catch(reject)),
     );
 }
 
