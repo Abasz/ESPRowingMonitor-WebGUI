@@ -1,16 +1,7 @@
 import { DecimalPipe } from "@angular/common";
-import {
-    AfterViewInit,
-    ChangeDetectionStrategy,
-    Component,
-    isDevMode,
-    OnDestroy,
-    Signal,
-} from "@angular/core";
-import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
+import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy, Signal } from "@angular/core";
+import { toSignal } from "@angular/core/rxjs-interop";
 import { MatIcon } from "@angular/material/icon";
-import { MatSnackBar } from "@angular/material/snack-bar";
-import { SwUpdate, VersionEvent, VersionReadyEvent } from "@angular/service-worker";
 import { filter, interval, map, merge, Observable, pairwise, startWith, switchMap, take } from "rxjs";
 
 import { BleServiceFlag } from "../../common/ble.interfaces";
@@ -18,7 +9,6 @@ import { ICalculatedMetrics, IErgConnectionStatus, IHeartRate } from "../../comm
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { MetricsService } from "../../common/services/metrics.service";
 import { UtilsService } from "../../common/services/utils.service";
-import { SnackBarConfirmComponent } from "../../common/snack-bar-confirm/snack-bar-confirm.component";
 import { BatteryLevelPipe } from "../../common/utils/battery-level.pipe";
 import { RoundNumberPipe } from "../../common/utils/round-number.pipe";
 import { SecondsToTimePipe } from "../../common/utils/seconds-to-time.pipe";
@@ -69,8 +59,6 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
         private metricsService: MetricsService,
         private ergConnectionService: ErgConnectionService,
         private utils: UtilsService,
-        private swUpdate: SwUpdate,
-        private snackBar: MatSnackBar,
     ) {
         this.elapseTime = toSignal(
             this.ergConnectionService.connectionStatus$().pipe(
@@ -104,78 +92,10 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
             ),
             { initialValue: 0 },
         );
-
-        if (!isDevMode()) {
-            this.swUpdate.versionUpdates
-                .pipe(
-                    filter((evt: VersionEvent): evt is VersionReadyEvent => evt.type === "VERSION_READY"),
-                    switchMap((evt: VersionReadyEvent): Observable<void> => {
-                        console.log(`Current app version: ${evt.currentVersion.hash}`);
-                        console.log(`New app version ready for use: ${evt.latestVersion.hash}`);
-
-                        return this.snackBar
-                            .openFromComponent(SnackBarConfirmComponent, {
-                                duration: undefined,
-                                data: { text: "Update Available", confirm: "Update" },
-                            })
-                            .onAction();
-                    }),
-                    takeUntilDestroyed(),
-                )
-                .subscribe((): void => {
-                    window.location.reload();
-                });
-        }
     }
 
     async ngAfterViewInit(): Promise<void> {
-        if (!isDevMode()) {
-            try {
-                await this.swUpdate.checkForUpdate();
-            } catch (err) {
-                this.snackBar.open(`Failed to check for updates: ", ${err}`, "Dismiss");
-                console.error("Failed to check for updates:", err);
-            }
-        }
         this.utils.enableWakeLock();
-
-        if (isSecureContext !== true || navigator.bluetooth === undefined) {
-            this.snackBar.open("Bluetooth API is not available", "Dismiss", {
-                duration: undefined,
-            });
-        }
-
-        if (navigator.storage === undefined) {
-            console.error("StorageManager API is not found or not supported");
-
-            return;
-        }
-
-        try {
-            if (await navigator.storage.persisted()) {
-                return;
-            }
-        } catch (error) {
-            this.snackBar.open("Error while checking storage persistence", "Dismiss", {
-                duration: undefined,
-            });
-
-            console.error("Error checking storage persistence:", error);
-
-            return;
-        }
-
-        try {
-            if (!(await navigator.storage.persist())) {
-                console.warn("Failed to make storage persisted");
-            }
-        } catch (error) {
-            this.snackBar.open("Error while making storage persistent", "Dismiss", {
-                duration: undefined,
-            });
-
-            console.error("Error making storage persistent:", error);
-        }
     }
 
     ngOnDestroy(): void {
