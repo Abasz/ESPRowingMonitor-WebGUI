@@ -2,7 +2,6 @@ import { computed, Injectable, Signal } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import {
-    EmptyError,
     filter,
     finalize,
     firstValueFrom,
@@ -13,6 +12,7 @@ import {
     retry,
     switchMap,
     timeout,
+    TimeoutError,
     timer,
 } from "rxjs";
 
@@ -187,7 +187,7 @@ export class ErgSettingsService {
 
             await characteristic.stopNotifications();
         } catch (error) {
-            const errorMessage = `Failed to change BLE service${error instanceof EmptyError ? ", request timed out" : ""}`;
+            const errorMessage = `Failed to change BLE service${error instanceof TimeoutError ? ", request timed out" : ""}`;
 
             this.snackBar.open(errorMessage, "Dismiss");
             console.error("changeBleServiceType:", error);
@@ -221,7 +221,7 @@ export class ErgSettingsService {
 
             await characteristic.stopNotifications();
         } catch (error) {
-            const errorMessage = `Failed to ${shouldEnable ? "enabled" : "disabled"} delta time logging ${error instanceof EmptyError ? ", request timed out" : ""}`;
+            const errorMessage = `Failed to ${shouldEnable ? "enabled" : "disabled"} delta time logging${error instanceof TimeoutError ? ", request timed out" : ""}`;
 
             this.snackBar.open(errorMessage, "Dismiss");
             console.error("changeDeltaTimeLogging:", error);
@@ -255,7 +255,7 @@ export class ErgSettingsService {
 
             await characteristic.stopNotifications();
         } catch (error) {
-            const errorMessage = `Failed to set Log Level${error instanceof EmptyError ? ", request timed out" : ""}`;
+            const errorMessage = `Failed to set Log Level${error instanceof TimeoutError ? ", request timed out" : ""}`;
 
             this.snackBar.open(errorMessage, "Dismiss");
             console.error("changeLogLevel:", error);
@@ -289,7 +289,7 @@ export class ErgSettingsService {
 
             await characteristic.stopNotifications();
         } catch (error) {
-            const errorMessage = `Failed to ${shouldEnable ? "enabled" : "disabled"} Sd Card logging${error instanceof EmptyError ? ", request timed out" : ""}`;
+            const errorMessage = `Failed to ${shouldEnable ? "enabled" : "disabled"} Sd Card logging${error instanceof TimeoutError ? ", request timed out" : ""}`;
 
             this.snackBar.open(errorMessage, "Dismiss");
             console.error("changeLogToSdCard:", error);
@@ -328,7 +328,7 @@ export class ErgSettingsService {
 
             await characteristic.stopNotifications();
         } catch (error) {
-            const errorMessage = `Failed to set machine settings${error instanceof EmptyError ? ", request timed out" : ""}`;
+            const errorMessage = `Failed to set machine settings${error instanceof TimeoutError ? ", request timed out" : ""}`;
 
             this.snackBar.open(errorMessage, "Dismiss");
             console.error("changeMachineSettings:", error);
@@ -365,7 +365,7 @@ export class ErgSettingsService {
 
             await characteristic.stopNotifications();
         } catch (error) {
-            const errorMessage = `Failed to set sensor signal settings${error instanceof EmptyError ? ", request timed out" : ""}`;
+            const errorMessage = `Failed to set sensor signal settings${error instanceof TimeoutError ? ", request timed out" : ""}`;
 
             this.snackBar.open(errorMessage, "Dismiss");
             console.error("changeSensorSignalSettings:", error);
@@ -405,7 +405,7 @@ export class ErgSettingsService {
 
             await characteristic.stopNotifications();
         } catch (error) {
-            const errorMessage = `Failed to set machine settings${error instanceof EmptyError ? ", request timed out" : ""}`;
+            const errorMessage = `Failed to set machine settings${error instanceof TimeoutError ? ", request timed out" : ""}`;
 
             this.snackBar.open(errorMessage, "Dismiss");
             console.error("changeDragFactorSettings:", error);
@@ -461,7 +461,7 @@ export class ErgSettingsService {
 
             await characteristic.stopNotifications();
         } catch (error) {
-            const errorMessage = `Failed to set stroke detection settings${error instanceof EmptyError ? ", request timed out" : ""}`;
+            const errorMessage = `Failed to set stroke detection settings${error instanceof TimeoutError ? ", request timed out" : ""}`;
 
             this.snackBar.open(errorMessage, "Dismiss");
             console.error("changeStrokeDetectionSettings:", error);
@@ -497,7 +497,7 @@ export class ErgSettingsService {
                 "Dismiss",
             );
         } catch (error) {
-            const errorMessage = `Failed to set restart device${error instanceof EmptyError ? ", request timed out" : ""}`;
+            const errorMessage = `Failed to set restart device${error instanceof TimeoutError ? ", request timed out" : ""}`;
 
             this.snackBar.open(errorMessage, "Dismiss");
             console.error("restartDevice:", error);
@@ -587,7 +587,7 @@ export class ErgSettingsService {
                 const minimumPoweredTorque = value.getUint16(1, true) / 10000;
                 const minimumDragTorque = value.getUint16(3, true) / 10000;
                 const minimumRecoverySlopeMargin = value.getFloat32(5, true);
-                const minimumRecoverySlope = value.getUint16(9, true) / 1000;
+                const minimumRecoverySlope = value.getInt16(9, true) / 1000;
                 const timingValue =
                     value.getUint8(11) | (value.getUint8(12) << 8) | (value.getUint8(13) << 16);
                 const minimumRecoveryTime = timingValue & 0x0fff;

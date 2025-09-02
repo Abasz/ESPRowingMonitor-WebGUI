@@ -1,3 +1,4 @@
+import { BleOpCodes, BleResponseOpCodes } from "../ble.interfaces";
 import { IBaseMetrics, IExtendedMetrics } from "../common.interfaces";
 
 export interface ListenerTrigger<T> {
@@ -280,7 +281,14 @@ export const createMockCharacteristic = (
 
     const mockCharacteristic = jasmine.createSpyObj<BluetoothRemoteGATTCharacteristic>(
         "BluetoothRemoteGATTCharacteristic",
-        ["readValue", "startNotifications", "stopNotifications", "addEventListener", "removeEventListener"],
+        [
+            "readValue",
+            "startNotifications",
+            "stopNotifications",
+            "addEventListener",
+            "removeEventListener",
+            "writeValueWithoutResponse",
+        ],
         ["service", "uuid"],
     );
     (Object.getOwnPropertyDescriptor(mockCharacteristic, "service")?.get as jasmine.Spy).and.returnValue(
@@ -368,6 +376,112 @@ export const createHeartRateDataView = (heartRate: number = 120, options?: IHear
 // mock helper to create battery level DataView
 export const createBatteryDataView = (batteryLevel: number = 85): DataView => {
     return new DataView(new Uint8Array([batteryLevel]).buffer);
+};
+
+// test data factory functions
+export const createMockRowerSettingsDataView = (
+    logDeltaTimes?: boolean,
+    logToSdCard?: boolean,
+    logLevel: number = 2,
+    isRuntimeSettingsEnabled: boolean = true,
+    isBackwardCompatible: boolean = false,
+): DataView => {
+    if (isBackwardCompatible) {
+        // backward compatible format (1 byte)
+        const buffer = new ArrayBuffer(1);
+        const dataView = new DataView(buffer);
+
+        const logToWs = logDeltaTimes === undefined ? 0 : logDeltaTimes ? 2 : 1;
+        const logToSd = logToSdCard === undefined ? 0 : logToSdCard ? 2 : 1;
+        const runtimeEnabled = isRuntimeSettingsEnabled ? 1 : 0;
+
+        const byte0 = logToWs | (logToSd << 2) | (logLevel << 4) | (runtimeEnabled << 7);
+        dataView.setUint8(0, byte0);
+
+        return dataView;
+    }
+
+    // full format (18 bytes)
+    const buffer = new ArrayBuffer(18);
+    const dataView = new DataView(buffer);
+
+    // byte 0: flags
+    const logToWs = logDeltaTimes === undefined ? 0 : logDeltaTimes ? 2 : 1;
+    const logToSd = logToSdCard === undefined ? 0 : logToSdCard ? 2 : 1;
+    const runtimeEnabled = isRuntimeSettingsEnabled ? 1 : 0;
+    const byte0 = logToWs | (logToSd << 2) | (logLevel << 4) | (runtimeEnabled << 7);
+    dataView.setUint8(0, byte0);
+
+    // machine settings
+    dataView.setFloat32(1, 0.097, true); // flywheelInertia
+    dataView.setUint8(5, Math.round(2.8 * 35)); // magicConstant
+    dataView.setUint8(6, 3); // impulsePerRevolution
+    dataView.setUint16(7, Math.round(0.04 * 1000), true); // sprocketRadius
+
+    // Sensor signal settings
+    dataView.setUint8(9, 5); // rotationDebounceTime
+    dataView.setUint8(10, 3); // rowingStoppedThreshold
+
+    // Drag factor settings
+    dataView.setUint8(11, Math.round(0.96 * 255)); // goodnessOfFitThreshold
+    dataView.setUint8(12, 3); // maxDragFactorRecoveryPeriod
+    dataView.setUint16(13, 90, true); // dragFactorLowerThreshold
+    dataView.setUint16(15, 220, true); // dragFactorUpperThreshold
+    dataView.setUint8(17, 4); // dragCoefficientsArrayLength
+
+    return dataView;
+};
+
+export const createMockStrokeSettingsDataView = (
+    strokeDetectionType: number = 1,
+    impulseDataArrayLength: number = 8,
+    isCompiledWithDouble: boolean = true,
+): DataView => {
+    const buffer = new ArrayBuffer(15);
+    const dataView = new DataView(buffer);
+
+    // byte 0: strokeDetectionType (2 bits) + impulseDataArrayLength (5 bits) + isCompiledWithDouble (1 bit)
+    const byte0 =
+        (strokeDetectionType & 0x03) |
+        ((impulseDataArrayLength & 0x1f) << 2) |
+        (isCompiledWithDouble ? 0x80 : 0);
+    dataView.setUint8(0, byte0);
+
+    // torque values (scaled)
+    dataView.setUint16(1, Math.round(0.15 * 10000), true); // minimumPoweredTorque
+    dataView.setUint16(3, Math.round(0.05 * 10000), true); // minimumDragTorque
+
+    // Recovery slope margin
+    dataView.setFloat32(5, 0.035, true); // minimumRecoverySlopeMargin
+
+    // Recovery slope (scaled)
+    dataView.setInt16(9, Math.round(-0.1 * 1000), true); // minimumRecoverySlope
+
+    // Timing values packed in 3 bytes
+    const minimumRecoveryTime = 200;
+    const minimumDriveTime = 300;
+    const timingValue = (minimumRecoveryTime & 0x0fff) | ((minimumDriveTime & 0x0fff) << 12);
+    dataView.setUint8(11, timingValue & 0xff);
+    dataView.setUint8(12, (timingValue >> 8) & 0xff);
+    dataView.setUint8(13, (timingValue >> 16) & 0xff);
+
+    // drive handle forces max capacity
+    dataView.setUint8(14, 50); // driveHandleForcesMaxCapacity
+
+    return dataView;
+};
+
+export const createMockControlPointResponseDataView = (
+    opCode: BleOpCodes,
+    responseCode: BleResponseOpCodes,
+): DataView => {
+    const buffer = new ArrayBuffer(3);
+    const dataView = new DataView(buffer);
+    dataView.setUint8(0, 0x80); // response indicator
+    dataView.setUint8(1, opCode); // original op code
+    dataView.setUint8(2, responseCode); // response code
+
+    return dataView;
 };
 
 export const visibilityChangeListenerReady = async (

@@ -62,9 +62,9 @@ export async function readDeviceInfo(
     uuid: string,
 ): Promise<string | undefined> {
     try {
-        const modelNumberCharacteristic = await service.getCharacteristic(uuid);
+        const deviceInfoCharacteristic = await service.getCharacteristic(uuid);
 
-        return new TextDecoder().decode(await modelNumberCharacteristic.readValue());
+        return new TextDecoder().decode(await deviceInfoCharacteristic.readValue());
     } catch (e) {
         if (e instanceof Error && !e.name.includes("NotFoundError")) {
             console.error(uuid, e);
