@@ -1,5 +1,5 @@
 import { provideZonelessChangeDetection } from "@angular/core";
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { MatIconRegistry } from "@angular/material/icon";
 import { MatSnackBar, MatSnackBarRef } from "@angular/material/snack-bar";
 import { SwUpdate, VersionEvent } from "@angular/service-worker";
@@ -7,6 +7,8 @@ import { EMPTY, Observable, of, Subject } from "rxjs";
 
 import { ICalculatedMetrics, IErgConnectionStatus, IHeartRate } from "../common/common.interfaces";
 import { DataRecorderService } from "../common/services/data-recorder.service";
+import { ErgConnectionService } from "../common/services/ergometer/erg-connection.service";
+import { FirmwareUpdateCheckerService } from "../common/services/ergometer/firmware-update-checker.service";
 import { MetricsService } from "../common/services/metrics.service";
 import { UtilsService } from "../common/services/utils.service";
 import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-confirm.component";
@@ -19,10 +21,14 @@ describe("AppComponent", (): void => {
     let matIconRegistrySpy: jasmine.SpyObj<MatIconRegistry>;
     let swUpdateSpy: jasmine.SpyObj<SwUpdate>;
     let snackBarSpy: jasmine.SpyObj<MatSnackBar>;
+    let ergConnectionServiceSpy: jasmine.SpyObj<ErgConnectionService>;
+    let firmwareUpdateCheckerSpy: jasmine.SpyObj<FirmwareUpdateCheckerService>;
     let versionUpdatesSubject: Subject<VersionEvent>;
+    let connectionStatusSubject: Subject<IErgConnectionStatus>;
 
     beforeEach(async (): Promise<void> => {
         versionUpdatesSubject = new Subject<VersionEvent>();
+        connectionStatusSubject = new Subject<IErgConnectionStatus>();
 
         matIconRegistrySpy = jasmine.createSpyObj("MatIconRegistry", ["setDefaultFontSetClass"]);
 
@@ -35,6 +41,15 @@ describe("AppComponent", (): void => {
             onAction: (): Observable<void> => EMPTY,
             dismiss: jasmine.createSpy("dismiss"),
         } as unknown as MatSnackBarRef<SnackBarConfirmComponent>);
+
+        ergConnectionServiceSpy = jasmine.createSpyObj("ErgConnectionService", ["connectionStatus$"]);
+        ergConnectionServiceSpy.connectionStatus$.and.returnValue(connectionStatusSubject.asObservable());
+
+        firmwareUpdateCheckerSpy = jasmine.createSpyObj("FirmwareUpdateCheckerService", [
+            "checkForFirmwareUpdate",
+            "isUpdateAvailable",
+        ]);
+        firmwareUpdateCheckerSpy.isUpdateAvailable.and.returnValue(undefined);
 
         const mockMetricsService = {
             heartRateData$: of({ heartRate: 75 } as IHeartRate),
@@ -75,6 +90,8 @@ describe("AppComponent", (): void => {
                 { provide: MatIconRegistry, useValue: matIconRegistrySpy },
                 { provide: SwUpdate, useValue: swUpdateSpy },
                 { provide: MatSnackBar, useValue: snackBarSpy },
+                { provide: ErgConnectionService, useValue: ergConnectionServiceSpy },
+                { provide: FirmwareUpdateCheckerService, useValue: firmwareUpdateCheckerSpy },
                 { provide: MetricsService, useValue: mockMetricsService },
                 { provide: UtilsService, useValue: mockUtilsService },
                 { provide: DataRecorderService, useValue: mockDataRecorderService },
@@ -95,6 +112,52 @@ describe("AppComponent", (): void => {
         it("should set default font set class for Material icons", (): void => {
             expect(matIconRegistrySpy.setDefaultFontSetClass).toHaveBeenCalledWith("material-symbols-sharp");
         });
+    });
+
+    describe("as part of firmware update check functionality", (): void => {
+        beforeEach((): void => {
+            fixture.detectChanges();
+        });
+
+        it("should subscribe to connection status changes on component creation", (): void => {
+            expect(ergConnectionServiceSpy.connectionStatus$).toHaveBeenCalled();
+        });
+
+        it("should call firmware update check when device connects after 5 second delay", fakeAsync((): void => {
+            connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
+
+            tick(4000);
+            expect(firmwareUpdateCheckerSpy.checkForFirmwareUpdate).not.toHaveBeenCalled();
+
+            tick(1000);
+            expect(firmwareUpdateCheckerSpy.checkForFirmwareUpdate).toHaveBeenCalledTimes(1);
+        }));
+
+        it("should only trigger firmware check for connected status", fakeAsync((): void => {
+            const statuses = ["connecting", "connected", "disconnected", "searching", "connecting"];
+
+            statuses.forEach((status: string): void => {
+                connectionStatusSubject.next({ status } as IErgConnectionStatus);
+                tick(5000);
+            });
+
+            expect(firmwareUpdateCheckerSpy.checkForFirmwareUpdate).toHaveBeenCalledTimes(1);
+
+            connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
+            tick(5000);
+
+            expect(firmwareUpdateCheckerSpy.checkForFirmwareUpdate).toHaveBeenCalledTimes(2);
+        }));
+
+        it("should skip firmware check if isUpdateAvailable already known", fakeAsync((): void => {
+            firmwareUpdateCheckerSpy.isUpdateAvailable.and.returnValue(true);
+
+            connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
+
+            tick(5000);
+
+            expect(firmwareUpdateCheckerSpy.checkForFirmwareUpdate).not.toHaveBeenCalled();
+        }));
     });
 
     describe("constructor service worker integration", (): void => {

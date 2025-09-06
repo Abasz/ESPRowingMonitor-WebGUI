@@ -4,8 +4,11 @@ import { MatIconRegistry } from "@angular/material/icon";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { RouterOutlet } from "@angular/router";
 import { SwUpdate, VersionEvent, VersionReadyEvent } from "@angular/service-worker";
-import { filter, Observable, switchMap } from "rxjs";
+import { filter, Observable, switchMap, timer } from "rxjs";
 
+import { IErgConnectionStatus } from "../common/common.interfaces";
+import { ErgConnectionService } from "../common/services/ergometer/erg-connection.service";
+import { FirmwareUpdateCheckerService } from "../common/services/ergometer/firmware-update-checker.service";
 import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-confirm.component";
 
 @Component({
@@ -20,8 +23,25 @@ export class AppComponent implements AfterViewInit {
         private matIconReg: MatIconRegistry,
         private swUpdate: SwUpdate,
         private snackBar: MatSnackBar,
+        private ergConnectionService: ErgConnectionService,
+        private firmwareUpdateChecker: FirmwareUpdateCheckerService,
     ) {
         this.matIconReg.setDefaultFontSetClass("material-symbols-sharp");
+
+        this.ergConnectionService
+            .connectionStatus$()
+            .pipe(
+                filter((status: IErgConnectionStatus): boolean => status.status === "connected"),
+                switchMap((): Observable<number> => timer(5000)),
+                takeUntilDestroyed(),
+            )
+            .subscribe((): void => {
+                if (this.firmwareUpdateChecker.isUpdateAvailable() !== undefined) {
+                    return;
+                }
+
+                this.firmwareUpdateChecker.checkForFirmwareUpdate();
+            });
 
         if (!isDevMode()) {
             this.swUpdate.versionUpdates
