@@ -4,7 +4,9 @@ import { MatIconButton } from "@angular/material/button";
 import { MatDialog } from "@angular/material/dialog";
 import { MatIcon } from "@angular/material/icon";
 import { MatTooltip } from "@angular/material/tooltip";
+import { filter, firstValueFrom, timeout } from "rxjs";
 
+import { IDeviceInformation } from "../../common/ble.interfaces";
 import { IErgConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { ErgGenericDataService } from "../../common/services/ergometer/erg-generic-data.service";
@@ -27,7 +29,7 @@ export class OpenSettingsButtonComponent {
         },
     );
 
-    readonly isBleAvailable: boolean = isSecureContext && navigator.bluetooth !== undefined;
+    readonly isBleAvailable: boolean = isSecureContext === true && navigator.bluetooth !== undefined;
 
     readonly rowerSettings: Signal<IRowerSettings> = this.ergSettingsService.rowerSettings;
 
@@ -40,16 +42,55 @@ export class OpenSettingsButtonComponent {
     ) {}
 
     async openSettings(): Promise<void> {
-        this.utils.mainSpinner().open();
-        const deviceInfo = await this.ergGenericDataService.readDeviceInfo();
-        this.utils.mainSpinner().close();
+        if (this.ergConnectionStatus().status === "connecting") {
+            this.utils.mainSpinner().open();
+            try {
+                await this.handleConnectingFlow();
+            } catch {
+                // ignore any error, we just open the dialog with whatever data we have
+            } finally {
+                this.utils.mainSpinner().close();
+            }
+        }
         this.dialog.open(SettingsDialogComponent, {
             autoFocus: false,
             data: {
                 rowerSettings: this.rowerSettings(),
                 ergConnectionStatus: this.ergConnectionStatus(),
-                deviceInfo,
+                deviceInfo: this.ergGenericDataService.deviceInfo(),
             },
         });
+    }
+
+    private async handleConnectingFlow(): Promise<void> {
+        const finalStatus = await this.waitForConnectionProcessComplete();
+
+        if (finalStatus.status !== "connected") {
+            return;
+        }
+
+        await this.waitForDeviceInfoReady();
+    }
+
+    private waitForConnectionProcessComplete(): Promise<IErgConnectionStatus> {
+        return firstValueFrom(
+            this.ergConnectionService
+                .connectionStatus$()
+                .pipe(
+                    filter(
+                        (connectionStatus: IErgConnectionStatus): boolean =>
+                            connectionStatus.status !== "connecting",
+                    ),
+                ),
+        );
+    }
+
+    private waitForDeviceInfoReady(): Promise<IDeviceInformation> {
+        return firstValueFrom(
+            this.ergGenericDataService.deviceInfo$.pipe(
+                filter((deviceInfo: IDeviceInformation): boolean => Object.keys(deviceInfo).length > 0),
+                timeout({ first: 5000 }),
+            ),
+        );
     }
 }

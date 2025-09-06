@@ -1,7 +1,9 @@
-import { Injectable } from "@angular/core";
+import { Injectable, Signal } from "@angular/core";
+import { toSignal } from "@angular/core/rxjs-interop";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import {
     catchError,
+    distinctUntilChanged,
     filter,
     finalize,
     from,
@@ -10,6 +12,7 @@ import {
     Observable,
     of,
     retry,
+    shareReplay,
     switchMap,
     timer,
 } from "rxjs";
@@ -27,6 +30,7 @@ import {
 } from "../../ble.interfaces";
 import { observeValue$ } from "../ble.utilities";
 
+import { IErgConnectionStatus } from "./../../common.interfaces";
 import { ErgConnectionService } from "./erg-connection.service";
 import { readDeviceInfo } from "./erg.utilities";
 
@@ -34,6 +38,22 @@ import { readDeviceInfo } from "./erg.utilities";
     providedIn: "root",
 })
 export class ErgGenericDataService {
+    readonly deviceInfo$: Observable<IDeviceInformation> = this.ergConnectionService.connectionStatus$().pipe(
+        map(
+            (ergConnectionStatus: IErgConnectionStatus): boolean =>
+                ergConnectionStatus.status === "connected",
+        ),
+        distinctUntilChanged(),
+        switchMap(
+            (isConnected: boolean): Observable<IDeviceInformation> =>
+                isConnected ? from(this.readDeviceInfo()) : of({}),
+        ),
+        shareReplay(1),
+    );
+    readonly deviceInfo: Signal<IDeviceInformation> = toSignal(this.deviceInfo$, {
+        initialValue: {} as IDeviceInformation,
+    });
+
     constructor(
         private snackBar: MatSnackBar,
         private ergConnectionService: ErgConnectionService,
@@ -51,32 +71,6 @@ export class ErgGenericDataService {
         }
 
         return { responseCharacteristic, sendCharacteristic };
-    }
-
-    async readDeviceInfo(): Promise<IDeviceInformation> {
-        const deviceInfo: IDeviceInformation = {};
-
-        if (this.ergConnectionService.bluetoothDevice?.gatt === undefined) {
-            this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
-
-            return deviceInfo;
-        }
-
-        try {
-            const service =
-                await this.ergConnectionService.bluetoothDevice.gatt.getPrimaryService(DEVICE_INFO_SERVICE);
-
-            deviceInfo.modelNumber = await readDeviceInfo(service, MODEL_NUMBER_CHARACTERISTIC);
-            deviceInfo.firmwareNumber = await readDeviceInfo(service, FIRMWARE_NUMBER_CHARACTERISTIC);
-            deviceInfo.manufacturerName = await readDeviceInfo(service, MANUFACTURER_NAME_CHARACTERISTIC);
-        } catch (error) {
-            if (error instanceof Error) {
-                this.snackBar.open(error.message, "Dismiss");
-            }
-            console.error("readDeviceInfo:", error);
-        }
-
-        return deviceInfo;
     }
 
     streamMonitorBatteryLevel$(): Observable<number> {
@@ -121,5 +115,33 @@ export class ErgGenericDataService {
                 this.ergConnectionService.resetBatteryCharacteristic();
             }),
         );
+    }
+
+    private async readDeviceInfo(): Promise<IDeviceInformation> {
+        const deviceInfo: IDeviceInformation = {};
+
+        if (this.ergConnectionService.bluetoothDevice?.gatt === undefined) {
+            this.snackBar.open("Ergometer Monitor is not connected", "Dismiss");
+
+            return deviceInfo;
+        }
+
+        try {
+            const service = await withDelay(
+                1000,
+                this.ergConnectionService.bluetoothDevice.gatt.getPrimaryService(DEVICE_INFO_SERVICE),
+            );
+
+            deviceInfo.modelNumber = await readDeviceInfo(service, MODEL_NUMBER_CHARACTERISTIC);
+            deviceInfo.firmwareNumber = await readDeviceInfo(service, FIRMWARE_NUMBER_CHARACTERISTIC);
+            deviceInfo.manufacturerName = await readDeviceInfo(service, MANUFACTURER_NAME_CHARACTERISTIC);
+        } catch (error) {
+            if (error instanceof Error) {
+                this.snackBar.open(error.message, "Dismiss");
+            }
+            console.error("readDeviceInfo:", error);
+        }
+
+        return deviceInfo;
     }
 }

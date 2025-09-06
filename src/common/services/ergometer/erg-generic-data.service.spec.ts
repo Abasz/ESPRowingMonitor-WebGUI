@@ -6,7 +6,6 @@ import { BehaviorSubject } from "rxjs";
 import {
     DEVICE_INFO_SERVICE,
     FIRMWARE_NUMBER_CHARACTERISTIC,
-    IDeviceInformation,
     IOtaCharacteristics,
     MANUFACTURER_NAME_CHARACTERISTIC,
     MODEL_NUMBER_CHARACTERISTIC,
@@ -14,6 +13,7 @@ import {
     OTA_SERVICE,
     OTA_TX_CHARACTERISTIC,
 } from "../../ble.interfaces";
+import { IErgConnectionStatus } from "../../common.interfaces";
 import {
     createBatteryDataView,
     createMockBluetoothDevice,
@@ -28,6 +28,7 @@ describe("ErgGenericDataService", (): void => {
     let matSnackBarSpy: jasmine.SpyObj<MatSnackBar>;
     let ergConnectionServiceSpy: jasmine.SpyObj<ErgConnectionService>;
     let bluetoothDeviceSpy: jasmine.Spy<() => BluetoothDevice | undefined>;
+    let connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
     let batteryCharacteristicSubject: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>;
     let mockBluetoothDevice: jasmine.SpyObj<BluetoothDevice>;
     let mockBatteryCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
@@ -51,6 +52,10 @@ describe("ErgGenericDataService", (): void => {
         mockManufacturerNameCharacteristic = createMockCharacteristic(mockBluetoothDevice);
 
         mockBatteryCharacteristic.readValue.and.resolveTo(createBatteryDataView(42));
+
+        connectionStatusSubject = new BehaviorSubject<IErgConnectionStatus>({
+            status: "disconnected",
+        });
 
         batteryCharacteristicSubject = new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(
             mockBatteryCharacteristic,
@@ -92,6 +97,9 @@ describe("ErgGenericDataService", (): void => {
             {
                 bluetoothDevice: mockBluetoothDevice,
                 batteryCharacteristic$: batteryCharacteristicSubject.asObservable(),
+                connectionStatus$: jasmine
+                    .createSpy("connectionStatus$")
+                    .and.returnValue(connectionStatusSubject.asObservable()),
             },
         );
 
@@ -163,108 +171,151 @@ describe("ErgGenericDataService", (): void => {
         });
     });
 
-    describe("readDeviceInfo method", (): void => {
-        describe("when device is connected", (): void => {
-            beforeEach((): void => {
-                // set up mock characteristics with proper read values
-                mockModelNumberCharacteristic.readValue.and.resolveTo(
-                    new DataView(new TextEncoder().encode("Test Model").buffer),
-                );
-                mockFirmwareNumberCharacteristic.readValue.and.resolveTo(
-                    new DataView(new TextEncoder().encode("v1.2.3").buffer),
-                );
-                mockManufacturerNameCharacteristic.readValue.and.resolveTo(
-                    new DataView(new TextEncoder().encode("Test Manufacturer").buffer),
-                );
-            });
+    describe("deviceInfo$ observable", (): void => {
+        it("should not call readDeviceInfo multiple times for multiple deviceInfo$ subscriptions due to shareReplay", (): void => {
+            const getPrimaryServiceSpy = (
+                mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>
+            ).getPrimaryService as jasmine.Spy;
 
-            it("should return device information when all reads succeed", async (): Promise<void> => {
-                const result: IDeviceInformation = await ergGenericDataService.readDeviceInfo();
+            const subscription1 = ergGenericDataService.deviceInfo$.subscribe();
+            const subscription2 = ergGenericDataService.deviceInfo$.subscribe();
+            const subscription3 = ergGenericDataService.deviceInfo$.subscribe();
 
-                expect(
-                    (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService,
-                ).toHaveBeenCalledWith(DEVICE_INFO_SERVICE);
-                expect(mockDeviceInfoService.getCharacteristic).toHaveBeenCalledWith(
-                    MODEL_NUMBER_CHARACTERISTIC,
-                );
-                expect(mockDeviceInfoService.getCharacteristic).toHaveBeenCalledWith(
-                    FIRMWARE_NUMBER_CHARACTERISTIC,
-                );
-                expect(mockDeviceInfoService.getCharacteristic).toHaveBeenCalledWith(
-                    MANUFACTURER_NAME_CHARACTERISTIC,
-                );
-                expect(mockModelNumberCharacteristic.readValue).toHaveBeenCalled();
-                expect(mockFirmwareNumberCharacteristic.readValue).toHaveBeenCalled();
-                expect(mockManufacturerNameCharacteristic.readValue).toHaveBeenCalled();
-                expect(result).toBeDefined();
-                expect(result.modelNumber).toBe("Test Model");
-                expect(result.firmwareNumber).toBe("v1.2.3");
-                expect(result.manufacturerName).toBe("Test Manufacturer");
-            });
+            connectionStatusSubject.next({ status: "connected" });
 
-            it("should handle partial read failures gracefully", async (): Promise<void> => {
-                mockFirmwareNumberCharacteristic.readValue.and.rejectWith(new Error("Read failed"));
-                const result: IDeviceInformation = await ergGenericDataService.readDeviceInfo();
+            expect(getPrimaryServiceSpy).toHaveBeenCalledTimes(1);
 
-                expect(result.modelNumber).toBe("Test Model");
-                expect(result.firmwareNumber).toBeUndefined();
-                expect(result.manufacturerName).toBe("Test Manufacturer");
-            });
+            subscription1.unsubscribe();
+            subscription2.unsubscribe();
+            subscription3.unsubscribe();
+        });
+    });
 
-            it("should handle characteristic read failures", async (): Promise<void> => {
-                // make all characteristics fail with different errors
-                mockModelNumberCharacteristic.readValue.and.rejectWith(new Error("Read failed"));
-                mockFirmwareNumberCharacteristic.readValue.and.rejectWith(new Error("Connection lost"));
-                mockManufacturerNameCharacteristic.readValue.and.rejectWith(new Error("Device error"));
-
-                const result: IDeviceInformation = await ergGenericDataService.readDeviceInfo();
-
-                expect(result.modelNumber).toBeUndefined();
-                expect(result.firmwareNumber).toBeUndefined();
-                expect(result.manufacturerName).toBeUndefined();
-            });
+    describe("deviceInfo signal", (): void => {
+        beforeEach((): void => {
+            mockModelNumberCharacteristic.readValue.and.resolveTo(
+                new DataView(new TextEncoder().encode("Test Model").buffer),
+            );
+            mockFirmwareNumberCharacteristic.readValue.and.resolveTo(
+                new DataView(new TextEncoder().encode("v1.2.3").buffer),
+            );
+            mockManufacturerNameCharacteristic.readValue.and.resolveTo(
+                new DataView(new TextEncoder().encode("Test Manufacturer").buffer),
+            );
         });
 
-        it("should return device information when device is connected", async (): Promise<void> => {
-            const result: IDeviceInformation = await ergGenericDataService.readDeviceInfo();
+        it("should initialize with empty device info when disconnected", (): void => {
+            const deviceInfo = ergGenericDataService.deviceInfo();
+
+            expect(deviceInfo).toEqual({});
+        });
+
+        it("should update device info when connection status changes to connected", fakeAsync((): void => {
+            connectionStatusSubject.next({ status: "connected" });
+            tick(1000);
+
+            const deviceInfo = ergGenericDataService.deviceInfo();
 
             expect(
                 (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService,
             ).toHaveBeenCalledWith(DEVICE_INFO_SERVICE);
-            expect(result).toBeDefined();
-        });
+            expect(mockDeviceInfoService.getCharacteristic).toHaveBeenCalledWith(MODEL_NUMBER_CHARACTERISTIC);
+            expect(mockDeviceInfoService.getCharacteristic).toHaveBeenCalledWith(
+                FIRMWARE_NUMBER_CHARACTERISTIC,
+            );
+            expect(mockDeviceInfoService.getCharacteristic).toHaveBeenCalledWith(
+                MANUFACTURER_NAME_CHARACTERISTIC,
+            );
+            expect(mockModelNumberCharacteristic.readValue).toHaveBeenCalled();
+            expect(mockFirmwareNumberCharacteristic.readValue).toHaveBeenCalled();
+            expect(mockManufacturerNameCharacteristic.readValue).toHaveBeenCalled();
+            expect(deviceInfo.modelNumber).toBe("Test Model");
+            expect(deviceInfo.firmwareNumber).toBe("v1.2.3");
+            expect(deviceInfo.manufacturerName).toBe("Test Manufacturer");
+        }));
 
-        it("should show snack and return empty object when device is not connected", async (): Promise<void> => {
+        it("should handle partial read failures gracefully when connected", fakeAsync((): void => {
+            mockFirmwareNumberCharacteristic.readValue.and.rejectWith(new Error("Read failed"));
+
+            connectionStatusSubject.next({ status: "connected" });
+            tick(1000);
+
+            const deviceInfo = ergGenericDataService.deviceInfo();
+
+            expect(deviceInfo.modelNumber).toBe("Test Model");
+            expect(deviceInfo.firmwareNumber).toBeUndefined();
+            expect(deviceInfo.manufacturerName).toBe("Test Manufacturer");
+        }));
+
+        it("should handle all characteristic read failures when connected", fakeAsync((): void => {
+            mockModelNumberCharacteristic.readValue.and.rejectWith(new Error("Read failed"));
+            mockFirmwareNumberCharacteristic.readValue.and.rejectWith(new Error("Connection lost"));
+            mockManufacturerNameCharacteristic.readValue.and.rejectWith(new Error("Device error"));
+
+            connectionStatusSubject.next({ status: "connected" });
+            tick();
+
+            const deviceInfo = ergGenericDataService.deviceInfo();
+
+            expect(deviceInfo.modelNumber).toBeUndefined();
+            expect(deviceInfo.firmwareNumber).toBeUndefined();
+            expect(deviceInfo.manufacturerName).toBeUndefined();
+        }));
+
+        it("should clear device info when connection status changes to disconnected", fakeAsync((): void => {
+            connectionStatusSubject.next({ status: "connected" });
+            tick(1000);
+
+            let deviceInfo = ergGenericDataService.deviceInfo();
+            expect(deviceInfo.modelNumber).toBe("Test Model");
+
+            connectionStatusSubject.next({ status: "disconnected" });
+            tick();
+
+            deviceInfo = ergGenericDataService.deviceInfo();
+            expect(deviceInfo).toEqual({});
+        }));
+
+        it("should show snack and return empty object when device gatt is undefined", fakeAsync((): void => {
             bluetoothDeviceSpy.and.returnValue({ gatt: undefined } as BluetoothDevice);
 
-            const result: IDeviceInformation = await ergGenericDataService.readDeviceInfo();
+            connectionStatusSubject.next({ status: "connected" });
+            tick();
+
+            const deviceInfo = ergGenericDataService.deviceInfo();
 
             expect(matSnackBarSpy.open).toHaveBeenCalledWith("Ergometer Monitor is not connected", "Dismiss");
-            expect(result).toEqual({});
-        });
+            expect(deviceInfo).toEqual({});
+        }));
 
-        it("should show snack and return empty object when bluetoothDevice is undefined", async (): Promise<void> => {
+        it("should show snack and return empty object when bluetoothDevice is undefined", fakeAsync((): void => {
             bluetoothDeviceSpy.and.returnValue(undefined);
 
-            const result: IDeviceInformation = await ergGenericDataService.readDeviceInfo();
+            connectionStatusSubject.next({ status: "connected" });
+            tick();
+
+            const deviceInfo = ergGenericDataService.deviceInfo();
 
             expect(matSnackBarSpy.open).toHaveBeenCalledWith("Ergometer Monitor is not connected", "Dismiss");
-            expect(result).toEqual({});
-        });
+            expect(deviceInfo).toEqual({});
+        }));
 
         describe("when error occurs", (): void => {
-            it("should handle it and show snack message", async (): Promise<void> => {
+            it("should handle it and show snack message", fakeAsync((): void => {
                 const errorMessage = "Service unavailable";
 
                 (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService
                     .withArgs(DEVICE_INFO_SERVICE)
                     .and.rejectWith(new Error(errorMessage));
 
-                const result: IDeviceInformation = await ergGenericDataService.readDeviceInfo();
+                connectionStatusSubject.next({ status: "connected" });
+                tick();
+
+                const deviceInfo = ergGenericDataService.deviceInfo();
 
                 expect(matSnackBarSpy.open).toHaveBeenCalledWith(errorMessage, "Dismiss");
-                expect(result).toEqual({});
-            });
+                expect(deviceInfo).toEqual({});
+            }));
         });
     });
 
