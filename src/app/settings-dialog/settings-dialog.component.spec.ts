@@ -1,3 +1,4 @@
+import { provideHttpClient } from "@angular/common/http";
 import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
@@ -268,8 +269,10 @@ describe("SettingsDialogComponent", (): void => {
 
         mockErgConnectionService = jasmine.createSpyObj<ErgConnectionService>("ErgConnectionService", [
             "reconnect",
+            "connectionStatus$",
         ]);
         mockErgConnectionService.reconnect.and.resolveTo();
+        mockErgConnectionService.connectionStatus$.and.returnValue(of(mockErgConnectionStatus));
 
         mockSnackBar = jasmine.createSpyObj<MatSnackBar>("MatSnackBar", ["open", "openFromComponent"]);
         mockSnackBar.openFromComponent.and.returnValue({
@@ -290,6 +293,7 @@ describe("SettingsDialogComponent", (): void => {
         await TestBed.configureTestingModule({
             imports: [SettingsDialogComponent],
             providers: [
+                provideHttpClient(),
                 { provide: MatDialogRef, useValue: mockMatDialogRef },
                 { provide: MAT_DIALOG_DATA, useValue: mockDialogData },
                 { provide: ConfigManagerService, useValue: mockConfigManagerService },
@@ -1244,7 +1248,7 @@ describe("SettingsDialogComponent", (): void => {
                 { service: "changeStrokeSettings", error: "Stroke settings error" },
             ];
 
-            for (const { service, error } of serviceErrors) {
+            for (const { error } of serviceErrors) {
                 mockErgSettingsService.changeMachineSettings = jasmine
                     .createSpy("changeMachineSettings")
                     .and.rejectWith(new Error(error));

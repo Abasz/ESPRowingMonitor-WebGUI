@@ -41,6 +41,8 @@ import { EnumToArrayPipe } from "../../common/utils/enum-to-array.pipe";
 import { getValidationErrors } from "../../common/utils/utility.functions";
 import { OtaDialogComponent } from "../ota-settings-dialog/ota-dialog.component";
 
+import { FirmwareUpdateCheckerService } from "./../../common/services/ergometer/firmware-update-checker.service";
+
 type GeneralSettingsFormGroup = FormGroup<{
     bleMode: FormControl<BleServiceFlag>;
     logLevel: FormControl<LogLevel>;
@@ -85,6 +87,7 @@ export class GeneralSettingsComponent implements OnInit {
     readonly settingsFormErrors: Signal<ValidationErrors | null>;
 
     readonly compileDate: Date = new Date(versionInfo.timeStamp);
+    readonly firmwareReleaseUrl: string = FirmwareUpdateCheckerService.FIRMWARE_RELEASE_URL;
 
     private readonly formValueChanged: Signal<
         Partial<
@@ -96,6 +99,7 @@ export class GeneralSettingsComponent implements OnInit {
     >;
 
     constructor(
+        public firmwareUpdateCheckerService: FirmwareUpdateCheckerService,
         private swUpdate: SwUpdate,
         private dialog: MatDialog,
         private fb: NonNullableFormBuilder,

@@ -11,6 +11,7 @@ import { of } from "rxjs";
 import { BleServiceFlag, IDeviceInformation, LogLevel } from "../../common/ble.interfaces";
 import { IRowerSettings } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
+import { FirmwareUpdateCheckerService } from "../../common/services/ergometer/firmware-update-checker.service";
 import { OtaDialogComponent } from "../ota-settings-dialog/ota-dialog.component";
 
 import { GeneralSettingsComponent } from "./general-settings.component";
@@ -22,6 +23,7 @@ describe("GeneralSettingsComponent", (): void => {
     let mockConfigManagerService: jasmine.SpyObj<ConfigManagerService>;
     let mockSwUpdate: jasmine.SpyObj<SwUpdate>;
     let mockMatDialog: jasmine.SpyObj<MatDialog>;
+    let mockFirmwareUpdateCheckerService: jasmine.SpyObj<FirmwareUpdateCheckerService>;
 
     const mockRowerSettings: IRowerSettings = {
         generalSettings: {
@@ -84,12 +86,20 @@ describe("GeneralSettingsComponent", (): void => {
             afterClosed: jasmine.createSpy("afterClosed").and.returnValue(of(undefined)),
         } as unknown as ReturnType<MatDialog["open"]>);
 
+        mockFirmwareUpdateCheckerService = jasmine.createSpyObj<FirmwareUpdateCheckerService>(
+            "FirmwareUpdateCheckerService",
+            ["checkForFirmwareUpdate", "isUpdateAvailable"],
+        );
+        mockFirmwareUpdateCheckerService.checkForFirmwareUpdate.and.resolveTo();
+        mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(undefined);
+
         await TestBed.configureTestingModule({
             imports: [GeneralSettingsComponent, ReactiveFormsModule],
             providers: [
                 { provide: ConfigManagerService, useValue: mockConfigManagerService },
                 { provide: SwUpdate, useValue: mockSwUpdate },
                 { provide: MatDialog, useValue: mockMatDialog },
+                { provide: FirmwareUpdateCheckerService, useValue: mockFirmwareUpdateCheckerService },
                 provideZonelessChangeDetection(),
             ],
         }).compileComponents();
@@ -124,6 +134,11 @@ describe("GeneralSettingsComponent", (): void => {
         it("should have readonly compile date info", (): void => {
             expect(component.compileDate).toBeDefined();
             expect(component.compileDate instanceof Date).toBe(true);
+        });
+
+        it("should have access to firmware update checker service", (): void => {
+            expect(component.firmwareUpdateCheckerService).toBeDefined();
+            expect(component.firmwareUpdateCheckerService).toBe(mockFirmwareUpdateCheckerService);
         });
     });
 
@@ -303,7 +318,7 @@ describe("GeneralSettingsComponent", (): void => {
                 }
             });
 
-            it("should be disabled when not connected", (): void => {
+            it("should be hidden when not connected", (): void => {
                 fixture.componentRef.setInput("isConnected", false);
                 fixture.detectChanges();
 
@@ -317,10 +332,114 @@ describe("GeneralSettingsComponent", (): void => {
                         btn.querySelector("mat-icon")?.textContent?.trim() === "upload_file",
                 );
 
-                expect(uploadBtn).toBeDefined();
-                if (uploadBtn) {
-                    expect((uploadBtn as HTMLButtonElement).disabled).toBe(true);
-                }
+                expect(uploadBtn).toBeUndefined();
+            });
+        });
+
+        describe("firmware update button", (): void => {
+            it("should call checkForFirmwareUpdate when clicked", (): void => {
+                mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(false);
+                fixture.componentRef.setInput("isConnected", true);
+                fixture.detectChanges();
+
+                const refreshButton: HTMLButtonElement | undefined = Array.from<HTMLButtonElement>(
+                    fixture.nativeElement.querySelectorAll(".erg-info button mat-icon"),
+                ).filter((btn: HTMLButtonElement): boolean => btn.textContent === "refresh")[0];
+
+                expect(refreshButton).toBeDefined();
+                refreshButton?.click();
+
+                expect(mockFirmwareUpdateCheckerService.checkForFirmwareUpdate).toHaveBeenCalled();
+            });
+
+            it("should display firmware update link when an update is available", (): void => {
+                mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(true);
+                fixture.componentRef.setInput("isConnected", true);
+                fixture.detectChanges();
+
+                const firmwareUpdateButton: HTMLAnchorElement | undefined =
+                    fixture.nativeElement.querySelector(".erg-info a");
+
+                expect(firmwareUpdateButton).toBeTruthy();
+                expect(firmwareUpdateButton?.getAttribute("href")).toBe(
+                    FirmwareUpdateCheckerService.FIRMWARE_RELEASE_URL,
+                );
+
+                const refreshButton = Array.from<HTMLButtonElement>(
+                    fixture.nativeElement.querySelector(
+                        "div.erg-info button.small-icon-button[mat-icon-button]",
+                    ) as NodeListOf<HTMLButtonElement>,
+                ).filter(
+                    (btn: HTMLButtonElement): boolean =>
+                        btn.querySelector("mat-icon")?.textContent?.trim() === "refresh",
+                );
+                expect(refreshButton.length).toBe(0);
+            });
+
+            describe("should show rotating icon", (): void => {
+                it("when update check is in progress at initial open", (): void => {
+                    mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(undefined);
+
+                    fixture.componentRef.setInput("isConnected", true);
+                    fixture.detectChanges();
+
+                    const refreshIcon = fixture.nativeElement.querySelector('mat-icon[class*="rotating"]');
+                    expect(refreshIcon).toBeTruthy();
+                });
+
+                it("when update firmware button is clicked", (): void => {
+                    mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(false);
+                    mockFirmwareUpdateCheckerService.checkForFirmwareUpdate.and.callFake(
+                        (): Promise<void> => {
+                            mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(undefined);
+
+                            return Promise.resolve();
+                        },
+                    );
+
+                    fixture.componentRef.setInput("isConnected", true);
+                    fixture.detectChanges();
+                    const refreshButton =
+                        fixture.nativeElement.querySelectorAll("button.small-icon-button")[1];
+                    refreshButton.click();
+
+                    fixture.detectChanges();
+
+                    const refreshIcon = fixture.nativeElement.querySelector('mat-icon[class*="rotating"]');
+                    expect(refreshIcon).toBeTruthy();
+                });
+            });
+
+            it("should not show rotating icon when not checking for updates", (): void => {
+                mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(false);
+
+                fixture.componentRef.setInput("isConnected", true);
+                fixture.detectChanges();
+
+                const refreshIcon = fixture.nativeElement.querySelector("mat-icon.rotating");
+                expect(refreshIcon).toBeFalsy();
+            });
+
+            it("should enable firmware update button when connected", (): void => {
+                fixture.componentRef.setInput("isConnected", true);
+                fixture.detectChanges();
+
+                const firmwareUpdateButton: Array<HTMLButtonElement> = Array.from<HTMLButtonElement>(
+                    fixture.nativeElement.querySelectorAll(".erg-info button mat-icon"),
+                ).filter((btn: HTMLButtonElement): boolean => btn.textContent === "refresh");
+
+                expect(firmwareUpdateButton.length).toBe(1);
+            });
+
+            it("should hide firmware update button when not connected", (): void => {
+                fixture.componentRef.setInput("isConnected", false);
+                fixture.detectChanges();
+
+                const firmwareUpdateButton: Array<HTMLButtonElement> = Array.from<HTMLButtonElement>(
+                    fixture.nativeElement.querySelectorAll(".erg-info button mat-icon"),
+                ).filter((btn: HTMLButtonElement): boolean => btn.textContent === "refresh");
+
+                expect(firmwareUpdateButton.length).toBe(0);
             });
         });
     });
