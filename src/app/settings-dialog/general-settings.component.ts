@@ -9,7 +9,9 @@ import {
     OnInit,
     output,
     OutputEmitterRef,
+    signal,
     Signal,
+    WritableSignal,
 } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import {
@@ -75,6 +77,7 @@ export class GeneralSettingsComponent implements OnInit {
     readonly rowerSettings: InputSignal<IRowerSettings> = input.required<IRowerSettings>();
     readonly deviceInfo: InputSignal<IDeviceInformation> = input.required<IDeviceInformation>();
     readonly isConnected: InputSignal<boolean> = input.required<boolean>();
+    readonly isGuiUpdateInProgress: WritableSignal<boolean> = signal<boolean>(false);
 
     readonly isFormValidChange: OutputEmitterRef<boolean> = output<boolean>();
 
@@ -166,9 +169,16 @@ export class GeneralSettingsComponent implements OnInit {
         }
     }
 
-    checkForUpdates(): void {
-        if (!isDevMode()) {
-            this.swUpdate.checkForUpdate();
+    async checkForUpdates(): Promise<void> {
+        if (isDevMode() || this.isGuiUpdateInProgress()) {
+            return;
+        }
+
+        this.isGuiUpdateInProgress.set(true);
+        try {
+            await this.swUpdate.checkForUpdate();
+        } finally {
+            this.isGuiUpdateInProgress.set(false);
         }
     }
 

@@ -89,12 +89,12 @@
         <span>GUI Version: {{ compileDate | date: "yyMMddHHmmss" }}</span>
         <button
             matTooltipShowDelay="1000"
-            matTooltip="Check for update"
+            matTooltip="{{ isGuiUpdateInProgress() ? 'Checking' : 'Check' }} for update"
             class="small-icon-button"
             mat-icon-button
             (click)="checkForUpdates()"
         >
-            <mat-icon>replay</mat-icon>
+            <mat-icon [class.rotating]="isGuiUpdateInProgress()">refresh</mat-icon>
         </button>
     </div>
 </div>

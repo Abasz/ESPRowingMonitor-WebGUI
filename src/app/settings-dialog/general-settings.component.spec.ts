@@ -1,7 +1,10 @@
+import { HarnessLoader } from "@angular/cdk/testing";
+import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
 import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ReactiveFormsModule } from "@angular/forms";
 import { MatDialog } from "@angular/material/dialog";
+import { MatTooltipHarness } from "@angular/material/tooltip/testing";
 import { SwUpdate } from "@angular/service-worker";
 import { of } from "rxjs";
 
@@ -15,6 +18,7 @@ import { GeneralSettingsComponent } from "./general-settings.component";
 describe("GeneralSettingsComponent", (): void => {
     let component: GeneralSettingsComponent;
     let fixture: ComponentFixture<GeneralSettingsComponent>;
+    let loader: HarnessLoader;
     let mockConfigManagerService: jasmine.SpyObj<ConfigManagerService>;
     let mockSwUpdate: jasmine.SpyObj<SwUpdate>;
     let mockMatDialog: jasmine.SpyObj<MatDialog>;
@@ -92,6 +96,7 @@ describe("GeneralSettingsComponent", (): void => {
 
         fixture = TestBed.createComponent(GeneralSettingsComponent);
         component = fixture.componentInstance;
+        loader = TestbedHarnessEnvironment.loader(fixture);
 
         fixture.componentRef.setInput("rowerSettings", mockRowerSettings);
         fixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
@@ -101,6 +106,10 @@ describe("GeneralSettingsComponent", (): void => {
     describe("as part of component creation", (): void => {
         it("should create component", (): void => {
             expect(component).toBeTruthy();
+        });
+
+        it("should initialize isGuiUpdateInProgress signal to false", (): void => {
+            expect(component.isGuiUpdateInProgress()).toBe(false);
         });
 
         it("should have valid form by default", (): void => {
@@ -137,24 +146,140 @@ describe("GeneralSettingsComponent", (): void => {
             expect(guiVersionSpan && guiVersionSpan.textContent).toContain(expectedDate);
         });
 
-        it("should call checkForUpdates when GUI update button is clicked", (): void => {
-            fixture.detectChanges();
+        describe("GUI software update button", (): void => {
+            let guiUpdateDiv: HTMLDivElement;
 
-            const guiUpdateDiv = Array.from<HTMLSpanElement>(
-                fixture.nativeElement.querySelectorAll("div[versionInfo] > span"),
-            ).filter((element: HTMLSpanElement): boolean => element.textContent.includes("GUI Version:"))[0]
-                .parentElement as HTMLDivElement;
-            guiUpdateDiv.setAttribute("data-test-gui-update", "1");
+            beforeEach((): void => {
+                fixture.detectChanges();
 
-            spyOn(component, "checkForUpdates");
-            fixture.detectChanges();
+                guiUpdateDiv = Array.from<HTMLSpanElement>(
+                    fixture.nativeElement.querySelectorAll("div[versionInfo] > span"),
+                ).filter((element: HTMLSpanElement): boolean =>
+                    element.textContent.includes("GUI Version:"),
+                )[0].parentElement as HTMLDivElement;
+                guiUpdateDiv.setAttribute("data-test-gui-update", "1");
+            });
 
-            const guiUpdateButton = fixture.nativeElement.querySelector(
-                "div[versionInfo][data-test-gui-update] button",
-            );
-            guiUpdateButton.click();
+            describe("when not checking for updates", (): void => {
+                it("should display correct tooltip text", async (): Promise<void> => {
+                    component.isGuiUpdateInProgress.set(false);
+                    const tooltip = await loader.getHarness(
+                        MatTooltipHarness.with({
+                            ancestor: "[data-test-gui-update]",
+                        }),
+                    );
 
-            expect(component.checkForUpdates).toHaveBeenCalled();
+                    await tooltip.show();
+
+                    expect(await tooltip.getTooltipText()).toBe("Check for update");
+                });
+
+                it("should not add rotating class to icon", (): void => {
+                    component.isGuiUpdateInProgress.set(false);
+                    fixture.detectChanges();
+
+                    const refreshIcon = fixture.nativeElement.querySelector(
+                        "div[versionInfo][data-test-gui-update] mat-icon",
+                    );
+                    expect(refreshIcon).toBeTruthy();
+                    expect(refreshIcon.classList.contains("rotating")).toBe(false);
+                });
+            });
+
+            describe("when update check is in progress", (): void => {
+                it("should display correct tooltip text", async (): Promise<void> => {
+                    component.isGuiUpdateInProgress.set(true);
+                    fixture.detectChanges();
+
+                    const tooltip = await loader.getHarness(
+                        MatTooltipHarness.with({
+                            ancestor: "[data-test-gui-update]",
+                        }),
+                    );
+
+                    await tooltip.show();
+
+                    expect(await tooltip.getTooltipText()).toBe("Checking for update");
+                });
+
+                it("should add rotating class to icon", (): void => {
+                    component.isGuiUpdateInProgress.set(true);
+                    fixture.detectChanges();
+
+                    const refreshIcon = fixture.nativeElement.querySelector(
+                        "div[versionInfo][data-test-gui-update] mat-icon",
+                    );
+                    expect(refreshIcon).toBeTruthy();
+                    expect(refreshIcon.classList.contains("rotating")).toBe(true);
+                });
+            });
+
+            it("should call checkForUpdates when GUI update button is clicked", (): void => {
+                spyOn(component, "checkForUpdates");
+                fixture.detectChanges();
+
+                const guiUpdateButton = fixture.nativeElement.querySelector(
+                    "div[versionInfo][data-test-gui-update] button",
+                );
+                guiUpdateButton.click();
+
+                expect(component.checkForUpdates).toHaveBeenCalled();
+            });
+
+            it("should reactively update tooltip text when isGuiUpdateInProgress signal changes", async (): Promise<void> => {
+                component.isGuiUpdateInProgress.set(false);
+                fixture.detectChanges();
+
+                const tooltip = await loader.getHarness(
+                    MatTooltipHarness.with({
+                        ancestor: "[data-test-gui-update]",
+                    }),
+                );
+
+                await tooltip.show();
+
+                expect(await tooltip.getTooltipText()).toBe("Check for update");
+
+                component.isGuiUpdateInProgress.set(true);
+                fixture.detectChanges();
+
+                expect(await tooltip.getTooltipText()).toBe("Checking for update");
+
+                component.isGuiUpdateInProgress.set(false);
+                fixture.detectChanges();
+
+                expect(await tooltip.getTooltipText()).toBe("Check for update");
+            });
+
+            it("should reactively update icon rotation when isGuiUpdateInProgress signal changes", (): void => {
+                component.isGuiUpdateInProgress.set(false);
+                fixture.detectChanges();
+
+                let refreshIcon = fixture.nativeElement.querySelector(
+                    "div[versionInfo][data-test-gui-update] mat-icon",
+                );
+                expect(refreshIcon.classList.contains("rotating"))
+                    .withContext("progress is false")
+                    .toBe(false);
+
+                component.isGuiUpdateInProgress.set(true);
+                fixture.detectChanges();
+
+                refreshIcon = fixture.nativeElement.querySelector(
+                    "div[versionInfo][data-test-gui-update] mat-icon",
+                );
+                expect(refreshIcon.classList.contains("rotating")).withContext("progress is true").toBe(true);
+
+                component.isGuiUpdateInProgress.set(false);
+                fixture.detectChanges();
+
+                refreshIcon = fixture.nativeElement.querySelector(
+                    "div[versionInfo][data-test-gui-update] mat-icon",
+                );
+                expect(refreshIcon.classList.contains("rotating"))
+                    .withContext("progress is false again")
+                    .toBe(false);
+            });
         });
 
         describe("firmware upload button", (): void => {
@@ -399,23 +524,58 @@ describe("GeneralSettingsComponent", (): void => {
     describe("checkForUpdates method", (): void => {
         it("should exist and be callable", async (): Promise<void> => {
             expect(component.checkForUpdates).toBeDefined();
-            expect((): void => component.checkForUpdates()).not.toThrowError();
+            await expectAsync(component.checkForUpdates()).not.toBeRejected();
         });
 
-        it("should not call swUpdate.checkForUpdate in development mode", (): void => {
+        it("should not call swUpdate.checkForUpdate in development mode", async (): Promise<void> => {
             (globalThis as unknown as { ngDevMode: boolean }).ngDevMode = true;
 
-            component.checkForUpdates();
+            await component.checkForUpdates();
 
             expect(mockSwUpdate.checkForUpdate).not.toHaveBeenCalled();
+            expect(component.isGuiUpdateInProgress()).toBe(false);
         });
 
-        it("should call swUpdate.checkForUpdate when in production mode", (): void => {
-            (globalThis as unknown as { ngDevMode: boolean }).ngDevMode = false;
+        describe("when in production mode", (): void => {
+            beforeEach((): void => {
+                (globalThis as unknown as { ngDevMode: boolean }).ngDevMode = false;
+            });
 
-            component.checkForUpdates();
+            it("should set isGuiUpdateInProgress to true before checking for updates", async (): Promise<void> => {
+                expect(component.isGuiUpdateInProgress()).toBe(false);
 
-            expect(mockSwUpdate.checkForUpdate).toHaveBeenCalled();
+                const checkPromise = component.checkForUpdates();
+                expect(component.isGuiUpdateInProgress()).toBe(true);
+
+                await checkPromise;
+                expect(component.isGuiUpdateInProgress()).toBe(false);
+                expect(mockSwUpdate.checkForUpdate).toHaveBeenCalled();
+            });
+
+            it("should set isGuiUpdateInProgress to false after update check completes", async (): Promise<void> => {
+                mockSwUpdate.checkForUpdate.and.resolveTo(true);
+
+                await component.checkForUpdates();
+
+                expect(component.isGuiUpdateInProgress()).toBe(false);
+                expect(mockSwUpdate.checkForUpdate).toHaveBeenCalled();
+            });
+
+            it("should return early if update is already in progress", async (): Promise<void> => {
+                component.isGuiUpdateInProgress.set(true);
+
+                await component.checkForUpdates();
+
+                expect(mockSwUpdate.checkForUpdate).not.toHaveBeenCalled();
+                expect(component.isGuiUpdateInProgress()).toBe(true);
+            });
+
+            it("should reset isGuiUpdateInProgress even if update check fails", async (): Promise<void> => {
+                mockSwUpdate.checkForUpdate.and.rejectWith(new Error("Update check failed"));
+
+                await expectAsync(component.checkForUpdates()).toBeRejected();
+                expect(component.isGuiUpdateInProgress()).toBe(false);
+            });
         });
     });
 
