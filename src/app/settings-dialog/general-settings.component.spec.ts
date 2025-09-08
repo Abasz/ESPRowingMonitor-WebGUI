@@ -98,51 +98,219 @@ describe("GeneralSettingsComponent", (): void => {
         fixture.componentRef.setInput("isConnected", true);
     });
 
-    it("should create component", (): void => {
-        expect(component).toBeTruthy();
+    describe("as part of component creation", (): void => {
+        it("should create component", (): void => {
+            expect(component).toBeTruthy();
+        });
+
+        it("should have valid form by default", (): void => {
+            expect(component.settingsForm.valid).toBe(true);
+        });
+
+        it("should expose enum types for template use", (): void => {
+            expect(component.BleServiceFlag).toBe(BleServiceFlag);
+            expect(component.LogLevel).toBe(LogLevel);
+        });
+
+        it("should have readonly compile date info", (): void => {
+            expect(component.compileDate).toBeDefined();
+            expect(component.compileDate instanceof Date).toBe(true);
+        });
     });
 
-    it("should initialize form with correct default values from rowerSettings", (): void => {
-        fixture.detectChanges();
+    describe("as part of template rendering", (): void => {
+        it("should display the compile date in the template", (): void => {
+            fixture.detectChanges();
+            const nativeElement = fixture.debugElement.nativeElement;
+            const spans = nativeElement.querySelectorAll("span") as NodeListOf<HTMLSpanElement>;
+            const guiVersionSpan = Array.from(spans).find(
+                (el: HTMLSpanElement): boolean => !!el.textContent && el.textContent.includes("GUI Version:"),
+            );
+            expect(guiVersionSpan).toBeDefined();
 
-        expect(component.settingsForm.value.bleMode).toBe(BleServiceFlag.CpsService);
-        expect(component.settingsForm.value.logLevel).toBe(LogLevel.Info);
-        expect(component.settingsForm.value.deltaTimeLogging).toBe(false);
-        expect(component.settingsForm.value.logToSdCard).toBe(true);
-        expect(component.settingsForm.value.heartRateMonitor).toBe("off");
+            const compileDate = component.compileDate;
+            const pad2 = (n: number): string => n.toString().padStart(2, "0");
+            const expectedDate = compileDate
+                ? `${pad2(compileDate.getFullYear() % 100)}${pad2(compileDate.getMonth() + 1)}${pad2(compileDate.getDate())}${pad2(compileDate.getHours())}${pad2(compileDate.getMinutes())}${pad2(compileDate.getSeconds())}`
+                : "";
+
+            expect(guiVersionSpan && guiVersionSpan.textContent).toContain(expectedDate);
+        });
+
+        it("should call checkForUpdates when GUI update button is clicked", (): void => {
+            fixture.detectChanges();
+
+            const guiUpdateDiv = Array.from<HTMLSpanElement>(
+                fixture.nativeElement.querySelectorAll("div[versionInfo] > span"),
+            ).filter((element: HTMLSpanElement): boolean => element.textContent.includes("GUI Version:"))[0]
+                .parentElement as HTMLDivElement;
+            guiUpdateDiv.setAttribute("data-test-gui-update", "1");
+
+            spyOn(component, "checkForUpdates");
+            fixture.detectChanges();
+
+            const guiUpdateButton = fixture.nativeElement.querySelector(
+                "div[versionInfo][data-test-gui-update] button",
+            );
+            guiUpdateButton.click();
+
+            expect(component.checkForUpdates).toHaveBeenCalled();
+        });
+
+        describe("firmware upload button", (): void => {
+            it("should be enabled when connected", (): void => {
+                fixture.componentRef.setInput("isConnected", true);
+                fixture.detectChanges();
+
+                const btns = Array.from(
+                    fixture.debugElement.nativeElement.querySelectorAll(
+                        "button.small-icon-button[mat-icon-button]",
+                    ),
+                ) as Array<HTMLElement>;
+                const uploadBtn = btns.find(
+                    (btn: HTMLElement): boolean =>
+                        btn.querySelector("mat-icon")?.textContent?.trim() === "upload_file",
+                );
+
+                expect(uploadBtn).toBeDefined();
+                if (uploadBtn) {
+                    expect((uploadBtn as HTMLButtonElement).disabled).toBe(false);
+                }
+            });
+
+            it("should be disabled when not connected", (): void => {
+                fixture.componentRef.setInput("isConnected", false);
+                fixture.detectChanges();
+
+                const btns = Array.from(
+                    fixture.debugElement.nativeElement.querySelectorAll(
+                        "button.small-icon-button[mat-icon-button]",
+                    ),
+                ) as Array<HTMLElement>;
+                const uploadBtn = btns.find(
+                    (btn: HTMLElement): boolean =>
+                        btn.querySelector("mat-icon")?.textContent?.trim() === "upload_file",
+                );
+
+                expect(uploadBtn).toBeDefined();
+                if (uploadBtn) {
+                    expect((uploadBtn as HTMLButtonElement).disabled).toBe(true);
+                }
+            });
+        });
     });
 
-    it("should have valid form by default", (): void => {
-        expect(component.settingsForm.valid).toBe(true);
+    describe("as part of form initialization", (): void => {
+        it("should initialize form with correct default values from rowerSettings", (): void => {
+            fixture.detectChanges();
+
+            expect(component.settingsForm.value.bleMode).toBe(BleServiceFlag.CpsService);
+            expect(component.settingsForm.value.logLevel).toBe(LogLevel.Info);
+            expect(component.settingsForm.value.deltaTimeLogging).toBe(false);
+            expect(component.settingsForm.value.logToSdCard).toBe(true);
+            expect(component.settingsForm.value.heartRateMonitor).toBe("off");
+        });
+
+        it("should emit form validity on initialization", (): void => {
+            spyOn(component.isFormValidChange, "emit");
+
+            fixture.detectChanges();
+
+            expect(component.isFormValidChange.emit).toHaveBeenCalledWith(true);
+        });
+
+        it("should retrieve heart rate monitor setting from ConfigManager", (): void => {
+            mockConfigManagerService.getItem.and.returnValue("ble");
+
+            component.ngOnInit();
+
+            expect(mockConfigManagerService.getItem).toHaveBeenCalledWith("heartRateMonitor");
+            expect(component.settingsForm.value.heartRateMonitor).toBe("ble");
+        });
     });
 
-    it("should emit form validity on initialization", (): void => {
-        spyOn(component.isFormValidChange, "emit");
+    describe("as part of form validation", (): void => {
+        it("should validate bleMode field", (): void => {
+            const bleModeControl = component.settingsForm.controls.bleMode;
 
-        fixture.detectChanges();
+            bleModeControl.setValue(BleServiceFlag.CpsService);
+            fixture.detectChanges();
 
-        expect(component.isFormValidChange.emit).toHaveBeenCalledWith(true);
+            expect(bleModeControl.valid).toBe(true);
+
+            bleModeControl.setValue(BleServiceFlag.FtmsService);
+            fixture.detectChanges();
+
+            expect(bleModeControl.valid).toBe(true);
+        });
+
+        it("should validate logLevel field", (): void => {
+            const logLevelControl = component.settingsForm.controls.logLevel;
+
+            logLevelControl.setValue(LogLevel.Silent);
+            fixture.detectChanges();
+
+            expect(logLevelControl.valid).toBe(true);
+
+            logLevelControl.setValue(LogLevel.Verbose);
+            fixture.detectChanges();
+
+            expect(logLevelControl.valid).toBe(true);
+        });
+
+        it("should validate heartRateMonitor field", (): void => {
+            const heartRateControl = component.settingsForm.controls.heartRateMonitor;
+
+            heartRateControl.setValue("off");
+            expect(heartRateControl.valid).toBe(true);
+
+            heartRateControl.setValue("ble");
+            expect(heartRateControl.valid).toBe(true);
+
+            heartRateControl.setValue("ant");
+            expect(heartRateControl.valid).toBe(true);
+        });
+
+        it("should update form validity when form value changes", (): void => {
+            fixture.detectChanges();
+            spyOn(component.isFormValidChange, "emit");
+
+            component.settingsForm.controls.bleMode.setValue(BleServiceFlag.FtmsService);
+            fixture.detectChanges();
+
+            expect(component.isFormValidChange.emit).toHaveBeenCalledWith(true);
+        });
+
+        it("should emit false when form becomes invalid", (): void => {
+            fixture.detectChanges();
+            spyOn(component.isFormValidChange, "emit");
+            component.settingsForm.controls.logLevel.setValue(10 as unknown as LogLevel);
+
+            fixture.detectChanges();
+
+            expect(component.isFormValidChange.emit).toHaveBeenCalledWith(false);
+        });
     });
 
-    it("should display the compile date in the template", (): void => {
-        fixture.detectChanges();
-        const nativeElement = fixture.debugElement.nativeElement;
-        const spans = nativeElement.querySelectorAll("span") as NodeListOf<HTMLSpanElement>;
-        const guiVersionSpan = Array.from(spans).find(
-            (el: HTMLSpanElement): boolean => !!el.textContent && el.textContent.includes("GUI Version:"),
-        );
-        expect(guiVersionSpan).toBeDefined();
+    describe("as part of form state management", (): void => {
+        it("should handle form value changes correctly", (): void => {
+            const newSettings = {
+                ...mockRowerSettings,
+                generalSettings: {
+                    ...mockRowerSettings.generalSettings,
+                    bleServiceFlag: BleServiceFlag.FtmsService,
+                    logLevel: LogLevel.Verbose,
+                },
+            };
 
-        const compileDate = component.compileDate;
-        const pad2 = (n: number): string => n.toString().padStart(2, "0");
-        const expectedDate = compileDate
-            ? `${pad2(compileDate.getFullYear() % 100)}${pad2(compileDate.getMonth() + 1)}${pad2(compileDate.getDate())}${pad2(compileDate.getHours())}${pad2(compileDate.getMinutes())}${pad2(compileDate.getSeconds())}`
-            : "";
+            fixture.componentRef.setInput("rowerSettings", newSettings);
 
-        expect(guiVersionSpan && guiVersionSpan.textContent).toContain(expectedDate);
-    });
+            fixture.detectChanges();
 
-    describe("Form Enable/Disable Logic", (): void => {
+            expect(component.settingsForm.value.bleMode).toBe(BleServiceFlag.FtmsService);
+            expect(component.settingsForm.value.logLevel).toBe(LogLevel.Verbose);
+        });
+
         it("before ngOnInit should have all controls disabled apart from heartRateMonitor", (): void => {
             const controls = component.settingsForm.controls;
             const keys: Array<keyof typeof controls> = [
@@ -175,23 +343,6 @@ describe("GeneralSettingsComponent", (): void => {
                     fixture.detectChanges();
                 });
 
-                it("should enable the firmware upload button", (): void => {
-                    const btns = Array.from(
-                        fixture.debugElement.nativeElement.querySelectorAll(
-                            "button.small-icon-button[mat-icon-button]",
-                        ),
-                    ) as Array<HTMLElement>;
-                    const uploadBtn = btns.find(
-                        (btn: HTMLElement): boolean =>
-                            btn.querySelector("mat-icon")?.textContent?.trim() === "upload_file",
-                    );
-
-                    expect(uploadBtn).toBeDefined();
-                    if (uploadBtn) {
-                        expect((uploadBtn as HTMLButtonElement).disabled).toBe(false);
-                    }
-                });
-
                 it("should enable controls with defined values", (): void => {
                     expect(component.settingsForm.controls.logToSdCard.enabled).toBe(true);
                     expect(component.settingsForm.controls.deltaTimeLogging.enabled).toBe(true);
@@ -222,23 +373,6 @@ describe("GeneralSettingsComponent", (): void => {
                     fixture.detectChanges();
                 });
 
-                it("should disable the firmware upload button", (): void => {
-                    const btns = Array.from(
-                        fixture.debugElement.nativeElement.querySelectorAll(
-                            "button.small-icon-button[mat-icon-button]",
-                        ),
-                    ) as Array<HTMLElement>;
-                    const uploadBtn = btns.find(
-                        (btn: HTMLElement): boolean =>
-                            btn.querySelector("mat-icon")?.textContent?.trim() === "upload_file",
-                    );
-
-                    expect(uploadBtn).toBeDefined();
-                    if (uploadBtn) {
-                        expect((uploadBtn as HTMLButtonElement).disabled).toBe(true);
-                    }
-                });
-
                 it("should disable all controls except heartRateMonitor", (): void => {
                     const controls = component.settingsForm.controls;
                     const keys: Array<keyof typeof controls> = [
@@ -262,188 +396,96 @@ describe("GeneralSettingsComponent", (): void => {
         });
     });
 
-    describe("Form Validators & Validation should validate ", (): void => {
-        it("bleMode field", (): void => {
-            const bleModeControl = component.settingsForm.controls.bleMode;
-
-            bleModeControl.setValue(BleServiceFlag.CpsService);
-            fixture.detectChanges();
-
-            expect(bleModeControl.valid).toBe(true);
-
-            bleModeControl.setValue(BleServiceFlag.FtmsService);
-            fixture.detectChanges();
-
-            expect(bleModeControl.valid).toBe(true);
+    describe("checkForUpdates method", (): void => {
+        it("should exist and be callable", async (): Promise<void> => {
+            expect(component.checkForUpdates).toBeDefined();
+            expect((): void => component.checkForUpdates()).not.toThrowError();
         });
 
-        it("logLevel field", (): void => {
-            const logLevelControl = component.settingsForm.controls.logLevel;
+        it("should not call swUpdate.checkForUpdate in development mode", (): void => {
+            (globalThis as unknown as { ngDevMode: boolean }).ngDevMode = true;
 
-            logLevelControl.setValue(LogLevel.Silent);
-            fixture.detectChanges();
+            component.checkForUpdates();
 
-            expect(logLevelControl.valid).toBe(true);
-
-            logLevelControl.setValue(LogLevel.Verbose);
-            fixture.detectChanges();
-
-            expect(logLevelControl.valid).toBe(true);
+            expect(mockSwUpdate.checkForUpdate).not.toHaveBeenCalled();
         });
 
-        it("heartRateMonitor field", (): void => {
-            const heartRateControl = component.settingsForm.controls.heartRateMonitor;
+        it("should call swUpdate.checkForUpdate when in production mode", (): void => {
+            (globalThis as unknown as { ngDevMode: boolean }).ngDevMode = false;
 
-            heartRateControl.setValue("off");
-            expect(heartRateControl.valid).toBe(true);
+            component.checkForUpdates();
 
-            heartRateControl.setValue("ble");
-            expect(heartRateControl.valid).toBe(true);
-
-            heartRateControl.setValue("ant");
-            expect(heartRateControl.valid).toBe(true);
+            expect(mockSwUpdate.checkForUpdate).toHaveBeenCalled();
         });
     });
 
-    describe("Update Management (checkForUpdates/otaUpdate)", (): void => {
-        describe("checkForUpdates", (): void => {
-            it("should exist and be callable", (): void => {
-                expect(component.checkForUpdates).toBeDefined();
-                expect((): void => component.checkForUpdates()).not.toThrow();
-            });
-        });
-
-        describe("otaUpdate method", (): void => {
-            const createInputWithFiles = (files: Array<File> | null): HTMLInputElement => {
-                const input = document.createElement("input");
-                Object.defineProperty(input, "files", {
-                    value: files
-                        ? {
-                              0: files[0],
-                              length: files.length,
-                              item: (i: number): File => files[i],
-                              [Symbol.iterator]: function* (): IterableIterator<File> {
-                                  for (let i = 0; i < files.length; i++) yield files[i];
-                              },
-                          }
-                        : null,
-                    writable: true,
-                });
-
-                return input;
-            };
-
-            it("should open OTA dialog when file is provided", async (): Promise<void> => {
-                const mockFile = new File(["test content"], "firmware.bin", {
-                    type: "application/octet-stream",
-                });
-                const input = createInputWithFiles([mockFile]);
-                const mockEvent = { currentTarget: input } as unknown as Event;
-
-                await component.otaUpdate(mockEvent);
-
-                expect(mockMatDialog.open).toHaveBeenCalledWith(OtaDialogComponent, {
-                    autoFocus: false,
-                    disableClose: true,
-                    data: {
-                        firmwareSize: mockFile.size / 1000,
-                        file: mockFile,
-                    },
-                });
+    describe("otaUpdate method", (): void => {
+        const createInputWithFiles = (files: Array<File> | null): HTMLInputElement => {
+            const input = document.createElement("input");
+            Object.defineProperty(input, "files", {
+                value: files
+                    ? {
+                          0: files[0],
+                          length: files.length,
+                          item: (i: number): File => files[i],
+                          [Symbol.iterator]: function* (): IterableIterator<File> {
+                              for (let i = 0; i < files.length; i++) yield files[i];
+                          },
+                      }
+                    : null,
+                writable: true,
             });
 
-            it("should return early when no files provided", async (): Promise<void> => {
-                const input = createInputWithFiles(null);
-                const mockEvent = { currentTarget: input } as unknown as Event;
+            return input;
+        };
 
-                await component.otaUpdate(mockEvent);
-
-                expect(mockMatDialog.open).not.toHaveBeenCalled();
+        it("should open OTA dialog when file is provided", async (): Promise<void> => {
+            const mockFile = new File(["test content"], "firmware.bin", {
+                type: "application/octet-stream",
             });
+            const input = createInputWithFiles([mockFile]);
+            const mockEvent = { currentTarget: input } as unknown as Event;
 
-            it("should handle large file sizes correctly", async (): Promise<void> => {
-                const largeFile = new File(["x".repeat(2000000)], "large-firmware.bin");
-                const input = createInputWithFiles([largeFile]);
-                const mockEvent = { currentTarget: input } as unknown as Event;
+            await component.otaUpdate(mockEvent);
 
-                await component.otaUpdate(mockEvent);
-
-                expect(mockMatDialog.open).toHaveBeenCalledWith(OtaDialogComponent, {
-                    autoFocus: false,
-                    disableClose: true,
-                    data: {
-                        firmwareSize: largeFile.size / 1000,
-                        file: largeFile,
-                    },
-                });
-            });
-        });
-    });
-
-    describe("Utility Methods", (): void => {
-        it("should have readonly compile date info", (): void => {
-            expect(component.compileDate).toBeDefined();
-            expect(component.compileDate instanceof Date).toBe(true);
-        });
-
-        it("should expose enum types for template use", (): void => {
-            expect(component.BleServiceFlag).toBe(BleServiceFlag);
-            expect(component.LogLevel).toBe(LogLevel);
-        });
-    });
-
-    describe("Form Value Integration", (): void => {
-        it("should update form validity when form value changes", (): void => {
-            fixture.detectChanges();
-            spyOn(component.isFormValidChange, "emit");
-
-            component.settingsForm.controls.bleMode.setValue(BleServiceFlag.FtmsService);
-            fixture.detectChanges();
-
-            expect(component.isFormValidChange.emit).toHaveBeenCalledWith(true);
-        });
-
-        it("should emit false when form becomes invalid", (): void => {
-            fixture.detectChanges();
-            spyOn(component.isFormValidChange, "emit");
-            component.settingsForm.controls.logLevel.setValue(10 as unknown as LogLevel);
-
-            fixture.detectChanges();
-
-            expect(component.isFormValidChange.emit).toHaveBeenCalledWith(false);
-        });
-
-        it("should handle form value changes correctly", (): void => {
-            const newSettings = {
-                ...mockRowerSettings,
-                generalSettings: {
-                    ...mockRowerSettings.generalSettings,
-                    bleServiceFlag: BleServiceFlag.FtmsService,
-                    logLevel: LogLevel.Verbose,
+            expect(mockMatDialog.open).toHaveBeenCalledWith(OtaDialogComponent, {
+                autoFocus: false,
+                disableClose: true,
+                data: {
+                    firmwareSize: mockFile.size / 1000,
+                    file: mockFile,
                 },
-            };
+            });
+        });
 
-            fixture.componentRef.setInput("rowerSettings", newSettings);
+        it("should return early when no files provided", async (): Promise<void> => {
+            const input = createInputWithFiles(null);
+            const mockEvent = { currentTarget: input } as unknown as Event;
 
-            fixture.detectChanges();
+            await component.otaUpdate(mockEvent);
 
-            expect(component.settingsForm.value.bleMode).toBe(BleServiceFlag.FtmsService);
-            expect(component.settingsForm.value.logLevel).toBe(LogLevel.Verbose);
+            expect(mockMatDialog.open).not.toHaveBeenCalled();
+        });
+
+        it("should handle large file sizes correctly", async (): Promise<void> => {
+            const largeFile = new File(["x".repeat(2000000)], "large-firmware.bin");
+            const input = createInputWithFiles([largeFile]);
+            const mockEvent = { currentTarget: input } as unknown as Event;
+
+            await component.otaUpdate(mockEvent);
+
+            expect(mockMatDialog.open).toHaveBeenCalledWith(OtaDialogComponent, {
+                autoFocus: false,
+                disableClose: true,
+                data: {
+                    firmwareSize: largeFile.size / 1000,
+                    file: largeFile,
+                },
+            });
         });
     });
 
-    describe("ConfigManager Integration", (): void => {
-        it("should retrieve heart rate monitor setting from ConfigManager", (): void => {
-            mockConfigManagerService.getItem.and.returnValue("ble");
-
-            component.ngOnInit();
-
-            expect(mockConfigManagerService.getItem).toHaveBeenCalledWith("heartRateMonitor");
-            expect(component.settingsForm.value.heartRateMonitor).toBe("ble");
-        });
-    });
-
-    describe("Edge Cases & Robustness", (): void => {
+    describe("as part of edge cases & robustness handling", (): void => {
         it("should handle otaUpdate with invalid input element", async (): Promise<void> => {
             const mockEvent = {
                 currentTarget: null,
