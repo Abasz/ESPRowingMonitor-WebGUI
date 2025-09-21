@@ -6,6 +6,7 @@ import { BehaviorSubject } from "rxjs";
 import {
     DEVICE_INFO_SERVICE,
     FIRMWARE_NUMBER_CHARACTERISTIC,
+    HARDWARE_REVISION_CHARACTERISTIC,
     IOtaCharacteristics,
     MANUFACTURER_NAME_CHARACTERISTIC,
     MODEL_NUMBER_CHARACTERISTIC,
@@ -37,6 +38,7 @@ describe("ErgGenericDataService", (): void => {
     let mockModelNumberCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
     let mockFirmwareNumberCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
     let mockManufacturerNameCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockHardwareRevisionCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
     let mockOtaService: jasmine.SpyObj<BluetoothRemoteGATTService>;
     let mockDeviceInfoService: jasmine.SpyObj<BluetoothRemoteGATTService>;
 
@@ -50,6 +52,7 @@ describe("ErgGenericDataService", (): void => {
         mockModelNumberCharacteristic = createMockCharacteristic(mockBluetoothDevice);
         mockFirmwareNumberCharacteristic = createMockCharacteristic(mockBluetoothDevice);
         mockManufacturerNameCharacteristic = createMockCharacteristic(mockBluetoothDevice);
+        mockHardwareRevisionCharacteristic = createMockCharacteristic(mockBluetoothDevice);
 
         mockBatteryCharacteristic.readValue.and.resolveTo(createBatteryDataView(42));
 
@@ -90,6 +93,9 @@ describe("ErgGenericDataService", (): void => {
         mockDeviceInfoService.getCharacteristic
             .withArgs(MANUFACTURER_NAME_CHARACTERISTIC)
             .and.resolveTo(mockManufacturerNameCharacteristic);
+        mockDeviceInfoService.getCharacteristic
+            .withArgs(HARDWARE_REVISION_CHARACTERISTIC)
+            .and.resolveTo(mockHardwareRevisionCharacteristic);
 
         ergConnectionServiceSpy = jasmine.createSpyObj<ErgConnectionService>(
             "ErgConnectionService",
@@ -202,6 +208,9 @@ describe("ErgGenericDataService", (): void => {
             mockManufacturerNameCharacteristic.readValue.and.resolveTo(
                 new DataView(new TextEncoder().encode("Test Manufacturer").buffer),
             );
+            mockHardwareRevisionCharacteristic.readValue.and.resolveTo(
+                new DataView(new TextEncoder().encode("hw-42").buffer),
+            );
         });
 
         it("should initialize with empty device info when disconnected", (): void => {
@@ -226,12 +235,17 @@ describe("ErgGenericDataService", (): void => {
             expect(mockDeviceInfoService.getCharacteristic).toHaveBeenCalledWith(
                 MANUFACTURER_NAME_CHARACTERISTIC,
             );
+            expect(mockDeviceInfoService.getCharacteristic).toHaveBeenCalledWith(
+                HARDWARE_REVISION_CHARACTERISTIC,
+            );
             expect(mockModelNumberCharacteristic.readValue).toHaveBeenCalled();
             expect(mockFirmwareNumberCharacteristic.readValue).toHaveBeenCalled();
             expect(mockManufacturerNameCharacteristic.readValue).toHaveBeenCalled();
+            expect(mockHardwareRevisionCharacteristic.readValue).toHaveBeenCalled();
             expect(deviceInfo.modelNumber).toBe("Test Model");
             expect(deviceInfo.firmwareNumber).toBe("v1.2.3");
             expect(deviceInfo.manufacturerName).toBe("Test Manufacturer");
+            expect(deviceInfo.hardwareRevision).toBe("hw-42");
         }));
 
         it("should handle partial read failures gracefully when connected", fakeAsync((): void => {
@@ -245,12 +259,14 @@ describe("ErgGenericDataService", (): void => {
             expect(deviceInfo.modelNumber).toBe("Test Model");
             expect(deviceInfo.firmwareNumber).toBeUndefined();
             expect(deviceInfo.manufacturerName).toBe("Test Manufacturer");
+            expect(deviceInfo.hardwareRevision).toBe("hw-42");
         }));
 
         it("should handle all characteristic read failures when connected", fakeAsync((): void => {
             mockModelNumberCharacteristic.readValue.and.rejectWith(new Error("Read failed"));
             mockFirmwareNumberCharacteristic.readValue.and.rejectWith(new Error("Connection lost"));
             mockManufacturerNameCharacteristic.readValue.and.rejectWith(new Error("Device error"));
+            mockHardwareRevisionCharacteristic.readValue.and.rejectWith(new Error("Device error"));
 
             connectionStatusSubject.next({ status: "connected" });
             tick();
@@ -260,6 +276,7 @@ describe("ErgGenericDataService", (): void => {
             expect(deviceInfo.modelNumber).toBeUndefined();
             expect(deviceInfo.firmwareNumber).toBeUndefined();
             expect(deviceInfo.manufacturerName).toBeUndefined();
+            expect(deviceInfo.hardwareRevision).toBeUndefined();
         }));
 
         it("should clear device info when connection status changes to disconnected", fakeAsync((): void => {

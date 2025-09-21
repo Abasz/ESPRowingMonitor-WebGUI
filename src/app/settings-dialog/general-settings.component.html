@@ -70,6 +70,9 @@
         @if (deviceInfo().modelNumber) {
             <span>Model: {{ deviceInfo().modelNumber }}</span>
         }
+        @if (deviceInfo().hardwareRevision) {
+            <span>Hardware: {{ deviceInfo().hardwareRevision }}</span>
+        }
         <div versionInfo class="items-center">
             <span>FW Version: {{ deviceInfo().firmwareNumber ?? "unknown" }}</span>
             @if (isConnected()) {

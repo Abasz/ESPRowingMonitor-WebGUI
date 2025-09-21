@@ -70,6 +70,7 @@ describe("GeneralSettingsComponent", (): void => {
         modelNumber: "Test Model",
         firmwareNumber: "1.0.0",
         manufacturerName: "Test Manufacturer",
+        hardwareRevision: "Rev 1",
     };
 
     beforeEach(async (): Promise<void> => {
@@ -440,6 +441,64 @@ describe("GeneralSettingsComponent", (): void => {
                 ).filter((btn: HTMLButtonElement): boolean => btn.textContent === "refresh");
 
                 expect(firmwareUpdateButton.length).toBe(0);
+            });
+        });
+
+        describe("hardware revision display", (): void => {
+            it("should show hardware revision span when hardwareRevision is defined", (): void => {
+                fixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
+                fixture.detectChanges();
+
+                const spans = fixture.nativeElement.querySelectorAll(
+                    ".erg-info span",
+                ) as NodeListOf<HTMLSpanElement>;
+                const hardwareSpan = Array.from(spans).find(
+                    (el: HTMLSpanElement): boolean =>
+                        !!el.textContent && el.textContent.includes("Hardware:"),
+                );
+
+                expect(hardwareSpan).toBeDefined();
+                expect(hardwareSpan?.textContent).toContain("Hardware: Rev 1");
+            });
+
+            it("should hide hardware revision span when hardwareRevision is undefined", (): void => {
+                const deviceInfoWithoutHardware: IDeviceInformation = {
+                    ...mockDeviceInfo,
+                    hardwareRevision: undefined,
+                };
+
+                fixture.componentRef.setInput("deviceInfo", deviceInfoWithoutHardware);
+                fixture.detectChanges();
+
+                const spans = fixture.nativeElement.querySelectorAll(
+                    ".erg-info span",
+                ) as NodeListOf<HTMLSpanElement>;
+                const hardwareSpan = Array.from(spans).find(
+                    (el: HTMLSpanElement): boolean =>
+                        !!el.textContent && el.textContent.includes("Hardware:"),
+                );
+
+                expect(hardwareSpan).toBeUndefined();
+            });
+
+            it("should hide hardware revision span when hardwareRevision is empty string", (): void => {
+                const deviceInfoWithEmptyHardware: IDeviceInformation = {
+                    ...mockDeviceInfo,
+                    hardwareRevision: "",
+                };
+
+                fixture.componentRef.setInput("deviceInfo", deviceInfoWithEmptyHardware);
+                fixture.detectChanges();
+
+                const spans = fixture.nativeElement.querySelectorAll(
+                    ".erg-info span",
+                ) as NodeListOf<HTMLSpanElement>;
+                const hardwareSpan = Array.from(spans).find(
+                    (el: HTMLSpanElement): boolean =>
+                        !!el.textContent && el.textContent.includes("Hardware:"),
+                );
+
+                expect(hardwareSpan).toBeUndefined();
             });
         });
     });

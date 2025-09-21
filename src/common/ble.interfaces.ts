@@ -79,6 +79,7 @@ export interface IDeviceInformation {
     modelNumber?: string;
     firmwareNumber?: string;
     manufacturerName?: string;
+    hardwareRevision?: string;
 }
 
 export const HEART_RATE_CHARACTERISTIC = "heart_rate_measurement";
@@ -99,6 +100,7 @@ export const MODEL_NUMBER_CHARACTERISTIC = "model_number_string";
 export const SERIAL_NUMBER_CHARACTERISTIC = "serial_number_string";
 export const FIRMWARE_NUMBER_CHARACTERISTIC = "firmware_revision_string";
 export const MANUFACTURER_NAME_CHARACTERISTIC = "manufacturer_name_string";
+export const HARDWARE_REVISION_CHARACTERISTIC = "hardware_revision_string";
 export const SETTINGS_SERVICE = "56892de1-7068-4b5a-acaa-473d97b02206";
 export const SETTINGS_CHARACTERISTIC = "54e15528-73b5-4905-9481-89e5184a3364";
 export const SETTINGS_CONTROL_POINT = "51ba0a00-8853-477c-bf43-6a09c36aac9f";

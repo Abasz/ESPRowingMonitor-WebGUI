@@ -20,6 +20,7 @@ import {
 import {
     DEVICE_INFO_SERVICE,
     FIRMWARE_NUMBER_CHARACTERISTIC,
+    HARDWARE_REVISION_CHARACTERISTIC,
     IDeviceInformation,
     IOtaCharacteristics,
     MANUFACTURER_NAME_CHARACTERISTIC,
@@ -135,6 +136,7 @@ export class ErgGenericDataService {
             deviceInfo.modelNumber = await readDeviceInfo(service, MODEL_NUMBER_CHARACTERISTIC);
             deviceInfo.firmwareNumber = await readDeviceInfo(service, FIRMWARE_NUMBER_CHARACTERISTIC);
             deviceInfo.manufacturerName = await readDeviceInfo(service, MANUFACTURER_NAME_CHARACTERISTIC);
+            deviceInfo.hardwareRevision = await readDeviceInfo(service, HARDWARE_REVISION_CHARACTERISTIC);
         } catch (error) {
             if (error instanceof Error) {
                 this.snackBar.open(error.message, "Dismiss");
