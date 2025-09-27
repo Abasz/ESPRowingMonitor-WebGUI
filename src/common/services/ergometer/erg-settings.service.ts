@@ -2,12 +2,13 @@ import { computed, Injectable, Signal } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import {
+    concatWith,
+    defer,
     filter,
     finalize,
     firstValueFrom,
     from,
     map,
-    mergeWith,
     Observable,
     retry,
     switchMap,
@@ -507,8 +508,10 @@ export class ErgSettingsService {
     private observeSettings$(
         settingsCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<IBleRowerSettingsDTO> {
-        return observeValue$(settingsCharacteristic).pipe(
-            mergeWith(from(settingsCharacteristic.readValue())),
+        return from(settingsCharacteristic.readValue()).pipe(
+            concatWith(
+                defer((): Observable<DataView<ArrayBufferLike>> => observeValue$(settingsCharacteristic)),
+            ),
             map((value: DataView): IBleRowerSettingsDTO => {
                 const logToWs = value.getUint8(0) & 3;
                 const logToSd = (value.getUint8(0) >> 2) & 3;
@@ -578,8 +581,13 @@ export class ErgSettingsService {
     private observeStrokeSettings$(
         strokeDetectionSettingsCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<IBleStrokeDetectionSettingsDTO> {
-        return observeValue$(strokeDetectionSettingsCharacteristic).pipe(
-            mergeWith(from(strokeDetectionSettingsCharacteristic.readValue())),
+        return from(strokeDetectionSettingsCharacteristic.readValue()).pipe(
+            concatWith(
+                defer(
+                    (): Observable<DataView<ArrayBufferLike>> =>
+                        observeValue$(strokeDetectionSettingsCharacteristic),
+                ),
+            ),
             map((value: DataView): IBleStrokeDetectionSettingsDTO => {
                 const strokeDetectionType = value.getUint8(0) & 0x03;
                 const impulseDataArrayLength = (value.getUint8(0) >> 2) & 0x1f;

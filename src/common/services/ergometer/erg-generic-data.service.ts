@@ -3,12 +3,13 @@ import { toSignal } from "@angular/core/rxjs-interop";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import {
     catchError,
+    concatWith,
+    defer,
     distinctUntilChanged,
     filter,
     finalize,
     from,
     map,
-    mergeWith,
     Observable,
     of,
     retry,
@@ -29,6 +30,7 @@ import {
     OTA_SERVICE,
     OTA_TX_CHARACTERISTIC,
 } from "../../ble.interfaces";
+import { withDelay } from "../../utils/utility.functions";
 import { observeValue$ } from "../ble.utilities";
 
 import { IErgConnectionStatus } from "./../../common.interfaces";
@@ -109,8 +111,10 @@ export class ErgGenericDataService {
     }
 
     private observeBattery$(batteryCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<number> {
-        return observeValue$(batteryCharacteristic).pipe(
-            mergeWith(from(batteryCharacteristic.readValue())),
+        return from(batteryCharacteristic.readValue()).pipe(
+            concatWith(
+                defer((): Observable<DataView<ArrayBufferLike>> => observeValue$(batteryCharacteristic)),
+            ),
             map((value: DataView): number => value.getUint8(0)),
             finalize((): void => {
                 this.ergConnectionService.resetBatteryCharacteristic();
