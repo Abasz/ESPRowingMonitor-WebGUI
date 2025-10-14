@@ -1,6 +1,6 @@
 <div class="tab-content">
     <form [formGroup]="settingsForm" novalidate class="flex-col">
-        <mat-form-field>
+        <mat-form-field subscriptSizing="dynamic">
             <mat-label>BLE Mode</mat-label>
             <mat-select
                 name="bleMode"
@@ -20,7 +20,7 @@
                 </mat-error>
             }
         </mat-form-field>
-        <mat-form-field>
+        <mat-form-field subscriptSizing="dynamic">
             <mat-label>Heart Rate Monitor</mat-label>
             <mat-select
                 name="heartRateMonitor"
@@ -43,7 +43,7 @@
                 </mat-error>
             }
         </mat-form-field>
-        <mat-form-field>
+        <mat-form-field subscriptSizing="dynamic">
             <mat-label>Log Level</mat-label>
             <mat-select name="logLevel" placeholder="Select log level" formControlName="logLevel" required>
                 @for (logLevel of LogLevel | enumToArray; track logLevel.value) {
