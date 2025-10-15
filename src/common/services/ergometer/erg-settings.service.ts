@@ -31,11 +31,11 @@ import {
     ISensorSignalSettings,
     IStrokeDetectionSettings,
 } from "../../common.interfaces";
+import { withDelay } from "../../utils/utility.functions";
 import { observeValue$ } from "../ble.utilities";
 
 import { ErgConnectionService } from "./erg-connection.service";
 import { calculateBleServiceFlag } from "./erg.utilities";
-import { withDelay } from "../../utils/utility.functions";
 
 interface IBleRowerSettingsDTO {
     logDeltaTimes: boolean | undefined;

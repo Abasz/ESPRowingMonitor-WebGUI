@@ -71,6 +71,7 @@ describe("ErgSettingsService other control-point API", (): void => {
                 "resetStrokeSettingsCharacteristic",
                 "connectToSettings",
                 "connectToStrokeSettings",
+                "disconnectDevice",
                 "discover",
             ],
             {
