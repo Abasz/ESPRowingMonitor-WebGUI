@@ -1,0 +1,25 @@
+mat-progress-bar {
+    margin-bottom: 8px;
+}
+
+.no-profiles-warning {
+    padding: 32px;
+    padding-top: 0px;
+    text-align: center;
+
+    mat-icon {
+        font-size: 48px;
+        width: 48px;
+        height: 48px;
+        color: var(--mat-sys-on-surface-variant);
+    }
+
+    p {
+        margin: 0;
+
+        &.small-text {
+            font-size: 0.875rem;
+            color: var(--mat-sys-on-surface-variant);
+        }
+    }
+}

@@ -8,7 +8,8 @@ import { EMPTY, Observable, of, Subject } from "rxjs";
 import { ICalculatedMetrics, IErgConnectionStatus, IHeartRate } from "../common/common.interfaces";
 import { DataRecorderService } from "../common/services/data-recorder.service";
 import { ErgConnectionService } from "../common/services/ergometer/erg-connection.service";
-import { FirmwareUpdateCheckerService } from "../common/services/ergometer/firmware-update-checker.service";
+import { ErgGenericDataService } from "../common/services/ergometer/erg-generic-data.service";
+import { FirmwareUpdateManagerService } from "../common/services/ergometer/firmware-update-manager.service";
 import { MetricsService } from "../common/services/metrics.service";
 import { UtilsService } from "../common/services/utils.service";
 import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-confirm.component";
@@ -22,13 +23,17 @@ describe("AppComponent", (): void => {
     let swUpdateSpy: jasmine.SpyObj<SwUpdate>;
     let snackBarSpy: jasmine.SpyObj<MatSnackBar>;
     let ergConnectionServiceSpy: jasmine.SpyObj<ErgConnectionService>;
-    let firmwareUpdateCheckerSpy: jasmine.SpyObj<FirmwareUpdateCheckerService>;
+    let ergGenericDataServiceSpy: jasmine.SpyObj<ErgGenericDataService>;
+    let firmwareUpdateManagerSpy: jasmine.SpyObj<FirmwareUpdateManagerService>;
     let versionUpdatesSubject: Subject<VersionEvent>;
     let connectionStatusSubject: Subject<IErgConnectionStatus>;
+    let windowOpenSpy: jasmine.Spy<typeof window.open>;
 
     beforeEach(async (): Promise<void> => {
         versionUpdatesSubject = new Subject<VersionEvent>();
         connectionStatusSubject = new Subject<IErgConnectionStatus>();
+
+        windowOpenSpy = spyOn(window, "open");
 
         matIconRegistrySpy = jasmine.createSpyObj("MatIconRegistry", ["setDefaultFontSetClass"]);
 
@@ -46,11 +51,20 @@ describe("AppComponent", (): void => {
         ergConnectionServiceSpy = jasmine.createSpyObj("ErgConnectionService", ["connectionStatus$"]);
         ergConnectionServiceSpy.connectionStatus$.and.returnValue(connectionStatusSubject.asObservable());
 
-        firmwareUpdateCheckerSpy = jasmine.createSpyObj("FirmwareUpdateCheckerService", [
-            "checkForFirmwareUpdate",
-            "isUpdateAvailable",
-        ]);
-        firmwareUpdateCheckerSpy.isUpdateAvailable.and.returnValue(undefined);
+        ergGenericDataServiceSpy = jasmine.createSpyObj("ErgGenericDataService", [], {
+            deviceInfo: jasmine.createSpy("deviceInfo").and.returnValue({
+                hardwareRevision: "devkit-v1",
+            }),
+        });
+
+        firmwareUpdateManagerSpy = jasmine.createSpyObj(
+            "FirmwareUpdateManagerService",
+            ["checkForFirmwareUpdate", "openFirmwareSelector"],
+            {
+                isUpdateAvailable: jasmine.createSpy("isUpdateAvailable").and.returnValue(undefined),
+            },
+        );
+        firmwareUpdateManagerSpy.checkForFirmwareUpdate.and.returnValue(false);
 
         const mockMetricsService = {
             heartRateData$: of({ heartRate: 75 } as IHeartRate),
@@ -92,7 +106,8 @@ describe("AppComponent", (): void => {
                 { provide: SwUpdate, useValue: swUpdateSpy },
                 { provide: MatSnackBar, useValue: snackBarSpy },
                 { provide: ErgConnectionService, useValue: ergConnectionServiceSpy },
-                { provide: FirmwareUpdateCheckerService, useValue: firmwareUpdateCheckerSpy },
+                { provide: ErgGenericDataService, useValue: ergGenericDataServiceSpy },
+                { provide: FirmwareUpdateManagerService, useValue: firmwareUpdateManagerSpy },
                 { provide: MetricsService, useValue: mockMetricsService },
                 { provide: UtilsService, useValue: mockUtilsService },
                 { provide: DataRecorderService, useValue: mockDataRecorderService },
@@ -124,17 +139,17 @@ describe("AppComponent", (): void => {
             expect(ergConnectionServiceSpy.connectionStatus$).toHaveBeenCalled();
         });
 
-        it("should call firmware update check when device connects after 5 second delay", fakeAsync((): void => {
+        it("should check isUpdateAvailable when device connects after 5 second delay", fakeAsync((): void => {
             connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
 
             tick(4000);
-            expect(firmwareUpdateCheckerSpy.checkForFirmwareUpdate).not.toHaveBeenCalled();
+            expect(firmwareUpdateManagerSpy.isUpdateAvailable).not.toHaveBeenCalled();
 
             tick(1000);
-            expect(firmwareUpdateCheckerSpy.checkForFirmwareUpdate).toHaveBeenCalledTimes(1);
+            expect(firmwareUpdateManagerSpy.isUpdateAvailable).toHaveBeenCalledTimes(1);
         }));
 
-        it("should only trigger firmware check for connected status", fakeAsync((): void => {
+        it("should only check isUpdateAvailable for connected status", fakeAsync((): void => {
             const statuses = ["connecting", "connected", "disconnected", "searching", "connecting"];
 
             statuses.forEach((status: string): void => {
@@ -142,23 +157,120 @@ describe("AppComponent", (): void => {
                 tick(5000);
             });
 
-            expect(firmwareUpdateCheckerSpy.checkForFirmwareUpdate).toHaveBeenCalledTimes(1);
+            expect(firmwareUpdateManagerSpy.isUpdateAvailable).toHaveBeenCalledTimes(1);
 
             connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
             tick(5000);
 
-            expect(firmwareUpdateCheckerSpy.checkForFirmwareUpdate).toHaveBeenCalledTimes(2);
+            expect(firmwareUpdateManagerSpy.isUpdateAvailable).toHaveBeenCalledTimes(2);
         }));
 
-        it("should skip firmware check if isUpdateAvailable already known", fakeAsync((): void => {
-            firmwareUpdateCheckerSpy.isUpdateAvailable.and.returnValue(true);
+        describe("when firmware update is available", (): void => {
+            beforeEach((): void => {
+                firmwareUpdateManagerSpy.isUpdateAvailable.and.returnValue(true);
+            });
 
-            connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
+            it("should show notification for supported hardware with Update action", fakeAsync((): void => {
+                const mockSnackBarRef = jasmine.createSpyObj("MatSnackBarRef", ["onAction"]);
+                mockSnackBarRef.onAction.and.returnValue(EMPTY);
+                snackBarSpy.open.and.returnValue(mockSnackBarRef);
 
-            tick(5000);
+                ergGenericDataServiceSpy.deviceInfo.and.returnValue({ hardwareRevision: "devkit-v1" });
 
-            expect(firmwareUpdateCheckerSpy.checkForFirmwareUpdate).not.toHaveBeenCalled();
-        }));
+                connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
+                tick(5000);
+
+                expect(snackBarSpy.open).toHaveBeenCalledWith("Firmware update available", "Update", {
+                    duration: 30000,
+                });
+            }));
+
+            it("should call openFirmwareSelector when Update action is clicked for supported hardware", fakeAsync((): void => {
+                const actionSubject = new Subject<void>();
+                const mockSnackBarRef = jasmine.createSpyObj("MatSnackBarRef", ["onAction"]);
+                mockSnackBarRef.onAction.and.returnValue(actionSubject.asObservable());
+                snackBarSpy.open.and.returnValue(mockSnackBarRef);
+
+                ergGenericDataServiceSpy.deviceInfo.and.returnValue({ hardwareRevision: "devkit-v1" });
+
+                connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
+                tick(5000);
+
+                actionSubject.next();
+                tick();
+
+                expect(firmwareUpdateManagerSpy.openFirmwareSelector).toHaveBeenCalledWith("devkit-v1");
+            }));
+
+            it("should show notification for custom hardware with GitHub action", fakeAsync((): void => {
+                const mockSnackBarRef = jasmine.createSpyObj("MatSnackBarRef", ["onAction"]);
+                mockSnackBarRef.onAction.and.returnValue(EMPTY);
+                snackBarSpy.open.and.returnValue(mockSnackBarRef);
+
+                ergGenericDataServiceSpy.deviceInfo.and.returnValue({ hardwareRevision: "custom" });
+
+                connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
+                tick(5000);
+
+                expect(snackBarSpy.open).toHaveBeenCalledWith(
+                    "Firmware update available for custom board",
+                    "View on GitHub",
+                    {
+                        duration: 30000,
+                    },
+                );
+            }));
+
+            it("should open GitHub releases page when action is clicked for custom hardware", fakeAsync((): void => {
+                const actionSubject = new Subject<void>();
+                const mockSnackBarRef = jasmine.createSpyObj("MatSnackBarRef", ["onAction"]);
+                mockSnackBarRef.onAction.and.returnValue(actionSubject.asObservable());
+                snackBarSpy.open.and.returnValue(mockSnackBarRef);
+
+                ergGenericDataServiceSpy.deviceInfo.and.returnValue({ hardwareRevision: "custom" });
+
+                connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
+                tick(5000);
+
+                actionSubject.next();
+                tick();
+
+                expect(windowOpenSpy).toHaveBeenCalledWith(
+                    FirmwareUpdateManagerService.FIRMWARE_RELEASE_URL,
+                    "_blank",
+                );
+            }));
+
+            it("should show notification for missing hardware revision with GitHub action", fakeAsync((): void => {
+                const mockSnackBarRef = jasmine.createSpyObj("MatSnackBarRef", ["onAction"]);
+                mockSnackBarRef.onAction.and.returnValue(EMPTY);
+                snackBarSpy.open.and.returnValue(mockSnackBarRef);
+
+                ergGenericDataServiceSpy.deviceInfo.and.returnValue({});
+
+                connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
+                tick(5000);
+
+                expect(snackBarSpy.open).toHaveBeenCalledWith(
+                    "Firmware update available for custom board",
+                    "View on GitHub",
+                    {
+                        duration: 30000,
+                    },
+                );
+            }));
+        });
+
+        describe("when no firmware update is available", (): void => {
+            it("should not show notification", fakeAsync((): void => {
+                firmwareUpdateManagerSpy.checkForFirmwareUpdate.and.returnValue(false);
+
+                connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
+                tick(5000);
+
+                expect(snackBarSpy.open).not.toHaveBeenCalled();
+            }));
+        });
     });
 
     describe("constructor service worker integration", (): void => {

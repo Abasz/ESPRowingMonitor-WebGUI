@@ -94,38 +94,41 @@
                     type="file"
                     (change)="otaUpdate($event)"
                 />
-                @if (firmwareUpdateCheckerService.isUpdateAvailable() === true) {
-                    <a
-                        matTooltipShowDelay="1000"
-                        matTooltip="Firmware update available - View on GitHub"
-                        class="small-icon-button"
-                        mat-icon-button
-                        [href]="firmwareReleaseUrl"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label="Open latest firmware release on GitHub"
-                    >
-                        <mat-icon>deployed_code_update</mat-icon>
-                    </a>
-                } @else {
+                @if (firmwareUpdateManagerService.isUpdateAvailable() === true) {
+                    @if (isSupportedDevice()) {
+                        <button
+                            matTooltipShowDelay="1000"
+                            matTooltip="Firmware update available"
+                            class="small-icon-button"
+                            mat-icon-button
+                            (click)="onFirmwareUpdateClick()"
+                        >
+                            <mat-icon>deployed_code_update</mat-icon>
+                        </button>
+                    } @else {
+                        <a
+                            matTooltipShowDelay="1000"
+                            matTooltip="Firmware update available - View on GitHub"
+                            class="small-icon-button"
+                            mat-icon-button
+                            [href]="firmwareReleaseUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Open latest firmware release on GitHub"
+                        >
+                            <mat-icon>deployed_code_update</mat-icon>
+                        </a>
+                    }
+                }
+                @if (firmwareUpdateManagerService.isUpdateAvailable() === false && isSupportedDevice()) {
                     <button
                         matTooltipShowDelay="1000"
-                        matTooltip="{{
-                            firmwareUpdateCheckerService.isUpdateAvailable() === undefined
-                                ? 'Checking'
-                                : 'Check'
-                        }} for update"
+                        matTooltip="Reflash firmware"
                         class="small-icon-button"
                         mat-icon-button
-                        (click)="firmwareUpdateCheckerService.checkForFirmwareUpdate()"
+                        (click)="onFirmwareUpdateClick()"
                     >
-                        <mat-icon
-                            [class.rotating]="
-                                isConnected() &&
-                                firmwareUpdateCheckerService.isUpdateAvailable() === undefined
-                            "
-                            >refresh</mat-icon
-                        >
+                        <mat-icon>compare_arrows</mat-icon>
                     </button>
                 }
             }

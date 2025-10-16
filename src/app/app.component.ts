@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component } from "@angular/core";
+import { AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MatIconRegistry } from "@angular/material/icon";
 import { MatSnackBar } from "@angular/material/snack-bar";
@@ -8,7 +8,8 @@ import { filter, Observable, switchMap, timer } from "rxjs";
 
 import { IErgConnectionStatus } from "../common/common.interfaces";
 import { ErgConnectionService } from "../common/services/ergometer/erg-connection.service";
-import { FirmwareUpdateCheckerService } from "../common/services/ergometer/firmware-update-checker.service";
+import { ErgGenericDataService } from "../common/services/ergometer/erg-generic-data.service";
+import { FirmwareUpdateManagerService } from "../common/services/ergometer/firmware-update-manager.service";
 import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-confirm.component";
 
 @Component({
@@ -20,11 +21,13 @@ import { SnackBarConfirmComponent } from "../common/snack-bar-confirm/snack-bar-
 })
 export class AppComponent implements AfterViewInit {
     constructor(
+        private destroyRef: DestroyRef,
         private matIconReg: MatIconRegistry,
         private swUpdate: SwUpdate,
         private snackBar: MatSnackBar,
         private ergConnectionService: ErgConnectionService,
-        private firmwareUpdateChecker: FirmwareUpdateCheckerService,
+        private ergGenericDataService: ErgGenericDataService,
+        private firmwareUpdateManager: FirmwareUpdateManagerService,
     ) {
         this.matIconReg.setDefaultFontSetClass("material-symbols-sharp");
 
@@ -36,11 +39,9 @@ export class AppComponent implements AfterViewInit {
                 takeUntilDestroyed(),
             )
             .subscribe((): void => {
-                if (this.firmwareUpdateChecker.isUpdateAvailable() !== undefined) {
-                    return;
+                if (this.firmwareUpdateManager.isUpdateAvailable()) {
+                    this.showFirmwareUpdateNotification();
                 }
-
-                this.firmwareUpdateChecker.checkForFirmwareUpdate();
             });
 
         if (this.swUpdate.isEnabled) {
@@ -113,5 +114,38 @@ export class AppComponent implements AfterViewInit {
 
             console.error("Error making storage persistent:", error);
         }
+    }
+
+    private showFirmwareUpdateNotification(): void {
+        const deviceInfo = this.ergGenericDataService.deviceInfo();
+        const hardwareRevision = deviceInfo.hardwareRevision;
+
+        if (!hardwareRevision || hardwareRevision.toLowerCase() === "custom") {
+            this.snackBar
+                .open("Firmware update available for custom board", "View on GitHub", {
+                    duration: 30000,
+                })
+                .onAction()
+                .pipe(takeUntilDestroyed(this.destroyRef))
+                .subscribe((): void => {
+                    console.log(
+                        "Opening firmware releases page:",
+                        FirmwareUpdateManagerService.FIRMWARE_RELEASE_URL,
+                    );
+                    window.open(FirmwareUpdateManagerService.FIRMWARE_RELEASE_URL, "_blank");
+                });
+
+            return;
+        }
+
+        this.snackBar
+            .open("Firmware update available", "Update", {
+                duration: 30000,
+            })
+            .onAction()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((): void => {
+                this.firmwareUpdateManager.openFirmwareSelector(hardwareRevision);
+            });
     }
 }

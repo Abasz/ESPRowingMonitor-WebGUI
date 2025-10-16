@@ -13,7 +13,7 @@ import { of } from "rxjs";
 import { BleServiceFlag, IDeviceInformation, LogLevel } from "../../common/ble.interfaces";
 import { IRowerSettings } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
-import { FirmwareUpdateCheckerService } from "../../common/services/ergometer/firmware-update-checker.service";
+import { FirmwareUpdateManagerService } from "../../common/services/ergometer/firmware-update-manager.service";
 import { OtaDialogComponent } from "../ota-settings-dialog/ota-dialog.component";
 
 import { GeneralSettingsComponent } from "./general-settings.component";
@@ -25,7 +25,7 @@ describe("GeneralSettingsComponent", (): void => {
     let mockConfigManagerService: jasmine.SpyObj<ConfigManagerService>;
     let mockSwUpdate: jasmine.SpyObj<SwUpdate>;
     let mockMatDialog: jasmine.SpyObj<MatDialog>;
-    let mockFirmwareUpdateCheckerService: jasmine.SpyObj<FirmwareUpdateCheckerService>;
+    let mockFirmwareUpdateManagerService: jasmine.SpyObj<FirmwareUpdateManagerService>;
 
     const mockRowerSettings: IRowerSettings = {
         generalSettings: {
@@ -91,12 +91,11 @@ describe("GeneralSettingsComponent", (): void => {
             afterClosed: jasmine.createSpy("afterClosed").and.returnValue(of(undefined)),
         } as unknown as ReturnType<MatDialog["open"]>);
 
-        mockFirmwareUpdateCheckerService = jasmine.createSpyObj<FirmwareUpdateCheckerService>(
-            "FirmwareUpdateCheckerService",
-            ["checkForFirmwareUpdate", "isUpdateAvailable"],
+        mockFirmwareUpdateManagerService = jasmine.createSpyObj<FirmwareUpdateManagerService>(
+            "FirmwareUpdateManagerService",
+            ["openFirmwareSelector", "isUpdateAvailable"],
         );
-        mockFirmwareUpdateCheckerService.checkForFirmwareUpdate.and.resolveTo();
-        mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(undefined);
+        mockFirmwareUpdateManagerService.isUpdateAvailable.and.returnValue(undefined);
 
         await TestBed.configureTestingModule({
             imports: [GeneralSettingsComponent, ReactiveFormsModule],
@@ -104,7 +103,7 @@ describe("GeneralSettingsComponent", (): void => {
                 { provide: ConfigManagerService, useValue: mockConfigManagerService },
                 { provide: SwUpdate, useValue: mockSwUpdate },
                 { provide: MatDialog, useValue: mockMatDialog },
-                { provide: FirmwareUpdateCheckerService, useValue: mockFirmwareUpdateCheckerService },
+                { provide: FirmwareUpdateManagerService, useValue: mockFirmwareUpdateManagerService },
                 provideZonelessChangeDetection(),
             ],
         }).compileComponents();
@@ -141,9 +140,9 @@ describe("GeneralSettingsComponent", (): void => {
             expect(component.compileDate instanceof Date).toBe(true);
         });
 
-        it("should have access to firmware update checker service", (): void => {
-            expect(component.firmwareUpdateCheckerService).toBeDefined();
-            expect(component.firmwareUpdateCheckerService).toBe(mockFirmwareUpdateCheckerService);
+        it("should have access to firmware update manager service", (): void => {
+            expect(component.firmwareUpdateManagerService).toBeDefined();
+            expect(component.firmwareUpdateManagerService).toBe(mockFirmwareUpdateManagerService);
         });
 
         it("should set isServiceWorkerAvailable based on navigator", (): void => {
@@ -392,109 +391,131 @@ describe("GeneralSettingsComponent", (): void => {
         });
 
         describe("firmware update button", (): void => {
-            it("should call checkForFirmwareUpdate when clicked", (): void => {
-                mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(false);
-                fixture.componentRef.setInput("isConnected", true);
-                fixture.detectChanges();
-
-                const refreshButton: HTMLButtonElement | undefined = Array.from<HTMLButtonElement>(
-                    fixture.nativeElement.querySelectorAll(".erg-info button mat-icon"),
-                ).filter((btn: HTMLButtonElement): boolean => btn.textContent === "refresh")[0];
-
-                expect(refreshButton).toBeDefined();
-                refreshButton?.click();
-
-                expect(mockFirmwareUpdateCheckerService.checkForFirmwareUpdate).toHaveBeenCalled();
-            });
-
-            it("should display firmware update link when an update is available", (): void => {
-                mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(true);
-                fixture.componentRef.setInput("isConnected", true);
-                fixture.detectChanges();
-
-                const firmwareUpdateButton: HTMLAnchorElement | undefined =
-                    fixture.nativeElement.querySelector(".erg-info a");
-
-                expect(firmwareUpdateButton).toBeTruthy();
-                expect(firmwareUpdateButton?.getAttribute("href")).toBe(
-                    FirmwareUpdateCheckerService.FIRMWARE_RELEASE_URL,
-                );
-
-                const refreshButton = Array.from<HTMLButtonElement>(
-                    fixture.nativeElement.querySelector(
-                        "div.erg-info button.small-icon-button[mat-icon-button]",
-                    ) as NodeListOf<HTMLButtonElement>,
-                ).filter(
-                    (btn: HTMLButtonElement): boolean =>
-                        btn.querySelector("mat-icon")?.textContent?.trim() === "refresh",
-                );
-                expect(refreshButton.length).toBe(0);
-            });
-
-            describe("should show rotating icon", (): void => {
-                it("when update check is in progress at initial open", (): void => {
-                    mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(undefined);
-
+            describe("when update is available for custom hardware", (): void => {
+                beforeEach((): void => {
+                    mockFirmwareUpdateManagerService.isUpdateAvailable.and.returnValue(true);
+                    fixture.componentRef.setInput("deviceInfo", {
+                        ...mockDeviceInfo,
+                        hardwareRevision: "custom",
+                    });
                     fixture.componentRef.setInput("isConnected", true);
                     fixture.detectChanges();
-
-                    const refreshIcon = fixture.nativeElement.querySelector('mat-icon[class*="rotating"]');
-                    expect(refreshIcon).toBeTruthy();
                 });
 
-                it("when update firmware button is clicked", (): void => {
-                    mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(false);
-                    mockFirmwareUpdateCheckerService.checkForFirmwareUpdate.and.callFake(
-                        (): Promise<void> => {
-                            mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(undefined);
-
-                            return Promise.resolve();
-                        },
+                it("should display firmware update link with deployed_code_update icon", (): void => {
+                    const firmwareUpdateLink: HTMLAnchorElement | null = fixture.nativeElement.querySelector(
+                        ".erg-info a[mat-icon-button]",
                     );
 
-                    fixture.componentRef.setInput("isConnected", true);
-                    fixture.detectChanges();
-                    const refreshButton =
-                        fixture.nativeElement.querySelectorAll("button.small-icon-button")[1];
-                    refreshButton.click();
+                    expect(firmwareUpdateLink).toBeTruthy();
+                    expect(firmwareUpdateLink?.getAttribute("href")).toBe(
+                        FirmwareUpdateManagerService.FIRMWARE_RELEASE_URL,
+                    );
+                    expect(firmwareUpdateLink?.querySelector("mat-icon")?.textContent?.trim()).toBe(
+                        "deployed_code_update",
+                    );
+                });
 
-                    fixture.detectChanges();
+                it("should not show refresh button", (): void => {
+                    const refreshButton = Array.from<HTMLElement>(
+                        fixture.nativeElement.querySelectorAll(".erg-info button mat-icon"),
+                    ).filter((icon: HTMLElement): boolean => icon.textContent?.trim() === "refresh");
 
-                    const refreshIcon = fixture.nativeElement.querySelector('mat-icon[class*="rotating"]');
-                    expect(refreshIcon).toBeTruthy();
+                    expect(refreshButton.length).toBe(0);
                 });
             });
 
-            it("should not show rotating icon when not checking for updates", (): void => {
-                mockFirmwareUpdateCheckerService.isUpdateAvailable.and.returnValue(false);
+            describe("when update is available for supported hardware", (): void => {
+                beforeEach((): void => {
+                    mockFirmwareUpdateManagerService.isUpdateAvailable.and.returnValue(true);
+                    fixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
+                    fixture.componentRef.setInput("isConnected", true);
+                    fixture.detectChanges();
+                });
 
+                it("should display update button with deployed_code_update icon", (): void => {
+                    const updateIcon = Array.from<HTMLElement>(
+                        fixture.nativeElement.querySelectorAll(".erg-info button mat-icon"),
+                    ).find(
+                        (icon: HTMLElement): boolean => icon.textContent?.trim() === "deployed_code_update",
+                    );
+
+                    expect(updateIcon).toBeTruthy();
+                });
+
+                it("should call onFirmwareUpdateClick when update button is clicked", (): void => {
+                    spyOn(component, "onFirmwareUpdateClick");
+
+                    const updateButton: HTMLButtonElement | null = Array.from<HTMLElement>(
+                        fixture.nativeElement.querySelectorAll(".erg-info button mat-icon"),
+                    ).filter(
+                        (icon: HTMLElement): boolean => icon.textContent?.trim() === "deployed_code_update",
+                    )[0].parentElement as HTMLButtonElement;
+
+                    updateButton?.click();
+
+                    expect(component.onFirmwareUpdateClick).toHaveBeenCalled();
+                });
+
+                it("should not show GitHub link", (): void => {
+                    const githubLink = fixture.nativeElement.querySelector(".erg-info a[mat-icon-button]");
+
+                    expect(githubLink).toBeFalsy();
+                });
+            });
+
+            describe("when no update is available for supported hardware", (): void => {
+                beforeEach((): void => {
+                    mockFirmwareUpdateManagerService.isUpdateAvailable.and.returnValue(false);
+                    fixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
+                    fixture.componentRef.setInput("isConnected", true);
+                    fixture.detectChanges();
+                });
+
+                it("should display reflash button with compare_arrows icon", (): void => {
+                    const reflashButton = Array.from<HTMLElement>(
+                        fixture.nativeElement.querySelectorAll(".erg-info button mat-icon"),
+                    ).filter((icon: HTMLElement): boolean => icon.textContent?.trim() === "compare_arrows");
+
+                    expect(reflashButton.length).toBeGreaterThan(0);
+                });
+
+                it("should call onFirmwareUpdateClick when reflash button is clicked", (): void => {
+                    spyOn(component, "onFirmwareUpdateClick");
+
+                    const reflashButton: HTMLButtonElement | null = Array.from<HTMLElement>(
+                        fixture.nativeElement.querySelectorAll(".erg-info button mat-icon"),
+                    ).filter((icon: HTMLElement): boolean => icon.textContent?.trim() === "compare_arrows")[0]
+                        .parentElement as HTMLButtonElement;
+
+                    reflashButton?.click();
+
+                    expect(component.onFirmwareUpdateClick).toHaveBeenCalled();
+                });
+            });
+
+            it("should show firmware update buttons when connected", (): void => {
                 fixture.componentRef.setInput("isConnected", true);
                 fixture.detectChanges();
 
-                const refreshIcon = fixture.nativeElement.querySelector("mat-icon.rotating");
-                expect(refreshIcon).toBeFalsy();
+                const firmwareButtons: Array<HTMLElement> = Array.from<HTMLElement>(
+                    fixture.nativeElement.querySelectorAll(".erg-info button, .erg-info a"),
+                );
+
+                expect(firmwareButtons.length).toBeGreaterThan(0);
             });
 
-            it("should enable firmware update button when connected", (): void => {
-                fixture.componentRef.setInput("isConnected", true);
-                fixture.detectChanges();
-
-                const firmwareUpdateButton: Array<HTMLButtonElement> = Array.from<HTMLButtonElement>(
-                    fixture.nativeElement.querySelectorAll(".erg-info button mat-icon"),
-                ).filter((btn: HTMLButtonElement): boolean => btn.textContent === "refresh");
-
-                expect(firmwareUpdateButton.length).toBe(1);
-            });
-
-            it("should hide firmware update button when not connected", (): void => {
+            it("should hide firmware update buttons when not connected", (): void => {
                 fixture.componentRef.setInput("isConnected", false);
                 fixture.detectChanges();
 
-                const firmwareUpdateButton: Array<HTMLButtonElement> = Array.from<HTMLButtonElement>(
-                    fixture.nativeElement.querySelectorAll(".erg-info button mat-icon"),
-                ).filter((btn: HTMLButtonElement): boolean => btn.textContent === "refresh");
+                const firmwareButtons: Array<HTMLElement> = Array.from<HTMLElement>(
+                    fixture.nativeElement.querySelectorAll(
+                        ".erg-info button:not([class*='upload']), .erg-info a",
+                    ),
+                );
 
-                expect(firmwareUpdateButton.length).toBe(0);
+                expect(firmwareButtons.length).toBe(0);
             });
         });
 
@@ -985,6 +1006,90 @@ describe("GeneralSettingsComponent", (): void => {
         });
     });
 
+    describe("onFirmwareUpdateClick method", (): void => {
+        it("should call openFirmwareSelector with hardware revision", async (): Promise<void> => {
+            fixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
+            fixture.detectChanges();
+
+            await component.onFirmwareUpdateClick();
+
+            expect(mockFirmwareUpdateManagerService.openFirmwareSelector).toHaveBeenCalledWith("Rev 1");
+        });
+
+        it("should not call openFirmwareSelector when hardware revision is undefined", async (): Promise<void> => {
+            fixture.componentRef.setInput("deviceInfo", {
+                ...mockDeviceInfo,
+                hardwareRevision: undefined,
+            });
+            fixture.detectChanges();
+
+            await component.onFirmwareUpdateClick();
+
+            expect(mockFirmwareUpdateManagerService.openFirmwareSelector).not.toHaveBeenCalled();
+        });
+
+        it("should handle empty hardware revision", async (): Promise<void> => {
+            fixture.componentRef.setInput("deviceInfo", {
+                ...mockDeviceInfo,
+                hardwareRevision: "",
+            });
+            fixture.detectChanges();
+
+            await component.onFirmwareUpdateClick();
+
+            expect(mockFirmwareUpdateManagerService.openFirmwareSelector).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("isSupportedDevice computed signal", (): void => {
+        it("should return true for supported hardware revision", (): void => {
+            fixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
+            fixture.detectChanges();
+
+            expect(component.isSupportedDevice()).toBe(true);
+        });
+
+        it("should return false for custom hardware", (): void => {
+            fixture.componentRef.setInput("deviceInfo", {
+                ...mockDeviceInfo,
+                hardwareRevision: "custom",
+            });
+            fixture.detectChanges();
+
+            expect(component.isSupportedDevice()).toBe(false);
+        });
+
+        it("should return false for CUSTOM in uppercase", (): void => {
+            fixture.componentRef.setInput("deviceInfo", {
+                ...mockDeviceInfo,
+                hardwareRevision: "CUSTOM",
+            });
+            fixture.detectChanges();
+
+            expect(component.isSupportedDevice()).toBe(false);
+        });
+
+        it("should return false when hardware revision is undefined", (): void => {
+            fixture.componentRef.setInput("deviceInfo", {
+                ...mockDeviceInfo,
+                hardwareRevision: undefined,
+            });
+            fixture.detectChanges();
+
+            expect(component.isSupportedDevice()).toBe(false);
+        });
+
+        it("should return true for mixed case custom hardware", (): void => {
+            fixture.componentRef.setInput("deviceInfo", {
+                ...mockDeviceInfo,
+                hardwareRevision: "Custom",
+            });
+            fixture.detectChanges();
+
+            expect(component.isSupportedDevice()).toBe(false);
+        });
+    });
+
     describe("as part of edge cases & robustness handling", (): void => {
         it("should handle otaUpdate with invalid input element", async (): Promise<void> => {
             const mockEvent = {
@@ -1004,6 +1109,24 @@ describe("GeneralSettingsComponent", (): void => {
             await component.otaUpdate(mockEvent);
 
             expect(mockMatDialog.open).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("getForm method", (): void => {
+        it("should return the settings form", (): void => {
+            const form = component.getForm();
+
+            expect(form).toBe(component.settingsForm);
+        });
+
+        it("should return form with correct controls", (): void => {
+            const form = component.getForm();
+
+            expect(form.controls.bleMode).toBeDefined();
+            expect(form.controls.logLevel).toBeDefined();
+            expect(form.controls.heartRateMonitor).toBeDefined();
+            expect(form.controls.deltaTimeLogging).toBeDefined();
+            expect(form.controls.logToSdCard).toBeDefined();
         });
     });
 });

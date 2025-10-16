@@ -1,0 +1,38 @@
+<h3>Select firmware (v{{ versionInfo.latestFirmwareRelease.version }})</h3>
+
+<mat-selection-list [multiple]="false" (selectionChange)="onSelectionChange($event)">
+    @for (firmware of availableProfiles; track firmware) {
+        <mat-list-option [value]="firmware">
+            {{ firmware.profileName }}
+        </mat-list-option>
+    } @empty {
+        <div class="no-profiles-warning flex-col gap-8 items-center">
+            <mat-icon>warning</mat-icon>
+            <p>Something went wrong</p>
+            <p class="small-text">No compatible firmware found for your device.</p>
+        </div>
+    }
+</mat-selection-list>
+@if (isDownloading()) {
+    <mat-progress-bar [mode]="progressMode()" [value]="downloadProgress()"></mat-progress-bar>
+    @if (progressMode() === "determinate") {
+        Downloading...
+    } @else if (progressMode() === "indeterminate" && downloadProgress() === 100) {
+        Extracting...
+    } @else {
+        Starting...
+    }
+}
+<div class="flex-row gap-16">
+    <button
+        class="flex-auto"
+        matButton="filled"
+        (click)="startUpdate(selectedProfile())"
+        [disabled]="!selectedProfile()"
+    >
+        Update
+    </button>
+    <button class="flex-auto" matButton="filled" (click)="cancel()" [disabled]="isDownloading()">
+        Cancel
+    </button>
+</div>

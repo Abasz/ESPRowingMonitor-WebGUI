@@ -4,8 +4,42 @@
 import { ProfileData, StrokeDetectionType } from "../common.interfaces";
 
 export const STANDARD_PROFILES: Record<string, ProfileData> = {
+    eSPGenericRower: {
+        profileId: "dynamic",
+        name: "ESP Generic Rower",
+        settings: {
+            machineSettings: {
+                flywheelInertia: 0.1,
+                magicConstant: 2.8,
+                sprocketRadius: 1.5,
+                impulsePerRevolution: 1,
+            },
+            sensorSignalSettings: {
+                rotationDebounceTime: 7,
+                rowingStoppedThreshold: 7,
+            },
+            dragFactorSettings: {
+                goodnessOfFitThreshold: 0.97,
+                maxDragFactorRecoveryPeriod: 6,
+                dragFactorLowerThreshold: 75,
+                dragFactorUpperThreshold: 250,
+                dragCoefficientsArrayLength: 1,
+            },
+            strokeDetectionSettings: {
+                strokeDetectionType: StrokeDetectionType.Slope,
+                impulseDataArrayLength: 3,
+                minimumPoweredTorque: 0,
+                minimumDragTorque: 0,
+                minimumRecoverySlopeMargin: 0.00002,
+                minimumRecoverySlope: 0,
+                minimumRecoveryTime: 800,
+                minimumDriveTime: 400,
+                driveHandleForcesMaxCapacity: 200,
+            },
+        },
+    },
     concept2ModelD: {
-        profileId: "generic",
+        profileId: "genericAir",
         name: "Concept2 Model D",
         settings: {
             machineSettings: {
@@ -29,17 +63,17 @@ export const STANDARD_PROFILES: Record<string, ProfileData> = {
                 strokeDetectionType: StrokeDetectionType.Torque,
                 impulseDataArrayLength: 7,
                 minimumPoweredTorque: 0,
-                minimumDragTorque: 0.14,
+                minimumDragTorque: 0.07,
                 minimumRecoverySlopeMargin: 0.00002,
                 minimumRecoverySlope: 0.01,
                 minimumRecoveryTime: 800,
                 minimumDriveTime: 400,
-                driveHandleForcesMaxCapacity: 255,
+                driveHandleForcesMaxCapacity: 55,
             },
         },
     },
     kayakFirstOrange: {
-        profileId: "kayakfirst",
+        profileId: "kayakFirst",
         name: "KayakFirst Orange",
         settings: {
             machineSettings: {
@@ -63,17 +97,17 @@ export const STANDARD_PROFILES: Record<string, ProfileData> = {
                 strokeDetectionType: StrokeDetectionType.Torque,
                 impulseDataArrayLength: 7,
                 minimumPoweredTorque: 0,
-                minimumDragTorque: 0.214,
+                minimumDragTorque: 0.108,
                 minimumRecoverySlopeMargin: 0.00001,
                 minimumRecoverySlope: 0,
                 minimumRecoveryTime: 145,
                 minimumDriveTime: 170,
-                driveHandleForcesMaxCapacity: 255,
+                driveHandleForcesMaxCapacity: 36,
             },
         },
     },
     kayakFirstBlue: {
-        profileId: "kayakfirstBlue",
+        profileId: "kayakFirstBlue",
         name: "KayakFirst Blue",
         settings: {
             machineSettings: {
@@ -96,13 +130,47 @@ export const STANDARD_PROFILES: Record<string, ProfileData> = {
             strokeDetectionSettings: {
                 strokeDetectionType: StrokeDetectionType.Torque,
                 impulseDataArrayLength: 12,
-                minimumPoweredTorque: 0.186,
-                minimumDragTorque: 0.397,
+                minimumPoweredTorque: 0,
+                minimumDragTorque: 0.18,
                 minimumRecoverySlopeMargin: 0.0000151,
                 minimumRecoverySlope: 0,
                 minimumRecoveryTime: 145,
                 minimumDriveTime: 170,
-                driveHandleForcesMaxCapacity: 255,
+                driveHandleForcesMaxCapacity: 56,
+            },
+        },
+    },
+    "oldDanube2025/6M": {
+        profileId: "oldDanube",
+        name: "OldDanube 2025/6M",
+        settings: {
+            machineSettings: {
+                flywheelInertia: 0.0894,
+                magicConstant: 2.57,
+                sprocketRadius: 3.2,
+                impulsePerRevolution: 6,
+            },
+            sensorSignalSettings: {
+                rotationDebounceTime: 4,
+                rowingStoppedThreshold: 7,
+            },
+            dragFactorSettings: {
+                goodnessOfFitThreshold: 0.67,
+                maxDragFactorRecoveryPeriod: 4,
+                dragFactorLowerThreshold: 10,
+                dragFactorUpperThreshold: 200,
+                dragCoefficientsArrayLength: 5,
+            },
+            strokeDetectionSettings: {
+                strokeDetectionType: StrokeDetectionType.Torque,
+                impulseDataArrayLength: 10,
+                minimumPoweredTorque: 0,
+                minimumDragTorque: 0.06,
+                minimumRecoverySlopeMargin: 0.000001,
+                minimumRecoverySlope: 0,
+                minimumRecoveryTime: 145,
+                minimumDriveTime: 160,
+                driveHandleForcesMaxCapacity: 59,
             },
         },
     },

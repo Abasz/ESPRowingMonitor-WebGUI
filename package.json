@@ -33,6 +33,7 @@
         "chartjs-plugin-datalabels": "^2.2.0",
         "dexie": "^4.2.1",
         "dexie-export-import": "^4.1.4",
+        "fflate": "^0.8.2",
         "js-md5": "^0.8.3",
         "js2xmlparser": "^5.0.0",
         "ng2-charts": "^8.0.0",

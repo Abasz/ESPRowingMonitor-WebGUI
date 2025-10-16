@@ -4,6 +4,27 @@ import { BleServiceFlag, LogLevel } from "./ble.interfaces";
 
 // general
 
+export interface FirmwareAsset {
+    profileName: string;
+    profileId: string;
+    hardwareRevision?: string;
+    fileName: string;
+    size: number;
+}
+
+export interface FirmwareRelease {
+    version: string;
+    name: string;
+    publishedAt: string;
+    updatedAt: string;
+    assets: Array<FirmwareAsset>;
+}
+
+export interface VersionInfo {
+    timeStamp: string;
+    latestFirmwareRelease: FirmwareRelease;
+}
+
 export interface IValidationErrors {
     [key: string]: Array<{ message: string; validatorKey: string }>;
 }

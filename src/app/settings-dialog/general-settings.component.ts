@@ -2,6 +2,7 @@ import { DatePipe } from "@angular/common";
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     effect,
     input,
     InputSignal,
@@ -40,7 +41,7 @@ import { EnumToArrayPipe } from "../../common/utils/enum-to-array.pipe";
 import { getValidationErrors } from "../../common/utils/utility.functions";
 import { OtaDialogComponent } from "../ota-settings-dialog/ota-dialog.component";
 
-import { FirmwareUpdateCheckerService } from "./../../common/services/ergometer/firmware-update-checker.service";
+import { FirmwareUpdateManagerService } from "./../../common/services/ergometer/firmware-update-manager.service";
 
 type GeneralSettingsFormGroup = FormGroup<{
     bleMode: FormControl<BleServiceFlag>;
@@ -80,6 +81,11 @@ export class GeneralSettingsComponent implements OnInit {
 
     readonly rowerSettings: InputSignal<IRowerSettings> = input.required<IRowerSettings>();
     readonly deviceInfo: InputSignal<IDeviceInformation> = input.required<IDeviceInformation>();
+    readonly isSupportedDevice: Signal<boolean> = computed((): boolean => {
+        const hardwareRevision = this.deviceInfo().hardwareRevision;
+
+        return hardwareRevision !== undefined && hardwareRevision.toLowerCase() !== "custom";
+    });
     readonly isConnected: InputSignal<boolean> = input.required<boolean>();
     readonly isGuiUpdateInProgress: WritableSignal<boolean> = signal<boolean>(false);
 
@@ -89,7 +95,7 @@ export class GeneralSettingsComponent implements OnInit {
     readonly settingsFormErrors: Signal<ValidationErrors | null>;
 
     readonly compileDate: Date = new Date(versionInfo.timeStamp);
-    readonly firmwareReleaseUrl: string = FirmwareUpdateCheckerService.FIRMWARE_RELEASE_URL;
+    readonly firmwareReleaseUrl: string = FirmwareUpdateManagerService.FIRMWARE_RELEASE_URL;
 
     private readonly formValueChanged: Signal<
         Partial<
@@ -101,7 +107,7 @@ export class GeneralSettingsComponent implements OnInit {
     >;
 
     constructor(
-        public firmwareUpdateCheckerService: FirmwareUpdateCheckerService,
+        public firmwareUpdateManagerService: FirmwareUpdateManagerService,
         private swUpdate: SwUpdate,
         private dialog: MatDialog,
         private fb: NonNullableFormBuilder,
@@ -202,6 +208,16 @@ export class GeneralSettingsComponent implements OnInit {
                 file: inputElement.files[0],
             },
         });
+    }
+
+    async onFirmwareUpdateClick(): Promise<void> {
+        const hardwareRevision = this.deviceInfo().hardwareRevision;
+
+        if (!hardwareRevision) {
+            return;
+        }
+
+        await this.firmwareUpdateManagerService.openFirmwareSelector(hardwareRevision);
     }
 
     getForm(): GeneralSettingsFormGroup {
