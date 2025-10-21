@@ -597,13 +597,13 @@ describe("ErgMetricsService", (): void => {
                             },
                         });
 
-                    const testData1 = createHandleForcesDataView(10, 20, [1.1]);
-                    (await handleForceTrigger).triggerChanged(testData1);
+                    (await handleForceTrigger).triggerChanged(createHandleForcesDataView(10, 20, [1.1]));
+                    (await handleForceTrigger).triggerChanged(createHandleForcesDataView(15, 20, [4.1]));
+                    (await handleForceTrigger).triggerChanged(createHandleForcesDataView(19, 20, [10.1]));
 
                     expect(emittedValues).toHaveSize(0);
 
-                    const testData2 = createHandleForcesDataView(30, 30, [2.2]);
-                    (await handleForceTrigger).triggerChanged(testData2);
+                    (await handleForceTrigger).triggerChanged(createHandleForcesDataView(20, 20, [2.2]));
 
                     expect(emittedValues).toHaveSize(1);
                 });
