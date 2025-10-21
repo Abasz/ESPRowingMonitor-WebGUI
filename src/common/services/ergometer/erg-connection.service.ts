@@ -267,8 +267,6 @@ export class ErgConnectionService extends ErgConnections {
             .pipe(
                 startWith(document.visibilityState),
                 filter((): boolean => document.visibilityState === "visible"),
-            )
-            .pipe(
                 takeUntil(
                     this.connectionStatusSubject.pipe(
                         skip(1),

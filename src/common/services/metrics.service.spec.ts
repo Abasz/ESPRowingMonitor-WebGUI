@@ -346,7 +346,37 @@ describe("MetricsService", (): void => {
 
             measurementSubject.next(baseMetrics);
             heartRateSubject.next(mockHeartRate);
+            measurementSubject.next(baseMetrics);
+        });
+
+        it("should add session data to dataRecorder when only distance increases", (done: DoneFn): void => {
+            service.allMetrics$.pipe(skip(2)).subscribe((): void => {
+                expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(2);
+
+                done();
+            });
+
+            measurementSubject.next(baseMetrics);
+            heartRateSubject.next(mockHeartRate);
+            measurementSubject.next(baseMetrics);
+            measurementSubject.next(baseMetrics);
             measurementSubject.next(baseMetrics2);
+        });
+
+        it("should add session data to dataRecorder when only stroke count increases", (done: DoneFn): void => {
+            service.allMetrics$.pipe(skip(2)).subscribe((): void => {
+                expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(2);
+                const callArgs = mockDataRecorderService.addSessionData.calls.mostRecent().args[0];
+                expect(callArgs.strokeCount).toBeGreaterThan(0);
+
+                done();
+            });
+
+            measurementSubject.next(baseMetrics);
+            heartRateSubject.next(mockHeartRate);
+            measurementSubject.next(baseMetrics);
+            measurementSubject.next(baseMetrics);
+            measurementSubject.next({ ...baseMetrics, strokeCount: baseMetrics.strokeCount + 1 });
         });
 
         it("should add connected device to dataRecorder if connectionStatus.deviceName is defined", (done: DoneFn): void => {

@@ -9,6 +9,7 @@ import {
     Observable,
     of,
     retry,
+    share,
     startWith,
     switchMap,
     timer,
@@ -190,9 +191,11 @@ export class ErgMetricsService {
     private observeHandleForces$(
         handleForcesCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<Array<number>> {
-        return observeValue$(handleForcesCharacteristic).pipe(
+        const sharedValues$ = observeValue$(handleForcesCharacteristic).pipe(share());
+
+        return sharedValues$.pipe(
             buffer(
-                observeValue$(handleForcesCharacteristic).pipe(
+                sharedValues$.pipe(
                     filter((value: DataView): boolean => value.getUint8(0) === value.getUint8(1)),
                 ),
             ),
