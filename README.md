@@ -22,9 +22,9 @@ The WebGUI supports auto reconnect to previously paired device (reconnects to th
 
 However currently there are several limitations:
 
-- Theoretically any browser (with sufficient high version) should work that supports the Web Bluetooth API. However, it has only been tested in Chrome
-- WebGUI does not work on iOS because it does not support Web Bluetooth API on a device level (i.e. on iOS non of the browsers would work)
-- While theoretically MacOS support Web Bluetooth API, there are reports that the WebGUI does not work on MacOS in any browser (report if this is not the case)
+- Theoretically any browser (with sufficient high version) should work that supports the Web Bluetooth API. However, it has mostly been tested in Chrome (Windows and Android) and on iPhone XR (though not in native browsers like Safari or Chrome, etc.)
+- WebGUI does not work on iOS in Chrome or Safari because they do not support Web Bluetooth API on the device level for browsers. To have the GUI working, a special browser supporting the Web Bluetooth API like [Bluefy](https://apps.apple.com/us/app/bluefy-web-ble-browser/id1492822055) is necessary.
+- While theoretically MacOS support Web Bluetooth API, there are reports that the WebGUI does not work on MacOS in any browser (report if this is not the case). I dont have the hardware to test this.
 - For Chrome at least (but I suspect other browsers may too) require the `chrome://flags/#enable-web-bluetooth-new-permissions-backend` to be enabled for the reconnect feature to work correctly
 
 ## ANT+ Heart Rate Monitor Support
