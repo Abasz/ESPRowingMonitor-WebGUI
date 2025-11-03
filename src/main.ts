@@ -62,9 +62,9 @@ bootstrapApplication(AppComponent, {
         },
     ],
 }).catch((err: unknown): void => {
-    const match = navigator.userAgent.match(
-        /(?<ios>iPad|iPhone|iPod)|(?<ipadmac>Macintosh).*?(?=\))(?=.*?Mobile)|(?<browser>CriOS|Chrome|Safari|Firefox|Edg)/,
-    );
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && /Mobile/.test(ua));
+    const browser = (ua.match(/CriOS|Chrome|Safari|Firefox|Edg/) || [])[0];
 
     const overlay = document.getElementById("global-error-overlay");
     const msg = document.getElementById("global-error-message");
@@ -72,13 +72,16 @@ bootstrapApplication(AppComponent, {
     if (overlay && msg && advice) {
         overlay.classList.add("active");
         msg.textContent = err instanceof Error ? err.message : String(err);
-        if (match?.groups?.ios || (match?.groups?.ipadmac && "ontouchend" in window)) {
+        if (isIOS) {
             advice.innerHTML = `<p><strong>Browser compatibility:</strong></p>
-                <p>You are using iOS (${match?.groups?.browser ?? "Unknown"}). Web Bluetooth is <b>not supported</b> in any browser on iOS due to Apple platform restrictions. Please use a supported browser on Android, Windows, Linux, or macOS.</p>`;
+                <p>You are using iOS (${browser ?? "Unknown"}). Web Bluetooth is <b>not supported</b> in any browser on iOS due to Apple platform restrictions. Please use a supported browser on Android, Windows, Linux, or macOS.</p>`;
         } else {
             advice.innerHTML = "";
         }
     }
 
-    console.error("Angular bootstrap failed:", err);
+    console.error(
+        "Angular bootstrap failed:",
+        err instanceof Error ? `${err.message}\n${err.stack}` : String(err),
+    );
 });
