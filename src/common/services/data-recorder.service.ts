@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { IndexableTypePart, liveQuery } from "dexie";
+import { Dexie, IndexableTypePart, liveQuery } from "dexie";
 import { exportDB, ExportProgress, importInto, peakImportFile } from "dexie-export-import";
 import { ImportProgress } from "dexie-export-import/dist/import";
 import { parse } from "js2xmlparser";
@@ -140,9 +140,17 @@ export class DataRecorderService {
                         appDB.sessionData,
                         appDB.connectedDevice,
                         async (): Promise<Array<ISessionSummary | undefined>> => {
-                            const uniqueSessionIds = await appDB.sessionData
-                                .orderBy("sessionId")
-                                .uniqueKeys();
+                            const uniqueSessionIds = [];
+
+                            try {
+                                uniqueSessionIds.push(
+                                    ...(await appDB.sessionData.orderBy("sessionId").uniqueKeys()),
+                                );
+                            } catch (error) {
+                                if (!(error instanceof Dexie.UnknownError)) {
+                                    console.error("Error fetching unique session IDs:", error);
+                                }
+                            }
 
                             return Promise.all(
                                 uniqueSessionIds.map(

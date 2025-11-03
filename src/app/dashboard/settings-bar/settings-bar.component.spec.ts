@@ -10,6 +10,7 @@ import { MatIconHarness } from "@angular/material/icon/testing";
 import { MatToolbarHarness } from "@angular/material/toolbar/testing";
 import { MatTooltipHarness } from "@angular/material/tooltip/testing";
 import { BehaviorSubject } from "rxjs";
+import { map } from "rxjs/operators";
 
 import { BleServiceFlag, LogLevel } from "../../../common/ble.interfaces";
 import {
@@ -529,9 +530,36 @@ describe("SettingsBarComponent", (): void => {
             );
         });
 
-        it("should handle getSessionSummaries$ error", (): void => {
-            mockDataRecorderService.getSessionSummaries$.and.throwError("Test error");
-            expect((): void => component.openLogbook()).toThrow();
+        describe("when error occurs", (): void => {
+            it("should close spinner", (): void => {
+                const testError = new Error("Database error");
+                mockDataRecorderService.getSessionSummaries$.and.returnValue(
+                    new BehaviorSubject<Array<ISessionSummary>>([]).pipe(
+                        map((): Array<ISessionSummary> => {
+                            throw testError;
+                        }),
+                    ),
+                );
+
+                component.openLogbook();
+
+                expect(mockSpinner.close).toHaveBeenCalled();
+            });
+
+            it("should not open dialog", (): void => {
+                const testError = new Error("Data access error");
+                mockDataRecorderService.getSessionSummaries$.and.returnValue(
+                    new BehaviorSubject<Array<ISessionSummary>>([]).pipe(
+                        map((): Array<ISessionSummary> => {
+                            throw testError;
+                        }),
+                    ),
+                );
+
+                component.openLogbook();
+
+                expect(mockMatDialog.open).not.toHaveBeenCalled();
+            });
         });
     });
 

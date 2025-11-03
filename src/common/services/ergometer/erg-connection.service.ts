@@ -242,7 +242,13 @@ export class ErgConnectionService extends ErgConnections {
             });
 
             await this.connect(device);
-        } catch {
+        } catch (error) {
+            if (
+                error instanceof Error &&
+                !error.message.includes("User cancelled the requestDevice() chooser.")
+            ) {
+                console.error("Error during device discovery:", error);
+            }
             await this.reconnect();
         }
     }
