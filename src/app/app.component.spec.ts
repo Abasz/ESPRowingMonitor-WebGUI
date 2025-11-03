@@ -34,6 +34,7 @@ describe("AppComponent", (): void => {
 
         swUpdateSpy = jasmine.createSpyObj("SwUpdate", ["checkForUpdate"], {
             versionUpdates: versionUpdatesSubject.asObservable(),
+            isEnabled: true,
         });
 
         snackBarSpy = jasmine.createSpyObj("MatSnackBar", ["open", "openFromComponent"]);
@@ -161,8 +162,10 @@ describe("AppComponent", (): void => {
     });
 
     describe("constructor service worker integration", (): void => {
-        it("should not subscribe to version updates when in development mode", (): void => {
-            (globalThis as unknown as { ngDevMode: boolean }).ngDevMode = true;
+        it("should not subscribe to version updates when service worker is disabled", (): void => {
+            (
+                Object.getOwnPropertyDescriptor(swUpdateSpy, "isEnabled")?.get as jasmine.Spy<() => boolean>
+            ).and.returnValue(false);
             const versionUpdatesSpy = spyOn(swUpdateSpy.versionUpdates, "pipe").and.callThrough();
             fixture.detectChanges();
 
@@ -171,7 +174,11 @@ describe("AppComponent", (): void => {
 
         describe("when in production mode", (): void => {
             beforeEach((): void => {
-                (globalThis as unknown as { ngDevMode: boolean }).ngDevMode = false;
+                (
+                    Object.getOwnPropertyDescriptor(swUpdateSpy, "isEnabled")?.get as jasmine.Spy<
+                        () => boolean
+                    >
+                ).and.returnValue(true);
             });
 
             it("should subscribe to version updates", (): void => {
@@ -207,8 +214,10 @@ describe("AppComponent", (): void => {
     });
 
     describe("ngAfterViewInit method", (): void => {
-        it("should not check for service worker updates when in development mode", async (): Promise<void> => {
-            (globalThis as unknown as { ngDevMode: boolean }).ngDevMode = true;
+        it("should not check for service worker updates when service worker is disabled", async (): Promise<void> => {
+            (
+                Object.getOwnPropertyDescriptor(swUpdateSpy, "isEnabled")?.get as jasmine.Spy<() => boolean>
+            ).and.returnValue(false);
 
             await component.ngAfterViewInit();
 
@@ -217,7 +226,11 @@ describe("AppComponent", (): void => {
 
         describe("when in production mode", (): void => {
             beforeEach((): void => {
-                (globalThis as unknown as { ngDevMode: boolean }).ngDevMode = false;
+                (
+                    Object.getOwnPropertyDescriptor(swUpdateSpy, "isEnabled")?.get as jasmine.Spy<
+                        () => boolean
+                    >
+                ).and.returnValue(true);
             });
 
             it("should check for service worker updates when update check succeeds", async (): Promise<void> => {
