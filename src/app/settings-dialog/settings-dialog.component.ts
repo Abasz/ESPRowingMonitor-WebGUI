@@ -107,9 +107,9 @@ export class SettingsDialogComponent {
         this.dialogRef
             .keydownEvents()
             .pipe(takeUntilDestroyed())
-            .subscribe((event: KeyboardEvent): void => {
+            .subscribe(async (event: KeyboardEvent): Promise<void> => {
                 if (event.key === "Escape") {
-                    this.handleDialogClose();
+                    await this.handleDialogClose();
                 }
             });
     }

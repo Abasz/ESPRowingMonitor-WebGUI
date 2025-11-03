@@ -291,8 +291,8 @@ describe("BLEHeartRateService", (): void => {
                 const bluetooth = navigator.bluetooth as unknown as { requestDevice: jasmine.Spy };
                 expect(bluetooth.requestDevice).toHaveBeenCalledWith({
                     acceptAllDevices: false,
-                    filters: [{ services: ["heart_rate"] }],
-                    optionalServices: ["battery_service"],
+                    filters: [{ services: [HEART_RATE_SERVICE] }],
+                    optionalServices: [BATTERY_LEVEL_SERVICE],
                 });
             });
 
@@ -301,7 +301,7 @@ describe("BLEHeartRateService", (): void => {
 
                 const bluetooth = navigator.bluetooth as unknown as { requestDevice: jasmine.Spy };
                 const args = bluetooth.requestDevice.calls.argsFor(0)[0];
-                expect(args.optionalServices).toContain("battery_service");
+                expect(args.optionalServices).toContain(BATTERY_LEVEL_SERVICE);
             });
 
             it("should call connect with selected device", async (): Promise<void> => {

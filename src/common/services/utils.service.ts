@@ -14,7 +14,7 @@ import { SpinnerOverlay } from "../overlay/spinner-overlay.service";
     providedIn: "root",
 })
 export class UtilsService {
-    isHandset$: Observable<boolean> = this.breakpointObserver
+    readonly isHandset$: Observable<boolean> = this.breakpointObserver
         .observe([Breakpoints.Handset, Breakpoints.TabletPortrait])
         .pipe(map((result: BreakpointState): boolean => result.matches));
 

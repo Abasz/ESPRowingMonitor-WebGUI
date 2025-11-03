@@ -373,7 +373,7 @@ describe("ForceCurveComponent", (): void => {
                 const dataset = chartData.datasets[0];
 
                 expect(dataset.fill).toBe(true);
-                expect(dataset.label).toBe("Force Curve");
+                expect(dataset.label).toBe("");
                 expect(dataset.borderColor).toBe("rgb(31,119,180)");
                 expect(dataset.backgroundColor).toBe("rgb(31,119,180,0.5)");
                 expect(dataset.pointRadius).toBe(0);

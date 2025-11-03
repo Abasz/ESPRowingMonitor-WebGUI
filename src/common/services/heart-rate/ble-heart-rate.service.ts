@@ -1,4 +1,5 @@
-import { Injectable } from "@angular/core";
+import { DestroyRef, Injectable } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import {
     BehaviorSubject,
@@ -52,6 +53,7 @@ export class BLEHeartRateService implements IHeartRateService {
     constructor(
         private configManager: ConfigManagerService,
         private snackBar: MatSnackBar,
+        private destroyRef: DestroyRef,
     ) {}
 
     connectionStatus$(): Observable<IHRConnectionStatus> {
@@ -62,9 +64,11 @@ export class BLEHeartRateService implements IHeartRateService {
         await new Promise<void>((resolve: () => void): void => {
             if (this.bluetoothDevice !== undefined && this.bluetoothDevice.gatt?.connected) {
                 fromEvent(this.bluetoothDevice, "gattserverdisconnected")
-                    .pipe(take(1))
-                    .subscribe((): void => {
-                        resolve();
+                    .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+                    .subscribe({
+                        complete: (): void => {
+                            resolve();
+                        },
                     });
 
                 this.bluetoothDevice.gatt?.disconnect();
@@ -113,15 +117,13 @@ export class BLEHeartRateService implements IHeartRateService {
         }
 
         fromEvent<BluetoothAdvertisingEvent>(device, "advertisementreceived")
-            .pipe(take(1))
+            .pipe(take(1), takeUntilDestroyed(this.destroyRef))
             .subscribe(this.reconnectHandler);
 
         fromEvent(document, "visibilitychange")
             .pipe(
                 startWith(document.visibilityState),
                 filter((): boolean => document.visibilityState === "visible"),
-            )
-            .pipe(
                 takeUntil(
                     this.connectionStatusSubject.pipe(
                         skip(1),
@@ -129,6 +131,7 @@ export class BLEHeartRateService implements IHeartRateService {
                             (connectionStatus: IHRConnectionStatus): boolean =>
                                 connectionStatus.status !== "searching",
                         ),
+                        takeUntilDestroyed(this.destroyRef),
                     ),
                 ),
             )
@@ -251,7 +254,10 @@ export class BLEHeartRateService implements IHeartRateService {
             await this.connectToBattery(gatt);
 
             this.configManager.setItem("heartRateBleId", device.id);
-            fromEvent(device, "gattserverdisconnected").pipe(take(1)).subscribe(this.disconnectHandler);
+
+            fromEvent(device, "gattserverdisconnected")
+                .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+                .subscribe(this.disconnectHandler);
         } catch (error) {
             this.connectionStatusSubject.next({ status: "disconnected" });
             console.error("connect:", error);
@@ -396,6 +402,6 @@ export class BLEHeartRateService implements IHeartRateService {
     ): Promise<void> => {
         this.cancellationToken.abort();
 
-        this.connect(event.device);
+        await this.connect(event.device);
     };
 }

@@ -78,13 +78,19 @@ export class SettingsBarComponent {
         this.dataRecorder
             .getSessionSummaries$()
             .pipe(take(1), takeUntilDestroyed(this.destroyRef))
-            .subscribe((sessions: Array<ISessionSummary>): void => {
-                this.utils.mainSpinner().close();
-                this.dialog.open(LogbookDialogComponent, {
-                    autoFocus: false,
-                    data: sessions,
-                    maxWidth: "95vw",
-                });
+            .subscribe({
+                next: (sessions: Array<ISessionSummary>): void => {
+                    this.utils.mainSpinner().close();
+                    this.dialog.open(LogbookDialogComponent, {
+                        autoFocus: false,
+                        data: sessions,
+                        maxWidth: "95vw",
+                    });
+                },
+                error: (error: unknown): void => {
+                    this.utils.mainSpinner().close();
+                    console.error("Failed to load session summaries for logbook:", error);
+                },
             });
     }
 

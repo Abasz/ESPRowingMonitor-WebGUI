@@ -119,7 +119,7 @@ export class ForceCurveComponent {
         datasets: [
             {
                 fill: true,
-                label: "Force Curve",
+                label: "",
                 data: [],
                 borderColor: "rgb(31,119,180)",
                 backgroundColor: "rgb(31,119,180,0.5)",
