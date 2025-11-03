@@ -71,11 +71,6 @@ export class UtilsService {
                 filter((): boolean => document.visibilityState === "visible" && !this.wakeLock.enabled),
                 tap((): void => {
                     try {
-                        if ("wakeLock" in navigator) {
-                            this.wakeLock.enable();
-
-                            return;
-                        }
                         fromEvent(document, "click")
                             .pipe(take(1), takeUntilDestroyed(this.destroyRef))
                             .subscribe((): void => {

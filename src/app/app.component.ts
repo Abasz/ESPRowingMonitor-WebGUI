@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, isDevMode } from "@angular/core";
+import { AfterViewInit, ChangeDetectionStrategy, Component } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MatIconRegistry } from "@angular/material/icon";
 import { MatSnackBar } from "@angular/material/snack-bar";
@@ -43,7 +43,7 @@ export class AppComponent implements AfterViewInit {
                 this.firmwareUpdateChecker.checkForFirmwareUpdate();
             });
 
-        if (!isDevMode()) {
+        if (this.swUpdate.isEnabled) {
             this.swUpdate.versionUpdates
                 .pipe(
                     filter((evt: VersionEvent): evt is VersionReadyEvent => evt.type === "VERSION_READY"),
@@ -67,7 +67,7 @@ export class AppComponent implements AfterViewInit {
     }
 
     async ngAfterViewInit(): Promise<void> {
-        if (!isDevMode()) {
+        if (this.swUpdate.isEnabled) {
             try {
                 await this.swUpdate.checkForUpdate();
             } catch (err) {
