@@ -879,6 +879,251 @@ describe("DataRecorderService", (): void => {
         });
     });
 
+    describe("exportSessionToCsv method", (): void => {
+        let blobSpy: jasmine.Spy;
+        const testSessionId = 1234567890;
+
+        beforeEach(async (): Promise<void> => {
+            blobSpy = spyOn(window, "Blob").and.callThrough();
+
+            // enable real database operations for export tests
+            mockTransaction.and.callThrough();
+            connectedDevicePutSpy.and.callThrough();
+            connectedDeviceWhereSpy.and.callThrough();
+            deltaTimesPutSpy.and.callThrough();
+            deltaTimesWhereSpy.and.callThrough();
+            sessionDataAddSpy.and.callThrough();
+            sessionDataWhereSpy.and.callThrough();
+            sessionDataOrderBySpy.and.callThrough();
+            handleForcesPutSpy.and.callThrough();
+            handleForcesWhereSpy.and.callThrough();
+
+            // reset database and add test data
+            await appDB.transaction(
+                "rw",
+                appDB.sessionData,
+                appDB.connectedDevice,
+                appDB.deltaTimes,
+                appDB.handleForces,
+                async (): Promise<void> => {
+                    await appDB.sessionData.clear();
+                    await appDB.connectedDevice.clear();
+                    await appDB.deltaTimes.clear();
+                    await appDB.handleForces.clear();
+
+                    // add test session data
+                    await appDB.sessionData.add({
+                        sessionId: testSessionId,
+                        timeStamp: 1000000001,
+                        avgStrokePower: 150,
+                        distance: 1000,
+                        distPerStroke: 10,
+                        dragFactor: 120,
+                        driveDuration: 800,
+                        recoveryDuration: 1200,
+                        speed: 5.2,
+                        strokeCount: 100,
+                        strokeRate: 24,
+                        heartRate: { heartRate: 150, contactDetected: true, rrIntervals: [800, 850] },
+                    });
+
+                    await appDB.handleForces.put({
+                        sessionId: testSessionId,
+                        timeStamp: 1000000001,
+                        strokeId: 100,
+                        peakForce: 300,
+                        handleForces: [100, 200, 300, 250, 150],
+                    });
+                },
+            );
+        });
+
+        it("should create CSV blob with correct download filename", async (): Promise<void> => {
+            spyOn(URL, "createObjectURL").and.returnValue("blob:mock-url");
+            spyOn(URL, "revokeObjectURL");
+
+            await service.exportSessionToCsv(mockSessionId);
+
+            expect(blobSpy).toHaveBeenCalled();
+            expect(clickSpy).toHaveBeenCalled();
+            expect(anchorElement?.download).toMatch(/\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2} - session\.csv$/);
+        });
+
+        it("should create blob with correct MIME type", async (): Promise<void> => {
+            spyOn(URL, "createObjectURL").and.returnValue("blob:mock-url");
+            spyOn(URL, "revokeObjectURL");
+
+            await service.exportSessionToCsv(mockSessionId);
+
+            expect(blobSpy).toHaveBeenCalled();
+            const blobArgs = blobSpy.calls.mostRecent().args;
+            expect(blobArgs[1].type).toBe("text/csv");
+        });
+
+        it("should include CSV headers in exported content", async (): Promise<void> => {
+            spyOn(URL, "createObjectURL").and.returnValue("blob:mock-url");
+            spyOn(URL, "revokeObjectURL");
+
+            await service.exportSessionToCsv(mockSessionId);
+
+            expect(blobSpy).toHaveBeenCalled();
+            const csvContent = blobSpy.calls.mostRecent().args[0][0];
+
+            expect(csvContent).toContain("Stroke Number");
+            expect(csvContent).toContain("Elapsed Time");
+            expect(csvContent).toContain("Distance (m)");
+            expect(csvContent).toContain("Pace (500m)");
+            expect(csvContent).toContain("Speed (km/h)");
+            expect(csvContent).toContain("Stroke Power (W)");
+            expect(csvContent).toContain("Stroke Rate");
+            expect(csvContent).toContain("Heart Rate");
+            expect(csvContent).toContain("Drag Factor");
+            expect(csvContent).toContain("Peak Force (N)");
+            expect(csvContent).toContain("Handle Forces (N)");
+        });
+
+        it("should include session data in CSV format", async (): Promise<void> => {
+            spyOn(URL, "createObjectURL").and.returnValue("blob:mock-url");
+            spyOn(URL, "revokeObjectURL");
+
+            await service.exportSessionToCsv(mockSessionId);
+
+            const csvContent = blobSpy.calls.mostRecent().args[0][0];
+            const lines = csvContent.split("\n");
+
+            expect(lines.length).toBeGreaterThan(1);
+            const dataRow = lines[1];
+            expect(dataRow).withContext("strokeCount").toContain("100");
+            expect(dataRow).withContext("avgStrokePower or heartRate").toContain("150");
+        });
+
+        it("should format handle forces as quoted comma-separated values", async (): Promise<void> => {
+            spyOn(URL, "createObjectURL").and.returnValue("blob:mock-url");
+            spyOn(URL, "revokeObjectURL");
+
+            await service.exportSessionToCsv(mockSessionId);
+
+            const csvContent = blobSpy.calls.mostRecent().args[0][0];
+            const lines = csvContent.split("\n");
+            const dataRow = lines[1];
+
+            expect(dataRow)
+                .withContext("handle forces")
+                .toMatch(/"[\d.,]+"/);
+        });
+
+        it("should export session data with deltaTimes when available", async (): Promise<void> => {
+            spyOn(URL, "createObjectURL").and.returnValue("blob:mock-url");
+            spyOn(URL, "revokeObjectURL");
+
+            await appDB.deltaTimes.put({
+                sessionId: testSessionId,
+                timeStamp: 1000000010,
+                deltaTimes: [100, 150, 200],
+            });
+
+            await service.exportSessionToCsv(testSessionId);
+
+            expect(blobSpy).toHaveBeenCalledTimes(2);
+            expect(clickSpy).toHaveBeenCalledTimes(2);
+
+            const sessionDataBlob = blobSpy.calls.argsFor(0)[0][0];
+            const deltaTimesBlob = blobSpy.calls.argsFor(1)[0][0];
+
+            expect(sessionDataBlob).toContain("Stroke Number");
+            expect(sessionDataBlob).toContain("100");
+
+            expect(deltaTimesBlob).toContain("100");
+            expect(deltaTimesBlob).toContain("150");
+            expect(deltaTimesBlob).toContain("200");
+        });
+
+        it("should export session data without deltaTimes when not available", async (): Promise<void> => {
+            spyOn(URL, "createObjectURL").and.returnValue("blob:mock-url");
+            spyOn(URL, "revokeObjectURL");
+
+            await service.exportSessionToCsv(testSessionId);
+
+            expect(blobSpy).toHaveBeenCalledTimes(1);
+            expect(clickSpy).toHaveBeenCalledTimes(1);
+
+            const csvContent = blobSpy.calls.mostRecent().args[0][0];
+            expect(csvContent).toContain("Stroke Number");
+        });
+
+        describe("when Web Share API is available", (): void => {
+            it("should use navigator.share for CSV export", async (): Promise<void> => {
+                canShareSpy.and.returnValue(true);
+
+                await service.exportSessionToCsv(mockSessionId);
+
+                expect(shareSpy).toHaveBeenCalled();
+                expect(clickSpy).not.toHaveBeenCalled();
+
+                const shareCallArgs = shareSpy.calls.mostRecent().args[0] as ShareData;
+                expect(shareCallArgs.files).toBeDefined();
+                expect(shareCallArgs.files?.length).toBe(1);
+                expect(shareCallArgs.files?.[0].name).toMatch(
+                    /\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2} - session\.csv$/,
+                );
+                expect(shareCallArgs.files?.[0].type).toBe("text/csv");
+            });
+
+            it("should include CSV content in shared file", async (): Promise<void> => {
+                canShareSpy.and.returnValue(true);
+
+                await service.exportSessionToCsv(mockSessionId);
+
+                expect(shareSpy).toHaveBeenCalled();
+
+                const shareCallArgs = shareSpy.calls.mostRecent().args[0] as ShareData;
+                const file = shareCallArgs.files?.[0];
+                expect(file).toBeDefined();
+
+                const content = await file?.text();
+                expect(content).toContain("Stroke Number");
+                expect(content).toContain("Elapsed Time");
+            });
+
+            it("should share both session and deltaTimes CSV when available", async (): Promise<void> => {
+                canShareSpy.and.returnValue(true);
+
+                await appDB.deltaTimes.put({
+                    sessionId: testSessionId,
+                    timeStamp: 1000000010,
+                    deltaTimes: [100, 150, 200],
+                });
+
+                await service.exportSessionToCsv(testSessionId);
+
+                expect(shareSpy).toHaveBeenCalled();
+
+                const shareCallArgs = shareSpy.calls.mostRecent().args[0] as ShareData;
+                expect(shareCallArgs.files).toBeDefined();
+                expect(shareCallArgs.files?.length).toBe(2);
+
+                const fileNames = shareCallArgs.files?.map((file: File): string => file.name) ?? [];
+                expect(fileNames.some((name: string): boolean => name.includes("session"))).toBe(true);
+                expect(fileNames.some((name: string): boolean => name.includes("deltaTimes"))).toBe(true);
+
+                const sessionFile = shareCallArgs.files?.find((file: File): boolean =>
+                    file.name.includes("session"),
+                );
+                const deltaTimesFile = shareCallArgs.files?.find((file: File): boolean =>
+                    file.name.includes("deltaTimes"),
+                );
+
+                expect(sessionFile?.type).toBe("text/csv");
+                expect(deltaTimesFile?.type).toBe("text/csv");
+
+                const deltaTimesContent = await deltaTimesFile?.text();
+                expect(deltaTimesContent).toContain("100");
+                expect(deltaTimesContent).toContain("150");
+                expect(deltaTimesContent).toContain("200");
+            });
+        });
+    });
+
     describe("import method", (): void => {
         const mockImportData = {
             formatName: "dexie",

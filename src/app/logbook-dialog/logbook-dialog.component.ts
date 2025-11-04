@@ -213,6 +213,18 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
         }
     }
 
+    async exportToCsv(sessionId: number): Promise<void> {
+        try {
+            await this.dataRecorder.exportSessionToCsv(sessionId);
+        } catch (e) {
+            if (e instanceof Error) {
+                this.snackBar.open(`Error while downloading session: ${e.message}`, "Dismiss");
+            }
+
+            console.error(e);
+        }
+    }
+
     async import(event: Event): Promise<void> {
         this.importExportProgress.set(0);
         const file = (event.target as HTMLInputElement)?.files?.[0];

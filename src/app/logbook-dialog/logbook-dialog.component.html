@@ -82,5 +82,6 @@
     <ng-template matMenuContent let-sessionId="sessionId">
         <button mat-menu-item (click)="exportToJson(sessionId)">JSON</button>
         <button mat-menu-item (click)="exportToTcx(sessionId)">TCX (Strava)</button>
+        <button mat-menu-item (click)="exportToCsv(sessionId)">CSV</button>
     </ng-template>
 </mat-menu>

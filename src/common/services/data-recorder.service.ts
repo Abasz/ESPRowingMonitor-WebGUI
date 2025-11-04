@@ -136,6 +136,31 @@ export class DataRecorderService {
         this.createDownload([{ blob, name }]);
     }
 
+    async exportSessionToCsv(sessionId: number): Promise<void> {
+        const [deltaTimes, rowingSessionData]: [Array<number>, Array<ExportSessionData>] = await Promise.all([
+            this.getDeltaTimes(sessionId),
+            this.getSessionData(sessionId),
+        ]);
+
+        const csvContent = this.formatSessionCsv(rowingSessionData);
+
+        const files: Array<{ blob: Blob; name: string }> = [
+            {
+                blob: new Blob([csvContent], { type: "text/csv" }),
+                name: `${new Date(sessionId).toDateTimeStringFormat()} - session.csv`,
+            },
+        ];
+
+        if (deltaTimes.length > 0) {
+            const deltaTimesContent = this.formatDeltaTimesCsv(deltaTimes);
+            const blob = new Blob([deltaTimesContent], { type: "text/csv" });
+            const name = `${new Date(sessionId).toDateTimeStringFormat()} - deltaTimes.csv`;
+            files.push({ blob, name });
+        }
+
+        this.createDownload(files);
+    }
+
     getSessionSummaries$(): Observable<Array<ISessionSummary>> {
         return from(
             liveQuery(
@@ -253,6 +278,67 @@ export class DataRecorderService {
             downloadTag.click();
             window.URL.revokeObjectURL(url);
         }
+    }
+
+    private formatSessionCsv(rowingSessionData: Array<ExportSessionData>): string {
+        const headers = [
+            "Stroke Number",
+            "Elapsed Time",
+            "Distance (m)",
+            "Pace (500m)",
+            "Speed (km/h)",
+            "Stroke Power (W)",
+            "Stroke Rate",
+            "Distance per Stroke (m)",
+            "Drive Duration (s)",
+            "Recovery Duration (s)",
+            "Heart Rate",
+            "Drag Factor",
+            "Peak Force (N)",
+            "Handle Forces (N)",
+        ].join(",");
+
+        const startTime = rowingSessionData[0].timeStamp.getTime();
+
+        const csvBody = rowingSessionData.reduce(
+            (accumulator: string, data: ExportSessionData, index: number): string => {
+                if (index > 0 && rowingSessionData[index - 1].strokeCount === data.strokeCount) {
+                    return accumulator;
+                }
+
+                const handleForcesFormatted = `"${data.handleForces.map((force: number): string => force.toFixed(2)).join(",")}"`;
+                const heartRateValue =
+                    data.heartRate?.heartRate !== null && data.heartRate?.heartRate !== undefined
+                        ? data.heartRate.heartRate.toString()
+                        : "NaN";
+
+                const row = [
+                    data.strokeCount.toString(),
+                    ((data.timeStamp.getTime() - startTime) / 1000).toFixed(2),
+                    (data.distance / 100).toString(),
+                    (500 / data.speed).toFixed(2),
+                    (data.speed * 3.6).toFixed(2),
+                    data.avgStrokePower.toString(),
+                    Math.round(data.strokeRate).toString(),
+                    data.distPerStroke.toString(),
+                    data.driveDuration.toFixed(2),
+                    data.recoveryDuration.toFixed(2),
+                    heartRateValue,
+                    data.dragFactor.toString(),
+                    data.peakForce.toFixed(2),
+                    handleForcesFormatted,
+                ];
+
+                return `${accumulator}${row.join(",")}\n`;
+            },
+            "",
+        );
+
+        return `${headers}\n${csvBody}`;
+    }
+
+    private formatDeltaTimesCsv(deltaTimes: Array<number>): string {
+        return deltaTimes.map((deltaTime: number): string => deltaTime.toString()).join("\n");
     }
 
     private async getDeltaTimes(sessionId: number): Promise<Array<number>> {

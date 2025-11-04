@@ -55,6 +55,7 @@ describe("LogbookDialogComponent", (): void => {
             "export",
             "exportSessionToJson",
             "exportSessionToTcx",
+            "exportSessionToCsv",
             "import",
         ]);
         dataRecorderSpy.getSessionSummaries$.and.returnValue(summaries$.asObservable());
@@ -342,7 +343,7 @@ describe("LogbookDialogComponent", (): void => {
             expect(await menu.isOpen()).toBeFalsy();
             await button.click();
             expect(await menu.isOpen()).toBeTruthy();
-            expect(await menu.getItems()).toHaveSize(2);
+            expect(await menu.getItems()).toHaveSize(3);
         });
 
         it("should call exportSessionToJson with sessionId when JSON option clicked", async (): Promise<void> => {
@@ -362,19 +363,25 @@ describe("LogbookDialogComponent", (): void => {
 
             expect(dataRecorderSpy.exportSessionToTcx).toHaveBeenCalledWith(SESSIONS[0].sessionId);
         });
+
+        it("should call exportSessionToCsv with sessionId when CSV option clicked", async (): Promise<void> => {
+            summaries$.next(SESSIONS);
+            fixture.detectChanges();
+
+            await component.exportToCsv(SESSIONS[0].sessionId);
+
+            expect(dataRecorderSpy.exportSessionToCsv).toHaveBeenCalledWith(SESSIONS[0].sessionId);
+        });
     });
 
     describe("exportToJson method", (): void => {
         it("should call respective service method with the given sessionId", async (): Promise<void> => {
-            // arrange
             summaries$.next(SESSIONS);
             dataRecorderSpy.exportSessionToJson.and.resolveTo();
             fixture.detectChanges();
 
-            // act
             await component.exportToJson(SESSIONS[0].sessionId);
 
-            // assert
             expect(dataRecorderSpy.exportSessionToJson).toHaveBeenCalledWith(SESSIONS[0].sessionId);
         });
 
@@ -386,7 +393,6 @@ describe("LogbookDialogComponent", (): void => {
             );
             fixture.detectChanges();
 
-            // act
             await component.exportToJson(SESSIONS[0].sessionId);
 
             // assert
@@ -404,7 +410,6 @@ describe("LogbookDialogComponent", (): void => {
             dataRecorderSpy.exportSessionToTcx.and.resolveTo();
             fixture.detectChanges();
 
-            // act
             await component.exportToTcx(SESSIONS[0].sessionId);
 
             // assert
@@ -417,12 +422,36 @@ describe("LogbookDialogComponent", (): void => {
             dataRecorderSpy.exportSessionToTcx.and.rejectWith(new Error("export tcx error"));
             fixture.detectChanges();
 
-            // act
             await component.exportToTcx(SESSIONS[0].sessionId);
 
             // assert
             expect(snackBarSpy.open).toHaveBeenCalledWith(
                 jasmine.stringMatching(/Error while downloading session: export tcx error/),
+                "Dismiss",
+            );
+        });
+    });
+
+    describe("exportToCsv method", (): void => {
+        it("should call respective service method with the given sessionId", async (): Promise<void> => {
+            summaries$.next(SESSIONS);
+            dataRecorderSpy.exportSessionToCsv.and.resolveTo();
+            fixture.detectChanges();
+
+            await component.exportToCsv(SESSIONS[0].sessionId);
+
+            expect(dataRecorderSpy.exportSessionToCsv).toHaveBeenCalledWith(SESSIONS[0].sessionId);
+        });
+
+        it("shows snackbar on exportToCsv error", async (): Promise<void> => {
+            summaries$.next(SESSIONS);
+            dataRecorderSpy.exportSessionToCsv.and.rejectWith(new Error("export csv error"));
+            fixture.detectChanges();
+
+            await component.exportToCsv(SESSIONS[0].sessionId);
+
+            expect(snackBarSpy.open).toHaveBeenCalledWith(
+                jasmine.stringMatching(/Error while downloading session: export csv error/),
                 "Dismiss",
             );
         });
