@@ -35,13 +35,13 @@ export const createExtendedMetricsDataView = (
     recoveryDuration: number = 8192,
     dragFactor: number = 100,
 ): DataView => {
-    const buffer = new ArrayBuffer(7);
+    const buffer = new ArrayBuffer(8);
     const dataView = new DataView(buffer);
 
     dataView.setUint16(0, avgStrokePower, true);
     dataView.setUint16(2, driveDuration, true);
     dataView.setUint16(4, recoveryDuration, true);
-    dataView.setUint8(6, dragFactor);
+    dataView.setUint16(6, dragFactor, true);
 
     return dataView;
 };

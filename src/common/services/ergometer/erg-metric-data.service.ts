@@ -178,8 +178,8 @@ export class ErgMetricsService {
                 (value: DataView): IExtendedMetrics => ({
                     avgStrokePower: value.getUint16(0, true),
                     driveDuration: Math.round((value.getUint16(2, true) / 4096) * 1e6),
-                    recoveryDuration: Math.round((value.getUint16(2 + 2, true) / 4096) * 1e6),
-                    dragFactor: value.getUint8(2 + 2 + 2),
+                    recoveryDuration: Math.round((value.getUint16(4, true) / 4096) * 1e6),
+                    dragFactor: value.byteLength >= 8 ? value.getUint16(6, true) : value.getUint8(6),
                 }),
             ),
             finalize((): void => {

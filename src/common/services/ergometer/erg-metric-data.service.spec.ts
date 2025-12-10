@@ -403,6 +403,59 @@ describe("ErgMetricsService", (): void => {
                 });
             });
 
+            it("should parse 16-bit dragFactor values correctly", async (): Promise<void> => {
+                const emittedValues: Array<IExtendedMetrics> = [];
+
+                service
+                    .streamExtended$()
+                    .pipe(takeUntil(destroySubject))
+                    .subscribe({
+                        next: (value: IExtendedMetrics): void => {
+                            emittedValues.push(value);
+                        },
+                    });
+
+                (await extendedTrigger).triggerChanged(createExtendedMetricsDataView(250, 3000, 5000, 512));
+
+                expect(emittedValues).toHaveSize(1);
+                expect(emittedValues[0]).toEqual({
+                    avgStrokePower: 250,
+                    driveDuration: Math.round((3000 / 4096) * 1e6),
+                    recoveryDuration: Math.round((5000 / 4096) * 1e6),
+                    dragFactor: 512,
+                });
+            });
+
+            it("should support backward compatibility with 7-byte packets (old format)", async (): Promise<void> => {
+                const emittedValues: Array<IExtendedMetrics> = [];
+
+                service
+                    .streamExtended$()
+                    .pipe(takeUntil(destroySubject))
+                    .subscribe({
+                        next: (value: IExtendedMetrics): void => {
+                            emittedValues.push(value);
+                        },
+                    });
+
+                const buffer = new ArrayBuffer(7);
+                const dataView = new DataView(buffer);
+                dataView.setUint16(0, 180, true);
+                dataView.setUint16(2, 2500, true);
+                dataView.setUint16(4, 4500, true);
+                dataView.setUint8(6, 100);
+
+                (await extendedTrigger).triggerChanged(dataView);
+
+                expect(emittedValues).toHaveSize(1);
+                expect(emittedValues[0]).toEqual({
+                    avgStrokePower: 180,
+                    driveDuration: Math.round((2500 / 4096) * 1e6),
+                    recoveryDuration: Math.round((4500 / 4096) * 1e6),
+                    dragFactor: 100,
+                });
+            });
+
             it("should reset extended characteristic when observable completes", async (): Promise<void> => {
                 const extendedValueChangeReady = createExtendedValueChangedListenerReady();
                 const disconnectReady = createDisconnectChangedListenerReady();
