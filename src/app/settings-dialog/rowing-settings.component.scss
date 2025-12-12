@@ -26,6 +26,12 @@
         grid-gap: 12px;
     }
 
+    // New firmware: impulse array spans full width at top, stroke type below
+    .new-impulse-array {
+        grid-column: 1 / -1;
+        grid-row: 1;
+    }
+
     .slider-container {
         display: flex;
         flex-direction: column;

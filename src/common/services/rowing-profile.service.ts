@@ -48,7 +48,7 @@ export class RowingProfileService {
                 return undefined;
             }
 
-            return JSON.parse(stored);
+            return JSON.parse(stored) as IRowingProfileSettings;
         } catch (error) {
             console.warn("Failed to load custom profile from localStorage:", error);
 

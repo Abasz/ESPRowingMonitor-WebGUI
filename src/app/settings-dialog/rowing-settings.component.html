@@ -242,7 +242,7 @@
                     </mat-select>
                 </mat-form-field>
 
-                <div class="slider-container">
+                <div class="slider-container" [class.new-impulse-array]="!showMinimumRecoverySlopeMargin()">
                     <span>Impulse Data Array Size:</span>
                     <mat-slider
                         min="1"
@@ -292,30 +292,35 @@
                     }
                 </mat-form-field>
 
-                <mat-form-field>
-                    <mat-label>Minimum Recovery Slope Margin</mat-label>
-                    <input matInput formControlName="minimumRecoverySlopeMargin" type="number" step="0.01" />
-                    @if (settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlopeMargin) {
-                        <mat-error>
-                            @if (
-                                settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlopeMargin
-                                    ?.required
-                            ) {
-                                Field is required
-                            }
-                            @if (
-                                settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlopeMargin?.min
-                            ) {
-                                Minimum value is 0
-                            }
-                            @if (
-                                settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlopeMargin?.max
-                            ) {
-                                Maximum value is 1
-                            }
-                        </mat-error>
-                    }
-                </mat-form-field>
+                @if (showMinimumRecoverySlopeMargin()) {
+                    <mat-form-field>
+                        <mat-label>Minimum Recovery Slope Margin (Deprecated)</mat-label>
+                        <input
+                            matInput
+                            formControlName="minimumRecoverySlopeMargin"
+                            type="number"
+                            step="0.01"
+                        />
+                        @if (settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlopeMargin) {
+                            <mat-error>
+                                @if (
+                                    settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlopeMargin
+                                        ?.required
+                                ) {
+                                    Field is required
+                                }
+                                @if (
+                                    settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlopeMargin
+                                        ?.min ||
+                                    settingsFormErrors()?.strokeDetectionSettings?.minimumRecoverySlopeMargin
+                                        ?.max
+                                ) {
+                                    Deprecated setting should be 0
+                                }
+                            </mat-error>
+                        }
+                    </mat-form-field>
+                }
 
                 <mat-form-field>
                     <mat-label>Minimum Recovery Slope</mat-label>

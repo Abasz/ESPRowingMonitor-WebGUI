@@ -153,7 +153,11 @@ export interface IStrokeDetectionSettings {
     impulseDataArrayLength: number;
     minimumPoweredTorque: number;
     minimumDragTorque: number;
-    minimumRecoverySlopeMargin: number;
+    /**
+     * @deprecated This setting is deprecated and only used for firmware versions prior to ESPRM v7.0.0.
+     * New firmware omits this property. For legacy firmware, only value 0 is allowed.
+     */
+    minimumRecoverySlopeMargin?: number;
     minimumRecoverySlope: number;
     minimumRecoveryTime: number;
     minimumDriveTime: number;

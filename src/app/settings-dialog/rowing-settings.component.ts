@@ -2,6 +2,7 @@ import { DecimalPipe, KeyValuePipe } from "@angular/common";
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     effect,
     input,
     InputSignal,
@@ -43,6 +44,7 @@ import {
     IDragFactorSettings,
     IMachineSettings,
     IRowerSettings,
+    IRowingProfileSettings,
     ISensorSignalSettings,
     IStrokeDetectionSettings,
     IValidationErrors,
@@ -123,6 +125,12 @@ export class RowingSettingsComponent implements OnInit {
     readonly settingsForm: RowingSettingsFormGroup;
     readonly settingsFormErrors: Signal<ValidationErrors | null>;
     readonly strokeDetectionType: Signal<StrokeDetectionType>;
+    /**
+     * Whether to show the minimumRecoverySlopeMargin field.
+     * Returns false for new firmware (NaN value), true for legacy firmware.
+     * @deprecated This setting is deprecated and will be removed in a future version.
+     */
+    readonly showMinimumRecoverySlopeMargin: Signal<boolean>;
 
     readonly selectedProfileKey: string | undefined;
     readonly availableProfiles: WritableSignal<Record<string, ProfileData>>;
@@ -214,7 +222,8 @@ export class RowingSettingsComponent implements OnInit {
                     ],
                     minimumRecoverySlopeMargin: [
                         { value: 0, disabled: true },
-                        [Validators.required, Validators.min(0), Validators.max(1)],
+                        // deprecated: only allow 0 for legacy firmware
+                        [Validators.required, Validators.min(0), Validators.max(0)],
                     ],
                     minimumRecoverySlope: [
                         { value: 0, disabled: true },
@@ -252,6 +261,13 @@ export class RowingSettingsComponent implements OnInit {
             { requireSync: true },
         );
 
+        this.showMinimumRecoverySlopeMargin = computed((): boolean => {
+            const value =
+                this.rowerSettings().rowingSettings.strokeDetectionSettings.minimumRecoverySlopeMargin;
+
+            return value !== undefined && !Number.isNaN(value);
+        });
+
         this.formValueChanged = toSignal(
             this.settingsForm.valueChanges.pipe(startWith(this.settingsForm.value)),
             {
@@ -267,6 +283,14 @@ export class RowingSettingsComponent implements OnInit {
         effect((): void => {
             const strokeDetectionType = this.strokeDetectionType();
             this.updateDynamicFieldStates(strokeDetectionType);
+        });
+
+        effect((): void => {
+            // mark minimumRecoverySlopeMargin as touched when field is shown
+            // so validation errors display immediately when user navigates to the tab
+            if (this.showMinimumRecoverySlopeMargin()) {
+                this.settingsForm.get("strokeDetectionSettings.minimumRecoverySlopeMargin")?.markAsTouched();
+            }
         });
     }
 
@@ -339,11 +363,36 @@ export class RowingSettingsComponent implements OnInit {
             return;
         }
 
+        // handle minimumRecoverySlopeMargin based on current firmware:
+        // - if current firmware has NaN (new firmware), always use NaN
+        // - if current firmware has valid number (legacy firmware) and profile has NaN/undefined/missing, use 0
+        // - otherwise use profile value
+        const currentMinimumRecoverySlopeMargin =
+            this.rowerSettings().rowingSettings.strokeDetectionSettings.minimumRecoverySlopeMargin;
+        let profileMinimumRecoverySlopeMargin =
+            profileData.settings.strokeDetectionSettings.minimumRecoverySlopeMargin;
+
+        if (profileMinimumRecoverySlopeMargin === undefined) {
+            profileMinimumRecoverySlopeMargin = NaN;
+        }
+
+        let minimumRecoverySlopeMarginToUse: number;
+        if (Number.isNaN(currentMinimumRecoverySlopeMargin)) {
+            minimumRecoverySlopeMarginToUse = NaN;
+        } else if (Number.isNaN(profileMinimumRecoverySlopeMargin)) {
+            minimumRecoverySlopeMarginToUse = 0;
+        } else {
+            minimumRecoverySlopeMarginToUse = profileMinimumRecoverySlopeMargin;
+        }
+
         this.settingsForm.reset({
             machineSettings: profileData.settings.machineSettings,
             sensorSignalSettings: profileData.settings.sensorSignalSettings,
             dragFactorSettings: profileData.settings.dragFactorSettings,
-            strokeDetectionSettings: profileData.settings.strokeDetectionSettings,
+            strokeDetectionSettings: {
+                ...profileData.settings.strokeDetectionSettings,
+                minimumRecoverySlopeMargin: minimumRecoverySlopeMarginToUse,
+            },
         });
 
         this._isProfileLoaded = true;
@@ -351,7 +400,28 @@ export class RowingSettingsComponent implements OnInit {
 
     saveAsCustomProfile(): void {
         if (this.settingsForm.dirty) {
-            this.rowingProfileService.saveAsCustomProfile(this.settingsForm.getRawValue());
+            const formValue = this.settingsForm.getRawValue();
+
+            const strokeSettings = formValue.strokeDetectionSettings;
+            let settingsToSave: IRowingProfileSettings;
+
+            if (Number.isNaN(strokeSettings.minimumRecoverySlopeMargin)) {
+                const {
+                    minimumRecoverySlopeMargin: _minimumRecoverySlopeMargin,
+                    ...restStrokeSettings
+                }: IStrokeDetectionSettings = strokeSettings;
+                settingsToSave = {
+                    ...formValue,
+                    strokeDetectionSettings: restStrokeSettings as Omit<
+                        IStrokeDetectionSettings,
+                        "isCompiledWithDouble"
+                    >,
+                };
+            } else {
+                settingsToSave = formValue as IRowingProfileSettings;
+            }
+
+            this.rowingProfileService.saveAsCustomProfile(settingsToSave);
             this.availableProfiles.set(this.rowingProfileService.getAllProfiles());
         }
     }
@@ -388,7 +458,8 @@ export class RowingSettingsComponent implements OnInit {
             minimumRecoverySlope.enable();
         }
 
-        if (strokeDetectionType === StrokeDetectionType.Slope) {
+        // for new firmware (minimumRecoverySlopeMargin is NaN), always keep it disabled
+        if (!this.showMinimumRecoverySlopeMargin() || strokeDetectionType === StrokeDetectionType.Slope) {
             minimumRecoverySlopeMargin.disable();
         } else {
             minimumRecoverySlopeMargin.enable();

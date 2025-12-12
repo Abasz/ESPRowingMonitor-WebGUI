@@ -775,7 +775,7 @@ describe("ErgSettingsService rowing control-point API", (): void => {
                 // verify recovery slope margin (float32)
                 expect(payload.getFloat32(6, true))
                     .withContext("SetStrokeDetectionSettings: minimumRecoverySlopeMargin")
-                    .toBeCloseTo(mockStrokeDetectionSettings.minimumRecoverySlopeMargin, 5);
+                    .toBeCloseTo(mockStrokeDetectionSettings.minimumRecoverySlopeMargin!, 5);
 
                 // verify recovery slope (scaled to int16)
                 expect(payload.getInt16(10, true))

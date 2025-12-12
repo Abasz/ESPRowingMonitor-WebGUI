@@ -436,8 +436,9 @@ export const createMockStrokeSettingsDataView = (
     strokeDetectionType: number = 1,
     impulseDataArrayLength: number = 8,
     isCompiledWithDouble: boolean = true,
+    includeDeprecatedField: boolean = false,
 ): DataView => {
-    const buffer = new ArrayBuffer(15);
+    const buffer = new ArrayBuffer(includeDeprecatedField ? 15 : 11);
     const dataView = new DataView(buffer);
 
     // byte 0: strokeDetectionType (2 bits) + impulseDataArrayLength (5 bits) + isCompiledWithDouble (1 bit)
@@ -451,13 +452,24 @@ export const createMockStrokeSettingsDataView = (
     dataView.setUint16(1, Math.round(0.15 * 10000), true); // minimumPoweredTorque
     dataView.setUint16(3, Math.round(0.05 * 10000), true); // minimumDragTorque
 
-    // Recovery slope margin
-    dataView.setFloat32(5, 0.035, true); // minimumRecoverySlopeMargin
+    if (!includeDeprecatedField) {
+        // new format without minimumRecoverySlopeMargin
+        dataView.setInt16(5, Math.round(-0.1 * 1000), true); // minimumRecoverySlope
 
-    // Recovery slope (scaled)
-    dataView.setInt16(9, Math.round(-0.1 * 1000), true); // minimumRecoverySlope
+        const minimumRecoveryTime = 200;
+        const minimumDriveTime = 300;
+        const timingValue = (minimumRecoveryTime & 0x0fff) | ((minimumDriveTime & 0x0fff) << 12);
+        dataView.setUint8(7, timingValue & 0xff);
+        dataView.setUint8(8, (timingValue >> 8) & 0xff);
+        dataView.setUint8(9, (timingValue >> 16) & 0xff);
 
-    // Timing values packed in 3 bytes
+        dataView.setUint8(10, 50); // driveHandleForcesMaxCapacity
+
+        return dataView;
+    }
+
+    dataView.setInt16(9, Math.round(-0.1 * 1000), true);
+
     const minimumRecoveryTime = 200;
     const minimumDriveTime = 300;
     const timingValue = (minimumRecoveryTime & 0x0fff) | ((minimumDriveTime & 0x0fff) << 12);
@@ -465,7 +477,6 @@ export const createMockStrokeSettingsDataView = (
     dataView.setUint8(12, (timingValue >> 8) & 0xff);
     dataView.setUint8(13, (timingValue >> 16) & 0xff);
 
-    // drive handle forces max capacity
     dataView.setUint8(14, 50); // driveHandleForcesMaxCapacity
 
     return dataView;

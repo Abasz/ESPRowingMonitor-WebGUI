@@ -430,25 +430,10 @@ export class ErgSettingsService {
 
             const responseTask = firstValueFrom(observeValue$(characteristic).pipe(timeout(1000)));
 
-            const payload = new DataView(new ArrayBuffer(16));
-            payload.setUint8(0, BleOpCodes.SetStrokeDetectionSettings);
-
-            const strokeDetectionTypeBits = strokeDetectionSettings.strokeDetectionType & 0x03;
-            const impulseDataArrayLengthBits = (strokeDetectionSettings.impulseDataArrayLength & 0x3f) << 2;
-            payload.setUint8(1, strokeDetectionTypeBits | impulseDataArrayLengthBits);
-
-            payload.setInt16(2, Math.round(strokeDetectionSettings.minimumPoweredTorque * 10000), true);
-            payload.setInt16(4, Math.round(strokeDetectionSettings.minimumDragTorque * 10000), true);
-            payload.setFloat32(6, strokeDetectionSettings.minimumRecoverySlopeMargin, true);
-            payload.setInt16(10, Math.round(strokeDetectionSettings.minimumRecoverySlope * 1000), true);
-
-            const recoveryTimeBits = strokeDetectionSettings.minimumRecoveryTime & 0x0fff;
-            const driveTimeBits = (strokeDetectionSettings.minimumDriveTime & 0x0fff) << 12;
-            const strokeTimingValue = recoveryTimeBits | driveTimeBits;
-            payload.setUint8(12, strokeTimingValue & 0xff);
-            payload.setUint8(13, (strokeTimingValue >> 8) & 0xff);
-            payload.setUint8(14, (strokeTimingValue >> 16) & 0xff);
-            payload.setUint8(15, strokeDetectionSettings.driveHandleForcesMaxCapacity);
+            const isNewFirmware = Number.isNaN(strokeDetectionSettings.minimumRecoverySlopeMargin);
+            const payload = isNewFirmware
+                ? this.createStrokeSettingsPayload(strokeDetectionSettings)
+                : this.createLegacyStrokeSettingsPayload(strokeDetectionSettings);
 
             await characteristic.startNotifications();
             await characteristic.writeValueWithoutResponse(payload);
@@ -503,6 +488,57 @@ export class ErgSettingsService {
             this.snackBar.open(errorMessage, "Dismiss");
             console.error("restartDevice:", error);
         }
+    }
+
+    private createStrokeSettingsPayload(
+        strokeDetectionSettings: Omit<IStrokeDetectionSettings, "isCompiledWithDouble">,
+    ): DataView<ArrayBuffer> {
+        const payload = new DataView(new ArrayBuffer(12));
+        payload.setUint8(0, BleOpCodes.SetStrokeDetectionSettings);
+
+        const strokeDetectionTypeBits = strokeDetectionSettings.strokeDetectionType & 0x03;
+        const impulseDataArrayLengthBits = (strokeDetectionSettings.impulseDataArrayLength & 0x3f) << 2;
+        payload.setUint8(1, strokeDetectionTypeBits | impulseDataArrayLengthBits);
+
+        payload.setInt16(2, Math.round(strokeDetectionSettings.minimumPoweredTorque * 10000), true);
+        payload.setInt16(4, Math.round(strokeDetectionSettings.minimumDragTorque * 10000), true);
+        payload.setInt16(6, Math.round(strokeDetectionSettings.minimumRecoverySlope * 1000), true);
+
+        const recoveryTimeBits = strokeDetectionSettings.minimumRecoveryTime & 0x0fff;
+        const driveTimeBits = (strokeDetectionSettings.minimumDriveTime & 0x0fff) << 12;
+        const strokeTimingValue = recoveryTimeBits | driveTimeBits;
+        payload.setUint8(8, strokeTimingValue & 0xff);
+        payload.setUint8(9, (strokeTimingValue >> 8) & 0xff);
+        payload.setUint8(10, (strokeTimingValue >> 16) & 0xff);
+        payload.setUint8(11, strokeDetectionSettings.driveHandleForcesMaxCapacity);
+
+        return payload;
+    }
+
+    private createLegacyStrokeSettingsPayload(
+        strokeDetectionSettings: Omit<IStrokeDetectionSettings, "isCompiledWithDouble">,
+    ): DataView<ArrayBuffer> {
+        const payload = new DataView(new ArrayBuffer(16));
+        payload.setUint8(0, BleOpCodes.SetStrokeDetectionSettings);
+
+        const strokeDetectionTypeBits = strokeDetectionSettings.strokeDetectionType & 0x03;
+        const impulseDataArrayLengthBits = (strokeDetectionSettings.impulseDataArrayLength & 0x3f) << 2;
+        payload.setUint8(1, strokeDetectionTypeBits | impulseDataArrayLengthBits);
+
+        payload.setInt16(2, Math.round(strokeDetectionSettings.minimumPoweredTorque * 10000), true);
+        payload.setInt16(4, Math.round(strokeDetectionSettings.minimumDragTorque * 10000), true);
+        payload.setFloat32(6, strokeDetectionSettings.minimumRecoverySlopeMargin ?? 0, true);
+        payload.setInt16(10, Math.round(strokeDetectionSettings.minimumRecoverySlope * 1000), true);
+
+        const recoveryTimeBits = strokeDetectionSettings.minimumRecoveryTime & 0x0fff;
+        const driveTimeBits = (strokeDetectionSettings.minimumDriveTime & 0x0fff) << 12;
+        const strokeTimingValue = recoveryTimeBits | driveTimeBits;
+        payload.setUint8(12, strokeTimingValue & 0xff);
+        payload.setUint8(13, (strokeTimingValue >> 8) & 0xff);
+        payload.setUint8(14, (strokeTimingValue >> 16) & 0xff);
+        payload.setUint8(15, strokeDetectionSettings.driveHandleForcesMaxCapacity);
+
+        return payload;
     }
 
     private observeSettings$(
@@ -594,13 +630,22 @@ export class ErgSettingsService {
                 const isCompiledWithDouble = Boolean((value.getUint8(0) >> 7) & 0x01);
                 const minimumPoweredTorque = value.getUint16(1, true) / 10000;
                 const minimumDragTorque = value.getUint16(3, true) / 10000;
-                const minimumRecoverySlopeMargin = value.getFloat32(5, true);
-                const minimumRecoverySlope = value.getInt16(9, true) / 1000;
+
+                // detect payload format based on length: 15 bytes = old format with deprecated field, 11 bytes = new format
+                const isLegacyFormat = value.byteLength >= 15;
+                const minimumRecoverySlopeMargin = isLegacyFormat ? value.getFloat32(5, true) : NaN;
+                const minimumRecoverySlope = isLegacyFormat
+                    ? value.getInt16(9, true) / 1000
+                    : value.getInt16(5, true) / 1000;
+
+                const timingOffset = isLegacyFormat ? 11 : 7;
                 const timingValue =
-                    value.getUint8(11) | (value.getUint8(12) << 8) | (value.getUint8(13) << 16);
+                    value.getUint8(timingOffset) |
+                    (value.getUint8(timingOffset + 1) << 8) |
+                    (value.getUint8(timingOffset + 2) << 16);
                 const minimumRecoveryTime = timingValue & 0x0fff;
                 const minimumDriveTime = (timingValue >> 12) & 0x0fff;
-                const driveHandleForcesMaxCapacity = value.getUint8(14);
+                const driveHandleForcesMaxCapacity = value.getUint8(isLegacyFormat ? 14 : 10);
 
                 return {
                     strokeDetectionType,

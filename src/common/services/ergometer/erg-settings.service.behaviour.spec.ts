@@ -276,8 +276,8 @@ describe("ErgSettingsService", (): void => {
             });
         });
 
-        describe("when stroke detection endpoint updates", (): void => {
-            const mockStrokeData = createMockStrokeSettingsDataView(2, 16, true);
+        describe("when stroke detection endpoint updates (legacy firmware with deprecated field)", (): void => {
+            const mockStrokeData = createMockStrokeSettingsDataView(2, 16, true, true);
 
             beforeEach((): void => {
                 mockStrokeSettingsCharacteristic.readValue.and.resolveTo(mockStrokeData);
@@ -314,7 +314,58 @@ describe("ErgSettingsService", (): void => {
                     .toBe(0.05);
                 expect(rowerSettings.rowingSettings.strokeDetectionSettings.minimumRecoverySlopeMargin)
                     .withContext("strokeDetectionSettings.minimumRecoverySlopeMargin")
-                    .toBeCloseTo(0.035, 5);
+                    .toBe(0);
+                expect(rowerSettings.rowingSettings.strokeDetectionSettings.minimumRecoverySlope)
+                    .withContext("strokeDetectionSettings.minimumRecoverySlope")
+                    .toBe(-0.1);
+                expect(rowerSettings.rowingSettings.strokeDetectionSettings.minimumRecoveryTime)
+                    .withContext("strokeDetectionSettings.minimumRecoveryTime")
+                    .toBe(200);
+                expect(rowerSettings.rowingSettings.strokeDetectionSettings.minimumDriveTime)
+                    .withContext("strokeDetectionSettings.minimumDriveTime")
+                    .toBe(300);
+                expect(rowerSettings.rowingSettings.strokeDetectionSettings.driveHandleForcesMaxCapacity)
+                    .withContext("strokeDetectionSettings.driveHandleForcesMaxCapacity")
+                    .toBe(50);
+            });
+        });
+
+        describe("when stroke detection endpoint updates (new firmware without deprecated field)", (): void => {
+            const mockStrokeData = createMockStrokeSettingsDataView(2, 16, true, false);
+
+            beforeEach((): void => {
+                mockStrokeSettingsCharacteristic.readValue.and.resolveTo(mockStrokeData);
+            });
+
+            it("should set minimumRecoverySlopeMargin to NaN for new firmware", async (): Promise<void> => {
+                strokeSettingsCharacteristicSubject.next(mockStrokeSettingsCharacteristic);
+                await strokeSettingsValueChangedTrigger;
+
+                const rowerSettings = service.rowerSettings();
+
+                expect(rowerSettings.rowingSettings.strokeDetectionSettings.minimumRecoverySlopeMargin)
+                    .withContext("strokeDetectionSettings.minimumRecoverySlopeMargin should be NaN")
+                    .toBeNaN();
+            });
+
+            it("should update other strokeDetectionSettings correctly", async (): Promise<void> => {
+                strokeSettingsCharacteristicSubject.next(mockStrokeSettingsCharacteristic);
+                await strokeSettingsValueChangedTrigger;
+
+                const rowerSettings = service.rowerSettings();
+
+                expect(rowerSettings.rowingSettings.strokeDetectionSettings.strokeDetectionType)
+                    .withContext("strokeDetectionSettings.strokeDetectionType")
+                    .toBe(2);
+                expect(rowerSettings.rowingSettings.strokeDetectionSettings.impulseDataArrayLength)
+                    .withContext("strokeDetectionSettings.impulseDataArrayLength")
+                    .toBe(16);
+                expect(rowerSettings.rowingSettings.strokeDetectionSettings.minimumPoweredTorque)
+                    .withContext("strokeDetectionSettings.minimumPoweredTorque")
+                    .toBe(0.15);
+                expect(rowerSettings.rowingSettings.strokeDetectionSettings.minimumDragTorque)
+                    .withContext("strokeDetectionSettings.minimumDragTorque")
+                    .toBe(0.05);
                 expect(rowerSettings.rowingSettings.strokeDetectionSettings.minimumRecoverySlope)
                     .withContext("strokeDetectionSettings.minimumRecoverySlope")
                     .toBe(-0.1);
@@ -332,7 +383,7 @@ describe("ErgSettingsService", (): void => {
 
         it("should combine data from both sources correctly when both signals update", async (): Promise<void> => {
             const mockSettingsData = createMockRowerSettingsDataView(true, true, 3, false, false);
-            const mockStrokeData = createMockStrokeSettingsDataView(1, 12, true);
+            const mockStrokeData = createMockStrokeSettingsDataView(1, 12, true, true);
 
             mockSettingsCharacteristic.readValue.and.resolveTo(mockSettingsData);
             mockStrokeSettingsCharacteristic.readValue.and.resolveTo(mockStrokeData);
@@ -504,8 +555,8 @@ describe("ErgSettingsService", (): void => {
             });
         });
 
-        describe("when receiving stroke detection characteristic data", (): void => {
-            const mockStrokeData = createMockStrokeSettingsDataView(2, 16, true);
+        describe("when receiving stroke detection characteristic data (legacy format)", (): void => {
+            const mockStrokeData = createMockStrokeSettingsDataView(2, 16, true, true);
 
             it("should merge initial read with notification updates", async (): Promise<void> => {
                 mockStrokeSettingsCharacteristic.readValue.and.resolveTo(mockStrokeData);
@@ -548,10 +599,9 @@ describe("ErgSettingsService", (): void => {
                     .withContext("strokeDetectionSettings.minimumDragTorque")
                     .toBe(0.05);
 
-                // float32 and scaled values
                 expect(settings.rowingSettings.strokeDetectionSettings.minimumRecoverySlopeMargin)
                     .withContext("strokeDetectionSettings.minimumRecoverySlopeMargin")
-                    .toBeCloseTo(0.035, 3);
+                    .toBe(0);
                 expect(settings.rowingSettings.strokeDetectionSettings.minimumRecoverySlope)
                     .withContext("strokeDetectionSettings.minimumRecoverySlope")
                     .toBe(-0.1);

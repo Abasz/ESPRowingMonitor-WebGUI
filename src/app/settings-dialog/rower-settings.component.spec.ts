@@ -2,7 +2,12 @@ import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ReactiveFormsModule } from "@angular/forms";
 
-import { IRowerSettings, ProfileData, StrokeDetectionType } from "../../common/common.interfaces";
+import {
+    IRowerSettings,
+    IStrokeDetectionSettings,
+    ProfileData,
+    StrokeDetectionType,
+} from "../../common/common.interfaces";
 import { CUSTOM_PROFILE_KEY } from "../../common/data/standard-profiles";
 import { RowingProfileService } from "../../common/services/rowing-profile.service";
 
@@ -264,7 +269,7 @@ describe("RowingSettingsComponent", (): void => {
             fixture.detectChanges();
         });
 
-        describe("when strokeDetectionType is set to Torque", (): void => {
+        describe("when strokeDetectionType is set to Torque (legacy firmware)", (): void => {
             it("should disable minimumRecoverySlope field", (): void => {
                 const minimumRecoverySlope =
                     component.settingsForm.controls.strokeDetectionSettings.controls.minimumRecoverySlope;
@@ -278,7 +283,7 @@ describe("RowingSettingsComponent", (): void => {
                 expect(minimumRecoverySlope.disabled).toBe(true);
             });
 
-            it("should enable minimumRecoverySlopeMargin field", (): void => {
+            it("should enable minimumRecoverySlopeMargin field when value is not NaN", (): void => {
                 const minimumRecoverySlopeMargin =
                     component.settingsForm.controls.strokeDetectionSettings.controls
                         .minimumRecoverySlopeMargin;
@@ -289,6 +294,7 @@ describe("RowingSettingsComponent", (): void => {
 
                 fixture.detectChanges();
 
+                // legacy firmware has non-NaN value, so field should be enabled
                 expect(minimumRecoverySlopeMargin.enabled).toBe(true);
             });
         });
@@ -348,6 +354,47 @@ describe("RowingSettingsComponent", (): void => {
 
             expect(minimumRecoverySlope.disabled).toBe(initialRecoverySlopeState);
             expect(minimumRecoverySlopeMargin.disabled).toBe(initialRecoverySlopeMarginState);
+        });
+
+        describe("minimumRecoverySlopeMargin with new firmware (NaN value)", (): void => {
+            beforeEach((): void => {
+                const newFirmwareSettings = {
+                    ...mockRowerSettings,
+                    generalSettings: {
+                        ...mockRowerSettings.generalSettings,
+                        isRuntimeSettingsEnabled: true,
+                    },
+                    rowingSettings: {
+                        ...mockRowerSettings.rowingSettings,
+                        strokeDetectionSettings: {
+                            ...mockRowerSettings.rowingSettings.strokeDetectionSettings,
+                            minimumRecoverySlopeMargin: NaN,
+                        },
+                    },
+                };
+                fixture.componentRef.setInput("rowerSettings", newFirmwareSettings);
+                fixture.componentRef.setInput("isConnected", true);
+                fixture.detectChanges();
+            });
+
+            it("should always disable minimumRecoverySlopeMargin field when value is NaN", (): void => {
+                const minimumRecoverySlopeMargin =
+                    component.settingsForm.controls.strokeDetectionSettings.controls
+                        .minimumRecoverySlopeMargin;
+
+                // even with Torque mode, field should be disabled for new firmware
+                component.settingsForm.controls.strokeDetectionSettings.controls.strokeDetectionType.setValue(
+                    StrokeDetectionType.Torque,
+                );
+
+                fixture.detectChanges();
+
+                expect(minimumRecoverySlopeMargin.disabled).toBe(true);
+            });
+
+            it("should return false for showMinimumRecoverySlopeMargin signal", (): void => {
+                expect(component.showMinimumRecoverySlopeMargin()).toBe(false);
+            });
         });
     });
 
@@ -413,6 +460,112 @@ describe("RowingSettingsComponent", (): void => {
 
                 expect(component.isProfileLoaded).toBe(true);
             });
+
+            describe("minimumRecoverySlopeMargin handling for different firmware/profile combinations", (): void => {
+                it("should use NaN when current firmware has NaN (new firmware)", (): void => {
+                    const newFirmwareSettings = {
+                        ...mockRowerSettings,
+                        generalSettings: {
+                            ...mockRowerSettings.generalSettings,
+                            isRuntimeSettingsEnabled: true,
+                        },
+                        rowingSettings: {
+                            ...mockRowerSettings.rowingSettings,
+                            strokeDetectionSettings: {
+                                ...mockRowerSettings.rowingSettings.strokeDetectionSettings,
+                                minimumRecoverySlopeMargin: NaN,
+                            },
+                        },
+                    };
+                    fixture.componentRef.setInput("rowerSettings", newFirmwareSettings);
+                    fixture.detectChanges();
+
+                    component.loadProfile("test-profile");
+
+                    const loadedValue =
+                        component.settingsForm.getRawValue().strokeDetectionSettings
+                            .minimumRecoverySlopeMargin;
+                    expect(Number.isNaN(loadedValue)).toBe(true);
+                });
+
+                it("should use 0 when current firmware has valid number (legacy) but profile has NaN (from new firmware)", (): void => {
+                    const legacyFirmwareSettings = {
+                        ...mockRowerSettings,
+                        generalSettings: {
+                            ...mockRowerSettings.generalSettings,
+                            isRuntimeSettingsEnabled: true,
+                        },
+                    };
+                    fixture.componentRef.setInput("rowerSettings", legacyFirmwareSettings);
+
+                    const newFirmwareProfile: ProfileData = {
+                        ...mockProfileData,
+                        settings: {
+                            ...mockProfileData.settings,
+                            strokeDetectionSettings: {
+                                ...mockProfileData.settings.strokeDetectionSettings,
+                                minimumRecoverySlopeMargin: NaN,
+                            },
+                        },
+                    };
+                    mockRowingProfileService.getProfile.and.returnValue(newFirmwareProfile);
+                    fixture.detectChanges();
+
+                    component.loadProfile("test-profile");
+
+                    const loadedValue =
+                        component.settingsForm.value.strokeDetectionSettings?.minimumRecoverySlopeMargin;
+                    expect(loadedValue).toBe(0);
+                });
+
+                it("should use 0 when current firmware has valid number (legacy) but profile has undefined (from JSON)", (): void => {
+                    const legacyFirmwareSettings = {
+                        ...mockRowerSettings,
+                        generalSettings: {
+                            ...mockRowerSettings.generalSettings,
+                            isRuntimeSettingsEnabled: true,
+                        },
+                    };
+                    fixture.componentRef.setInput("rowerSettings", legacyFirmwareSettings);
+
+                    const profileWithUndefined: ProfileData = {
+                        ...mockProfileData,
+                        settings: {
+                            ...mockProfileData.settings,
+                            strokeDetectionSettings: {
+                                ...mockProfileData.settings.strokeDetectionSettings,
+                                minimumRecoverySlopeMargin: undefined as unknown as number,
+                            },
+                        },
+                    };
+                    mockRowingProfileService.getProfile.and.returnValue(profileWithUndefined);
+                    fixture.detectChanges();
+
+                    component.loadProfile("test-profile");
+
+                    const loadedValue =
+                        component.settingsForm.value.strokeDetectionSettings?.minimumRecoverySlopeMargin;
+                    expect(loadedValue).toBe(0);
+                });
+
+                it("should use profile value when both current firmware and profile have valid numbers (legacy)", (): void => {
+                    const legacyFirmwareSettings = {
+                        ...mockRowerSettings,
+                        generalSettings: {
+                            ...mockRowerSettings.generalSettings,
+                            isRuntimeSettingsEnabled: true,
+                        },
+                    };
+                    fixture.componentRef.setInput("rowerSettings", legacyFirmwareSettings);
+                    fixture.detectChanges();
+
+                    component.loadProfile("test-profile");
+
+                    const loadedValue =
+                        component.settingsForm.value.strokeDetectionSettings?.minimumRecoverySlopeMargin;
+                    expect(loadedValue).toBe(0.1); // from mockProfileData
+                });
+            });
         });
     });
 
@@ -428,7 +581,8 @@ describe("RowingSettingsComponent", (): void => {
                     machineSettings: mockProfileData.settings.machineSettings,
                     sensorSignalSettings: mockProfileData.settings.sensorSignalSettings,
                     dragFactorSettings: mockProfileData.settings.dragFactorSettings,
-                    strokeDetectionSettings: mockProfileData.settings.strokeDetectionSettings,
+                    strokeDetectionSettings: mockProfileData.settings
+                        .strokeDetectionSettings as Required<IStrokeDetectionSettings>,
                 });
 
                 component.saveAsCustomProfile();
@@ -449,13 +603,60 @@ describe("RowingSettingsComponent", (): void => {
                     machineSettings: mockProfileData.settings.machineSettings,
                     sensorSignalSettings: mockProfileData.settings.sensorSignalSettings,
                     dragFactorSettings: mockProfileData.settings.dragFactorSettings,
-                    strokeDetectionSettings: mockProfileData.settings.strokeDetectionSettings,
+                    strokeDetectionSettings: mockProfileData.settings
+                        .strokeDetectionSettings as Required<IStrokeDetectionSettings>,
                 });
 
                 component.saveAsCustomProfile();
 
+                expect(mockRowingProfileService.saveAsCustomProfile).toHaveBeenCalled();
                 expect(mockRowingProfileService.getAllProfiles).toHaveBeenCalled();
-                expect(component.availableProfiles()).toBeDefined();
+                expect(component.availableProfiles()).toEqual({
+                    "test-profile": mockProfileData,
+                    [CUSTOM_PROFILE_KEY]: mockProfileData,
+                });
+            });
+
+            it("should omit minimumRecoverySlopeMargin property when value is NaN (for JSON serialization)", (): void => {
+                component.settingsForm.markAsDirty();
+                spyOn(component.settingsForm, "getRawValue").and.returnValue({
+                    machineSettings: mockProfileData.settings.machineSettings,
+                    sensorSignalSettings: mockProfileData.settings.sensorSignalSettings,
+                    dragFactorSettings: mockProfileData.settings.dragFactorSettings,
+                    strokeDetectionSettings: {
+                        ...mockProfileData.settings.strokeDetectionSettings,
+                        minimumRecoverySlopeMargin: NaN,
+                    },
+                });
+
+                component.saveAsCustomProfile();
+
+                const savedSettings = mockRowingProfileService.saveAsCustomProfile.calls.mostRecent().args[0];
+                expect(savedSettings.strokeDetectionSettings).toBeDefined();
+                expect("minimumRecoverySlopeMargin" in savedSettings.strokeDetectionSettings).toBe(false);
+            });
+
+            it("should keep valid number values when saving (legacy firmware)", (): void => {
+                component.settingsForm.markAsDirty();
+                spyOn(component.settingsForm, "getRawValue").and.returnValue({
+                    machineSettings: mockProfileData.settings.machineSettings,
+                    sensorSignalSettings: mockProfileData.settings.sensorSignalSettings,
+                    dragFactorSettings: mockProfileData.settings.dragFactorSettings,
+                    strokeDetectionSettings: {
+                        ...mockProfileData.settings.strokeDetectionSettings,
+                        minimumRecoverySlopeMargin: 0.05,
+                    },
+                });
+
+                component.saveAsCustomProfile();
+
+                expect(mockRowingProfileService.saveAsCustomProfile).toHaveBeenCalledWith(
+                    jasmine.objectContaining({
+                        strokeDetectionSettings: jasmine.objectContaining({
+                            minimumRecoverySlopeMargin: 0.05,
+                        }),
+                    }),
+                );
             });
         });
     });
