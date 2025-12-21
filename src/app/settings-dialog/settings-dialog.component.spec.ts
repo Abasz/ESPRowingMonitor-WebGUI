@@ -1,9 +1,10 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
-import { MatSnackBar } from "@angular/material/snack-bar";
+import { MatSnackBar, MatSnackBarRef, TextOnlySnackBar } from "@angular/material/snack-bar";
 import { SwUpdate } from "@angular/service-worker";
 import { BehaviorSubject, EMPTY, of, take } from "rxjs";
+import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import { IDeviceInformation } from "../../common/ble.interfaces";
 import { IErgConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
@@ -17,37 +18,56 @@ import { SettingsDialogComponent } from "./settings-dialog.component";
 
 interface IMockGeneralForm {
     dirty: boolean;
-    controls: Record<string, { dirty: boolean; value: unknown }>;
+    controls: Record<
+        string,
+        {
+            dirty: boolean;
+            value: unknown;
+        }
+    >;
     value: Record<string, unknown>;
 }
 
 interface IMockRowingForm {
     dirty: boolean;
-    controls: Record<string, { dirty: boolean; getRawValue: () => unknown }>;
+    controls: Record<
+        string,
+        {
+            dirty: boolean;
+            getRawValue: () => unknown;
+        }
+    >;
     value: Record<string, unknown>;
-}
-
-// mock navigator.bluetooth.getDevices for test environment
-if (!navigator.bluetooth) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (navigator as any).bluetooth = {};
-}
-if (!navigator.bluetooth.getDevices) {
-    navigator.bluetooth.getDevices = async (): Promise<Array<BluetoothDevice>> => [];
 }
 
 describe("SettingsDialogComponent", (): void => {
     let component: SettingsDialogComponent;
     let fixture: ComponentFixture<SettingsDialogComponent>;
-    let mockMatDialogRef: jasmine.SpyObj<MatDialogRef<SettingsDialogComponent>>;
-    let mockConfigManagerService: jasmine.SpyObj<ConfigManagerService>;
-    let mockErgSettingsService: jasmine.SpyObj<ErgSettingsService>;
-    let mockErgConnectionService: jasmine.SpyObj<ErgConnectionService>;
-    let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
-    let mockSpinnerOverlay: jasmine.SpyObj<SpinnerOverlay>;
-    let mockUtilsService: jasmine.SpyObj<UtilsService>;
-    let mockSwUpdate: jasmine.SpyObj<SwUpdate>;
-    let breakpointSubject: BehaviorSubject<{ maxW599: boolean }>;
+    let mockMatDialogRef: Pick<
+        MatDialogRef<SettingsDialogComponent>,
+        "close" | "updateSize" | "backdropClick" | "keydownEvents" | "disableClose"
+    >;
+    let mockConfigManagerService: Pick<ConfigManagerService, "getItem" | "setItem">;
+    let mockErgSettingsService: Pick<
+        ErgSettingsService,
+        | "changeLogLevel"
+        | "changeDeltaTimeLogging"
+        | "changeLogToSdCard"
+        | "changeBleServiceType"
+        | "changeMachineSettings"
+        | "changeDragFactorSettings"
+        | "changeSensorSignalSettings"
+        | "changeStrokeSettings"
+        | "restartDevice"
+    >;
+    let mockErgConnectionService: Pick<ErgConnectionService, "reconnect" | "connectionStatus$">;
+    let mockSnackBar: Pick<MatSnackBar, "open" | "openFromComponent">;
+    let mockSpinnerOverlay: Pick<SpinnerOverlay, "open">;
+    let mockUtilsService: Pick<UtilsService, "breakpointHelper">;
+    let mockSwUpdate: Pick<SwUpdate, "checkForUpdate" | "isEnabled">;
+    let breakpointSubject: BehaviorSubject<{
+        maxW599: boolean;
+    }>;
 
     // helper functions to reduce duplication
     const createMockGeneralForm: (
@@ -70,17 +90,40 @@ describe("SettingsDialogComponent", (): void => {
             dirty,
             controls: Object.keys(defaultControlValues).reduce(
                 (
-                    acc: Record<string, { dirty: boolean; value: unknown }>,
+                    acc: Record<
+                        string,
+                        {
+                            dirty: boolean;
+                            value: unknown;
+                        }
+                    >,
                     key: string,
-                ): Record<string, { dirty: boolean; value: unknown }> => {
+                ): Record<
+                    string,
+                    {
+                        dirty: boolean;
+                        value: unknown;
+                    }
+                > => {
                     acc[key] = {
-                        dirty: (defaultControlValues[key] as { dirty: boolean }).dirty ?? dirty,
+                        dirty:
+                            (
+                                defaultControlValues[key] as {
+                                    dirty: boolean;
+                                }
+                            ).dirty ?? dirty,
                         value: defaultControlValues[key],
                     };
 
                     return acc;
                 },
-                {} as Record<string, { dirty: boolean; value: unknown }>,
+                {} as Record<
+                    string,
+                    {
+                        dirty: boolean;
+                        value: unknown;
+                    }
+                >,
             ),
             value: defaultControlValues,
         };
@@ -105,17 +148,40 @@ describe("SettingsDialogComponent", (): void => {
             dirty,
             controls: Object.keys(defaultControlValues).reduce(
                 (
-                    acc: Record<string, { dirty: boolean; getRawValue: () => unknown }>,
+                    acc: Record<
+                        string,
+                        {
+                            dirty: boolean;
+                            getRawValue: () => unknown;
+                        }
+                    >,
                     key: string,
-                ): Record<string, { dirty: boolean; getRawValue: () => unknown }> => {
+                ): Record<
+                    string,
+                    {
+                        dirty: boolean;
+                        getRawValue: () => unknown;
+                    }
+                > => {
                     acc[key] = {
-                        dirty: (defaultControlValues[key] as { dirty: boolean }).dirty ?? dirty,
+                        dirty:
+                            (
+                                defaultControlValues[key] as {
+                                    dirty: boolean;
+                                }
+                            ).dirty ?? dirty,
                         getRawValue: (): unknown => defaultControlValues[key],
                     };
 
                     return acc;
                 },
-                {} as Record<string, { dirty: boolean; getRawValue: () => unknown }>,
+                {} as Record<
+                    string,
+                    {
+                        dirty: boolean;
+                        getRawValue: () => unknown;
+                    }
+                >,
             ),
             value: defaultControlValues,
         };
@@ -135,15 +201,13 @@ describe("SettingsDialogComponent", (): void => {
 
         // check if generalSettings is already spied upon
         try {
-            spyOn(component, "generalSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockGeneralForm),
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
         } catch {
             // already spied, just update the return value
-            (
-                (component as unknown as Record<string, jasmine.Spy>).generalSettings as jasmine.Spy
-            ).and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockGeneralForm),
+            ((component as unknown as Record<string, Mock>).generalSettings as Mock).mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
         }
 
@@ -151,18 +215,16 @@ describe("SettingsDialogComponent", (): void => {
 
         // check if rowingSettings is already spied upon
         try {
-            spyOn(component, "rowingSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
                 isProfileLoaded,
             } as unknown as ReturnType<typeof component.rowingSettings>);
         } catch {
             // already spied, just update the return value
-            (
-                (component as unknown as Record<string, jasmine.Spy>).rowingSettings as jasmine.Spy
-            ).and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+            ((component as unknown as Record<string, Mock>).rowingSettings as Mock).mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
                 isProfileLoaded,
             } as unknown as ReturnType<typeof component.rowingSettings>);
         }
@@ -171,6 +233,10 @@ describe("SettingsDialogComponent", (): void => {
     };
 
     beforeEach(async (): Promise<void> => {
+        vi.spyOn(navigator, "bluetooth", "get").mockReturnValue({
+            getDevices: (): Promise<Array<BluetoothDevice>> => Promise.resolve([]),
+        } as unknown as Bluetooth);
+
         const mockRowerSettings: IRowerSettings = {
             generalSettings: {
                 bleServiceFlag: 0,
@@ -229,65 +295,75 @@ describe("SettingsDialogComponent", (): void => {
             deviceInfo: mockDeviceInfo,
         };
 
-        mockMatDialogRef = jasmine.createSpyObj<MatDialogRef<SettingsDialogComponent>>("MatDialogRef", [
-            "close",
-            "updateSize",
-            "backdropClick",
-            "keydownEvents",
-        ]);
-        mockMatDialogRef.disableClose = false;
-        mockMatDialogRef.backdropClick.and.returnValue(of({} as MouseEvent));
-        mockMatDialogRef.keydownEvents.and.returnValue(of({} as KeyboardEvent));
+        mockMatDialogRef = {
+            close: vi.fn(),
+            updateSize: vi.fn(),
+            backdropClick: vi.fn(),
+            keydownEvents: vi.fn(),
+            disableClose: false,
+        };
+        vi.mocked(mockMatDialogRef.backdropClick).mockReturnValue(EMPTY);
+        vi.mocked(mockMatDialogRef.keydownEvents).mockReturnValue(EMPTY);
 
-        mockConfigManagerService = jasmine.createSpyObj<ConfigManagerService>("ConfigManagerService", [
-            "getItem",
-            "setItem",
-        ]);
-        mockConfigManagerService.getItem.and.returnValue("ble");
+        mockConfigManagerService = {
+            getItem: vi.fn(),
+            setItem: vi.fn(),
+        };
+        vi.mocked(mockConfigManagerService.getItem).mockReturnValue("ble");
 
-        mockErgSettingsService = jasmine.createSpyObj<ErgSettingsService>("ErgSettingsService", [
-            "changeLogLevel",
-            "changeDeltaTimeLogging",
-            "changeLogToSdCard",
-            "changeBleServiceType",
-            "changeMachineSettings",
-            "changeDragFactorSettings",
-            "changeSensorSignalSettings",
-            "changeStrokeSettings",
-            "restartDevice",
-        ]);
-        mockErgSettingsService.changeLogLevel.and.resolveTo();
-        mockErgSettingsService.changeDeltaTimeLogging.and.resolveTo();
-        mockErgSettingsService.changeLogToSdCard.and.resolveTo();
-        mockErgSettingsService.changeBleServiceType.and.resolveTo();
-        mockErgSettingsService.changeMachineSettings.and.resolveTo();
-        mockErgSettingsService.changeDragFactorSettings.and.resolveTo();
-        mockErgSettingsService.changeSensorSignalSettings.and.resolveTo();
-        mockErgSettingsService.changeStrokeSettings.and.resolveTo();
-        mockErgSettingsService.restartDevice.and.resolveTo();
+        mockErgSettingsService = {
+            changeLogLevel: vi.fn(),
+            changeDeltaTimeLogging: vi.fn(),
+            changeLogToSdCard: vi.fn(),
+            changeBleServiceType: vi.fn(),
+            changeMachineSettings: vi.fn(),
+            changeDragFactorSettings: vi.fn(),
+            changeSensorSignalSettings: vi.fn(),
+            changeStrokeSettings: vi.fn(),
+            restartDevice: vi.fn(),
+        };
+        vi.mocked(mockErgSettingsService.changeLogLevel).mockResolvedValue();
+        vi.mocked(mockErgSettingsService.changeDeltaTimeLogging).mockResolvedValue();
+        vi.mocked(mockErgSettingsService.changeLogToSdCard).mockResolvedValue();
+        vi.mocked(mockErgSettingsService.changeBleServiceType).mockResolvedValue();
+        vi.mocked(mockErgSettingsService.changeMachineSettings).mockResolvedValue();
+        vi.mocked(mockErgSettingsService.changeDragFactorSettings).mockResolvedValue();
+        vi.mocked(mockErgSettingsService.changeSensorSignalSettings).mockResolvedValue();
+        vi.mocked(mockErgSettingsService.changeStrokeSettings).mockResolvedValue();
+        vi.mocked(mockErgSettingsService.restartDevice).mockResolvedValue();
 
-        mockErgConnectionService = jasmine.createSpyObj<ErgConnectionService>("ErgConnectionService", [
-            "reconnect",
-            "connectionStatus$",
-        ]);
-        mockErgConnectionService.reconnect.and.resolveTo();
-        mockErgConnectionService.connectionStatus$.and.returnValue(of(mockErgConnectionStatus));
+        mockErgConnectionService = {
+            reconnect: vi.fn(),
+            connectionStatus$: vi.fn(),
+        };
+        vi.mocked(mockErgConnectionService.reconnect).mockResolvedValue();
+        vi.mocked(mockErgConnectionService.connectionStatus$).mockReturnValue(of(mockErgConnectionStatus));
 
-        mockSnackBar = jasmine.createSpyObj<MatSnackBar>("MatSnackBar", ["open", "openFromComponent"]);
-        mockSnackBar.openFromComponent.and.returnValue({
-            onAction: jasmine.createSpy("onAction").and.returnValue(of(true)),
-        } as unknown as ReturnType<MatSnackBar["openFromComponent"]>);
+        mockSnackBar = {
+            open: vi.fn(),
+            openFromComponent: vi.fn(),
+        };
+        vi.mocked(mockSnackBar.openFromComponent).mockReturnValue({
+            onAction: vi.fn().mockReturnValue(of(true)),
+        } as unknown as MatSnackBarRef<TextOnlySnackBar>);
 
-        mockSpinnerOverlay = jasmine.createSpyObj<SpinnerOverlay>("SpinnerOverlay", ["open"]);
+        mockSpinnerOverlay = {
+            open: vi.fn(),
+        };
 
-        breakpointSubject = new BehaviorSubject<{ maxW599: boolean }>({ maxW599: false });
+        breakpointSubject = new BehaviorSubject<{
+            maxW599: boolean;
+        }>({ maxW599: false });
 
-        mockUtilsService = jasmine.createSpyObj<UtilsService>("UtilsService", ["breakpointHelper"]);
-        mockUtilsService.breakpointHelper.and.returnValue(breakpointSubject.asObservable());
+        mockUtilsService = {
+            breakpointHelper: vi.fn(),
+        };
+        vi.mocked(mockUtilsService.breakpointHelper).mockReturnValue(breakpointSubject.asObservable());
 
-        mockSwUpdate = jasmine.createSpyObj<SwUpdate>("SwUpdate", ["checkForUpdate"], {
+        mockSwUpdate = {
+            checkForUpdate: vi.fn(),
             isEnabled: false,
-        });
+        };
 
         await TestBed.configureTestingModule({
             imports: [SettingsDialogComponent],
@@ -307,8 +383,6 @@ describe("SettingsDialogComponent", (): void => {
 
         fixture = TestBed.createComponent(SettingsDialogComponent);
         component = fixture.componentInstance;
-
-        fixture.detectChanges();
     });
 
     describe("as part of the initialization and layout management", (): void => {
@@ -371,10 +445,10 @@ describe("SettingsDialogComponent", (): void => {
     });
 
     describe("dialog actions", (): void => {
-        it("should have proper buttons with correct state", (): void => {
+        it("should have proper buttons with correct state", async (): Promise<void> => {
             const dialogActions = fixture.debugElement.nativeElement.querySelector("[mat-dialog-actions]");
             const buttons = dialogActions.querySelectorAll("button");
-            expect(buttons).toHaveSize(2);
+            expect(buttons).toHaveLength(2);
 
             const saveButton = dialogActions.querySelector("button[ng-reflect-disabled]") || buttons[0];
             const cancelButton = buttons[1];
@@ -385,14 +459,14 @@ describe("SettingsDialogComponent", (): void => {
             setupMockChildComponents(false, false, false);
             component.onGeneralFormValidityChange(true);
             component.onRowingFormValidityChange(true);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             expect(saveButton.disabled).toBe(true);
 
             setupMockChildComponents(true, true, false);
             component.onGeneralFormValidityChange(true);
             component.onRowingFormValidityChange(true);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             expect(saveButton.disabled).toBe(false);
         });
@@ -415,11 +489,11 @@ describe("SettingsDialogComponent", (): void => {
 
         it("should handle snackbar dismissal without action in close dialog", async (): Promise<void> => {
             const mockSnackBarRef = {
-                onAction: jasmine.createSpy("onAction").and.returnValue(of()),
+                onAction: vi.fn().mockReturnValue(of()),
             };
-            mockSnackBar.openFromComponent = jasmine
-                .createSpy("openFromComponent")
-                .and.returnValue(mockSnackBarRef);
+            vi.mocked(mockSnackBar.openFromComponent).mockReturnValue(
+                mockSnackBarRef as unknown as MatSnackBarRef<TextOnlySnackBar>,
+            );
 
             setupMockChildComponents(true, true);
 
@@ -589,12 +663,12 @@ describe("SettingsDialogComponent", (): void => {
                 valid: false,
             };
             const mockRowingForm = createMockRowingForm(false);
-            spyOn(component, "generalSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockGeneralForm),
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
-            spyOn(component, "rowingSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
                 isProfileLoaded: false,
             } as unknown as ReturnType<typeof component.rowingSettings>);
             component.onGeneralFormValidityChange(false);
@@ -611,12 +685,12 @@ describe("SettingsDialogComponent", (): void => {
                 }),
                 valid: false,
             };
-            spyOn(component, "generalSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockGeneralForm),
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
-            spyOn(component, "rowingSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
                 isProfileLoaded: false,
             } as unknown as ReturnType<typeof component.rowingSettings>);
             component.onGeneralFormValidityChange(true);
@@ -630,7 +704,7 @@ describe("SettingsDialogComponent", (): void => {
             component.handleDialogClose();
             expect(mockSnackBar.openFromComponent).toHaveBeenCalled();
 
-            mockSnackBar.openFromComponent.calls.reset();
+            vi.mocked(mockSnackBar.openFromComponent).mockClear();
 
             setupMockChildComponents(false, false);
             component.handleDialogClose();
@@ -673,12 +747,12 @@ describe("SettingsDialogComponent", (): void => {
                 machineSettings: { flywheelInertia: 0.06 },
             });
 
-            spyOn(component, "generalSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockGeneralForm),
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
-            spyOn(component, "rowingSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
                 isProfileLoaded: true,
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
@@ -690,7 +764,7 @@ describe("SettingsDialogComponent", (): void => {
             await component.saveSettings();
 
             expect(mockErgSettingsService.changeMachineSettings).toHaveBeenCalledWith(
-                jasmine.objectContaining({
+                expect.objectContaining({
                     flywheelInertia: 0.06,
                 }),
             );
@@ -723,12 +797,12 @@ describe("SettingsDialogComponent", (): void => {
                 },
             };
 
-            spyOn(component, "generalSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockGeneralForm),
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
-            spyOn(component, "rowingSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
             component.onGeneralFormValidityChange(true);
@@ -753,16 +827,24 @@ describe("SettingsDialogComponent", (): void => {
                     sensorSignalSettings: { rotationDebounceTime: 20 },
                 });
 
-                spyOn(component, "rowingSettings").and.returnValue({
-                    getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                    saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+                vi.spyOn(component, "rowingSettings").mockReturnValue({
+                    getForm: vi.fn().mockReturnValue(mockRowingForm),
+                    saveAsCustomProfile: vi.fn(),
                 } as unknown as ReturnType<typeof component.rowingSettings>);
                 component.onRowingFormValidityChange(true);
 
                 await component.saveSettings();
 
-                expect(mockErgSettingsService.changeDragFactorSettings).toHaveBeenCalledBefore(
-                    mockErgSettingsService.changeSensorSignalSettings!,
+                expect(
+                    Math.min(
+                        ...vi.mocked(mockErgSettingsService.changeDragFactorSettings).mock
+                            .invocationCallOrder,
+                    ),
+                ).toBeLessThan(
+                    Math.min(
+                        ...vi.mocked(mockErgSettingsService.changeSensorSignalSettings!).mock
+                            .invocationCallOrder,
+                    ),
                 );
             });
 
@@ -772,16 +854,24 @@ describe("SettingsDialogComponent", (): void => {
                     sensorSignalSettings: { rotationDebounceTime: 30 },
                 });
 
-                spyOn(component, "rowingSettings").and.returnValue({
-                    getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                    saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+                vi.spyOn(component, "rowingSettings").mockReturnValue({
+                    getForm: vi.fn().mockReturnValue(mockRowingForm),
+                    saveAsCustomProfile: vi.fn(),
                 } as unknown as ReturnType<typeof component.rowingSettings>);
                 component.onRowingFormValidityChange(true);
 
                 await component.saveSettings();
 
-                expect(mockErgSettingsService.changeSensorSignalSettings).toHaveBeenCalledBefore(
-                    mockErgSettingsService.changeDragFactorSettings!,
+                expect(
+                    Math.min(
+                        ...vi.mocked(mockErgSettingsService.changeSensorSignalSettings).mock
+                            .invocationCallOrder,
+                    ),
+                ).toBeLessThan(
+                    Math.min(
+                        ...vi.mocked(mockErgSettingsService.changeDragFactorSettings!).mock
+                            .invocationCallOrder,
+                    ),
                 );
             });
 
@@ -790,16 +880,24 @@ describe("SettingsDialogComponent", (): void => {
                     dragFactorSettings: { maxDragFactorRecoveryPeriod: 9 },
                     sensorSignalSettings: { rotationDebounceTime: 20 },
                 });
-                spyOn(component, "rowingSettings").and.returnValue({
-                    getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                    saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+                vi.spyOn(component, "rowingSettings").mockReturnValue({
+                    getForm: vi.fn().mockReturnValue(mockRowingForm),
+                    saveAsCustomProfile: vi.fn(),
                 } as unknown as ReturnType<typeof component.rowingSettings>);
                 component.onRowingFormValidityChange(true);
 
                 await component.saveSettings();
 
-                expect(mockErgSettingsService.changeDragFactorSettings).toHaveBeenCalledBefore(
-                    mockErgSettingsService.changeSensorSignalSettings!,
+                expect(
+                    Math.min(
+                        ...vi.mocked(mockErgSettingsService.changeDragFactorSettings).mock
+                            .invocationCallOrder,
+                    ),
+                ).toBeLessThan(
+                    Math.min(
+                        ...vi.mocked(mockErgSettingsService.changeSensorSignalSettings!).mock
+                            .invocationCallOrder,
+                    ),
                 );
             });
 
@@ -808,9 +906,9 @@ describe("SettingsDialogComponent", (): void => {
                     dragFactorSettings: { maxDragFactorRecoveryPeriod: 9 },
                     sensorSignalSettings: { dirty: false, rotationDebounceTime: 25 },
                 });
-                spyOn(component, "rowingSettings").and.returnValue({
-                    getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                    saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+                vi.spyOn(component, "rowingSettings").mockReturnValue({
+                    getForm: vi.fn().mockReturnValue(mockRowingForm),
+                    saveAsCustomProfile: vi.fn(),
                 } as unknown as ReturnType<typeof component.rowingSettings>);
                 component.onRowingFormValidityChange(true);
 
@@ -825,9 +923,9 @@ describe("SettingsDialogComponent", (): void => {
                     dragFactorSettings: { dirty: false, maxDragFactorRecoveryPeriod: 8 },
                     sensorSignalSettings: { rotationDebounceTime: 30 },
                 });
-                spyOn(component, "rowingSettings").and.returnValue({
-                    getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                    saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+                vi.spyOn(component, "rowingSettings").mockReturnValue({
+                    getForm: vi.fn().mockReturnValue(mockRowingForm),
+                    saveAsCustomProfile: vi.fn(),
                 } as unknown as ReturnType<typeof component.rowingSettings>);
                 component.onRowingFormValidityChange(true);
 
@@ -842,9 +940,9 @@ describe("SettingsDialogComponent", (): void => {
                     dragFactorSettings: { maxDragFactorRecoveryPeriod: 8 },
                     sensorSignalSettings: { rotationDebounceTime: 25 },
                 });
-                spyOn(component, "rowingSettings").and.returnValue({
-                    getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                    saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+                vi.spyOn(component, "rowingSettings").mockReturnValue({
+                    getForm: vi.fn().mockReturnValue(mockRowingForm),
+                    saveAsCustomProfile: vi.fn(),
                 } as unknown as ReturnType<typeof component.rowingSettings>);
                 component.onRowingFormValidityChange(false);
 
@@ -869,9 +967,9 @@ describe("SettingsDialogComponent", (): void => {
                         minimumPoweredTorque: 0.02,
                     },
                 });
-                spyOn(component, "rowingSettings").and.returnValue({
-                    getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                    saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+                vi.spyOn(component, "rowingSettings").mockReturnValue({
+                    getForm: vi.fn().mockReturnValue(mockRowingForm),
+                    saveAsCustomProfile: vi.fn(),
                 } as unknown as ReturnType<typeof component.rowingSettings>);
                 component.onRowingFormValidityChange(true);
                 component.currentTabIndex.set(1);
@@ -879,22 +977,22 @@ describe("SettingsDialogComponent", (): void => {
                 await component.saveSettings();
 
                 expect(mockErgSettingsService.changeMachineSettings).toHaveBeenCalledWith(
-                    jasmine.objectContaining({
+                    expect.objectContaining({
                         flywheelInertia: 0.06,
                     }),
                 );
                 expect(mockErgSettingsService.changeDragFactorSettings).toHaveBeenCalledWith(
-                    jasmine.objectContaining({
+                    expect.objectContaining({
                         goodnessOfFitThreshold: 0.95,
                     }),
                 );
                 expect(mockErgSettingsService.changeSensorSignalSettings).toHaveBeenCalledWith(
-                    jasmine.objectContaining({
+                    expect.objectContaining({
                         rotationDebounceTime: 30,
                     }),
                 );
                 expect(mockErgSettingsService.changeStrokeSettings).toHaveBeenCalledWith(
-                    jasmine.objectContaining({
+                    expect.objectContaining({
                         minimumPoweredTorque: 0.02,
                     }),
                 );
@@ -910,9 +1008,9 @@ describe("SettingsDialogComponent", (): void => {
                         sensorSignalSettings: { rotationDebounceTime: 30 },
                         strokeDetectionSettings: { minimumPoweredTorque: 0.02 },
                     });
-                    spyOn(component, "rowingSettings").and.returnValue({
-                        getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                        saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+                    vi.spyOn(component, "rowingSettings").mockReturnValue({
+                        getForm: vi.fn().mockReturnValue(mockRowingForm),
+                        saveAsCustomProfile: vi.fn(),
                         isProfileLoaded: false,
                     } as unknown as ReturnType<typeof component.rowingSettings>);
                     component.onRowingFormValidityChange(true);
@@ -927,8 +1025,10 @@ describe("SettingsDialogComponent", (): void => {
                 it("reconnect to device after restart request", async (): Promise<void> => {
                     await component.saveSettings();
 
-                    expect(mockErgSettingsService.restartDevice).toHaveBeenCalledBefore(
-                        mockErgConnectionService.reconnect!,
+                    expect(
+                        Math.min(...vi.mocked(mockErgSettingsService.restartDevice).mock.invocationCallOrder),
+                    ).toBeLessThan(
+                        Math.min(...vi.mocked(mockErgConnectionService.reconnect!).mock.invocationCallOrder),
                     );
                 });
             });
@@ -950,39 +1050,39 @@ describe("SettingsDialogComponent", (): void => {
                 strokeDetectionSettings: { minimumPoweredTorque: 0.02 },
             });
 
-            spyOn(component, "generalSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockGeneralForm),
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
-            spyOn(component, "rowingSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
             component.onGeneralFormValidityChange(true);
             component.onRowingFormValidityChange(true);
 
             const mockSnackBarRef = {
-                onAction: jasmine.createSpy("onAction").and.returnValue(of(true)),
+                onAction: vi.fn().mockReturnValue(of(true)),
             };
-            mockSnackBar.openFromComponent = jasmine
-                .createSpy("openFromComponent")
-                .and.returnValue(mockSnackBarRef);
+            vi.mocked(mockSnackBar.openFromComponent).mockReturnValue(
+                mockSnackBarRef as unknown as MatSnackBarRef<TextOnlySnackBar>,
+            );
 
             component.currentTabIndex.set(0);
 
             await component.saveSettings();
 
             expect(mockSnackBar.openFromComponent).toHaveBeenCalledWith(
-                jasmine.any(Function),
-                jasmine.objectContaining({
-                    data: jasmine.objectContaining({
+                expect.any(Function),
+                expect.objectContaining({
+                    data: expect.objectContaining({
                         text: "Rowing tab has changes, save those too?",
                     }),
                 }),
             );
 
             expect(mockErgSettingsService.changeMachineSettings).toHaveBeenCalledWith(
-                jasmine.objectContaining({
+                expect.objectContaining({
                     flywheelInertia: 0.06,
                 }),
             );
@@ -1006,39 +1106,43 @@ describe("SettingsDialogComponent", (): void => {
                 strokeDetectionSettings: { minimumPoweredTorque: 0.02 },
             });
 
-            spyOn(component, "generalSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockGeneralForm),
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
-            spyOn(component, "rowingSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
             component.onGeneralFormValidityChange(true);
             component.onRowingFormValidityChange(true);
 
             const mockSnackBarRef = {
-                onAction: jasmine.createSpy("onAction").and.returnValue(of(true)),
+                onAction: vi.fn().mockReturnValue(of(true)),
             };
-            mockSnackBar.openFromComponent = jasmine
-                .createSpy("openFromComponent")
-                .and.returnValue(mockSnackBarRef);
+            vi.mocked(mockSnackBar.openFromComponent).mockReturnValue(
+                mockSnackBarRef as unknown as MatSnackBarRef<TextOnlySnackBar>,
+            );
 
             component.currentTabIndex.set(1);
 
             await component.saveSettings();
 
             expect(mockSnackBar.openFromComponent).toHaveBeenCalledWith(
-                jasmine.any(Function),
-                jasmine.objectContaining({
-                    data: jasmine.objectContaining({
+                expect.any(Function),
+                expect.objectContaining({
+                    data: expect.objectContaining({
                         text: "General tab has changes, save those too?",
                     }),
                 }),
             );
 
-            expect(mockErgSettingsService.changeLogLevel).toHaveBeenCalledBefore(
-                mockErgSettingsService.changeMachineSettings!,
+            expect(
+                Math.min(...vi.mocked(mockErgSettingsService.changeLogLevel).mock.invocationCallOrder),
+            ).toBeLessThan(
+                Math.min(
+                    ...vi.mocked(mockErgSettingsService.changeMachineSettings!).mock.invocationCallOrder,
+                ),
             );
         });
 
@@ -1060,32 +1164,32 @@ describe("SettingsDialogComponent", (): void => {
                 },
             });
 
-            spyOn(component, "generalSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockGeneralForm),
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
-            spyOn(component, "rowingSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
             component.onGeneralFormValidityChange(true);
             component.onRowingFormValidityChange(true);
 
             const mockSnackBarRef = {
-                onAction: jasmine.createSpy("onAction").and.returnValue(EMPTY),
+                onAction: vi.fn().mockReturnValue(EMPTY),
             };
-            mockSnackBar.openFromComponent = jasmine
-                .createSpy("openFromComponent")
-                .and.returnValue(mockSnackBarRef);
+            vi.mocked(mockSnackBar.openFromComponent).mockReturnValue(
+                mockSnackBarRef as unknown as MatSnackBarRef<TextOnlySnackBar>,
+            );
 
             component.currentTabIndex.set(0);
 
             await component.saveSettings();
 
             expect(mockSnackBar.openFromComponent).toHaveBeenCalledWith(
-                jasmine.any(Function),
-                jasmine.objectContaining({
-                    data: jasmine.objectContaining({
+                expect.any(Function),
+                expect.objectContaining({
+                    data: expect.objectContaining({
                         text: "Rowing tab has changes, save those too?",
                     }),
                 }),
@@ -1117,12 +1221,12 @@ describe("SettingsDialogComponent", (): void => {
                 },
             };
 
-            spyOn(component, "generalSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockGeneralForm),
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
-            spyOn(component, "rowingSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
                 isProfileLoaded: false,
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
@@ -1130,11 +1234,11 @@ describe("SettingsDialogComponent", (): void => {
             component.onRowingFormValidityChange(true);
 
             const mockSnackBarRef = {
-                onAction: jasmine.createSpy("onAction").and.returnValue(of(false)),
+                onAction: vi.fn().mockReturnValue(of(false)),
             };
-            mockSnackBar.openFromComponent = jasmine
-                .createSpy("openFromComponent")
-                .and.returnValue(mockSnackBarRef);
+            vi.mocked(mockSnackBar.openFromComponent).mockReturnValue(
+                mockSnackBarRef as unknown as MatSnackBarRef<TextOnlySnackBar>,
+            );
 
             component.currentTabIndex.set(0);
 
@@ -1149,32 +1253,30 @@ describe("SettingsDialogComponent", (): void => {
                 resolvePromise = resolve;
             });
 
-            mockErgSettingsService.changeLogLevel = jasmine
-                .createSpy("changeLogLevel")
-                .and.returnValue(pendingPromise);
+            mockErgSettingsService.changeLogLevel = vi.fn().mockReturnValue(pendingPromise);
 
             const mockGeneralForm = createMockGeneralForm(true, {
                 logLevel: 2,
             });
             const mockRowingForm = createMockRowingForm(false);
 
-            spyOn(component, "generalSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockGeneralForm),
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
-            spyOn(component, "rowingSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
             component.onGeneralFormValidityChange(true);
             component.onRowingFormValidityChange(false);
 
             const mockSnackBarRef = {
-                onAction: jasmine.createSpy("onAction").and.returnValue(of(true)),
+                onAction: vi.fn().mockReturnValue(of(true)),
             };
-            mockSnackBar.openFromComponent = jasmine
-                .createSpy("openFromComponent")
-                .and.returnValue(mockSnackBarRef);
+            vi.mocked(mockSnackBar.openFromComponent).mockReturnValue(
+                mockSnackBarRef as unknown as MatSnackBarRef<TextOnlySnackBar>,
+            );
 
             component.currentTabIndex.set(1);
 
@@ -1195,9 +1297,7 @@ describe("SettingsDialogComponent", (): void => {
 
     describe("errors", (): void => {
         it("should be handled gracefully when saving general settings", async (): Promise<void> => {
-            mockErgSettingsService.changeLogLevel = jasmine
-                .createSpy("changeLogLevel")
-                .and.rejectWith(new Error("Service error"));
+            mockErgSettingsService.changeLogLevel = vi.fn().mockRejectedValue(new Error("Service error"));
 
             const mockGeneralForm = createMockGeneralForm(true, {
                 logLevel: 2,
@@ -1207,11 +1307,11 @@ describe("SettingsDialogComponent", (): void => {
                 heartRateMonitor: "ant",
             });
 
-            spyOn(component, "generalSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(mockGeneralForm),
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
-            spyOn(component, "rowingSettings").and.returnValue({
-                getForm: jasmine.createSpy("getForm").and.returnValue(
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(
                     createMockRowingForm(false, {
                         machineSettings: {},
                         dragFactorSettings: {},
@@ -1219,7 +1319,7 @@ describe("SettingsDialogComponent", (): void => {
                         strokeDetectionSettings: {},
                     }),
                 ),
-                saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+                saveAsCustomProfile: vi.fn(),
                 isProfileLoaded: false,
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
@@ -1227,15 +1327,15 @@ describe("SettingsDialogComponent", (): void => {
             component.onRowingFormValidityChange(false);
 
             const mockSnackBarRef = {
-                onAction: jasmine.createSpy("onAction").and.returnValue(of(true)),
+                onAction: vi.fn().mockReturnValue(of(true)),
             };
-            mockSnackBar.openFromComponent = jasmine
-                .createSpy("openFromComponent")
-                .and.returnValue(mockSnackBarRef);
+            vi.mocked(mockSnackBar.openFromComponent).mockReturnValue(
+                mockSnackBarRef as unknown as MatSnackBarRef<TextOnlySnackBar>,
+            );
 
             component.currentTabIndex.set(1);
 
-            await expectAsync(component.saveSettings()).toBeRejected();
+            await expect(component.saveSettings()).rejects.toThrow();
         });
 
         it("should be handled when saving rowing settings", async (): Promise<void> => {
@@ -1247,18 +1347,12 @@ describe("SettingsDialogComponent", (): void => {
             ];
 
             for (const { error } of serviceErrors) {
-                mockErgSettingsService.changeMachineSettings = jasmine
-                    .createSpy("changeMachineSettings")
-                    .and.rejectWith(new Error(error));
-                mockErgSettingsService.changeDragFactorSettings = jasmine
-                    .createSpy("changeDragFactorSettings")
-                    .and.rejectWith(new Error(error));
-                mockErgSettingsService.changeSensorSignalSettings = jasmine
-                    .createSpy("changeSensorSignalSettings")
-                    .and.rejectWith(new Error(error));
-                mockErgSettingsService.changeStrokeSettings = jasmine
-                    .createSpy("changeStrokeSettings")
-                    .and.rejectWith(new Error(error));
+                mockErgSettingsService.changeMachineSettings = vi.fn().mockRejectedValue(new Error(error));
+                mockErgSettingsService.changeDragFactorSettings = vi.fn().mockRejectedValue(new Error(error));
+                mockErgSettingsService.changeSensorSignalSettings = vi
+                    .fn()
+                    .mockRejectedValue(new Error(error));
+                mockErgSettingsService.changeStrokeSettings = vi.fn().mockRejectedValue(new Error(error));
 
                 const mockRowingForm = createMockRowingForm(true, {
                     machineSettings: { flywheelInertia: 0.06 },
@@ -1267,13 +1361,13 @@ describe("SettingsDialogComponent", (): void => {
                     strokeDetectionSettings: { minimumPoweredTorque: 0.02 },
                 });
 
-                const generalSettingsSpy = jasmine.createSpy("generalSettings").and.returnValue({
-                    getForm: jasmine.createSpy("getForm").and.returnValue(createMockGeneralForm(false)),
+                const generalSettingsSpy = vi.fn().mockReturnValue({
+                    getForm: vi.fn().mockReturnValue(createMockGeneralForm(false)),
                 } as unknown as ReturnType<typeof component.generalSettings>);
 
-                const rowingSettingsSpy = jasmine.createSpy("rowingSettings").and.returnValue({
-                    getForm: jasmine.createSpy("getForm").and.returnValue(mockRowingForm),
-                    saveAsCustomProfile: jasmine.createSpy("saveAsCustomProfile"),
+                const rowingSettingsSpy = vi.fn().mockReturnValue({
+                    getForm: vi.fn().mockReturnValue(mockRowingForm),
+                    saveAsCustomProfile: vi.fn(),
                 } as unknown as ReturnType<typeof component.rowingSettings>);
 
                 (component as unknown as Record<string, unknown>).generalSettings = generalSettingsSpy;
@@ -1284,7 +1378,7 @@ describe("SettingsDialogComponent", (): void => {
 
                 component.currentTabIndex.set(0);
 
-                await expectAsync(component.saveSettings()).toBeRejected();
+                await expect(component.saveSettings()).rejects.toThrow();
             }
         });
     });

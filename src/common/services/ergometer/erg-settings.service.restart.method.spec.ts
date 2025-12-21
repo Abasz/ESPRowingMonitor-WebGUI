@@ -1,7 +1,8 @@
 import { provideZonelessChangeDetection } from "@angular/core";
-import { fakeAsync, TestBed, tick } from "@angular/core/testing";
+import { TestBed } from "@angular/core/testing";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { BehaviorSubject } from "rxjs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     BleOpCodes,
@@ -22,14 +23,28 @@ import { ErgSettingsService } from "./erg-settings.service";
 
 describe("ErgSettingsService other control-point API", (): void => {
     let service: ErgSettingsService;
-    let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
-    let mockErgConnectionService: jasmine.SpyObj<ErgConnectionService>;
-    let mockBluetoothDevice: jasmine.SpyObj<BluetoothDevice>;
+    let mockSnackBar: Pick<MatSnackBar, "open">;
+    let mockErgConnectionService: Pick<
+        ErgConnectionService,
+        | "readSettingsCharacteristic"
+        | "readStrokeSettingsCharacteristic"
+        | "readMeasurementCharacteristic"
+        | "resetSettingsCharacteristic"
+        | "resetStrokeSettingsCharacteristic"
+        | "connectToSettings"
+        | "connectToStrokeSettings"
+        | "disconnectDevice"
+        | "discover"
+        | "bluetoothDevice"
+        | "settingsCharacteristic$"
+        | "strokeSettingsCharacteristic$"
+    >;
+    let mockBluetoothDevice: BluetoothDevice;
 
     // characteristics and services
-    let mockSettingsCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockStrokeSettingsCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockSettingsControlPointCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockSettingsCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockStrokeSettingsCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockSettingsControlPointCharacteristic: BluetoothRemoteGATTCharacteristic;
 
     // subjects for observables
     let settingsCharacteristicSubject: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>;
@@ -40,19 +55,27 @@ describe("ErgSettingsService other control-point API", (): void => {
     ) => Promise<ListenerTrigger<DataView>>;
 
     beforeEach((): void => {
-        mockSnackBar = jasmine.createSpyObj<MatSnackBar>("MatSnackBar", ["open"]);
+        mockSnackBar = {
+            open: vi.fn(),
+        };
 
         mockBluetoothDevice = createMockBluetoothDevice("test-device-id", "Test Ergo", true);
         mockSettingsCharacteristic = createMockCharacteristic(mockBluetoothDevice);
         mockStrokeSettingsCharacteristic = createMockCharacteristic(mockBluetoothDevice);
         mockSettingsControlPointCharacteristic = createMockCharacteristic(mockBluetoothDevice);
 
-        (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService
-            .withArgs(SETTINGS_SERVICE)
-            .and.resolveTo(mockSettingsCharacteristic.service);
-        (mockSettingsCharacteristic.service as jasmine.SpyObj<BluetoothRemoteGATTService>).getCharacteristic
-            .withArgs(SETTINGS_CONTROL_POINT)
-            .and.resolveTo(mockSettingsControlPointCharacteristic);
+        vi.mocked(mockBluetoothDevice.gatt!.getPrimaryService).mockImplementation(
+            (service: unknown): Promise<BluetoothRemoteGATTService> =>
+                service === SETTINGS_SERVICE
+                    ? Promise.resolve(mockSettingsCharacteristic.service)
+                    : Promise.reject(new Error("Service not found")),
+        );
+        vi.mocked(mockSettingsCharacteristic.service.getCharacteristic).mockImplementation(
+            (char: unknown): Promise<BluetoothRemoteGATTCharacteristic> =>
+                char === SETTINGS_CONTROL_POINT
+                    ? Promise.resolve(mockSettingsControlPointCharacteristic)
+                    : Promise.reject(new Error("Characteristic not found")),
+        );
 
         settingsCharacteristicSubject = new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(
             undefined,
@@ -61,36 +84,35 @@ describe("ErgSettingsService other control-point API", (): void => {
             BluetoothRemoteGATTCharacteristic | undefined
         >(undefined);
 
-        mockErgConnectionService = jasmine.createSpyObj(
-            "ErgConnectionService",
-            [
-                "readSettingsCharacteristic",
-                "readStrokeSettingsCharacteristic",
-                "readMeasurementCharacteristic",
-                "resetSettingsCharacteristic",
-                "resetStrokeSettingsCharacteristic",
-                "connectToSettings",
-                "connectToStrokeSettings",
-                "disconnectDevice",
-                "discover",
-            ],
-            {
-                bluetoothDevice: mockBluetoothDevice,
-                settingsCharacteristic$: settingsCharacteristicSubject.asObservable(),
-                strokeSettingsCharacteristic$: strokeSettingsCharacteristicSubject.asObservable(),
-            },
-        );
+        mockErgConnectionService = {
+            readSettingsCharacteristic: vi.fn(),
+            readStrokeSettingsCharacteristic: vi.fn(),
+            readMeasurementCharacteristic: vi.fn(),
+            resetSettingsCharacteristic: vi.fn(),
+            resetStrokeSettingsCharacteristic: vi.fn(),
+            connectToSettings: vi.fn(),
+            connectToStrokeSettings: vi.fn(),
+            disconnectDevice: vi.fn(),
+            discover: vi.fn(),
+            bluetoothDevice: mockBluetoothDevice,
+            settingsCharacteristic$: settingsCharacteristicSubject.asObservable(),
+            strokeSettingsCharacteristic$: strokeSettingsCharacteristicSubject.asObservable(),
+        };
 
-        mockErgConnectionService.readSettingsCharacteristic.and.returnValue(mockSettingsCharacteristic);
-        mockErgConnectionService.readStrokeSettingsCharacteristic.and.returnValue(
+        vi.mocked(mockErgConnectionService.readSettingsCharacteristic).mockReturnValue(
+            mockSettingsCharacteristic,
+        );
+        vi.mocked(mockErgConnectionService.readStrokeSettingsCharacteristic).mockReturnValue(
             mockStrokeSettingsCharacteristic,
         );
-        mockErgConnectionService.readMeasurementCharacteristic.and.returnValue(mockSettingsCharacteristic);
+        vi.mocked(mockErgConnectionService.readMeasurementCharacteristic).mockReturnValue(
+            mockSettingsCharacteristic,
+        );
 
-        createControlPointValueChangedListenerReady = changedListenerReadyFactory<
-            typeof mockSettingsControlPointCharacteristic,
-            DataView
-        >(mockSettingsControlPointCharacteristic, "characteristicvaluechanged");
+        createControlPointValueChangedListenerReady = changedListenerReadyFactory(
+            mockSettingsControlPointCharacteristic,
+            "characteristicvaluechanged",
+        );
 
         TestBed.configureTestingModule({
             providers: [
@@ -107,10 +129,10 @@ describe("ErgSettingsService other control-point API", (): void => {
     describe("restartDevice method", (): void => {
         describe("when device is not connected", (): void => {
             beforeEach((): void => {
-                mockErgConnectionService.readSettingsCharacteristic.and.returnValue(undefined);
-                (
-                    Object.getOwnPropertyDescriptor(mockSettingsCharacteristic, "service")?.get as jasmine.Spy
-                ).and.returnValue(undefined);
+                vi.mocked(mockErgConnectionService.readSettingsCharacteristic).mockReturnValue(undefined);
+                vi.spyOn(mockSettingsCharacteristic, "service", "get").mockReturnValue(
+                    undefined as unknown as BluetoothRemoteGATTService,
+                );
             });
 
             it("should display not connected message", async (): Promise<void> => {
@@ -133,9 +155,9 @@ describe("ErgSettingsService other control-point API", (): void => {
 
         describe("when service is not available", (): void => {
             beforeEach((): void => {
-                (
-                    Object.getOwnPropertyDescriptor(mockSettingsCharacteristic, "service")?.get as jasmine.Spy
-                ).and.returnValue(undefined);
+                vi.spyOn(mockSettingsCharacteristic, "service", "get").mockReturnValue(
+                    undefined as unknown as BluetoothRemoteGATTService,
+                );
             });
 
             it("should display not connected message", async (): Promise<void> => {
@@ -160,6 +182,7 @@ describe("ErgSettingsService other control-point API", (): void => {
             let controlPointTrigger: Promise<ListenerTrigger<DataView>>;
 
             beforeEach(async (): Promise<void> => {
+                vi.useFakeTimers();
                 controlPointTrigger = createControlPointValueChangedListenerReady(
                     createMockControlPointResponseDataView(
                         BleOpCodes.RestartDevice,
@@ -168,9 +191,14 @@ describe("ErgSettingsService other control-point API", (): void => {
                 );
             });
 
+            afterEach((): void => {
+                vi.useRealTimers();
+            });
+
             it("should get settings control point characteristic", async (): Promise<void> => {
                 const sut = service.restartDevice();
                 (await controlPointTrigger).triggerChanged();
+                await vi.advanceTimersByTimeAsync(1000);
                 await sut;
 
                 expect(mockSettingsCharacteristic.service.getCharacteristic).toHaveBeenCalledWith(
@@ -181,6 +209,7 @@ describe("ErgSettingsService other control-point API", (): void => {
             it("should start notifications", async (): Promise<void> => {
                 const sut = service.restartDevice();
                 (await controlPointTrigger).triggerChanged();
+                await vi.advanceTimersByTimeAsync(1000);
                 await sut;
 
                 expect(mockSettingsControlPointCharacteristic.startNotifications).toHaveBeenCalled();
@@ -189,6 +218,7 @@ describe("ErgSettingsService other control-point API", (): void => {
             it("should write restart device command", async (): Promise<void> => {
                 const sut = service.restartDevice();
                 (await controlPointTrigger).triggerChanged();
+                await vi.advanceTimersByTimeAsync(1000);
                 await sut;
 
                 expect(mockSettingsControlPointCharacteristic.writeValueWithoutResponse).toHaveBeenCalledWith(
@@ -199,6 +229,7 @@ describe("ErgSettingsService other control-point API", (): void => {
             it("should display success message when operation succeeds", async (): Promise<void> => {
                 const sut = service.restartDevice();
                 (await controlPointTrigger).triggerChanged();
+                await vi.advanceTimersByTimeAsync(1000);
                 await sut;
 
                 expect(mockSnackBar.open).toHaveBeenCalledWith("Restarting device", "Dismiss");
@@ -223,6 +254,7 @@ describe("ErgSettingsService other control-point API", (): void => {
             it("should not stop notifications", async (): Promise<void> => {
                 const sut = service.restartDevice();
                 (await controlPointTrigger).triggerChanged();
+                await vi.advanceTimersByTimeAsync(1000);
                 await sut;
 
                 expect(mockSettingsControlPointCharacteristic.stopNotifications).not.toHaveBeenCalled();
@@ -230,21 +262,22 @@ describe("ErgSettingsService other control-point API", (): void => {
         });
 
         describe("when BLE operation throws error", (): void => {
-            it("should display timeout error message when TimeoutError thrown", fakeAsync((): void => {
-                service.restartDevice().catch((): void => {
-                    // no-op
-                });
+            it("should display timeout error message when TimeoutError thrown", async (): Promise<void> => {
+                vi.useFakeTimers();
+                const restartPromise = service.restartDevice();
 
-                tick(1000);
+                await vi.advanceTimersByTimeAsync(1000);
+                await restartPromise;
 
                 expect(mockSnackBar.open).toHaveBeenCalledWith(
                     "Failed to set restart device, request timed out",
                     "Dismiss",
                 );
-            }));
+                vi.useRealTimers();
+            });
 
             it("should display generic error message for other errors", async (): Promise<void> => {
-                mockSettingsControlPointCharacteristic.writeValueWithoutResponse.and.rejectWith(
+                vi.mocked(mockSettingsControlPointCharacteristic.writeValueWithoutResponse).mockRejectedValue(
                     new Error("BLE error"),
                 );
                 const triggerHandler = createControlPointValueChangedListenerReady();

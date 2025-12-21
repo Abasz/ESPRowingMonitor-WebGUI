@@ -17,6 +17,7 @@ import {
 } from "chart.js";
 import ChartDataLabels, { Context } from "chartjs-plugin-datalabels";
 import { BaseChartDirective, provideCharts } from "ng2-charts";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { ForceCurveComponent } from "./force-curve.component";
 
@@ -151,14 +152,18 @@ describe("ForceCurveComponent", (): void => {
                     });
 
                     it("should configure tick step size", (): void => {
-                        const xTicks = component.forceChartOptions.scales?.x?.ticks as { stepSize: number };
+                        const xTicks = component.forceChartOptions.scales?.x?.ticks as {
+                            stepSize: number;
+                        };
                         expect(xTicks?.stepSize).toBe(1);
                     });
                 });
 
                 describe("y-axis configuration", (): void => {
                     it("should configure tick color", (): void => {
-                        const yTicks = component.forceChartOptions.scales?.y?.ticks as { color: string };
+                        const yTicks = component.forceChartOptions.scales?.y?.ticks as {
+                            color: string;
+                        };
                         expect(yTicks?.color).toBe("rgba(0,0,0)");
                     });
                 });
@@ -196,9 +201,9 @@ describe("ForceCurveComponent", (): void => {
     });
 
     describe("as part of template rendering", (): void => {
-        beforeEach((): void => {
+        beforeEach(async (): Promise<void> => {
             fixture.componentRef.setInput("handleForces", [10, 20, 15, 25, 5]);
-            fixture.detectChanges();
+            await fixture.whenStable();
         });
 
         describe("mat-card element", (): void => {
@@ -229,10 +234,10 @@ describe("ForceCurveComponent", (): void => {
     });
 
     describe("handleForces input signal", (): void => {
-        it("should accept array of numbers as input", (): void => {
+        it("should accept array of numbers as input", async (): Promise<void> => {
             const testForces = [10, 20, 30];
             fixture.componentRef.setInput("handleForces", testForces);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             expect(component.handleForces()).toEqual(testForces);
         });
@@ -243,60 +248,60 @@ describe("ForceCurveComponent", (): void => {
         });
 
         describe("with valid force data", (): void => {
-            it("should accept positive numbers", (): void => {
+            it("should accept positive numbers", async (): Promise<void> => {
                 const positiveForces = [5.5, 10.2, 15.8, 20.1];
                 fixture.componentRef.setInput("handleForces", positiveForces);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 expect(component.handleForces()).toEqual(positiveForces);
             });
 
-            it("should accept zero values", (): void => {
+            it("should accept zero values", async (): Promise<void> => {
                 const forcesWithZero = [0, 5, 0, 10, 0];
                 fixture.componentRef.setInput("handleForces", forcesWithZero);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 expect(component.handleForces()).toEqual(forcesWithZero);
             });
 
-            it("should accept negative numbers", (): void => {
+            it("should accept negative numbers", async (): Promise<void> => {
                 const negativeForces = [-5, -10, -2.5];
                 fixture.componentRef.setInput("handleForces", negativeForces);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 expect(component.handleForces()).toEqual(negativeForces);
             });
 
-            it("should accept decimal numbers", (): void => {
+            it("should accept decimal numbers", async (): Promise<void> => {
                 const decimalForces = [1.23, 4.56, 7.89, 10.11];
                 fixture.componentRef.setInput("handleForces", decimalForces);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 expect(component.handleForces()).toEqual(decimalForces);
             });
         });
 
         describe("with edge case data", (): void => {
-            it("should handle empty array", (): void => {
+            it("should handle empty array", async (): Promise<void> => {
                 const emptyForces: Array<number> = [];
                 fixture.componentRef.setInput("handleForces", emptyForces);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 expect(component.handleForces()).toEqual([]);
             });
 
-            it("should handle single value array", (): void => {
+            it("should handle single value array", async (): Promise<void> => {
                 const singleForce = [42.5];
                 fixture.componentRef.setInput("handleForces", singleForce);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 expect(component.handleForces()).toEqual(singleForce);
             });
 
-            it("should handle large arrays", (): void => {
+            it("should handle large arrays", async (): Promise<void> => {
                 const largeForces = Array.from({ length: 1000 }, (_: unknown, i: number): number => i * 0.1);
                 fixture.componentRef.setInput("handleForces", largeForces);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 expect(component.handleForces()).toEqual(largeForces);
             });
@@ -304,9 +309,9 @@ describe("ForceCurveComponent", (): void => {
     });
 
     describe("handleForcesChart computed signal", (): void => {
-        beforeEach((): void => {
+        beforeEach(async (): Promise<void> => {
             fixture.componentRef.setInput("handleForces", [10, 20, 15, 25, 5]);
-            fixture.detectChanges();
+            await fixture.whenStable();
         });
 
         describe("data transformation", (): void => {
@@ -314,7 +319,7 @@ describe("ForceCurveComponent", (): void => {
                 const chartData = component.handleForcesChart();
                 const dataPoints = chartData.datasets[0].data as Array<Point>;
 
-                expect(dataPoints).toHaveSize(5);
+                expect(dataPoints).toHaveLength(5);
                 expect(dataPoints[0]).toEqual({ x: 0, y: 10 });
                 expect(dataPoints[1]).toEqual({ x: 1, y: 20 });
                 expect(dataPoints[2]).toEqual({ x: 2, y: 15 });
@@ -322,10 +327,10 @@ describe("ForceCurveComponent", (): void => {
                 expect(dataPoints[4]).toEqual({ x: 4, y: 5 });
             });
 
-            it("should preserve force values as y coordinates", (): void => {
+            it("should preserve force values as y coordinates", async (): Promise<void> => {
                 const testForces = [7.5, 14.2, 21.8];
                 fixture.componentRef.setInput("handleForces", testForces);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const chartData = component.handleForcesChart();
                 const dataPoints = chartData.datasets[0].data as Array<Point>;
@@ -344,15 +349,15 @@ describe("ForceCurveComponent", (): void => {
                 });
             });
 
-            it("should update chart data when handleForces changes", (): void => {
+            it("should update chart data when handleForces changes", async (): Promise<void> => {
                 const newForces = [100, 200, 300];
                 fixture.componentRef.setInput("handleForces", newForces);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const chartData = component.handleForcesChart();
                 const dataPoints = chartData.datasets[0].data as Array<Point>;
 
-                expect(dataPoints).toHaveSize(3);
+                expect(dataPoints).toHaveLength(3);
                 expect(dataPoints[0]).toEqual({ x: 0, y: 100 });
                 expect(dataPoints[1]).toEqual({ x: 1, y: 200 });
                 expect(dataPoints[2]).toEqual({ x: 2, y: 300 });
@@ -365,7 +370,7 @@ describe("ForceCurveComponent", (): void => {
 
                 expect(chartData.datasets).toBeDefined();
                 expect(Array.isArray(chartData.datasets)).toBe(true);
-                expect(chartData.datasets).toHaveSize(1);
+                expect(chartData.datasets).toHaveLength(1);
             });
 
             it("should maintain dataset configuration", (): void => {
@@ -379,11 +384,11 @@ describe("ForceCurveComponent", (): void => {
                 expect(dataset.pointRadius).toBe(0);
             });
 
-            it("should create new object reference for reactivity", (): void => {
+            it("should create new object reference for reactivity", async (): Promise<void> => {
                 const chartData1 = component.handleForcesChart();
 
                 fixture.componentRef.setInput("handleForces", [5, 15, 10, 20, 8]);
-                fixture.detectChanges();
+                await fixture.whenStable();
                 const chartData2 = component.handleForcesChart();
 
                 expect(chartData1).not.toBe(chartData2);
@@ -395,21 +400,21 @@ describe("ForceCurveComponent", (): void => {
 
     describe("as part of integration scenarios", (): void => {
         describe("with realistic force curve data", (): void => {
-            it("should render typical rowing stroke pattern", (): void => {
+            it("should render typical rowing stroke pattern", async (): Promise<void> => {
                 const rowingStroke = [5, 15, 30, 45, 50, 45, 30, 15, 5];
                 fixture.componentRef.setInput("handleForces", rowingStroke);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const chartData = component.handleForcesChart();
                 const dataPoints = chartData.datasets[0].data as Array<Point>;
 
-                expect(dataPoints).toHaveSize(9);
+                expect(dataPoints).toHaveLength(9);
                 expect(dataPoints[0].y).toBe(5);
                 expect(dataPoints[4].y).toBe(50);
                 expect(dataPoints[8].y).toBe(5);
             });
 
-            it("should handle multiple stroke cycles", (): void => {
+            it("should handle multiple stroke cycles", async (): Promise<void> => {
                 const multipleStrokes = [
                     5,
                     25,
@@ -428,12 +433,12 @@ describe("ForceCurveComponent", (): void => {
                     5, // stroke 3
                 ];
                 fixture.componentRef.setInput("handleForces", multipleStrokes);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const chartData = component.handleForcesChart();
                 const dataPoints = chartData.datasets[0].data as Array<Point>;
 
-                expect(dataPoints).toHaveSize(15);
+                expect(dataPoints).toHaveLength(15);
                 expect(dataPoints[2].y).toBe(50);
                 expect(dataPoints[7].y).toBe(55);
                 expect(dataPoints[12].y).toBe(45);
@@ -441,37 +446,37 @@ describe("ForceCurveComponent", (): void => {
         });
 
         describe("with dynamic data updates", (): void => {
-            it("should update chart when force data changes", (): void => {
+            it("should update chart when force data changes", async (): Promise<void> => {
                 const initialForces = [10, 20, 30];
                 fixture.componentRef.setInput("handleForces", initialForces);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const initialChartData = component.handleForcesChart();
                 const initialDataPoints = initialChartData.datasets[0].data as Array<Point>;
-                expect(initialDataPoints).toHaveSize(3);
+                expect(initialDataPoints).toHaveLength(3);
 
                 const newForces = [40, 50, 60, 70];
                 fixture.componentRef.setInput("handleForces", newForces);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const updatedChartData = component.handleForcesChart();
                 const updatedDataPoints = updatedChartData.datasets[0].data as Array<Point>;
 
-                expect(updatedDataPoints).toHaveSize(4);
+                expect(updatedDataPoints).toHaveLength(4);
                 expect(updatedDataPoints[3]).toEqual({ x: 3, y: 70 });
             });
 
-            it("should maintain chart configuration during updates", (): void => {
+            it("should maintain chart configuration during updates", async (): Promise<void> => {
                 const initialForces = [10];
                 fixture.componentRef.setInput("handleForces", initialForces);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const initialChartData = component.handleForcesChart();
                 const initialDataset = initialChartData.datasets[0];
 
                 const newForces = [100, 200];
                 fixture.componentRef.setInput("handleForces", newForces);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const updatedChartData = component.handleForcesChart();
                 const updatedDataset = updatedChartData.datasets[0];
@@ -485,10 +490,10 @@ describe("ForceCurveComponent", (): void => {
 
     describe("as part of edge case handling", (): void => {
         describe("with extreme values", (): void => {
-            it("should handle very large force values", (): void => {
+            it("should handle very large force values", async (): Promise<void> => {
                 const largeValues = [10000, 50000, 100000];
                 fixture.componentRef.setInput("handleForces", largeValues);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const chartData = component.handleForcesChart();
                 const dataPoints = chartData.datasets[0].data as Array<Point>;
@@ -498,10 +503,10 @@ describe("ForceCurveComponent", (): void => {
                 expect(dataPoints[2].y).toBe(100000);
             });
 
-            it("should handle very small decimal values", (): void => {
+            it("should handle very small decimal values", async (): Promise<void> => {
                 const smallValues = [0.001, 0.0005, 0.0001];
                 fixture.componentRef.setInput("handleForces", smallValues);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const chartData = component.handleForcesChart();
                 const dataPoints = chartData.datasets[0].data as Array<Point>;
@@ -511,10 +516,10 @@ describe("ForceCurveComponent", (): void => {
                 expect(dataPoints[2].y).toBe(0.0001);
             });
 
-            it("should handle negative force values", (): void => {
+            it("should handle negative force values", async (): Promise<void> => {
                 const negativeValues = [-10, -25, -5];
                 fixture.componentRef.setInput("handleForces", negativeValues);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const chartData = component.handleForcesChart();
                 const dataPoints = chartData.datasets[0].data as Array<Point>;
@@ -526,10 +531,10 @@ describe("ForceCurveComponent", (): void => {
         });
 
         describe("with unusual data patterns", (): void => {
-            it("should handle constant values", (): void => {
+            it("should handle constant values", async (): Promise<void> => {
                 const constantValues = [25, 25, 25, 25, 25];
                 fixture.componentRef.setInput("handleForces", constantValues);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const chartData = component.handleForcesChart();
                 const dataPoints = chartData.datasets[0].data as Array<Point>;
@@ -539,10 +544,10 @@ describe("ForceCurveComponent", (): void => {
                 });
             });
 
-            it("should handle monotonically increasing values", (): void => {
+            it("should handle monotonically increasing values", async (): Promise<void> => {
                 const increasingValues = [1, 5, 10, 20, 35, 55];
                 fixture.componentRef.setInput("handleForces", increasingValues);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const chartData = component.handleForcesChart();
                 const dataPoints = chartData.datasets[0].data as Array<Point>;
@@ -552,10 +557,10 @@ describe("ForceCurveComponent", (): void => {
                 }
             });
 
-            it("should handle monotonically decreasing values", (): void => {
+            it("should handle monotonically decreasing values", async (): Promise<void> => {
                 const decreasingValues = [100, 80, 60, 40, 20, 5];
                 fixture.componentRef.setInput("handleForces", decreasingValues);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const chartData = component.handleForcesChart();
                 const dataPoints = chartData.datasets[0].data as Array<Point>;
@@ -567,16 +572,16 @@ describe("ForceCurveComponent", (): void => {
         });
 
         describe("with performance considerations", (): void => {
-            it("should handle frequent data updates efficiently", (): void => {
+            it("should handle frequent data updates efficiently", async (): Promise<void> => {
                 const baseForces = [10, 20, 30];
 
                 for (let i = 0; i < 10; i++) {
                     const updatedForces = baseForces.map((force: number): number => force + i);
                     fixture.componentRef.setInput("handleForces", updatedForces);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     const chartData = component.handleForcesChart();
-                    expect(chartData.datasets[0].data).toHaveSize(3);
+                    expect(chartData.datasets[0].data).toHaveLength(3);
                 }
 
                 const finalChartData = component.handleForcesChart();
@@ -592,12 +597,11 @@ describe("ForceCurveComponent", (): void => {
                     (_: unknown, i: number): number => Math.sin(i * 0.01) * 100,
                 );
                 fixture.componentRef.setInput("handleForces", veryLargeDataset);
-                fixture.detectChanges();
 
                 const chartData = component.handleForcesChart();
                 const dataPoints = chartData.datasets[0].data as Array<Point>;
 
-                expect(dataPoints).toHaveSize(10000);
+                expect(dataPoints).toHaveLength(10000);
                 expect(dataPoints[0].x).toBe(0);
                 expect(dataPoints[9999].x).toBe(9999);
             });

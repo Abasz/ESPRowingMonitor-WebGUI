@@ -1,6 +1,7 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ReactiveFormsModule } from "@angular/forms";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     IRowerSettings,
@@ -16,7 +17,10 @@ import { RowingSettingsComponent } from "./rowing-settings.component";
 describe("RowingSettingsComponent", (): void => {
     let component: RowingSettingsComponent;
     let fixture: ComponentFixture<RowingSettingsComponent>;
-    let mockRowingProfileService: jasmine.SpyObj<RowingProfileService>;
+    let mockRowingProfileService: Pick<
+        RowingProfileService,
+        "getAllProfiles" | "getProfile" | "saveAsCustomProfile"
+    >;
 
     const mockRowerSettings: IRowerSettings = {
         generalSettings: {
@@ -95,18 +99,18 @@ describe("RowingSettingsComponent", (): void => {
     };
 
     beforeEach(async (): Promise<void> => {
-        mockRowingProfileService = jasmine.createSpyObj("RowingProfileService", [
-            "getAllProfiles",
-            "getProfile",
-            "saveAsCustomProfile",
-        ]);
+        mockRowingProfileService = {
+            getAllProfiles: vi.fn(),
+            getProfile: vi.fn(),
+            saveAsCustomProfile: vi.fn(),
+        };
 
-        mockRowingProfileService.getAllProfiles.and.returnValue({
+        vi.mocked(mockRowingProfileService.getAllProfiles).mockReturnValue({
             "test-profile": mockProfileData,
             [CUSTOM_PROFILE_KEY]: mockProfileData,
         });
 
-        mockRowingProfileService.getProfile.and.returnValue(mockProfileData);
+        vi.mocked(mockRowingProfileService.getProfile).mockReturnValue(mockProfileData);
 
         await TestBed.configureTestingModule({
             imports: [RowingSettingsComponent, ReactiveFormsModule],
@@ -122,6 +126,7 @@ describe("RowingSettingsComponent", (): void => {
         fixture.componentRef.setInput("rowerSettings", mockRowerSettings);
         fixture.componentRef.setInput("isConnected", true);
         fixture.componentRef.setInput("isSmallScreen", false);
+        // do not call whenStable here becuase some tests rely on ngOnInit not having been called yet
     });
 
     describe("Component Creation & Initialization", (): void => {
@@ -129,8 +134,8 @@ describe("RowingSettingsComponent", (): void => {
             expect(component).toBeTruthy();
         });
 
-        it("should initialize the form with all controls and default values", (): void => {
-            fixture.detectChanges();
+        it("should initialize the form with all controls and default values", async (): Promise<void> => {
+            await fixture.whenStable();
 
             expect(component.settingsForm).toBeDefined();
             expect(component.settingsForm.controls.machineSettings).toBeDefined();
@@ -143,8 +148,8 @@ describe("RowingSettingsComponent", (): void => {
             expect(component.settingsForm.controls.strokeDetectionSettings.disabled).toBe(false);
         });
 
-        it("should patch form values from @Input rowerSettings on ngOnInit", (): void => {
-            fixture.detectChanges();
+        it("should patch form values from @Input rowerSettings on ngOnInit", async (): Promise<void> => {
+            await fixture.whenStable();
 
             expect(component.settingsForm.value.machineSettings?.flywheelInertia).toBe(0.05);
             expect(component.settingsForm.value.machineSettings?.magicConstant).toBe(2.8);
@@ -157,7 +162,7 @@ describe("RowingSettingsComponent", (): void => {
     });
 
     describe("Form Enable/Disable Logic", (): void => {
-        it("should enable the form when both isConnected and isRuntimeSettingsEnabled are true", (): void => {
+        it("should enable the form when both isConnected and isRuntimeSettingsEnabled are true", async (): Promise<void> => {
             fixture.componentRef.setInput("isConnected", true);
             const enabledRowingSettings = {
                 ...mockRowerSettings,
@@ -167,14 +172,13 @@ describe("RowingSettingsComponent", (): void => {
                 },
             };
             fixture.componentRef.setInput("rowerSettings", enabledRowingSettings);
-
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             expect(component.settingsForm.enabled).toBe(true);
         });
 
         describe("should keep the form disabled", (): void => {
-            it("when isConnected is false", (): void => {
+            it("when isConnected is false", async (): Promise<void> => {
                 fixture.componentRef.setInput("isConnected", false);
                 const enabledRowingSettings = {
                     ...mockRowerSettings,
@@ -184,13 +188,12 @@ describe("RowingSettingsComponent", (): void => {
                     },
                 };
                 fixture.componentRef.setInput("rowerSettings", enabledRowingSettings);
-
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 expect(component.settingsForm.disabled).toBe(true);
             });
 
-            it("when isRuntimeSettingsEnabled is false", (): void => {
+            it("when isRuntimeSettingsEnabled is false", async (): Promise<void> => {
                 fixture.componentRef.setInput("isConnected", true);
                 const disabledRowingSettings = {
                     ...mockRowerSettings,
@@ -200,8 +203,7 @@ describe("RowingSettingsComponent", (): void => {
                     },
                 };
                 fixture.componentRef.setInput("rowerSettings", disabledRowingSettings);
-
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 expect(component.settingsForm.disabled).toBe(true);
             });
@@ -209,11 +211,8 @@ describe("RowingSettingsComponent", (): void => {
     });
 
     describe("Form Validators & Dynamic Validation", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
-        it("should set correct max validator for impulseDataArrayLength based on isCompiledWithDouble", (): void => {
+        it("should set correct max validator for impulseDataArrayLength based on isCompiledWithDouble", async (): Promise<void> => {
+            await fixture.whenStable();
             const impulseControl =
                 component.settingsForm.controls.strokeDetectionSettings.controls.impulseDataArrayLength;
 
@@ -233,6 +232,7 @@ describe("RowingSettingsComponent", (): void => {
             };
             fixture.componentRef.setInput("rowerSettings", rowerSettingsWithoutDouble);
             component.ngOnInit();
+            await fixture.whenStable();
 
             // max should now be 18
             impulseControl.setValue(19);
@@ -242,21 +242,20 @@ describe("RowingSettingsComponent", (): void => {
             expect(impulseControl.hasError("max")).toBe(false);
         });
 
-        it("should emit isFormValidChange when form validity changes", (): void => {
-            spyOn(component.isFormValidChange, "emit");
+        it("should emit isFormValidChange when form validity changes", async (): Promise<void> => {
+            vi.spyOn(component.isFormValidChange, "emit");
 
             component.settingsForm.patchValue({
                 machineSettings: { flywheelInertia: 0.1 },
             });
 
-            fixture.detectChanges();
-
+            await fixture.whenStable();
             expect(component.isFormValidChange.emit).toHaveBeenCalled();
         });
     });
 
     describe("Dynamic Field State Management", (): void => {
-        beforeEach((): void => {
+        beforeEach(async (): Promise<void> => {
             const enabledRowingSettings = {
                 ...mockRowerSettings,
                 generalSettings: {
@@ -266,7 +265,7 @@ describe("RowingSettingsComponent", (): void => {
             };
             fixture.componentRef.setInput("rowerSettings", enabledRowingSettings);
             fixture.componentRef.setInput("isConnected", true);
-            fixture.detectChanges();
+            await fixture.whenStable();
         });
 
         describe("when strokeDetectionType is set to Torque (legacy firmware)", (): void => {
@@ -277,8 +276,6 @@ describe("RowingSettingsComponent", (): void => {
                 component.settingsForm.controls.strokeDetectionSettings.controls.strokeDetectionType.setValue(
                     StrokeDetectionType.Torque,
                 );
-
-                fixture.detectChanges();
 
                 expect(minimumRecoverySlope.disabled).toBe(true);
             });
@@ -292,15 +289,14 @@ describe("RowingSettingsComponent", (): void => {
                     StrokeDetectionType.Torque,
                 );
 
-                fixture.detectChanges();
-
                 // legacy firmware has non-NaN value, so field should be enabled
                 expect(minimumRecoverySlopeMargin.enabled).toBe(true);
             });
         });
 
         describe("when strokeDetectionType is set to Slope", (): void => {
-            it("should enable minimumRecoverySlope field", (): void => {
+            it("should enable minimumRecoverySlope field", async (): Promise<void> => {
+                await fixture.whenStable();
                 const minimumRecoverySlope =
                     component.settingsForm.controls.strokeDetectionSettings.controls.minimumRecoverySlope;
 
@@ -308,12 +304,11 @@ describe("RowingSettingsComponent", (): void => {
                     StrokeDetectionType.Slope,
                 );
 
-                fixture.detectChanges();
-
+                await fixture.whenStable();
                 expect(minimumRecoverySlope.enabled).toBe(true);
             });
 
-            it("should disable minimumRecoverySlopeMargin field", (): void => {
+            it("should disable minimumRecoverySlopeMargin field", async (): Promise<void> => {
                 const minimumRecoverySlopeMargin =
                     component.settingsForm.controls.strokeDetectionSettings.controls
                         .minimumRecoverySlopeMargin;
@@ -322,19 +317,18 @@ describe("RowingSettingsComponent", (): void => {
                     StrokeDetectionType.Slope,
                 );
 
-                fixture.detectChanges();
-
+                await fixture.whenStable();
                 expect(minimumRecoverySlopeMargin.disabled).toBe(true);
             });
         });
 
-        it("should not change field states when isRuntimeSettingsEnabled is false", (): void => {
+        it("should not change field states when isRuntimeSettingsEnabled is false", async (): Promise<void> => {
             const disabledRowingSettings = {
                 ...mockRowerSettings,
                 generalSettings: { ...mockRowerSettings.generalSettings, isRuntimeSettingsEnabled: false },
             };
             fixture.componentRef.setInput("rowerSettings", disabledRowingSettings);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const minimumRecoverySlope =
                 component.settingsForm.controls.strokeDetectionSettings.controls.minimumRecoverySlope;
@@ -350,14 +344,12 @@ describe("RowingSettingsComponent", (): void => {
                 StrokeDetectionType.Slope,
             );
 
-            fixture.detectChanges();
-
             expect(minimumRecoverySlope.disabled).toBe(initialRecoverySlopeState);
             expect(minimumRecoverySlopeMargin.disabled).toBe(initialRecoverySlopeMarginState);
         });
 
         describe("minimumRecoverySlopeMargin with new firmware (NaN value)", (): void => {
-            beforeEach((): void => {
+            beforeEach(async (): Promise<void> => {
                 const newFirmwareSettings = {
                     ...mockRowerSettings,
                     generalSettings: {
@@ -374,7 +366,7 @@ describe("RowingSettingsComponent", (): void => {
                 };
                 fixture.componentRef.setInput("rowerSettings", newFirmwareSettings);
                 fixture.componentRef.setInput("isConnected", true);
-                fixture.detectChanges();
+                await fixture.whenStable();
             });
 
             it("should always disable minimumRecoverySlopeMargin field when value is NaN", (): void => {
@@ -387,8 +379,6 @@ describe("RowingSettingsComponent", (): void => {
                     StrokeDetectionType.Torque,
                 );
 
-                fixture.detectChanges();
-
                 expect(minimumRecoverySlopeMargin.disabled).toBe(true);
             });
 
@@ -399,7 +389,7 @@ describe("RowingSettingsComponent", (): void => {
     });
 
     describe("Profile Management", (): void => {
-        beforeEach((): void => {
+        beforeEach(async (): Promise<void> => {
             const enabledRowingSettings = {
                 ...mockRowerSettings,
                 generalSettings: {
@@ -408,6 +398,7 @@ describe("RowingSettingsComponent", (): void => {
                 },
             };
             fixture.componentRef.setInput("rowerSettings", enabledRowingSettings);
+            await fixture.whenStable();
         });
 
         describe("loadProfile", (): void => {
@@ -427,7 +418,7 @@ describe("RowingSettingsComponent", (): void => {
                 expect(component.isProfileLoaded).toBe(false);
             });
 
-            it("should not load a profile when isRuntimeSettingsEnabled is false", (): void => {
+            it("should not load a profile when isRuntimeSettingsEnabled is false", async (): Promise<void> => {
                 const disabledRowingSettings = {
                     ...mockRowerSettings,
                     generalSettings: {
@@ -436,7 +427,7 @@ describe("RowingSettingsComponent", (): void => {
                     },
                 };
                 fixture.componentRef.setInput("rowerSettings", disabledRowingSettings);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 component.loadProfile("test-profile");
 
@@ -445,7 +436,7 @@ describe("RowingSettingsComponent", (): void => {
             });
 
             it("should not load a profile when profileData is not found", (): void => {
-                mockRowingProfileService.getProfile.and.returnValue(undefined);
+                vi.mocked(mockRowingProfileService.getProfile).mockReturnValue(undefined);
 
                 component.loadProfile("non-existent-profile");
 
@@ -462,7 +453,7 @@ describe("RowingSettingsComponent", (): void => {
             });
 
             describe("minimumRecoverySlopeMargin handling for different firmware/profile combinations", (): void => {
-                it("should use NaN when current firmware has NaN (new firmware)", (): void => {
+                it("should use NaN when current firmware has NaN (new firmware)", async (): Promise<void> => {
                     const newFirmwareSettings = {
                         ...mockRowerSettings,
                         generalSettings: {
@@ -478,7 +469,6 @@ describe("RowingSettingsComponent", (): void => {
                         },
                     };
                     fixture.componentRef.setInput("rowerSettings", newFirmwareSettings);
-                    fixture.detectChanges();
 
                     component.loadProfile("test-profile");
 
@@ -488,7 +478,7 @@ describe("RowingSettingsComponent", (): void => {
                     expect(Number.isNaN(loadedValue)).toBe(true);
                 });
 
-                it("should use 0 when current firmware has valid number (legacy) but profile has NaN (from new firmware)", (): void => {
+                it("should use 0 when current firmware has valid number (legacy) but profile has NaN (from new firmware)", async (): Promise<void> => {
                     const legacyFirmwareSettings = {
                         ...mockRowerSettings,
                         generalSettings: {
@@ -497,6 +487,7 @@ describe("RowingSettingsComponent", (): void => {
                         },
                     };
                     fixture.componentRef.setInput("rowerSettings", legacyFirmwareSettings);
+                    await fixture.whenStable();
 
                     const newFirmwareProfile: ProfileData = {
                         ...mockProfileData,
@@ -508,8 +499,7 @@ describe("RowingSettingsComponent", (): void => {
                             },
                         },
                     };
-                    mockRowingProfileService.getProfile.and.returnValue(newFirmwareProfile);
-                    fixture.detectChanges();
+                    vi.mocked(mockRowingProfileService.getProfile).mockReturnValue(newFirmwareProfile);
 
                     component.loadProfile("test-profile");
 
@@ -518,7 +508,7 @@ describe("RowingSettingsComponent", (): void => {
                     expect(loadedValue).toBe(0);
                 });
 
-                it("should use 0 when current firmware has valid number (legacy) but profile has undefined (from JSON)", (): void => {
+                it("should use 0 when current firmware has valid number (legacy) but profile has undefined (from JSON)", async (): Promise<void> => {
                     const legacyFirmwareSettings = {
                         ...mockRowerSettings,
                         generalSettings: {
@@ -527,6 +517,7 @@ describe("RowingSettingsComponent", (): void => {
                         },
                     };
                     fixture.componentRef.setInput("rowerSettings", legacyFirmwareSettings);
+                    await fixture.whenStable();
 
                     const profileWithUndefined: ProfileData = {
                         ...mockProfileData,
@@ -538,8 +529,7 @@ describe("RowingSettingsComponent", (): void => {
                             },
                         },
                     };
-                    mockRowingProfileService.getProfile.and.returnValue(profileWithUndefined);
-                    fixture.detectChanges();
+                    vi.mocked(mockRowingProfileService.getProfile).mockReturnValue(profileWithUndefined);
 
                     component.loadProfile("test-profile");
 
@@ -548,7 +538,7 @@ describe("RowingSettingsComponent", (): void => {
                     expect(loadedValue).toBe(0);
                 });
 
-                it("should use profile value when both current firmware and profile have valid numbers (legacy)", (): void => {
+                it("should use profile value when both current firmware and profife have valid numbers (legacy)", async (): Promise<void> => {
                     const legacyFirmwareSettings = {
                         ...mockRowerSettings,
                         generalSettings: {
@@ -557,7 +547,7 @@ describe("RowingSettingsComponent", (): void => {
                         },
                     };
                     fixture.componentRef.setInput("rowerSettings", legacyFirmwareSettings);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     component.loadProfile("test-profile");
 
@@ -570,14 +560,10 @@ describe("RowingSettingsComponent", (): void => {
     });
 
     describe("Custom Profile Saving", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
         describe("saveAsCustomProfile", (): void => {
             it("should save as custom profile if form is dirty", (): void => {
                 component.settingsForm.markAsDirty();
-                spyOn(component.settingsForm, "getRawValue").and.returnValue({
+                vi.spyOn(component.settingsForm, "getRawValue").mockReturnValue({
                     machineSettings: mockProfileData.settings.machineSettings,
                     sensorSignalSettings: mockProfileData.settings.sensorSignalSettings,
                     dragFactorSettings: mockProfileData.settings.dragFactorSettings,
@@ -599,7 +585,7 @@ describe("RowingSettingsComponent", (): void => {
 
             it("should update availableProfiles after saving custom profile", (): void => {
                 component.settingsForm.markAsDirty();
-                spyOn(component.settingsForm, "getRawValue").and.returnValue({
+                vi.spyOn(component.settingsForm, "getRawValue").mockReturnValue({
                     machineSettings: mockProfileData.settings.machineSettings,
                     sensorSignalSettings: mockProfileData.settings.sensorSignalSettings,
                     dragFactorSettings: mockProfileData.settings.dragFactorSettings,
@@ -619,7 +605,7 @@ describe("RowingSettingsComponent", (): void => {
 
             it("should omit minimumRecoverySlopeMargin property when value is NaN (for JSON serialization)", (): void => {
                 component.settingsForm.markAsDirty();
-                spyOn(component.settingsForm, "getRawValue").and.returnValue({
+                vi.spyOn(component.settingsForm, "getRawValue").mockReturnValue({
                     machineSettings: mockProfileData.settings.machineSettings,
                     sensorSignalSettings: mockProfileData.settings.sensorSignalSettings,
                     dragFactorSettings: mockProfileData.settings.dragFactorSettings,
@@ -631,14 +617,15 @@ describe("RowingSettingsComponent", (): void => {
 
                 component.saveAsCustomProfile();
 
-                const savedSettings = mockRowingProfileService.saveAsCustomProfile.calls.mostRecent().args[0];
-                expect(savedSettings.strokeDetectionSettings).toBeDefined();
-                expect("minimumRecoverySlopeMargin" in savedSettings.strokeDetectionSettings).toBe(false);
+                const savedSettings = vi.mocked(mockRowingProfileService.saveAsCustomProfile).mock
+                    .lastCall?.[0];
+                expect(savedSettings?.strokeDetectionSettings).toBeDefined();
+                expect("minimumRecoverySlopeMargin" in savedSettings!.strokeDetectionSettings).toBe(false);
             });
 
             it("should keep valid number values when saving (legacy firmware)", (): void => {
                 component.settingsForm.markAsDirty();
-                spyOn(component.settingsForm, "getRawValue").and.returnValue({
+                vi.spyOn(component.settingsForm, "getRawValue").mockReturnValue({
                     machineSettings: mockProfileData.settings.machineSettings,
                     sensorSignalSettings: mockProfileData.settings.sensorSignalSettings,
                     dragFactorSettings: mockProfileData.settings.dragFactorSettings,
@@ -651,8 +638,8 @@ describe("RowingSettingsComponent", (): void => {
                 component.saveAsCustomProfile();
 
                 expect(mockRowingProfileService.saveAsCustomProfile).toHaveBeenCalledWith(
-                    jasmine.objectContaining({
-                        strokeDetectionSettings: jasmine.objectContaining({
+                    expect.objectContaining({
+                        strokeDetectionSettings: expect.objectContaining({
                             minimumRecoverySlopeMargin: 0.05,
                         }),
                     }),
@@ -662,10 +649,6 @@ describe("RowingSettingsComponent", (): void => {
     });
 
     describe("Utility Methods", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
         describe("profileCompareFn", (): void => {
             it("should return 1 if a is custom profile and b is not", (): void => {
                 const a = { key: CUSTOM_PROFILE_KEY, value: mockProfileData };
@@ -710,10 +693,6 @@ describe("RowingSettingsComponent", (): void => {
     });
 
     describe("Cross-field Validator: maxDragFactorRecoveryPeriod", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
         it("should be valid when possibleRecoveryDatapointCount is within allowed range", (): void => {
             // set values that result in valid calculation: (20 * 1000) / 25 = 800 < 1000
             component.settingsForm.patchValue({
@@ -729,7 +708,8 @@ describe("RowingSettingsComponent", (): void => {
             ).toBe(false);
         });
 
-        it("should be invalid when possibleRecoveryDatapointCount exceeds maxAllowedDatapoints", (): void => {
+        it("should be invalid when possibleRecoveryDatapointCount exceeds maxAllowedDatapoints", async (): Promise<void> => {
+            await fixture.whenStable();
             // set values that result in invalid calculation: (30 * 1000) / 25 = 1200 > 1000
             component.settingsForm.patchValue({
                 sensorSignalSettings: { rotationDebounceTime: 25 },
@@ -762,7 +742,8 @@ describe("RowingSettingsComponent", (): void => {
             expect(component.settingsForm.hasError("maxDragFactorRecoveryPeriodExceeded")).toBe(false);
         });
 
-        it("should mark maxDragFactorRecoveryPeriod as touched and set errors when validation fails", (): void => {
+        it("should mark maxDragFactorRecoveryPeriod as touched and set errors when validation fails", async (): Promise<void> => {
+            await fixture.whenStable();
             const maxDragFactorControl =
                 component.settingsForm.controls.dragFactorSettings.controls.maxDragFactorRecoveryPeriod;
 
@@ -777,7 +758,8 @@ describe("RowingSettingsComponent", (): void => {
             expect(maxDragFactorControl.hasError("max")).toBe(true);
         });
 
-        it("should clear errors when validation passes after previously failing", (): void => {
+        it("should clear errors when validation passes after previously failing", async (): Promise<void> => {
+            await fixture.whenStable();
             const maxDragFactorControl =
                 component.settingsForm.controls.dragFactorSettings.controls.maxDragFactorRecoveryPeriod;
 
@@ -797,10 +779,6 @@ describe("RowingSettingsComponent", (): void => {
     });
 
     describe("Edge Cases & Robustness", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
         it("should handle missing form control values in validation gracefully", (): void => {
             expect((): void => {
                 component.settingsForm.patchValue({

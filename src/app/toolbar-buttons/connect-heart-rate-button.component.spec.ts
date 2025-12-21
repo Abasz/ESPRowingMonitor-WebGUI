@@ -5,6 +5,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatButtonHarness } from "@angular/material/button/testing";
 import { MatTooltipHarness } from "@angular/material/tooltip/testing";
 import { BehaviorSubject } from "rxjs";
+import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import { BleServiceNames } from "../../common/ble.interfaces";
 import { HeartRateMonitorMode, IHRConnectionStatus } from "../../common/common.interfaces";
@@ -18,13 +19,13 @@ describe("ConnectHeartRateButtonComponent", (): void => {
     let component: ConnectHeartRateButtonComponent;
     let fixture: ComponentFixture<ConnectHeartRateButtonComponent>;
     let loader: HarnessLoader;
-    let mockConfigManagerService: jasmine.SpyObj<ConfigManagerService>;
-    let mockMetricsService: jasmine.SpyObj<MetricsService>;
-    let mockHeartRateService: jasmine.SpyObj<HeartRateService>;
+    let mockConfigManagerService: Pick<ConfigManagerService, "heartRateMonitorChanged$">;
+    let mockMetricsService: Pick<MetricsService, "hrConnectionStatus$">;
+    let mockHeartRateService: Pick<HeartRateService, "discover">;
     let heartRateMonitorSubject: BehaviorSubject<HeartRateMonitorMode>;
     let hrConnectionStatusSubject: BehaviorSubject<IHRConnectionStatus>;
-    let isSecureContextSpy: jasmine.Spy<() => boolean>;
-    let navigatorBluetoothSpy: jasmine.Spy<() => Bluetooth | undefined>;
+    let isSecureContextSpy: Mock;
+    let navigatorBluetoothSpy: Mock;
 
     const mockHRConnectionStatus: IHRConnectionStatus = {
         status: "disconnected",
@@ -35,16 +36,18 @@ describe("ConnectHeartRateButtonComponent", (): void => {
         heartRateMonitorSubject = new BehaviorSubject<HeartRateMonitorMode>("off");
         hrConnectionStatusSubject = new BehaviorSubject<IHRConnectionStatus>(mockHRConnectionStatus);
 
-        mockConfigManagerService = jasmine.createSpyObj("ConfigManagerService", [], {
+        mockConfigManagerService = {
             heartRateMonitorChanged$: heartRateMonitorSubject.asObservable(),
-        });
+        };
 
-        mockMetricsService = jasmine.createSpyObj("MetricsService", [], {
+        mockMetricsService = {
             hrConnectionStatus$: hrConnectionStatusSubject.asObservable(),
-        });
+        };
 
-        mockHeartRateService = jasmine.createSpyObj("HeartRateService", ["discover"]);
-        mockHeartRateService.discover.and.resolveTo();
+        mockHeartRateService = {
+            discover: vi.fn(),
+        };
+        vi.mocked(mockHeartRateService.discover).mockResolvedValue();
 
         await TestBed.configureTestingModule({
             imports: [ConnectHeartRateButtonComponent],
@@ -56,11 +59,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
             ],
         }).compileComponents();
 
-        // install spies on the prototypes once so tests can override .and.returnValue(...) without re-spying
-        isSecureContextSpy = spyOnProperty(window, "isSecureContext", "get").and.returnValue(true);
-        navigatorBluetoothSpy = spyOnProperty(navigator, "bluetooth", "get").and.returnValue(
-            {} as unknown as Bluetooth,
-        );
+        isSecureContextSpy = vi.spyOn(window, "isSecureContext", "get").mockReturnValue(true);
+        navigatorBluetoothSpy = vi
+            .spyOn(navigator, "bluetooth", "get")
+            .mockReturnValue({} as unknown as Bluetooth);
 
         fixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
         component = fixture.componentInstance;
@@ -77,18 +79,16 @@ describe("ConnectHeartRateButtonComponent", (): void => {
         });
 
         it("should initialize heartRateMonitorMode signal", (): void => {
-            fixture.detectChanges();
             expect(component.heartRateMonitorMode()).toBe("off");
         });
 
         it("should initialize hrConnectionStatus signal", (): void => {
-            fixture.detectChanges();
             expect(component.hrConnectionStatus()).toEqual(mockHRConnectionStatus);
         });
 
         it("should detect BLE availability correctly when secure context", (): void => {
-            isSecureContextSpy.and.returnValue(true);
-            navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+            isSecureContextSpy.mockReturnValue(true);
+            navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
             const newFixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
             const newComponent = newFixture.componentInstance;
@@ -97,7 +97,7 @@ describe("ConnectHeartRateButtonComponent", (): void => {
         });
 
         it("should detect BLE unavailability when not secure context", (): void => {
-            isSecureContextSpy.and.returnValue(false);
+            isSecureContextSpy.mockReturnValue(false);
 
             const newFixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
             const newComponent = newFixture.componentInstance;
@@ -106,8 +106,8 @@ describe("ConnectHeartRateButtonComponent", (): void => {
         });
 
         it("should detect BLE unavailability when bluetooth API missing", (): void => {
-            isSecureContextSpy.and.returnValue(true);
-            navigatorBluetoothSpy.and.returnValue(undefined);
+            isSecureContextSpy.mockReturnValue(true);
+            navigatorBluetoothSpy.mockReturnValue(undefined);
 
             const newFixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
             const newComponent = newFixture.componentInstance;
@@ -119,8 +119,8 @@ describe("ConnectHeartRateButtonComponent", (): void => {
     describe("as part of template rendering", (): void => {
         describe("when BLE is available", (): void => {
             beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 fixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
                 component = fixture.componentInstance;
@@ -129,17 +129,16 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
             it("and heart rate monitor mode is off should not render button", (): void => {
                 heartRateMonitorSubject.next("off");
-                fixture.detectChanges();
 
                 const button = fixture.nativeElement.querySelector("button[mat-icon-button]");
                 expect(button).toBeNull();
             });
 
             describe("and heart rate monitor mode is not off", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     heartRateMonitorSubject.next("ant");
                     hrConnectionStatusSubject.next({ status: "disconnected", deviceName: undefined });
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should render button element", (): void => {
@@ -155,7 +154,6 @@ describe("ConnectHeartRateButtonComponent", (): void => {
                 describe("with disconnected status", (): void => {
                     beforeEach((): void => {
                         hrConnectionStatusSubject.next({ status: "disconnected", deviceName: undefined });
-                        fixture.detectChanges();
                     });
 
                     it("should display favorite icon", (): void => {
@@ -178,9 +176,9 @@ describe("ConnectHeartRateButtonComponent", (): void => {
                 });
 
                 describe("with connecting status", (): void => {
-                    beforeEach((): void => {
+                    beforeEach(async (): Promise<void> => {
                         hrConnectionStatusSubject.next({ status: "connecting", deviceName: undefined });
-                        fixture.detectChanges();
+                        await fixture.whenStable();
                     });
 
                     it("should display ecg_heart icon", (): void => {
@@ -203,12 +201,12 @@ describe("ConnectHeartRateButtonComponent", (): void => {
                 });
 
                 describe("with connected status", (): void => {
-                    beforeEach((): void => {
+                    beforeEach(async (): Promise<void> => {
                         hrConnectionStatusSubject.next({
                             status: "connected",
                             deviceName: "Heart Rate Device",
                         });
-                        fixture.detectChanges();
+                        await fixture.whenStable();
                     });
 
                     it("should display ecg_heart icon", (): void => {
@@ -231,9 +229,9 @@ describe("ConnectHeartRateButtonComponent", (): void => {
                 });
 
                 describe("with searching status", (): void => {
-                    beforeEach((): void => {
+                    beforeEach(async (): Promise<void> => {
                         hrConnectionStatusSubject.next({ status: "searching", deviceName: undefined });
-                        fixture.detectChanges();
+                        await fixture.whenStable();
                     });
 
                     it("should display ecg_heart icon", (): void => {
@@ -259,15 +257,14 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
         describe("when BLE is not available", (): void => {
             beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(false);
-                navigatorBluetoothSpy.and.returnValue(undefined);
+                isSecureContextSpy.mockReturnValue(false);
+                navigatorBluetoothSpy.mockReturnValue(undefined);
 
                 fixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
 
                 heartRateMonitorSubject.next("ant");
-                fixture.detectChanges();
             });
 
             it("should not render any content", (): void => {
@@ -286,23 +283,23 @@ describe("ConnectHeartRateButtonComponent", (): void => {
             });
 
             it("should handle successful discovery", async (): Promise<void> => {
-                mockHeartRateService.discover.and.resolveTo();
+                vi.mocked(mockHeartRateService.discover).mockResolvedValue();
 
-                await expectAsync(component.heartRateMonitorDiscovery()).toBeResolved();
+                await expect(component.heartRateMonitorDiscovery()).resolves.not.toThrow();
             });
 
             it("should handle discovery failure", async (): Promise<void> => {
                 const error = new Error("Discovery failed");
-                mockHeartRateService.discover.and.rejectWith(error);
+                vi.mocked(mockHeartRateService.discover).mockRejectedValue(error);
 
-                await expectAsync(component.heartRateMonitorDiscovery()).toBeRejected();
+                await expect(component.heartRateMonitorDiscovery()).rejects.toThrow();
             });
         });
 
         describe("button click interaction", (): void => {
-            beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+            beforeEach(async (): Promise<void> => {
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 fixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
                 component = fixture.componentInstance;
@@ -310,11 +307,11 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
                 heartRateMonitorSubject.next("ant");
                 hrConnectionStatusSubject.next({ status: "disconnected", deviceName: undefined });
-                fixture.detectChanges();
+                await fixture.whenStable();
             });
 
             it("should trigger heartRateMonitorDiscovery when clicked", async (): Promise<void> => {
-                spyOn(component, "heartRateMonitorDiscovery").and.resolveTo();
+                vi.spyOn(component, "heartRateMonitorDiscovery").mockResolvedValue();
 
                 const buttonHarness = await loader.getHarness(MatButtonHarness);
                 await buttonHarness.click();
@@ -332,52 +329,49 @@ describe("ConnectHeartRateButtonComponent", (): void => {
     describe("as part of signal reactivity", (): void => {
         describe("heartRateMonitorMode signal updates", (): void => {
             it("should update when ConfigManagerService emits new value", (): void => {
-                fixture.detectChanges();
                 expect(component.heartRateMonitorMode()).toBe("off");
 
                 heartRateMonitorSubject.next("ant");
-                fixture.detectChanges();
 
                 expect(component.heartRateMonitorMode()).toBe("ant");
             });
 
-            it("should reflect in template when mode changes to off", (): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+            it("should reflect in template when mode changes to off", async (): Promise<void> => {
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 fixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
 
                 heartRateMonitorSubject.next("ant");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 let button = fixture.nativeElement.querySelector("button[mat-icon-button]");
                 expect(button).toBeTruthy();
 
                 heartRateMonitorSubject.next("off");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 button = fixture.nativeElement.querySelector("button[mat-icon-button]");
                 expect(button).toBeNull();
             });
 
-            it("should reflect in template when mode changes to on", (): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+            it("should reflect in template when mode changes to on", async (): Promise<void> => {
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 fixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
 
                 heartRateMonitorSubject.next("off");
-                fixture.detectChanges();
 
                 let button = fixture.nativeElement.querySelector("button[mat-icon-button]");
                 expect(button).toBeNull();
 
                 heartRateMonitorSubject.next("ant");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 button = fixture.nativeElement.querySelector("button[mat-icon-button]");
                 expect(button).toBeTruthy();
@@ -386,8 +380,8 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
         describe("hrConnectionStatus signal updates", (): void => {
             beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 fixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
                 component = fixture.componentInstance;
@@ -397,54 +391,50 @@ describe("ConnectHeartRateButtonComponent", (): void => {
             });
 
             it("should update when MetricsService emits new status", (): void => {
-                fixture.detectChanges();
                 expect(component.hrConnectionStatus().status).toBe("disconnected");
 
                 hrConnectionStatusSubject.next({ status: "connected", deviceName: "Device" });
-                fixture.detectChanges();
 
                 expect(component.hrConnectionStatus().status).toBe("connected");
             });
 
             it("should update tooltip when device name changes", async (): Promise<void> => {
                 hrConnectionStatusSubject.next({ status: "connected", deviceName: undefined });
-                fixture.detectChanges();
 
                 let tooltipHarness = await loader.getHarness(MatTooltipHarness);
                 await tooltipHarness.show();
                 expect(await tooltipHarness.getTooltipText()).toBe("Connect HRM");
 
                 hrConnectionStatusSubject.next({ status: "connected", deviceName: "My Device" });
-                fixture.detectChanges();
 
                 tooltipHarness = await loader.getHarness(MatTooltipHarness);
                 await tooltipHarness.show();
                 expect(await tooltipHarness.getTooltipText()).toBe("My Device");
             });
 
-            it("should update icon when status changes", (): void => {
+            it("should update icon when status changes", async (): Promise<void> => {
                 hrConnectionStatusSubject.next({ status: "disconnected", deviceName: undefined });
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 let icon = fixture.nativeElement.querySelector("mat-icon");
                 expect(icon.textContent?.trim()).toBe("favorite");
 
                 hrConnectionStatusSubject.next({ status: "connected", deviceName: "Device" });
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 icon = fixture.nativeElement.querySelector("mat-icon");
                 expect(icon.textContent?.trim()).toBe("ecg_heart");
             });
 
-            it("should update CSS class when connecting status changes", (): void => {
+            it("should update CSS class when connecting status changes", async (): Promise<void> => {
                 hrConnectionStatusSubject.next({ status: "disconnected", deviceName: undefined });
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 let icon = fixture.nativeElement.querySelector("mat-icon");
                 expect(icon.classList.contains("blink")).toBe(false);
 
                 hrConnectionStatusSubject.next({ status: "connecting", deviceName: undefined });
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 icon = fixture.nativeElement.querySelector("mat-icon");
                 expect(icon.classList.contains("blink")).toBe(true);
@@ -454,9 +444,9 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
     describe("as part of host binding behavior", (): void => {
         describe("display style binding", (): void => {
-            it("should set display to contents when heart rate monitor is off", (): void => {
+            it("should set display to contents when heart rate monitor is off", async (): Promise<void> => {
                 heartRateMonitorSubject.next("off");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const hostElement = fixture.nativeElement;
                 const computedStyle = getComputedStyle(hostElement);
@@ -465,7 +455,6 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
             it("should set display to block when heart rate monitor is not off", (): void => {
                 heartRateMonitorSubject.next("ant");
-                fixture.detectChanges();
 
                 const hostElement = fixture.nativeElement;
                 const computedStyle = getComputedStyle(hostElement);
@@ -477,20 +466,18 @@ describe("ConnectHeartRateButtonComponent", (): void => {
     describe("as part of edge case handling", (): void => {
         describe("with null or undefined connection status", (): void => {
             beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 fixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
 
                 heartRateMonitorSubject.next("ant");
-                fixture.detectChanges();
             });
 
             it("should handle null device name gracefully", async (): Promise<void> => {
                 hrConnectionStatusSubject.next({ status: "connected", deviceName: undefined });
-                fixture.detectChanges();
 
                 const tooltipHarness = await loader.getHarness(MatTooltipHarness);
                 await tooltipHarness.show();
@@ -501,7 +488,6 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
             it("should handle undefined connection status", (): void => {
                 hrConnectionStatusSubject.next({ status: "disconnected", deviceName: undefined });
-                fixture.detectChanges();
 
                 expect(component.hrConnectionStatus().status).toBe("disconnected");
                 expect(component.hrConnectionStatus().deviceName).toBeUndefined();
@@ -510,15 +496,14 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
         describe("with rapid status changes", (): void => {
             beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(false);
-                navigatorBluetoothSpy.and.returnValue(undefined);
+                isSecureContextSpy.mockReturnValue(false);
+                navigatorBluetoothSpy.mockReturnValue(undefined);
 
                 fixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
 
                 heartRateMonitorSubject.next("ant");
-                fixture.detectChanges();
             });
 
             it("should handle multiple rapid status changes", async (): Promise<void> => {
@@ -531,14 +516,13 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
                 statuses.forEach((status: IHRConnectionStatus): void => {
                     hrConnectionStatusSubject.next(status);
-                    fixture.detectChanges();
                 });
 
                 expect(component.hrConnectionStatus().status).toBe("disconnected");
             });
 
             it("should handle concurrent discovery calls", async (): Promise<void> => {
-                const spy = spyOn(component, "heartRateMonitorDiscovery").and.callThrough();
+                const spy = vi.spyOn(component, "heartRateMonitorDiscovery");
 
                 const promises = [
                     component.heartRateMonitorDiscovery(),
@@ -555,8 +539,8 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
         describe("with browser compatibility issues", (): void => {
             it("should handle missing isSecureContext", (): void => {
-                isSecureContextSpy.and.returnValue(undefined as unknown as boolean);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+                isSecureContextSpy.mockReturnValue(undefined as unknown as boolean);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 const newFixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
                 const newComponent = newFixture.componentInstance;
@@ -565,8 +549,8 @@ describe("ConnectHeartRateButtonComponent", (): void => {
             });
 
             it("should handle missing navigator.bluetooth", (): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue(undefined);
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue(undefined);
 
                 const newFixture = TestBed.createComponent(ConnectHeartRateButtonComponent);
                 const newComponent = newFixture.componentInstance;

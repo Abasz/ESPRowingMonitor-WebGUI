@@ -1,4 +1,3 @@
-import "zone.js/plugins/zone-patch-rxjs-fake-async";
 import { HarnessLoader } from "@angular/cdk/testing";
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
 import { DatePipe } from "@angular/common";
@@ -11,6 +10,7 @@ import { MatToolbarHarness } from "@angular/material/toolbar/testing";
 import { MatTooltipHarness } from "@angular/material/tooltip/testing";
 import { BehaviorSubject } from "rxjs";
 import { map } from "rxjs/operators";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BleServiceFlag, LogLevel } from "../../../common/ble.interfaces";
 import {
@@ -37,15 +37,15 @@ describe("SettingsBarComponent", (): void => {
     let fixture: ComponentFixture<SettingsBarComponent>;
     let loader: HarnessLoader;
 
-    let mockMetricsService: jasmine.SpyObj<MetricsService>;
-    let mockDataRecorderService: jasmine.SpyObj<DataRecorderService>;
-    let mockErgConnectionService: jasmine.SpyObj<ErgConnectionService>;
-    let mockErgGenericDataService: jasmine.SpyObj<ErgGenericDataService>;
-    let mockErgSettingsService: jasmine.SpyObj<ErgSettingsService>;
-    let mockMatDialog: jasmine.SpyObj<MatDialog>;
-    let mockUtilsService: jasmine.SpyObj<UtilsService>;
-    let mockConfigManagerService: jasmine.SpyObj<ConfigManagerService>;
-    let mockHeartRateService: jasmine.SpyObj<HeartRateService>;
+    let mockMetricsService: Pick<MetricsService, "reset" | "hrConnectionStatus$">;
+    let mockDataRecorderService: Pick<DataRecorderService, "getSessionSummaries$">;
+    let mockErgConnectionService: Pick<ErgConnectionService, "connectionStatus$">;
+    let mockErgGenericDataService: Pick<ErgGenericDataService, "streamMonitorBatteryLevel$">;
+    let mockErgSettingsService: Pick<ErgSettingsService, "rowerSettings">;
+    let mockMatDialog: Pick<MatDialog, "open">;
+    let mockUtilsService: Pick<UtilsService, "mainSpinner">;
+    let mockConfigManagerService: Pick<ConfigManagerService, "heartRateMonitorChanged$">;
+    let mockHeartRateService: Pick<HeartRateService, "discover">;
 
     let batteryLevelSubject: BehaviorSubject<number>;
     let ergConnectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
@@ -122,32 +122,49 @@ describe("SettingsBarComponent", (): void => {
         });
         mockRowerSettingsSignal = signal(mockRowerSettings);
 
-        mockMetricsService = jasmine.createSpyObj("MetricsService", ["reset"], {
+        mockMetricsService = {
+            reset: vi.fn(),
             hrConnectionStatus$: hrConnectionStatusSubject.asObservable(),
-        });
-        mockDataRecorderService = jasmine.createSpyObj("DataRecorderService", ["getSessionSummaries$"]);
-        mockErgConnectionService = jasmine.createSpyObj("ErgConnectionService", ["connectionStatus$"]);
-        mockErgGenericDataService = jasmine.createSpyObj("ErgGenericDataService", [
-            "streamMonitorBatteryLevel$",
-        ]);
-        mockErgSettingsService = jasmine.createSpyObj("ErgSettingsService", [], {
-            rowerSettings: mockRowerSettingsSignal,
-        });
-        mockMatDialog = jasmine.createSpyObj("MatDialog", ["open"]);
-        mockUtilsService = jasmine.createSpyObj("UtilsService", ["mainSpinner"]);
-        mockConfigManagerService = jasmine.createSpyObj("ConfigManagerService", [], {
-            heartRateMonitorChanged$: heartRateMonitorModeSubject.asObservable(),
-        });
-        mockHeartRateService = jasmine.createSpyObj("HeartRateService", ["discover"]);
+        };
 
-        mockDataRecorderService.getSessionSummaries$.and.returnValue(sessionsSubject.asObservable());
-        mockErgConnectionService.connectionStatus$.and.returnValue(ergConnectionStatusSubject.asObservable());
-        mockErgGenericDataService.streamMonitorBatteryLevel$.and.returnValue(
+        mockDataRecorderService = {
+            getSessionSummaries$: vi.fn(),
+        };
+
+        mockErgConnectionService = {
+            connectionStatus$: vi.fn(),
+        };
+        mockErgGenericDataService = {
+            streamMonitorBatteryLevel$: vi.fn(),
+        };
+        mockErgSettingsService = {
+            rowerSettings: mockRowerSettingsSignal,
+        };
+        mockMatDialog = {
+            open: vi.fn(),
+        };
+        mockUtilsService = {
+            mainSpinner: vi.fn(),
+        };
+        mockConfigManagerService = {
+            heartRateMonitorChanged$: heartRateMonitorModeSubject.asObservable(),
+        };
+        mockHeartRateService = {
+            discover: vi.fn(),
+        };
+
+        vi.mocked(mockDataRecorderService.getSessionSummaries$).mockReturnValue(
+            sessionsSubject.asObservable(),
+        );
+        vi.mocked(mockErgConnectionService.connectionStatus$).mockReturnValue(
+            ergConnectionStatusSubject.asObservable(),
+        );
+        vi.mocked(mockErgGenericDataService.streamMonitorBatteryLevel$).mockReturnValue(
             batteryLevelSubject.asObservable(),
         );
-        mockUtilsService.mainSpinner.and.returnValue({
-            open: jasmine.createSpy("open"),
-            close: jasmine.createSpy("close"),
+        vi.mocked(mockUtilsService.mainSpinner).mockReturnValue({
+            open: vi.fn(),
+            close: vi.fn(),
         });
 
         await TestBed.configureTestingModule({
@@ -185,23 +202,18 @@ describe("SettingsBarComponent", (): void => {
         });
 
         it("should initialize batteryLevel signal", (): void => {
-            fixture.detectChanges();
             expect(component.batteryLevel()).toBe(0);
         });
 
         it("should initialize ergConnectionStatus signal", (): void => {
-            fixture.detectChanges();
             expect(component.ergConnectionStatus()).toEqual(mockErgConnectionStatus);
         });
 
         it("should initialize settings signal", (): void => {
-            fixture.detectChanges();
             expect(component.settings()).toEqual(mockRowerSettings);
         });
 
         it("should initialize timeOfDay signal", (): void => {
-            fixture.detectChanges();
-
             const timeOfDay = component.timeOfDay();
 
             expect(typeof timeOfDay === "number").toBe(true);
@@ -209,10 +221,6 @@ describe("SettingsBarComponent", (): void => {
     });
 
     describe("as part of template rendering", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
         it("should render mat-toolbar element", async (): Promise<void> => {
             const toolbarHarness = await loader.getHarness(MatToolbarHarness);
             expect(toolbarHarness).toBeTruthy();
@@ -283,6 +291,7 @@ describe("SettingsBarComponent", (): void => {
         });
 
         it("should display time of day", async (): Promise<void> => {
+            await fixture.whenStable();
             const datePipe = new DatePipe("en-US");
             const timeSpan = fixture.nativeElement.querySelector(".time-of-day");
             expect(timeSpan).toBeTruthy();
@@ -303,10 +312,10 @@ describe("SettingsBarComponent", (): void => {
                     status: "connected",
                     deviceName: "Test Connected Device",
                 });
-                fixture.detectChanges();
             });
 
-            it("should display BLE service name", (): void => {
+            it("should display BLE service name", async (): Promise<void> => {
+                await fixture.whenStable();
                 const serviceNameText = fixture.nativeElement.textContent;
                 expect(serviceNameText).toContain("Fitness Machine");
             });
@@ -318,7 +327,6 @@ describe("SettingsBarComponent", (): void => {
                     status: "disconnected",
                     deviceName: undefined,
                 });
-                fixture.detectChanges();
             });
 
             it("should not display BLE service name", (): void => {
@@ -333,10 +341,6 @@ describe("SettingsBarComponent", (): void => {
     });
 
     describe("batteryLevel signal", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
         it("should update when battery level changes", (): void => {
             expect(component.batteryLevel()).toBe(0);
 
@@ -346,7 +350,6 @@ describe("SettingsBarComponent", (): void => {
 
         it("should display updated battery percentage in tooltip", async (): Promise<void> => {
             batteryLevelSubject.next(42);
-            fixture.detectChanges();
 
             const tooltipHarness = await loader.getHarness(
                 MatTooltipHarness.with({ selector: ".battery-level" }),
@@ -358,7 +361,7 @@ describe("SettingsBarComponent", (): void => {
 
         it("should update battery icon via pipe", async (): Promise<void> => {
             batteryLevelSubject.next(25);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const batteryIcon = fixture.nativeElement.querySelector(".battery-level");
             expect(batteryIcon.textContent?.trim()).toBeTruthy();
@@ -366,10 +369,6 @@ describe("SettingsBarComponent", (): void => {
     });
 
     describe("ergConnectionStatus signal", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
         it("should update when connection status changes", (): void => {
             expect(component.ergConnectionStatus()).toEqual(mockErgConnectionStatus);
 
@@ -381,12 +380,12 @@ describe("SettingsBarComponent", (): void => {
             expect(component.ergConnectionStatus()).toEqual(newStatus);
         });
 
-        it("should show BLE service name when connected", (): void => {
+        it("should show BLE service name when connected", async (): Promise<void> => {
             ergConnectionStatusSubject.next({
                 status: "connected",
                 deviceName: "Connected Device",
             });
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const textContent = fixture.nativeElement.textContent;
             expect(textContent).toContain("Fitness Machine");
@@ -397,7 +396,6 @@ describe("SettingsBarComponent", (): void => {
                 status: "disconnected",
                 deviceName: undefined,
             });
-            fixture.detectChanges();
 
             const spans = fixture.nativeElement.querySelectorAll("span");
             const lastSpan = spans[spans.length - 3];
@@ -406,20 +404,16 @@ describe("SettingsBarComponent", (): void => {
     });
 
     describe("settings signal", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
         it("should reflect current rower settings", (): void => {
             expect(component.settings()).toEqual(mockRowerSettings);
         });
 
-        it("should update BLE service name display when settings change", (): void => {
+        it("should update BLE service name display when settings change", async (): Promise<void> => {
             ergConnectionStatusSubject.next({
                 status: "connected",
                 deviceName: "Connected Device",
             });
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             let textContent = fixture.nativeElement.textContent;
             expect(textContent).toContain("Fitness Machine");
@@ -432,28 +426,25 @@ describe("SettingsBarComponent", (): void => {
                 },
             };
             mockRowerSettingsSignal.set(updatedSettings);
-
-            fixture.detectChanges();
+            await fixture.whenStable();
             expect(fixture.nativeElement.textContent).toContain("Cycling Power");
         });
     });
 
     describe("timeOfDay signal", (): void => {
         it("should initialize with current time", (): void => {
-            fixture.detectChanges();
-
             const timeOfDay = component.timeOfDay();
 
             expect(timeOfDay).toBeCloseTo(Date.now(), -3); // within 1 second
         });
 
-        it("should display updated time in template", (): void => {
+        it("should display updated time in template", async (): Promise<void> => {
             // create a writable signal and assign it to the component via a typed unknown cast. This is a workaround for the interval() rxjs operator not emitting in a zoneless app (even in a fakeAsync)
             const datePipe = new DatePipe("en-US");
             const start = Date.now();
             const writable = signal(start);
             (component as unknown as { timeOfDay: WritableSignal<number> }).timeOfDay = writable;
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const initialDisplay: string = fixture.nativeElement.querySelector(".time-of-day").textContent;
             const formattedInitial = datePipe.transform(start, "HH:mm") as string;
@@ -461,11 +452,10 @@ describe("SettingsBarComponent", (): void => {
 
             const later = start + 61_000 * 2;
             writable.set(later);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const updatedDisplay: string = fixture.nativeElement.querySelector(".time-of-day").textContent;
             const formattedLater = datePipe.transform(later, "HH:mm") as string;
-            fixture.detectChanges();
 
             expect(updatedDisplay.trim()).toBe(formattedLater);
             expect(updatedDisplay).not.toBe(initialDisplay);
@@ -473,14 +463,10 @@ describe("SettingsBarComponent", (): void => {
     });
 
     describe("openLogbook method", (): void => {
-        let mockSpinner: jasmine.SpyObj<{ open: jasmine.Spy; close: jasmine.Spy }>;
+        let mockSpinner: { close(): void; open(): void };
 
         beforeEach((): void => {
-            fixture.detectChanges();
-            mockSpinner = mockUtilsService.mainSpinner() as jasmine.SpyObj<{
-                open: jasmine.Spy;
-                close: jasmine.Spy;
-            }>;
+            mockSpinner = mockUtilsService.mainSpinner();
         });
 
         it("should open main spinner", (): void => {
@@ -501,8 +487,8 @@ describe("SettingsBarComponent", (): void => {
         it("should open logbook dialog with correct data", (): void => {
             component.openLogbook();
             expect(mockMatDialog.open).toHaveBeenCalledWith(
-                jasmine.any(Function),
-                jasmine.objectContaining({
+                expect.any(Function),
+                expect.objectContaining({
                     data: mockSessionSummaries,
                 }),
             );
@@ -511,8 +497,8 @@ describe("SettingsBarComponent", (): void => {
         it("should open dialog with correct configuration", (): void => {
             component.openLogbook();
             expect(mockMatDialog.open).toHaveBeenCalledWith(
-                jasmine.any(Function),
-                jasmine.objectContaining({
+                expect.any(Function),
+                expect.objectContaining({
                     autoFocus: false,
                     maxWidth: "95vw",
                 }),
@@ -523,8 +509,8 @@ describe("SettingsBarComponent", (): void => {
             sessionsSubject.next([]);
             component.openLogbook();
             expect(mockMatDialog.open).toHaveBeenCalledWith(
-                jasmine.any(Function),
-                jasmine.objectContaining({
+                expect.any(Function),
+                expect.objectContaining({
                     data: [],
                 }),
             );
@@ -533,7 +519,7 @@ describe("SettingsBarComponent", (): void => {
         describe("when error occurs", (): void => {
             it("should close spinner", (): void => {
                 const testError = new Error("Database error");
-                mockDataRecorderService.getSessionSummaries$.and.returnValue(
+                vi.mocked(mockDataRecorderService.getSessionSummaries$).mockReturnValue(
                     new BehaviorSubject<Array<ISessionSummary>>([]).pipe(
                         map((): Array<ISessionSummary> => {
                             throw testError;
@@ -548,7 +534,7 @@ describe("SettingsBarComponent", (): void => {
 
             it("should not open dialog", (): void => {
                 const testError = new Error("Data access error");
-                mockDataRecorderService.getSessionSummaries$.and.returnValue(
+                vi.mocked(mockDataRecorderService.getSessionSummaries$).mockReturnValue(
                     new BehaviorSubject<Array<ISessionSummary>>([]).pipe(
                         map((): Array<ISessionSummary> => {
                             throw testError;
@@ -564,10 +550,6 @@ describe("SettingsBarComponent", (): void => {
     });
 
     describe("reset method", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
         it("should call metricsService reset", (): void => {
             component.reset();
             expect(mockMetricsService.reset).toHaveBeenCalled();
@@ -575,13 +557,9 @@ describe("SettingsBarComponent", (): void => {
     });
 
     describe("as part of user interactions", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
         describe("logbook button click", (): void => {
             it("should trigger openLogbook method", async (): Promise<void> => {
-                spyOn(component, "openLogbook");
+                vi.spyOn(component, "openLogbook");
 
                 const buttons = await loader.getHarness(MatButtonHarness.with({ text: "sports_score" }));
                 expect(buttons).not.toBeNull();
@@ -602,7 +580,7 @@ describe("SettingsBarComponent", (): void => {
 
         describe("reset button click", (): void => {
             it("should trigger reset method", async (): Promise<void> => {
-                spyOn(component, "reset");
+                vi.spyOn(component, "reset");
 
                 const button = await loader.getHarness(MatButtonHarness.with({ text: "laps" }));
                 expect(button).not.toBeNull();
@@ -624,7 +602,6 @@ describe("SettingsBarComponent", (): void => {
         describe("battery level icon interaction", (): void => {
             it("should show battery percentage on hover", async (): Promise<void> => {
                 batteryLevelSubject.next(73);
-                fixture.detectChanges();
 
                 const tooltipHarness = await loader.getHarness(
                     MatTooltipHarness.with({ selector: ".battery-level" }),
@@ -634,7 +611,7 @@ describe("SettingsBarComponent", (): void => {
                 expect(tooltipText).toBe("73%");
             });
 
-            it("should have correct tooltip delay", async (): Promise<void> => {
+            it("should have correct tooltip delay", (): void => {
                 const batteryIcon = fixture.nativeElement.querySelector(".battery-level");
                 expect(batteryIcon).toBeTruthy();
                 expect(batteryIcon.getAttribute("mattooltipshowdelay")).toBe("1000");
@@ -643,19 +620,14 @@ describe("SettingsBarComponent", (): void => {
     });
 
     describe("as part of signal reactivity", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
         describe("multiple signal updates", (): void => {
-            it("should handle simultaneous signal updates", (): void => {
+            it("should handle simultaneous signal updates", async (): Promise<void> => {
                 batteryLevelSubject.next(50);
                 ergConnectionStatusSubject.next({
                     status: "connected",
                     deviceName: "Multi-test Device",
                 });
-
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 expect(component.batteryLevel()).toBe(50);
                 expect(component.ergConnectionStatus().status).toBe("connected");
@@ -668,8 +640,6 @@ describe("SettingsBarComponent", (): void => {
                     status: "connecting",
                     deviceName: "Connecting Device",
                 });
-
-                fixture.detectChanges();
 
                 const tooltipHarness = await loader.getHarness(
                     MatTooltipHarness.with({ selector: ".battery-level" }),
@@ -712,12 +682,12 @@ describe("SettingsBarComponent", (): void => {
 
     describe("as part of edge cases", (): void => {
         describe("null and undefined values", (): void => {
-            it("should handle null device name", (): void => {
+            it("should handle null device name", async (): Promise<void> => {
                 ergConnectionStatusSubject.next({
                     status: "connected",
                     deviceName: null as unknown as string,
                 });
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 expect(fixture.nativeElement.textContent).toContain("Fitness Machine");
             });
@@ -728,8 +698,8 @@ describe("SettingsBarComponent", (): void => {
                 component.openLogbook();
 
                 expect(mockMatDialog.open).toHaveBeenCalledWith(
-                    jasmine.any(Function),
-                    jasmine.objectContaining({
+                    expect.any(Function),
+                    expect.objectContaining({
                         data: [],
                     }),
                 );
@@ -739,7 +709,6 @@ describe("SettingsBarComponent", (): void => {
         describe("extreme values", (): void => {
             it("should handle zero battery level", async (): Promise<void> => {
                 batteryLevelSubject.next(0);
-                fixture.detectChanges();
 
                 const tooltipHarness = await loader.getHarness(
                     MatTooltipHarness.with({ selector: ".battery-level" }),
@@ -752,7 +721,6 @@ describe("SettingsBarComponent", (): void => {
 
             it("should handle maximum battery level", async (): Promise<void> => {
                 batteryLevelSubject.next(100);
-                fixture.detectChanges();
 
                 const tooltipHarness = await loader.getHarness(
                     MatTooltipHarness.with({ selector: ".battery-level" }),
@@ -780,8 +748,8 @@ describe("SettingsBarComponent", (): void => {
                 component.openLogbook();
 
                 expect(mockMatDialog.open).toHaveBeenCalledWith(
-                    jasmine.any(Function),
-                    jasmine.objectContaining({
+                    expect.any(Function),
+                    expect.objectContaining({
                         data: largeSessions,
                     }),
                 );

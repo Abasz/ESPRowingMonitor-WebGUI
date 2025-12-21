@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it } from "vitest";
+
 import { SecondsToTimePipe } from "./seconds-to-time.pipe";
 
 describe("SecondsToTime pipe", (): void => {

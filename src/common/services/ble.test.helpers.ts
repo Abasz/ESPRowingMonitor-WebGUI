@@ -1,3 +1,5 @@
+import { vi } from "vitest";
+
 import { BleOpCodes, BleResponseOpCodes } from "../ble.interfaces";
 import { IBaseMetrics, IExtendedMetrics } from "../common.interfaces";
 
@@ -234,66 +236,72 @@ export const createCSCMeasurementDataView = (baseMetrics: IBaseMetrics): DataVie
     return dataView;
 };
 
-export const createMockBluetooth = (
-    bluetoothDevice: jasmine.SpyObj<BluetoothDevice>,
-): jasmine.Spy<(this: Navigator) => Bluetooth> =>
-    spyOnProperty(globalThis.navigator, "bluetooth", "get").and.returnValue({
-        requestDevice: (): Promise<BluetoothDevice> => Promise.resolve(bluetoothDevice),
+export const createMockBluetooth = (bluetoothDevice: BluetoothDevice): Bluetooth => {
+    const mockBluetooth = {
+        requestDevice: (): Promise<BluetoothDevice> => Promise.resolve(bluetoothDevice as BluetoothDevice),
         getDevices: (): Promise<Array<BluetoothDevice>> => Promise.resolve([bluetoothDevice]),
-    } as Bluetooth);
+    } as Bluetooth;
+
+    return vi
+        .spyOn(globalThis.navigator, "bluetooth", "get")
+        .mockReturnValue(mockBluetooth) as unknown as Bluetooth;
+};
 
 // mock helper to create fake Bluetooth devices
 export const createMockBluetoothDevice = (
     id: string = "test-device-id",
     name: string = "TestHeartRateMonitor",
     isConnected: boolean = false,
-): jasmine.SpyObj<BluetoothDevice> => {
-    const mockGATT = jasmine.createSpyObj<BluetoothRemoteGATTServer>(
-        "BluetoothRemoteGATTServer",
-        ["connect", "disconnect", "getPrimaryService"],
-        ["connected"],
-    );
-    (Object.getOwnPropertyDescriptor(mockGATT, "connected")?.get as jasmine.Spy).and.returnValue(isConnected);
+): BluetoothDevice => {
+    const mockGATT = {
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+        getPrimaryService: vi.fn(),
+        get connected(): boolean {
+            return isConnected;
+        },
+    } as unknown as BluetoothRemoteGATTServer;
 
-    const mockDevice = jasmine.createSpyObj<BluetoothDevice>(
-        "BluetoothDevice",
-        ["addEventListener", "removeEventListener", "watchAdvertisements"],
-        ["id", "name", "gatt"],
-    );
-
-    (Object.getOwnPropertyDescriptor(mockDevice, "id")?.get as jasmine.Spy).and.returnValue(id);
-    (Object.getOwnPropertyDescriptor(mockDevice, "name")?.get as jasmine.Spy).and.returnValue(name);
-    (Object.getOwnPropertyDescriptor(mockDevice, "gatt")?.get as jasmine.Spy).and.returnValue(mockGATT);
+    const mockDevice = {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        watchAdvertisements: vi.fn().mockResolvedValue(undefined),
+        get id(): string {
+            return id;
+        },
+        get name(): string {
+            return name;
+        },
+        get gatt(): BluetoothRemoteGATTServer {
+            return mockGATT;
+        },
+    } as unknown as BluetoothDevice;
 
     return mockDevice;
 };
 
 // mock helper to create fake GATT characteristics
-export const createMockCharacteristic = (
-    device: jasmine.SpyObj<BluetoothDevice>,
-): jasmine.SpyObj<BluetoothRemoteGATTCharacteristic> => {
-    const mockService = jasmine.createSpyObj<BluetoothRemoteGATTService>(
-        "BluetoothRemoteGATTService",
-        ["getCharacteristic"],
-        ["device"],
-    );
-    (Object.getOwnPropertyDescriptor(mockService, "device")?.get as jasmine.Spy).and.returnValue(device);
+export const createMockCharacteristic = (device: BluetoothDevice): BluetoothRemoteGATTCharacteristic => {
+    const mockService = {
+        getCharacteristic: vi.fn(),
+        get device(): BluetoothDevice {
+            return device;
+        },
+    } as unknown as BluetoothRemoteGATTService;
 
-    const mockCharacteristic = jasmine.createSpyObj<BluetoothRemoteGATTCharacteristic>(
-        "BluetoothRemoteGATTCharacteristic",
-        [
-            "readValue",
-            "startNotifications",
-            "stopNotifications",
-            "addEventListener",
-            "removeEventListener",
-            "writeValueWithoutResponse",
-        ],
-        ["service", "uuid"],
-    );
-    (Object.getOwnPropertyDescriptor(mockCharacteristic, "service")?.get as jasmine.Spy).and.returnValue(
-        mockService,
-    );
+    const mockCharacteristic = {
+        readValue: vi.fn(),
+        startNotifications: vi.fn(),
+        stopNotifications: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        writeValueWithoutResponse: vi.fn(),
+        on: vi.fn(),
+        get service(): BluetoothRemoteGATTService {
+            return mockService;
+        },
+        uuid: "test-characteristic-uuid",
+    } as unknown as BluetoothRemoteGATTCharacteristic;
 
     return mockCharacteristic;
 };
@@ -500,49 +508,88 @@ export const visibilityChangeListenerReady = async (
 ): Promise<ListenerTrigger<DocumentVisibilityState>> => {
     return new Promise<ListenerTrigger<DocumentVisibilityState>>(
         (resolve: (value: ListenerTrigger<DocumentVisibilityState>) => void): void => {
-            spyOn(document, "addEventListener")
-                .withArgs("visibilitychange", jasmine.any(Function), undefined)
-                .and.callFake((_: string, handler: (event: Event) => void): void => {
+            // if not already mocked, create a spy
+            if (!vi.isMockFunction(document.addEventListener)) {
+                vi.spyOn(document, "addEventListener");
+            }
+
+            // get the current implementation to chain it
+            const currentImpl = vi.mocked(document.addEventListener).getMockImplementation();
+
+            vi.mocked(document.addEventListener).mockImplementation(
+                (
+                    type: string,
+                    handler: EventListenerOrEventListenerObject,
+                    options?: boolean | AddEventListenerOptions,
+                ): void => {
+                    if (type !== "visibilitychange") {
+                        // pass through to the previous implementation or the original
+                        if (currentImpl) {
+                            currentImpl(type, handler, options);
+                        } else {
+                            Document.prototype.addEventListener.call(document, type, handler, options);
+                        }
+
+                        return;
+                    }
+
+                    const eventHandler = typeof handler === "function" ? handler : handler.handleEvent;
                     resolve({
                         triggerChanged: (newState?: DocumentVisibilityState): void => {
-                            Object.defineProperty(document, "visibilityState", {
-                                configurable: true,
-                                writable: true,
-                                value: newState || initialState,
-                            });
+                            vi.spyOn(document, "visibilityState", "get").mockReturnValue(
+                                newState || initialState,
+                            );
 
-                            handler(new Event("visibilitychange"));
+                            eventHandler(new Event("visibilitychange"));
                         },
                     });
-                });
+                },
+            );
         },
     );
 };
 
+interface ListenerLike {
+    addEventListener?: (type: string, listener: EventListener, options?: AddEventListenerOptions) => void;
+    on?: (type: string, listener: (...args: Array<unknown>) => void) => void;
+}
+
 // helper function to set up battery characteristic value change event listener
-export const changedListenerReadyFactory = <
-    T extends jasmine.SpyObj<{
-        addEventListener?: (type: string, listener: EventListener, options?: AddEventListenerOptions) => void;
-        on?: (type: string, listener: (...args: Array<unknown>) => void) => void;
-    }>,
-    K,
->(
+export const changedListenerReadyFactory = <T extends ListenerLike, K>(
     eventEmitter: T,
-    type: string,
+    type: string | keyof BluetoothDeviceEventMap,
     listenerMethod: "addEventListener" | "on" = "addEventListener",
     wrapInTarget: boolean = true,
 ): ((broadcastValue?: K) => Promise<ListenerTrigger<K>>) => {
     return (broadcastValue?: K): Promise<ListenerTrigger<K>> =>
         new Promise<ListenerTrigger<K>>((resolve: (value: ListenerTrigger<K>) => void): void => {
             const handlers: Array<(event: Event) => void> = [];
-            (eventEmitter[listenerMethod] as jasmine.Spy)
-                .withArgs(
-                    type,
-                    jasmine.any(Function),
-                    ...(listenerMethod === "addEventListener" ? [undefined] : []),
-                )
-                .and.callFake((_: string, handler: (event: Event) => void): void => {
-                    handlers.push(handler);
+            const listener = eventEmitter[listenerMethod];
+
+            if (!listener || typeof listener !== "function") {
+                return;
+            }
+
+            if (!vi.isMockFunction(listener)) {
+                throw new Error(
+                    `changedListenerReadyFactory requires ${listenerMethod} to be a mock function`,
+                );
+            }
+
+            // store the current implementation (if any) to chain it
+            const currentImpl = vi.mocked(listener).getMockImplementation();
+
+            // create a new implementation that handles both our event and passes through others
+            vi.mocked(listener).mockImplementation(
+                (eventType: string, handler: EventListenerOrEventListenerObject): void => {
+                    if (eventType !== type) {
+                        currentImpl?.(eventType, handler as (...args: Array<unknown>) => void);
+
+                        return;
+                    }
+                    // if this is our event type, capture the handler
+                    const eventHandler = typeof handler === "function" ? handler : handler.handleEvent;
+                    handlers.push(eventHandler);
                     resolve({
                         triggerChanged: (value?: K): void => {
                             handlers.forEach((handler: (event: Event) => void): void => {
@@ -558,6 +605,7 @@ export const changedListenerReadyFactory = <
                             });
                         },
                     });
-                });
+                },
+            );
         });
 };

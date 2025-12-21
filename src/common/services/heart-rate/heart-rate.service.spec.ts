@@ -1,10 +1,11 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { BehaviorSubject, Observable, of, throwError } from "rxjs";
+import { BehaviorSubject, firstValueFrom, Observable, of, throwError, toArray } from "rxjs";
 import { take } from "rxjs/operators";
+import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
-import { HeartRateMonitorMode, IHeartRate, IHRConnectionStatus } from "../../common.interfaces";
+import { HeartRateMonitorMode, IConfig, IHeartRate, IHRConnectionStatus } from "../../common.interfaces";
 import { ConfigManagerService } from "../config-manager.service";
 
 import { AntHeartRateService } from "./ant-heart-rate.service";
@@ -13,13 +14,19 @@ import { HeartRateService } from "./heart-rate.service";
 
 describe("HeartRateService", (): void => {
     let service: HeartRateService;
-    let mockConfigManager: jasmine.SpyObj<ConfigManagerService>;
-    let mockBleHeartRateService: jasmine.SpyObj<BLEHeartRateService>;
-    let mockAntHeartRateService: jasmine.SpyObj<AntHeartRateService>;
-    let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
+    let mockConfigManager: Pick<ConfigManagerService, "getConfig" | "heartRateMonitorChanged$">;
+    let mockBleHeartRateService: Pick<
+        BLEHeartRateService,
+        "discover" | "disconnectDevice" | "reconnect" | "connectionStatus$" | "streamHeartRate$"
+    >;
+    let mockAntHeartRateService: Pick<
+        AntHeartRateService,
+        "discover" | "disconnectDevice" | "reconnect" | "connectionStatus$" | "streamHeartRate$"
+    >;
+    let mockSnackBar: Pick<MatSnackBar, "open">;
     let heartRateMonitorSubject: BehaviorSubject<HeartRateMonitorMode>;
-    let isSecureContextSpy: jasmine.Spy<() => boolean>;
-    let navigatorBluetoothSpy: jasmine.Spy<() => Bluetooth | undefined>;
+    let isSecureContextSpy: Mock;
+    let navigatorBluetoothSpy: Mock;
 
     const createMockHRConnectionStatus = (
         status: "disconnected" | "connected" | "connecting" | "searching",
@@ -40,41 +47,44 @@ describe("HeartRateService", (): void => {
     beforeEach((): void => {
         heartRateMonitorSubject = new BehaviorSubject<HeartRateMonitorMode>("off");
 
-        mockConfigManager = jasmine.createSpyObj("ConfigManagerService", ["getConfig"], {
+        mockConfigManager = {
+            getConfig: vi.fn(),
             heartRateMonitorChanged$: heartRateMonitorSubject.asObservable(),
-        });
-        mockConfigManager.getConfig.and.returnValue({
+        };
+        vi.mocked(mockConfigManager.getConfig).mockReturnValue({
             ergoMonitorBleId: "",
             heartRateBleId: "",
             heartRateMonitor: "off",
         });
 
-        mockBleHeartRateService = jasmine.createSpyObj("BLEHeartRateService", [
-            "discover",
-            "disconnectDevice",
-            "reconnect",
-            "connectionStatus$",
-            "streamHeartRate$",
-        ]);
-        mockBleHeartRateService.connectionStatus$.and.returnValue(of({ status: "disconnected" }));
-        mockBleHeartRateService.streamHeartRate$.and.returnValue(of(createMockHeartRate(120)));
+        mockBleHeartRateService = {
+            discover: vi.fn(),
+            disconnectDevice: vi.fn(),
+            reconnect: vi.fn(),
+            connectionStatus$: vi.fn(),
+            streamHeartRate$: vi.fn(),
+        };
+        vi.mocked(mockBleHeartRateService.connectionStatus$).mockReturnValue(of({ status: "disconnected" }));
+        vi.mocked(mockBleHeartRateService.streamHeartRate$).mockReturnValue(of(createMockHeartRate(120)));
 
-        mockAntHeartRateService = jasmine.createSpyObj("AntHeartRateService", [
-            "discover",
-            "disconnectDevice",
-            "reconnect",
-            "connectionStatus$",
-            "streamHeartRate$",
-        ]);
-        mockAntHeartRateService.connectionStatus$.and.returnValue(of({ status: "disconnected" }));
-        mockAntHeartRateService.streamHeartRate$.and.returnValue(of(createMockHeartRate(130)));
+        mockAntHeartRateService = {
+            discover: vi.fn(),
+            disconnectDevice: vi.fn(),
+            reconnect: vi.fn(),
+            connectionStatus$: vi.fn(),
+            streamHeartRate$: vi.fn(),
+        };
+        vi.mocked(mockAntHeartRateService.connectionStatus$).mockReturnValue(of({ status: "disconnected" }));
+        vi.mocked(mockAntHeartRateService.streamHeartRate$).mockReturnValue(of(createMockHeartRate(130)));
 
-        mockSnackBar = jasmine.createSpyObj("MatSnackBar", ["open"]);
+        mockSnackBar = {
+            open: vi.fn(),
+        };
 
-        isSecureContextSpy = spyOnProperty(window, "isSecureContext", "get").and.returnValue(true);
-        navigatorBluetoothSpy = spyOnProperty(navigator, "bluetooth", "get").and.returnValue(
-            {} as unknown as Bluetooth,
-        );
+        isSecureContextSpy = vi.spyOn(window, "isSecureContext", "get").mockReturnValue(true);
+        navigatorBluetoothSpy = vi
+            .spyOn(navigator, "bluetooth", "get")
+            .mockReturnValue({} as unknown as Bluetooth);
 
         TestBed.configureTestingModule({
             providers: [
@@ -96,8 +106,8 @@ describe("HeartRateService", (): void => {
         });
 
         it("should detect BLE availability when secure context and bluetooth are available", (): void => {
-            isSecureContextSpy.and.returnValue(true);
-            navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+            isSecureContextSpy.mockReturnValue(true);
+            navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
             const newService = TestBed.inject(HeartRateService);
 
@@ -106,28 +116,28 @@ describe("HeartRateService", (): void => {
 
         describe("should detect BLE unavailbaility", (): void => {
             it("when not in secure context", (): void => {
-                isSecureContextSpy.and.returnValue(false);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+                isSecureContextSpy.mockReturnValue(false);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 const newService = new HeartRateService(
-                    mockConfigManager,
-                    mockBleHeartRateService,
-                    mockAntHeartRateService,
-                    mockSnackBar,
+                    mockConfigManager as ConfigManagerService,
+                    mockBleHeartRateService as BLEHeartRateService,
+                    mockAntHeartRateService as AntHeartRateService,
+                    mockSnackBar as MatSnackBar,
                 );
 
                 expect(newService.isBleAvailable).toBe(false);
             });
 
             it("when bluetooth is undefined", (): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue(undefined as unknown as Bluetooth);
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue(undefined as unknown as Bluetooth);
 
                 const newService = new HeartRateService(
-                    mockConfigManager,
-                    mockBleHeartRateService,
-                    mockAntHeartRateService,
-                    mockSnackBar,
+                    mockConfigManager as ConfigManagerService,
+                    mockBleHeartRateService as BLEHeartRateService,
+                    mockAntHeartRateService as AntHeartRateService,
+                    mockSnackBar as MatSnackBar,
                 );
 
                 expect(newService.isBleAvailable).toBe(false);
@@ -138,14 +148,14 @@ describe("HeartRateService", (): void => {
     describe("connectionStatus$ method", (): void => {
         describe("when BLE is not available", (): void => {
             beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(false);
-                navigatorBluetoothSpy.and.returnValue(undefined);
+                isSecureContextSpy.mockReturnValue(false);
+                navigatorBluetoothSpy.mockReturnValue(undefined);
 
                 service = new HeartRateService(
-                    mockConfigManager,
-                    mockBleHeartRateService,
-                    mockAntHeartRateService,
-                    mockSnackBar,
+                    mockConfigManager as ConfigManagerService,
+                    mockBleHeartRateService as BLEHeartRateService,
+                    mockAntHeartRateService as AntHeartRateService,
+                    mockSnackBar as MatSnackBar,
                 );
             });
 
@@ -158,19 +168,10 @@ describe("HeartRateService", (): void => {
                 );
             });
 
-            it("should return EMPTY observable with disconnected status", (done: DoneFn): void => {
-                const results: Array<IHRConnectionStatus> = [];
+            it("should return EMPTY observable with disconnected status", async (): Promise<void> => {
+                const results = await firstValueFrom(service.connectionStatus$());
 
-                service.connectionStatus$().subscribe({
-                    next: (status: IHRConnectionStatus): void => {
-                        results.push(status);
-                    },
-                    complete: (): void => {
-                        expect(results).toHaveSize(1);
-                        expect(results[0]).toEqual({ status: "disconnected" });
-                        done();
-                    },
-                });
+                expect(results).toEqual({ status: "disconnected" });
             });
         });
 
@@ -189,7 +190,7 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should return BLE service connection status", (): void => {
-                    mockBleHeartRateService.connectionStatus$.and.returnValue(
+                    vi.mocked(mockBleHeartRateService.connectionStatus$).mockReturnValue(
                         of(createMockHRConnectionStatus("connected", "BLE Heart Rate Monitor")),
                     );
 
@@ -212,7 +213,9 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should start with disconnected status", (): void => {
-                    mockBleHeartRateService.connectionStatus$.and.returnValue(of({ status: "searching" }));
+                    vi.mocked(mockBleHeartRateService.connectionStatus$).mockReturnValue(
+                        of({ status: "searching" }),
+                    );
 
                     const results: Array<IHRConnectionStatus> = [];
                     const subscription = service
@@ -229,7 +232,7 @@ describe("HeartRateService", (): void => {
                 it("should share replay the observable", (): void => {
                     heartRateMonitorSubject.next("ble");
 
-                    mockBleHeartRateService.connectionStatus$.calls.reset();
+                    vi.mocked(mockBleHeartRateService.connectionStatus$).mockClear();
                     const observable$ = service.connectionStatus$();
                     observable$.pipe(take(1)).subscribe();
                     observable$.pipe(take(1)).subscribe();
@@ -250,7 +253,7 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should return ANT service connection status", (): void => {
-                    mockAntHeartRateService.connectionStatus$.and.returnValue(
+                    vi.mocked(mockAntHeartRateService.connectionStatus$).mockReturnValue(
                         of(createMockHRConnectionStatus("connected", "ANT Heart Rate Monitor")),
                     );
 
@@ -293,7 +296,7 @@ describe("HeartRateService", (): void => {
 
             describe("when heart rate monitor mode changes", (): void => {
                 it("should switch to BLE service when mode changes to ble", (): void => {
-                    mockBleHeartRateService.connectionStatus$.and.returnValue(
+                    vi.mocked(mockBleHeartRateService.connectionStatus$).mockReturnValue(
                         of(createMockHRConnectionStatus("searching")),
                     );
 
@@ -311,13 +314,13 @@ describe("HeartRateService", (): void => {
                     expect(results.length).toBeGreaterThanOrEqual(3);
                     expect(results[0]).toEqual({ status: "disconnected" });
                     expect(results[results.length - 1]).toEqual(
-                        jasmine.objectContaining({ status: "searching" }),
+                        expect.objectContaining({ status: "searching" }),
                     );
                     expect(mockBleHeartRateService.connectionStatus$).toHaveBeenCalled();
                 });
 
                 it("should switch to ANT service when mode changes to ant", (): void => {
-                    mockAntHeartRateService.connectionStatus$.and.returnValue(
+                    vi.mocked(mockAntHeartRateService.connectionStatus$).mockReturnValue(
                         of(createMockHRConnectionStatus("connecting")),
                     );
 
@@ -335,13 +338,13 @@ describe("HeartRateService", (): void => {
                     expect(results.length).toBeGreaterThanOrEqual(3);
                     expect(results[0]).toEqual({ status: "disconnected" });
                     expect(results[results.length - 1]).toEqual(
-                        jasmine.objectContaining({ status: "connecting" }),
+                        expect.objectContaining({ status: "connecting" }),
                     );
                     expect(mockAntHeartRateService.connectionStatus$).toHaveBeenCalled();
                 });
 
                 it("should switch to disconnected when mode changes to off", (): void => {
-                    mockBleHeartRateService.connectionStatus$.and.returnValue(
+                    vi.mocked(mockBleHeartRateService.connectionStatus$).mockReturnValue(
                         of(createMockHRConnectionStatus("connected")),
                     );
 
@@ -367,12 +370,12 @@ describe("HeartRateService", (): void => {
     describe("discover method", (): void => {
         describe("when heart rate monitor mode is ble", (): void => {
             beforeEach((): void => {
-                mockConfigManager.getConfig.and.returnValue({
+                vi.mocked(mockConfigManager.getConfig).mockReturnValue({
                     ergoMonitorBleId: "",
                     heartRateBleId: "",
                     heartRateMonitor: "ble",
                 });
-                mockBleHeartRateService.discover.and.resolveTo();
+                vi.mocked(mockBleHeartRateService.discover).mockResolvedValue();
             });
 
             it("should delegate to BLE heart rate service discover", async (): Promise<void> => {
@@ -382,25 +385,25 @@ describe("HeartRateService", (): void => {
             });
 
             it("should resolve when BLE service discover resolves", async (): Promise<void> => {
-                await expectAsync(service.discover()).toBeResolved();
+                await expect(service.discover()).resolves.not.toThrow();
             });
 
             it("should reject when BLE service discover rejects", async (): Promise<void> => {
                 const error = new Error("BLE discovery failed");
-                mockBleHeartRateService.discover.and.rejectWith(error);
+                vi.mocked(mockBleHeartRateService.discover).mockRejectedValue(error);
 
-                await expectAsync(service.discover()).toBeRejectedWith(error);
+                await expect(service.discover()).rejects.toEqual(error);
             });
         });
 
         describe("when heart rate monitor mode is ant", (): void => {
             beforeEach((): void => {
-                mockConfigManager.getConfig.and.returnValue({
+                vi.mocked(mockConfigManager.getConfig).mockReturnValue({
                     ergoMonitorBleId: "",
                     heartRateBleId: "",
                     heartRateMonitor: "ant",
                 });
-                mockAntHeartRateService.discover.and.resolveTo();
+                vi.mocked(mockAntHeartRateService.discover).mockResolvedValue();
             });
 
             it("should delegate to ANT heart rate service discover", async (): Promise<void> => {
@@ -410,20 +413,20 @@ describe("HeartRateService", (): void => {
             });
 
             it("should resolve when ANT service discover resolves", async (): Promise<void> => {
-                await expectAsync(service.discover()).toBeResolved();
+                await expect(service.discover()).resolves.not.toThrow();
             });
 
             it("should reject when ANT service discover rejects", async (): Promise<void> => {
                 const error = new Error("ANT discovery failed");
-                mockAntHeartRateService.discover.and.rejectWith(error);
+                vi.mocked(mockAntHeartRateService.discover).mockRejectedValue(error);
 
-                await expectAsync(service.discover()).toBeRejectedWith(error);
+                await expect(service.discover()).rejects.toEqual(error);
             });
         });
 
         describe("when heart rate monitor mode is off", (): void => {
             beforeEach((): void => {
-                mockConfigManager.getConfig.and.returnValue({
+                vi.mocked(mockConfigManager.getConfig).mockReturnValue({
                     ergoMonitorBleId: "",
                     heartRateBleId: "",
                     heartRateMonitor: "off",
@@ -431,7 +434,7 @@ describe("HeartRateService", (): void => {
             });
 
             it("should resolve immediately without calling any service", async (): Promise<void> => {
-                await expectAsync(service.discover()).toBeResolved();
+                await expect(service.discover()).resolves.not.toThrow();
 
                 expect(mockBleHeartRateService.discover).not.toHaveBeenCalled();
                 expect(mockAntHeartRateService.discover).not.toHaveBeenCalled();
@@ -440,7 +443,7 @@ describe("HeartRateService", (): void => {
 
         describe("when heart rate monitor mode is invalid", (): void => {
             beforeEach((): void => {
-                mockConfigManager.getConfig.and.returnValue({
+                vi.mocked(mockConfigManager.getConfig).mockReturnValue({
                     ergoMonitorBleId: "",
                     heartRateBleId: "",
                     heartRateMonitor: "invalid" as HeartRateMonitorMode,
@@ -448,7 +451,7 @@ describe("HeartRateService", (): void => {
             });
 
             it("should resolve immediately for unknown modes", async (): Promise<void> => {
-                await expectAsync(service.discover()).toBeResolved();
+                await expect(service.discover()).resolves.not.toThrow();
 
                 expect(mockBleHeartRateService.discover).not.toHaveBeenCalled();
                 expect(mockAntHeartRateService.discover).not.toHaveBeenCalled();
@@ -459,14 +462,14 @@ describe("HeartRateService", (): void => {
     describe("streamHeartRate$ method", (): void => {
         describe("when BLE is not available", (): void => {
             beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(false);
-                navigatorBluetoothSpy.and.returnValue(undefined);
+                isSecureContextSpy.mockReturnValue(false);
+                navigatorBluetoothSpy.mockReturnValue(undefined);
 
                 service = new HeartRateService(
-                    mockConfigManager,
-                    mockBleHeartRateService,
-                    mockAntHeartRateService,
-                    mockSnackBar,
+                    mockConfigManager as ConfigManagerService,
+                    mockBleHeartRateService as BLEHeartRateService,
+                    mockAntHeartRateService as AntHeartRateService,
+                    mockSnackBar as MatSnackBar,
                 );
             });
 
@@ -479,36 +482,27 @@ describe("HeartRateService", (): void => {
                 );
             });
 
-            it("should return EMPTY observable with undefined startWith", (done: DoneFn): void => {
-                const results: Array<IHeartRate | undefined> = [];
+            it("should return EMPTY observable with undefined startWith", async (): Promise<void> => {
+                const result = await firstValueFrom(service.streamHeartRate$());
 
-                service.streamHeartRate$().subscribe({
-                    next: (heartRate: IHeartRate | undefined): void => {
-                        results.push(heartRate);
-                    },
-                    complete: (): void => {
-                        expect(results).toHaveSize(1);
-                        expect(results[0]).toBeUndefined();
-                        done();
-                    },
-                });
+                expect(result).toBeUndefined();
             });
         });
 
         describe("when BLE is available", (): void => {
             beforeEach((): void => {
                 expect(service.isBleAvailable).toBe(true);
-                mockBleHeartRateService.disconnectDevice.and.resolveTo();
-                mockAntHeartRateService.disconnectDevice.and.resolveTo();
-                mockBleHeartRateService.reconnect.and.resolveTo();
-                mockAntHeartRateService.reconnect.and.resolveTo();
+                vi.mocked(mockBleHeartRateService.disconnectDevice).mockResolvedValue();
+                vi.mocked(mockAntHeartRateService.disconnectDevice).mockResolvedValue();
+                vi.mocked(mockBleHeartRateService.reconnect).mockResolvedValue();
+                vi.mocked(mockAntHeartRateService.reconnect).mockResolvedValue();
             });
 
             describe("when heart rate monitor mode is ble", (): void => {
                 it("should disconnect ANT device", (): void => {
-                    mockBleHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(120)));
+                    mockBleHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(120)));
 
                     heartRateMonitorSubject.next("ble");
                     service.streamHeartRate$().pipe(take(2)).subscribe();
@@ -517,9 +511,9 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should reconnect BLE device", (): void => {
-                    mockBleHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(120)));
+                    mockBleHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(120)));
 
                     heartRateMonitorSubject.next("ble");
                     service.streamHeartRate$().pipe(take(2)).subscribe();
@@ -528,9 +522,9 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should stream heart rate from BLE service", (): void => {
-                    mockBleHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(120)));
+                    mockBleHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(120)));
 
                     heartRateMonitorSubject.next("ble");
                     service.streamHeartRate$().pipe(take(2)).subscribe();
@@ -539,9 +533,9 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should return BLE heart rate data", (): void => {
-                    mockBleHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(120)));
+                    mockBleHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(120)));
 
                     const results: Array<IHeartRate | undefined> = [];
                     const subscription = service
@@ -560,13 +554,13 @@ describe("HeartRateService", (): void => {
 
                 describe("when navigator.bluetooth is undefined", (): void => {
                     beforeEach((): void => {
-                        navigatorBluetoothSpy.and.returnValue(undefined);
+                        navigatorBluetoothSpy.mockReturnValue(undefined);
 
                         service = new HeartRateService(
-                            mockConfigManager,
-                            mockBleHeartRateService,
-                            mockAntHeartRateService,
-                            mockSnackBar,
+                            mockConfigManager as ConfigManagerService,
+                            mockBleHeartRateService as BLEHeartRateService,
+                            mockAntHeartRateService as AntHeartRateService,
+                            mockSnackBar as MatSnackBar,
                         );
                     });
 
@@ -582,7 +576,7 @@ describe("HeartRateService", (): void => {
 
                         heartRateMonitorSubject.next("ble");
 
-                        expect(results).toHaveSize(1);
+                        expect(results).toHaveLength(1);
                         expect(results[0]).toBeUndefined();
                     });
                 });
@@ -590,9 +584,9 @@ describe("HeartRateService", (): void => {
 
             describe("when heart rate monitor mode is ant", (): void => {
                 it("should disconnect BLE device", (): void => {
-                    mockAntHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(130)));
+                    mockAntHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(130)));
 
                     heartRateMonitorSubject.next("ant");
                     service.streamHeartRate$().pipe(take(2)).subscribe();
@@ -601,9 +595,9 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should reconnect ANT device", (): void => {
-                    mockAntHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(130)));
+                    mockAntHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(130)));
 
                     heartRateMonitorSubject.next("ant");
                     service.streamHeartRate$().pipe(take(2)).subscribe();
@@ -612,9 +606,9 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should stream heart rate from ANT service", (): void => {
-                    mockAntHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(130)));
+                    mockAntHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(130)));
 
                     heartRateMonitorSubject.next("ant");
                     service.streamHeartRate$().pipe(take(2)).subscribe();
@@ -623,9 +617,9 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should return ANT heart rate data", (): void => {
-                    mockAntHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(130)));
+                    mockAntHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(130)));
 
                     const results: Array<IHeartRate | undefined> = [];
                     const subscription = service
@@ -677,12 +671,12 @@ describe("HeartRateService", (): void => {
 
             describe("when heart rate monitor mode changes", (): void => {
                 it("should switch from BLE to ANT properly", (): void => {
-                    mockBleHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(120)));
-                    mockAntHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(130)));
+                    mockBleHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(120)));
+                    mockAntHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(130)));
 
                     const results: Array<IHeartRate | undefined> = [];
                     const subscription = service
@@ -705,12 +699,12 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should switch from ANT to BLE properly", (): void => {
-                    mockAntHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(130)));
-                    mockBleHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(120)));
+                    mockAntHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(130)));
+                    mockBleHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(120)));
 
                     const results: Array<IHeartRate | undefined> = [];
                     const subscription = service
@@ -733,12 +727,10 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should switch from any mode to off properly", (): void => {
-                    mockBleHeartRateService.disconnectDevice.calls.reset();
-                    mockAntHeartRateService.disconnectDevice.calls.reset();
+                    vi.mocked(mockBleHeartRateService.disconnectDevice).mockClear();
+                    vi.mocked(mockAntHeartRateService.disconnectDevice).mockClear();
 
-                    const mockStreamHeartRate = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(120)));
+                    const mockStreamHeartRate = vi.fn().mockReturnValue(of(createMockHeartRate(120)));
                     mockBleHeartRateService.streamHeartRate$ = mockStreamHeartRate;
 
                     const results: Array<IHeartRate | undefined> = [];
@@ -761,9 +753,9 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should switch from off to BLE properly", (): void => {
-                    mockBleHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(120)));
+                    mockBleHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(120)));
 
                     const results: Array<IHeartRate | undefined> = [];
                     const subscription = service
@@ -784,9 +776,9 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should switch from off to ANT properly", (): void => {
-                    mockAntHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(130)));
+                    mockAntHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(130)));
 
                     const results: Array<IHeartRate | undefined> = [];
                     const subscription = service
@@ -823,7 +815,7 @@ describe("HeartRateService", (): void => {
                 it("should share replay the observable", (): void => {
                     heartRateMonitorSubject.next("ble");
 
-                    mockBleHeartRateService.streamHeartRate$.calls.reset();
+                    vi.mocked(mockBleHeartRateService.streamHeartRate$).mockClear();
                     const observable$ = service.streamHeartRate$();
                     observable$.pipe(take(1)).subscribe();
                     observable$.pipe(take(1)).subscribe();
@@ -834,12 +826,12 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should switch map when heart rate monitor mode changes", (): void => {
-                    mockBleHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(120)));
-                    mockAntHeartRateService.streamHeartRate$ = jasmine
-                        .createSpy("streamHeartRate$")
-                        .and.returnValue(of(createMockHeartRate(130)));
+                    mockBleHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(120)));
+                    mockAntHeartRateService.streamHeartRate$ = vi
+                        .fn()
+                        .mockReturnValue(of(createMockHeartRate(130)));
 
                     const results: Array<IHeartRate | undefined> = [];
                     const subscription = service
@@ -863,175 +855,146 @@ describe("HeartRateService", (): void => {
         describe("when config manager throws errors", (): void => {
             it("should handle getConfig throwing error gracefully", async (): Promise<void> => {
                 const error = new Error("Config error");
-                mockConfigManager.getConfig.and.throwError(error);
+                vi.mocked(mockConfigManager.getConfig).mockImplementation((): IConfig => {
+                    throw error;
+                });
 
-                await expectAsync(service.discover()).toBeRejectedWith(error);
+                await expect(service.discover()).rejects.toEqual(error);
             });
 
-            it("should handle heartRateMonitorChanged$ error gracefully", (done: DoneFn): void => {
+            it("should handle heartRateMonitorChanged$ error gracefully", async (): Promise<void> => {
                 const errorSubject = new BehaviorSubject<HeartRateMonitorMode>("off");
 
-                const errorMockConfigManager = jasmine.createSpyObj("ConfigManagerService", ["getConfig"], {
+                const errorMockConfigManager = {
+                    getConfig: vi.fn().mockName("ConfigManagerService.getConfig"),
                     heartRateMonitorChanged$: errorSubject.asObservable(),
-                });
+                } as unknown as ConfigManagerService;
 
                 const errorService = new HeartRateService(
                     errorMockConfigManager,
-                    mockBleHeartRateService,
-                    mockAntHeartRateService,
-                    mockSnackBar,
+                    mockBleHeartRateService as BLEHeartRateService,
+                    mockAntHeartRateService as AntHeartRateService,
+                    mockSnackBar as MatSnackBar,
                 );
 
-                const results: Array<IHRConnectionStatus> = [];
-                errorService.connectionStatus$().subscribe({
-                    next: (status: IHRConnectionStatus): void => {
-                        results.push(status);
-                    },
-                    error: (error: Error): void => {
-                        expect(error.message).toBe("Config stream error");
-                        expect(results.length).toBeGreaterThanOrEqual(1);
-                        done();
-                    },
-                });
+                const resultPromise = firstValueFrom(errorService.connectionStatus$().pipe(toArray()));
 
                 errorSubject.error(new Error("Config stream error"));
+
+                await expect(resultPromise).rejects.toThrow("Config stream error");
             });
         });
 
         describe("when heart rate services throw errors", (): void => {
             it("should handle BLE service discover error", async (): Promise<void> => {
                 const error = new Error("BLE discover failed");
-                mockConfigManager.getConfig.and.returnValue({
+                vi.mocked(mockConfigManager.getConfig).mockReturnValue({
                     ergoMonitorBleId: "",
                     heartRateBleId: "",
                     heartRateMonitor: "ble",
                 });
-                mockBleHeartRateService.discover.and.rejectWith(error);
+                vi.mocked(mockBleHeartRateService.discover).mockRejectedValue(error);
 
-                await expectAsync(service.discover()).toBeRejectedWith(error);
+                await expect(service.discover()).rejects.toEqual(error);
             });
 
             it("should handle ANT service discover error", async (): Promise<void> => {
                 const error = new Error("ANT discover failed");
-                mockConfigManager.getConfig.and.returnValue({
+                vi.mocked(mockConfigManager.getConfig).mockReturnValue({
                     ergoMonitorBleId: "",
                     heartRateBleId: "",
                     heartRateMonitor: "ant",
                 });
-                mockAntHeartRateService.discover.and.rejectWith(error);
+                vi.mocked(mockAntHeartRateService.discover).mockRejectedValue(error);
 
-                await expectAsync(service.discover()).toBeRejectedWith(error);
+                await expect(service.discover()).rejects.toEqual(error);
             });
 
-            it("should handle BLE service connectionStatus$ error", (done: DoneFn): void => {
-                mockBleHeartRateService.connectionStatus$ = jasmine
-                    .createSpy("connectionStatus$")
-                    .and.returnValue(throwError((): Error => new Error("BLE connection error")));
+            it("should handle BLE service connectionStatus$ error", async (): Promise<void> => {
+                mockBleHeartRateService.connectionStatus$ = vi
+                    .fn()
+                    .mockReturnValue(throwError((): Error => new Error("BLE connection error")));
 
                 heartRateMonitorSubject.next("ble");
 
-                service.connectionStatus$().subscribe({
-                    next: (): void => {
-                        // may get initial disconnected status
-                    },
-                    error: (error: Error): void => {
-                        expect(error.message).toBe("BLE connection error");
-                        done();
-                    },
-                });
+                await expect(firstValueFrom(service.connectionStatus$().pipe(toArray()))).rejects.toThrow(
+                    "BLE connection error",
+                );
             });
 
-            it("should handle ANT service connectionStatus$ error", (done: DoneFn): void => {
-                mockAntHeartRateService.connectionStatus$ = jasmine
-                    .createSpy("connectionStatus$")
-                    .and.returnValue(throwError((): Error => new Error("ANT connection error")));
+            it("should handle ANT service connectionStatus$ error", async (): Promise<void> => {
+                mockAntHeartRateService.connectionStatus$ = vi
+                    .fn()
+                    .mockReturnValue(throwError((): Error => new Error("ANT connection error")));
 
                 heartRateMonitorSubject.next("ant");
 
-                service.connectionStatus$().subscribe({
-                    next: (): void => {
-                        // may get initial disconnected status
-                    },
-                    error: (error: Error): void => {
-                        expect(error.message).toBe("ANT connection error");
-                        done();
-                    },
-                });
+                await expect(firstValueFrom(service.connectionStatus$().pipe(toArray()))).rejects.toThrow(
+                    "ANT connection error",
+                );
             });
 
-            it("should handle BLE service streamHeartRate$ error", (done: DoneFn): void => {
-                mockBleHeartRateService.streamHeartRate$ = jasmine
-                    .createSpy("streamHeartRate$")
-                    .and.returnValue(throwError((): Error => new Error("BLE stream error")));
+            it("should handle BLE service streamHeartRate$ error", async (): Promise<void> => {
+                mockBleHeartRateService.streamHeartRate$ = vi
+                    .fn()
+                    .mockReturnValue(throwError((): Error => new Error("BLE stream error")));
 
                 heartRateMonitorSubject.next("ble");
 
-                service.streamHeartRate$().subscribe({
-                    next: (): void => {
-                        // may get initial undefined value
-                    },
-                    error: (error: Error): void => {
-                        expect(error.message).toBe("BLE stream error");
-                        done();
-                    },
-                });
+                await expect(firstValueFrom(service.streamHeartRate$().pipe(toArray()))).rejects.toThrow(
+                    "BLE stream error",
+                );
             });
 
-            it("should handle ANT service streamHeartRate$ error", (done: DoneFn): void => {
-                mockAntHeartRateService.streamHeartRate$ = jasmine
-                    .createSpy("streamHeartRate$")
-                    .and.returnValue(throwError((): Error => new Error("ANT stream error")));
+            it("should handle ANT service streamHeartRate$ error", async (): Promise<void> => {
+                mockAntHeartRateService.streamHeartRate$ = vi
+                    .fn()
+                    .mockReturnValue(throwError((): Error => new Error("ANT stream error")));
 
                 heartRateMonitorSubject.next("ant");
 
-                service.streamHeartRate$().subscribe({
-                    next: (): void => {
-                        // may get initial undefined value
-                    },
-                    error: (error: Error): void => {
-                        expect(error.message).toBe("ANT stream error");
-                        done();
-                    },
-                });
+                await expect(firstValueFrom(service.streamHeartRate$().pipe(toArray()))).rejects.toThrow(
+                    "ANT stream error",
+                );
             });
 
             it("should handle BLE disconnect error", async (): Promise<void> => {
                 const error = new Error("BLE disconnect failed");
-                mockBleHeartRateService.disconnectDevice.and.rejectWith(error);
+                vi.mocked(mockBleHeartRateService.disconnectDevice).mockRejectedValue(error);
 
-                await expectAsync(mockBleHeartRateService.disconnectDevice()).toBeRejectedWith(error);
+                await expect(mockBleHeartRateService.disconnectDevice()).rejects.toEqual(error);
             });
 
             it("should handle ANT disconnect error", async (): Promise<void> => {
                 const error = new Error("ANT disconnect failed");
-                mockAntHeartRateService.disconnectDevice.and.rejectWith(error);
+                vi.mocked(mockAntHeartRateService.disconnectDevice).mockRejectedValue(error);
 
-                await expectAsync(mockAntHeartRateService.disconnectDevice()).toBeRejectedWith(error);
+                await expect(mockAntHeartRateService.disconnectDevice()).rejects.toEqual(error);
             });
 
             it("should handle BLE reconnect error", async (): Promise<void> => {
                 const error = new Error("BLE reconnect failed");
-                mockBleHeartRateService.reconnect.and.rejectWith(error);
+                vi.mocked(mockBleHeartRateService.reconnect).mockRejectedValue(error);
 
-                await expectAsync(mockBleHeartRateService.reconnect()).toBeRejectedWith(error);
+                await expect(mockBleHeartRateService.reconnect()).rejects.toEqual(error);
             });
 
             it("should handle ANT reconnect error", async (): Promise<void> => {
                 const error = new Error("ANT reconnect failed");
-                mockAntHeartRateService.reconnect.and.rejectWith(error);
+                vi.mocked(mockAntHeartRateService.reconnect).mockRejectedValue(error);
 
-                await expectAsync(mockAntHeartRateService.reconnect()).toBeRejectedWith(error);
+                await expect(mockAntHeartRateService.reconnect()).rejects.toEqual(error);
             });
         });
 
         describe("when multiple rapid mode changes occur", (): void => {
             it("should handle rapid successive mode changes", (): void => {
-                mockBleHeartRateService.streamHeartRate$ = jasmine
-                    .createSpy("streamHeartRate$")
-                    .and.returnValue(of(createMockHeartRate(120)));
-                mockAntHeartRateService.streamHeartRate$ = jasmine
-                    .createSpy("streamHeartRate$")
-                    .and.returnValue(of(createMockHeartRate(130)));
+                mockBleHeartRateService.streamHeartRate$ = vi
+                    .fn()
+                    .mockReturnValue(of(createMockHeartRate(120)));
+                mockAntHeartRateService.streamHeartRate$ = vi
+                    .fn()
+                    .mockReturnValue(of(createMockHeartRate(130)));
 
                 const results: Array<IHeartRate | undefined> = [];
                 const subscription = service
@@ -1054,17 +1017,17 @@ describe("HeartRateService", (): void => {
                 let bleSubscriptionCount = 0;
                 let antSubscriptionCount = 0;
 
-                mockBleHeartRateService.streamHeartRate$ = jasmine
-                    .createSpy("streamHeartRate$")
-                    .and.callFake((): Observable<IHeartRate> => {
+                mockBleHeartRateService.streamHeartRate$ = vi
+                    .fn()
+                    .mockImplementation((): Observable<IHeartRate> => {
                         bleSubscriptionCount++;
 
                         return of(createMockHeartRate(120));
                     });
 
-                mockAntHeartRateService.streamHeartRate$ = jasmine
-                    .createSpy("streamHeartRate$")
-                    .and.callFake((): Observable<IHeartRate> => {
+                mockAntHeartRateService.streamHeartRate$ = vi
+                    .fn()
+                    .mockImplementation((): Observable<IHeartRate> => {
                         antSubscriptionCount++;
 
                         return of(createMockHeartRate(130));

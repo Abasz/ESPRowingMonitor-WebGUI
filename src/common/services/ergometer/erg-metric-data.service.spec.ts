@@ -1,7 +1,8 @@
 import { provideZonelessChangeDetection } from "@angular/core";
-import { fakeAsync, TestBed, tick } from "@angular/core/testing";
+import { TestBed } from "@angular/core/testing";
 import { BehaviorSubject, Subject } from "rxjs";
 import { takeUntil } from "rxjs/operators";
+import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import {
     CYCLING_POWER_CHARACTERISTIC,
@@ -31,14 +32,32 @@ describe("ErgMetricsService", (): void => {
     const destroySubject: Subject<void> = new Subject<void>();
 
     let service: ErgMetricsService;
-    let mockErgConnectionService: jasmine.SpyObj<ErgConnectionService>;
-    let mockBluetoothDevice: jasmine.SpyObj<BluetoothDevice>;
+    let mockErgConnectionService: Pick<
+        ErgConnectionService,
+        | "readDeltaTimesCharacteristic"
+        | "connectToDeltaTimes"
+        | "resetDeltaTimesCharacteristic"
+        | "readExtendedCharacteristic"
+        | "connectToExtended"
+        | "resetExtendedCharacteristic"
+        | "readHandleForceCharacteristic"
+        | "connectToHandleForces"
+        | "resetHandleForceCharacteristic"
+        | "readMeasurementCharacteristic"
+        | "connectToMeasurement"
+        | "resetMeasurementCharacteristic"
+        | "deltaTimesCharacteristic$"
+        | "extendedCharacteristic$"
+        | "handleForceCharacteristic$"
+        | "measurementCharacteristic$"
+    >;
+    let mockBluetoothDevice: BluetoothDevice;
 
-    let mockDeltaTimesCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockExtendedCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockHandleForceCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockMeasurementCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockMeasurementUUID: jasmine.Spy<() => string>;
+    let mockDeltaTimesCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockExtendedCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockHandleForceCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockMeasurementCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockMeasurementUUID: Mock<() => string>;
 
     let deltaTimesCharacteristicSubject: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>;
     let extendedCharacteristicSubject: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>;
@@ -66,11 +85,9 @@ describe("ErgMetricsService", (): void => {
         mockHandleForceCharacteristic = createMockCharacteristic(mockBluetoothDevice);
         mockMeasurementCharacteristic = createMockCharacteristic(mockBluetoothDevice);
 
-        mockMeasurementUUID = (
-            Object.getOwnPropertyDescriptor(mockMeasurementCharacteristic, "uuid")?.get as jasmine.Spy<
-                () => string
-            >
-        ).and.returnValue(BluetoothUUID.getCharacteristic(CYCLING_POWER_CHARACTERISTIC));
+        mockMeasurementUUID = vi
+            .spyOn(mockMeasurementCharacteristic, "uuid", "get")
+            .mockReturnValue(BluetoothUUID.getCharacteristic(CYCLING_POWER_CHARACTERISTIC));
 
         deltaTimesCharacteristicSubject = new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(
             undefined,
@@ -85,51 +102,54 @@ describe("ErgMetricsService", (): void => {
             undefined,
         );
 
-        mockErgConnectionService = jasmine.createSpyObj(
-            "ErgConnectionService",
-            [
-                "readDeltaTimesCharacteristic",
-                "connectToDeltaTimes",
-                "resetDeltaTimesCharacteristic",
-                "readExtendedCharacteristic",
-                "connectToExtended",
-                "resetExtendedCharacteristic",
-                "readHandleForceCharacteristic",
-                "connectToHandleForces",
-                "resetHandleForceCharacteristic",
-                "readMeasurementCharacteristic",
-                "connectToMeasurement",
-                "resetMeasurementCharacteristic",
-            ],
-            {
-                deltaTimesCharacteristic$: deltaTimesCharacteristicSubject.asObservable(),
-                extendedCharacteristic$: extendedCharacteristicSubject.asObservable(),
-                handleForceCharacteristic$: handleForceCharacteristicSubject.asObservable(),
-                measurementCharacteristic$: measurementCharacteristicSubject.asObservable(),
-            },
+        mockErgConnectionService = {
+            readDeltaTimesCharacteristic: vi.fn(),
+            connectToDeltaTimes: vi.fn(),
+            resetDeltaTimesCharacteristic: vi.fn(),
+            readExtendedCharacteristic: vi.fn(),
+            connectToExtended: vi.fn(),
+            resetExtendedCharacteristic: vi.fn(),
+            readHandleForceCharacteristic: vi.fn(),
+            connectToHandleForces: vi.fn(),
+            resetHandleForceCharacteristic: vi.fn(),
+            readMeasurementCharacteristic: vi.fn(),
+            connectToMeasurement: vi.fn(),
+            resetMeasurementCharacteristic: vi.fn(),
+            deltaTimesCharacteristic$: deltaTimesCharacteristicSubject.asObservable(),
+            extendedCharacteristic$: extendedCharacteristicSubject.asObservable(),
+            handleForceCharacteristic$: handleForceCharacteristicSubject.asObservable(),
+            measurementCharacteristic$: measurementCharacteristicSubject.asObservable(),
+        };
+        vi.mocked(mockErgConnectionService.readDeltaTimesCharacteristic).mockReturnValue(
+            mockDeltaTimesCharacteristic,
         );
-        mockErgConnectionService.readDeltaTimesCharacteristic.and.returnValue(mockDeltaTimesCharacteristic);
-        mockErgConnectionService.readExtendedCharacteristic.and.returnValue(mockExtendedCharacteristic);
-        mockErgConnectionService.readHandleForceCharacteristic.and.returnValue(mockHandleForceCharacteristic);
-        mockErgConnectionService.readMeasurementCharacteristic.and.returnValue(mockMeasurementCharacteristic);
+        vi.mocked(mockErgConnectionService.readExtendedCharacteristic).mockReturnValue(
+            mockExtendedCharacteristic,
+        );
+        vi.mocked(mockErgConnectionService.readHandleForceCharacteristic).mockReturnValue(
+            mockHandleForceCharacteristic,
+        );
+        vi.mocked(mockErgConnectionService.readMeasurementCharacteristic).mockReturnValue(
+            mockMeasurementCharacteristic,
+        );
 
-        createDeltaTimesValueChangedListenerReady = changedListenerReadyFactory<
-            typeof mockDeltaTimesCharacteristic,
-            DataView
-        >(mockDeltaTimesCharacteristic, "characteristicvaluechanged");
-        createExtendedValueChangedListenerReady = changedListenerReadyFactory<
-            typeof mockExtendedCharacteristic,
-            DataView
-        >(mockExtendedCharacteristic, "characteristicvaluechanged");
-        createHandleForceValueChangedListenerReady = changedListenerReadyFactory<
-            typeof mockHandleForceCharacteristic,
-            DataView
-        >(mockHandleForceCharacteristic, "characteristicvaluechanged");
-        createMeasurementValueChangedListenerReady = changedListenerReadyFactory<
-            typeof mockMeasurementCharacteristic,
-            DataView
-        >(mockMeasurementCharacteristic, "characteristicvaluechanged");
-        createDisconnectChangedListenerReady = changedListenerReadyFactory<typeof mockBluetoothDevice, void>(
+        createDeltaTimesValueChangedListenerReady = changedListenerReadyFactory(
+            mockDeltaTimesCharacteristic,
+            "characteristicvaluechanged",
+        );
+        createExtendedValueChangedListenerReady = changedListenerReadyFactory(
+            mockExtendedCharacteristic,
+            "characteristicvaluechanged",
+        );
+        createHandleForceValueChangedListenerReady = changedListenerReadyFactory(
+            mockHandleForceCharacteristic,
+            "characteristicvaluechanged",
+        );
+        createMeasurementValueChangedListenerReady = changedListenerReadyFactory(
+            mockMeasurementCharacteristic,
+            "characteristicvaluechanged",
+        );
+        createDisconnectChangedListenerReady = changedListenerReadyFactory<BluetoothDevice, void>(
             mockBluetoothDevice,
             "gattserverdisconnected",
         );
@@ -163,7 +183,7 @@ describe("ErgMetricsService", (): void => {
                     },
                 });
 
-            expect(emittedValues).toHaveSize(0);
+            expect(emittedValues).toHaveLength(0);
         });
 
         describe("when characteristic is available", (): void => {
@@ -190,7 +210,7 @@ describe("ErgMetricsService", (): void => {
                 deltaTimesCharacteristicSubject.next(undefined);
                 deltaTimesCharacteristicSubject.next(mockDeltaTimesCharacteristic);
 
-                expect(emittedValues).toHaveSize(1);
+                expect(emittedValues).toHaveLength(1);
                 expect(emittedValues[0]).toEqual([1000, 2000, 3000]);
                 expect(mockErgConnectionService.resetDeltaTimesCharacteristic).toHaveBeenCalled();
             });
@@ -210,7 +230,7 @@ describe("ErgMetricsService", (): void => {
                 const testData = createDeltaTimesDataView([1000, 2000, 3000]);
                 (await deltaTrigger).triggerChanged(testData);
 
-                expect(emittedValues).toHaveSize(1);
+                expect(emittedValues).toHaveLength(1);
                 expect(emittedValues[0]).toEqual([1000, 2000, 3000]);
             });
 
@@ -228,7 +248,7 @@ describe("ErgMetricsService", (): void => {
 
                 (await deltaTrigger).triggerChanged(createDeltaTimesDataView([500, 1000, 1500, 2000]));
 
-                expect(emittedValues).toHaveSize(1);
+                expect(emittedValues).toHaveLength(1);
                 expect(emittedValues[0]).toEqual([500, 1000, 1500, 2000]);
             });
 
@@ -246,7 +266,15 @@ describe("ErgMetricsService", (): void => {
         });
 
         describe("when characteristic errors", (): void => {
-            it("should retry up to 4 times", fakeAsync((): void => {
+            beforeEach((): void => {
+                vi.useFakeTimers();
+            });
+
+            afterEach((): void => {
+                vi.useRealTimers();
+            });
+
+            it("should retry up to 4 times", async (): Promise<void> => {
                 service
                     .streamDeltaTimes$()
                     .pipe(takeUntil(destroySubject))
@@ -258,75 +286,76 @@ describe("ErgMetricsService", (): void => {
 
                 deltaTimesCharacteristicSubject.error(new Error("Test error unknown"));
 
-                tick(4 * 2000);
+                await vi.advanceTimersByTimeAsync(4 * 2000);
 
                 expect(mockErgConnectionService.readDeltaTimesCharacteristic).toHaveBeenCalledTimes(4);
                 expect(mockErgConnectionService.connectToDeltaTimes).toHaveBeenCalledTimes(4);
-            }));
+            });
 
-            it("should delay retry by 2000ms", fakeAsync((): void => {
+            it("should delay retry by 2000ms", async (): Promise<void> => {
                 service.streamDeltaTimes$().pipe(takeUntil(destroySubject)).subscribe();
 
                 deltaTimesCharacteristicSubject.error(new Error("test error unknown"));
                 // reset so we have only one call to connect after the timeout
-                mockErgConnectionService.connectToDeltaTimes.calls.reset();
+                vi.mocked(mockErgConnectionService.connectToDeltaTimes).mockClear();
 
-                tick(2000);
+                await vi.advanceTimersByTimeAsync(2000);
 
-                expect(mockErgConnectionService.connectToDeltaTimes).toHaveBeenCalledOnceWith(
+                expect(mockErgConnectionService.connectToDeltaTimes).toHaveBeenCalledTimes(1);
+
+                expect(mockErgConnectionService.connectToDeltaTimes).toHaveBeenCalledWith(
                     mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
                 );
-            }));
+            });
 
             describe("and error message contains 'unknown'", (): void => {
-                let gattSpy: jasmine.Spy<() => BluetoothRemoteGATTServer | undefined>;
+                let gattSpy: ReturnType<typeof vi.spyOn>;
 
                 beforeEach((): void => {
-                    gattSpy = Object.getOwnPropertyDescriptor(mockBluetoothDevice, "gatt")
-                        ?.get as jasmine.Spy<() => BluetoothRemoteGATTServer | undefined>;
+                    gattSpy = vi.spyOn(mockBluetoothDevice, "gatt", "get");
                 });
 
-                it("should get GATT from connection service", fakeAsync((): void => {
+                it("should get GATT from connection service", async (): Promise<void> => {
                     service.streamDeltaTimes$().pipe(takeUntil(destroySubject)).subscribe();
 
                     deltaTimesCharacteristicSubject.error(new Error("unknown connection issue"));
-                    gattSpy.calls.reset();
-                    tick(2000);
+                    gattSpy.mockClear();
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(gattSpy).toHaveBeenCalled();
-                }));
+                });
 
-                it("should reconnect to delta times when GATT available", fakeAsync((): void => {
+                it("should reconnect to delta times when GATT available", async (): Promise<void> => {
                     service.streamDeltaTimes$().pipe(takeUntil(destroySubject)).subscribe();
 
                     deltaTimesCharacteristicSubject.error(new Error("unknown connection issue"));
-                    mockErgConnectionService.connectToDeltaTimes.calls.reset();
-                    tick(2000);
+                    vi.mocked(mockErgConnectionService.connectToDeltaTimes).mockClear();
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(mockErgConnectionService.connectToDeltaTimes).toHaveBeenCalledWith(
                         mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
                     );
-                }));
+                });
 
-                it("should retry without reconnect when GATT is unavailable", fakeAsync((): void => {
-                    gattSpy.and.returnValue(undefined);
+                it("should retry without reconnect when GATT is unavailable", async (): Promise<void> => {
+                    gattSpy.mockReturnValue(undefined);
                     service.streamDeltaTimes$().pipe(takeUntil(destroySubject)).subscribe();
 
                     deltaTimesCharacteristicSubject.error(new Error("unknown connection issue"));
-                    tick(2000);
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(mockErgConnectionService.connectToDeltaTimes).not.toHaveBeenCalled();
-                }));
+                });
             });
 
-            it("and error message does not contain 'unknown' should not attempt reconnection", fakeAsync((): void => {
+            it("and error message does not contain 'unknown' should not attempt reconnection", async (): Promise<void> => {
                 service.streamDeltaTimes$().pipe(takeUntil(destroySubject)).subscribe();
 
                 deltaTimesCharacteristicSubject.error(new Error("different error"));
-                tick(2000);
+                await vi.advanceTimersByTimeAsync(2000);
 
                 expect(mockErgConnectionService.connectToDeltaTimes).not.toHaveBeenCalled();
-            }));
+            });
         });
     });
 
@@ -343,7 +372,7 @@ describe("ErgMetricsService", (): void => {
                     },
                 });
 
-            expect(emittedValues).toHaveSize(0);
+            expect(emittedValues).toHaveLength(0);
         });
 
         describe("when characteristic is available", (): void => {
@@ -370,7 +399,7 @@ describe("ErgMetricsService", (): void => {
                 extendedCharacteristicSubject.next(undefined);
                 extendedCharacteristicSubject.next(mockDeltaTimesCharacteristic);
 
-                expect(emittedValues).toHaveSize(1);
+                expect(emittedValues).toHaveLength(1);
                 expect(emittedValues[0]).toEqual({
                     avgStrokePower: 150,
                     driveDuration: 1000000,
@@ -394,7 +423,7 @@ describe("ErgMetricsService", (): void => {
 
                 (await extendedTrigger).triggerChanged(createExtendedMetricsDataView(200, 2048, 4096, 120));
 
-                expect(emittedValues).toHaveSize(1);
+                expect(emittedValues).toHaveLength(1);
                 expect(emittedValues[0]).toEqual({
                     avgStrokePower: 200,
                     driveDuration: Math.round((2048 / 4096) * 1e6),
@@ -417,7 +446,7 @@ describe("ErgMetricsService", (): void => {
 
                 (await extendedTrigger).triggerChanged(createExtendedMetricsDataView(250, 3000, 5000, 512));
 
-                expect(emittedValues).toHaveSize(1);
+                expect(emittedValues).toHaveLength(1);
                 expect(emittedValues[0]).toEqual({
                     avgStrokePower: 250,
                     driveDuration: Math.round((3000 / 4096) * 1e6),
@@ -447,7 +476,7 @@ describe("ErgMetricsService", (): void => {
 
                 (await extendedTrigger).triggerChanged(dataView);
 
-                expect(emittedValues).toHaveSize(1);
+                expect(emittedValues).toHaveLength(1);
                 expect(emittedValues[0]).toEqual({
                     avgStrokePower: 180,
                     driveDuration: Math.round((2500 / 4096) * 1e6),
@@ -470,7 +499,15 @@ describe("ErgMetricsService", (): void => {
         });
 
         describe("when characteristic errors", (): void => {
-            it("should retry up to 4 times", fakeAsync((): void => {
+            beforeEach((): void => {
+                vi.useFakeTimers();
+            });
+
+            afterEach((): void => {
+                vi.useRealTimers();
+            });
+
+            it("should retry up to 4 times", async (): Promise<void> => {
                 service
                     .streamExtended$()
                     .pipe(takeUntil(destroySubject))
@@ -482,78 +519,78 @@ describe("ErgMetricsService", (): void => {
 
                 extendedCharacteristicSubject.error(new Error("test error unknown"));
 
-                tick(4 * 2000);
+                await vi.advanceTimersByTimeAsync(4 * 2000);
 
                 expect(mockErgConnectionService.readExtendedCharacteristic).toHaveBeenCalledTimes(4);
                 expect(mockErgConnectionService.connectToExtended).toHaveBeenCalledTimes(4);
-            }));
+            });
 
-            it("should delay retry by 2000ms", fakeAsync((): void => {
+            it("should delay retry by 2000ms", async (): Promise<void> => {
                 service.streamExtended$().pipe(takeUntil(destroySubject)).subscribe();
 
                 extendedCharacteristicSubject.error(new Error("test error unknown"));
                 // reset so we have only one call to connect after the timeout
-                mockErgConnectionService.connectToExtended.calls.reset();
+                vi.mocked(mockErgConnectionService.connectToExtended).mockClear();
 
-                tick(2000);
+                await vi.advanceTimersByTimeAsync(2000);
 
-                expect(mockErgConnectionService.connectToExtended).toHaveBeenCalledOnceWith(
+                expect(mockErgConnectionService.connectToExtended).toHaveBeenCalledTimes(1);
+
+                expect(mockErgConnectionService.connectToExtended).toHaveBeenCalledWith(
                     mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
                 );
-            }));
+            });
 
             describe("when error message contains 'unknown'", (): void => {
-                it("should get GATT from connection service", fakeAsync((): void => {
-                    const gattSpy = Object.getOwnPropertyDescriptor(mockBluetoothDevice, "gatt")
-                        ?.get as jasmine.Spy<() => BluetoothRemoteGATTServer | undefined>;
+                it("should get GATT from connection service", async (): Promise<void> => {
+                    const gattSpy = vi.spyOn(mockBluetoothDevice, "gatt", "get");
                     service.streamExtended$().pipe(takeUntil(destroySubject)).subscribe();
 
                     extendedCharacteristicSubject.error(new Error("unknown connection issue"));
-                    gattSpy.calls.reset();
-                    tick(2000);
+                    gattSpy.mockClear();
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(gattSpy).toHaveBeenCalled();
-                }));
+                });
 
-                it("should reconnect to extended when GATT available", fakeAsync((): void => {
+                it("should reconnect to extended when GATT available", async (): Promise<void> => {
                     service.streamExtended$().pipe(takeUntil(destroySubject)).subscribe();
 
                     extendedCharacteristicSubject.error(new Error("unknown connection issue"));
-                    mockErgConnectionService.connectToExtended.calls.reset();
-                    tick(2000);
+                    vi.mocked(mockErgConnectionService.connectToExtended).mockClear();
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(mockErgConnectionService.connectToExtended).toHaveBeenCalledWith(
                         mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
                     );
-                }));
+                });
             });
 
             describe("should not attempt reconnection", (): void => {
-                it("when error message does not contain 'unknown'", fakeAsync((): void => {
+                it("when error message does not contain 'unknown'", async (): Promise<void> => {
                     const connectSpy = mockErgConnectionService.connectToExtended;
-                    connectSpy.calls.reset();
+                    vi.mocked(connectSpy).mockClear();
                     service.streamExtended$().pipe(takeUntil(destroySubject)).subscribe();
 
                     extendedCharacteristicSubject.error(new Error("different error"));
-                    tick(2000);
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(connectSpy).not.toHaveBeenCalled();
-                }));
+                });
 
-                it("when GATT is unavailable", fakeAsync((): void => {
-                    const gattSpy = Object.getOwnPropertyDescriptor(mockBluetoothDevice, "gatt")
-                        ?.get as jasmine.Spy<() => BluetoothRemoteGATTServer | undefined>;
-                    gattSpy.and.returnValue(undefined);
+                it("when GATT is unavailable", async (): Promise<void> => {
+                    const gattSpy = vi.spyOn(mockBluetoothDevice, "gatt", "get");
+                    gattSpy.mockReturnValue(undefined);
 
                     const connectSpy = mockErgConnectionService.connectToExtended;
-                    connectSpy.calls.reset();
+                    vi.mocked(connectSpy).mockClear();
                     service.streamExtended$().pipe(takeUntil(destroySubject)).subscribe();
 
                     extendedCharacteristicSubject.error(new Error("unknown connection issue"));
-                    tick(2000);
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(connectSpy).not.toHaveBeenCalled();
-                }));
+                });
             });
         });
     });
@@ -571,7 +608,7 @@ describe("ErgMetricsService", (): void => {
                     },
                 });
 
-            expect(emittedValues).toHaveSize(0);
+            expect(emittedValues).toHaveLength(0);
         });
 
         describe("when characteristic is available", (): void => {
@@ -602,11 +639,11 @@ describe("ErgMetricsService", (): void => {
                 handleForceCharacteristicSubject.next(undefined);
                 handleForceCharacteristicSubject.next(mockDeltaTimesCharacteristic);
 
-                expect(emittedValues).toHaveSize(1);
-                expect(emittedValues[0]).toHaveSize(7);
+                expect(emittedValues).toHaveLength(1);
+                expect(emittedValues[0]).toHaveLength(7);
                 const expected = [10.5, 15.2, 20.8, 22.1, 24.7, 25.1, 30.7];
                 expected.forEach((val: number, idx: number): void => {
-                    expect(emittedValues[0][idx]).withContext(`Value at index ${idx}`).toBeCloseTo(val, 3);
+                    expect(emittedValues[0][idx], `Value at index ${idx}`).toBeCloseTo(val, 3);
                 });
                 expect(mockErgConnectionService.resetHandleForceCharacteristic).toHaveBeenCalled();
             });
@@ -629,12 +666,10 @@ describe("ErgMetricsService", (): void => {
                     const testData2 = createHandleForcesDataView(7, 7, [300.8]);
                     (await handleForceTrigger).triggerChanged(testData2);
 
-                    expect(emittedValues).toHaveSize(1);
+                    expect(emittedValues).toHaveLength(1);
                     const expected = [100.5, 200.2, 100.6, 400, 300.8];
                     expected.forEach((val: number, idx: number): void => {
-                        expect(emittedValues[0][idx])
-                            .withContext(`Value at index ${idx}`)
-                            .toBeCloseTo(val, 3);
+                        expect(emittedValues[0][idx], `Value at index ${idx}`).toBeCloseTo(val, 3);
                     });
                 });
 
@@ -654,11 +689,11 @@ describe("ErgMetricsService", (): void => {
                     (await handleForceTrigger).triggerChanged(createHandleForcesDataView(15, 20, [4.1]));
                     (await handleForceTrigger).triggerChanged(createHandleForcesDataView(19, 20, [10.1]));
 
-                    expect(emittedValues).toHaveSize(0);
+                    expect(emittedValues).toHaveLength(0);
 
                     (await handleForceTrigger).triggerChanged(createHandleForcesDataView(20, 20, [2.2]));
 
-                    expect(emittedValues).toHaveSize(1);
+                    expect(emittedValues).toHaveLength(1);
                 });
             });
 
@@ -677,10 +712,15 @@ describe("ErgMetricsService", (): void => {
 
         describe("when characteristic errors", (): void => {
             beforeEach((): void => {
+                vi.useFakeTimers();
                 handleForceCharacteristicSubject.next(mockHandleForceCharacteristic);
             });
 
-            it("should retry up to 4 times", fakeAsync((): void => {
+            afterEach((): void => {
+                vi.useRealTimers();
+            });
+
+            it("should retry up to 4 times", async (): Promise<void> => {
                 const emittedValues: Array<Array<number>> = [];
 
                 service
@@ -697,79 +737,77 @@ describe("ErgMetricsService", (): void => {
 
                 handleForceCharacteristicSubject.error(new Error("test error unknown"));
 
-                tick(4 * 2000);
+                await vi.advanceTimersByTimeAsync(4 * 2000);
 
                 expect(mockErgConnectionService.readHandleForceCharacteristic).toHaveBeenCalledTimes(4);
                 expect(mockErgConnectionService.connectToHandleForces).toHaveBeenCalledTimes(4);
-            }));
+            });
 
-            it("should delay retry by 2000ms", fakeAsync((): void => {
+            it("should delay retry by 2000ms", async (): Promise<void> => {
                 service.streamHandleForces$().pipe(takeUntil(destroySubject)).subscribe();
 
                 handleForceCharacteristicSubject.error(new Error("test error unknown"));
-                mockErgConnectionService.connectToHandleForces.calls.reset();
+                vi.mocked(mockErgConnectionService.connectToHandleForces).mockClear();
 
-                tick(2000);
+                await vi.advanceTimersByTimeAsync(2000);
 
                 expect(mockErgConnectionService.connectToHandleForces).toHaveBeenCalledWith(
                     mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
                 );
-            }));
+            });
 
             describe("when error message contains 'unknown'", (): void => {
-                it("should get GATT from connection service", fakeAsync((): void => {
-                    const gattSpy = Object.getOwnPropertyDescriptor(mockBluetoothDevice, "gatt")
-                        ?.get as jasmine.Spy<() => BluetoothRemoteGATTServer | undefined>;
+                it("should get GATT from connection service", async (): Promise<void> => {
+                    const gattSpy = vi.spyOn(mockBluetoothDevice, "gatt", "get");
 
                     service.streamHandleForces$().pipe(takeUntil(destroySubject)).subscribe();
 
                     handleForceCharacteristicSubject.error(new Error("unknown connection issue"));
-                    gattSpy.calls.reset();
-                    tick(2000);
+                    gattSpy.mockClear();
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(gattSpy).toHaveBeenCalled();
-                }));
+                });
 
-                it("should reconnect to handle forces when GATT available", fakeAsync((): void => {
+                it("should reconnect to handle forces when GATT available", async (): Promise<void> => {
                     service.streamHandleForces$().pipe(takeUntil(destroySubject)).subscribe();
 
                     handleForceCharacteristicSubject.error(new Error("unknown connection issue"));
-                    mockErgConnectionService.connectToHandleForces.calls.reset();
-                    tick(2000);
+                    vi.mocked(mockErgConnectionService.connectToHandleForces).mockClear();
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(mockErgConnectionService.connectToHandleForces).toHaveBeenCalledWith(
                         mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
                     );
-                }));
+                });
             });
 
             describe("should not attempt reconnection", (): void => {
-                it("when error message does not contain 'unknown'", fakeAsync((): void => {
+                it("when error message does not contain 'unknown'", async (): Promise<void> => {
                     const connectSpy = mockErgConnectionService.connectToHandleForces;
-                    connectSpy.calls.reset();
+                    vi.mocked(connectSpy).mockClear();
 
                     service.streamHandleForces$().pipe(takeUntil(destroySubject)).subscribe();
 
                     handleForceCharacteristicSubject.error(new Error("different error"));
-                    tick(2000);
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(connectSpy).not.toHaveBeenCalled();
-                }));
+                });
 
-                it("when GATT is unavailable", fakeAsync((): void => {
-                    const gattSpy = Object.getOwnPropertyDescriptor(mockBluetoothDevice, "gatt")
-                        ?.get as jasmine.Spy<() => BluetoothRemoteGATTServer | undefined>;
-                    gattSpy.and.returnValue(undefined);
+                it("when GATT is unavailable", async (): Promise<void> => {
+                    const gattSpy = vi.spyOn(mockBluetoothDevice, "gatt", "get");
+                    gattSpy.mockReturnValue(undefined);
 
                     const connectSpy = mockErgConnectionService.connectToHandleForces;
-                    connectSpy.calls.reset();
+                    vi.mocked(connectSpy).mockClear();
                     service.streamHandleForces$().pipe(takeUntil(destroySubject)).subscribe();
 
                     handleForceCharacteristicSubject.error(new Error("unknown connection issue"));
-                    tick(2000);
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(connectSpy).not.toHaveBeenCalled();
-                }));
+                });
             });
         });
 
@@ -786,7 +824,7 @@ describe("ErgMetricsService", (): void => {
                         },
                     });
 
-                expect(emittedValues).toHaveSize(0);
+                expect(emittedValues).toHaveLength(0);
             });
 
             it("should filter out undefined characteristics", async (): Promise<void> => {
@@ -809,21 +847,21 @@ describe("ErgMetricsService", (): void => {
                 measurementCharacteristicSubject.next(undefined);
                 measurementCharacteristicSubject.next(mockMeasurementCharacteristic);
 
-                expect(emittedValues).toHaveSize(1);
+                expect(emittedValues).toHaveLength(1);
                 expect(emittedValues[0]).toEqual(
-                    jasmine.objectContaining({
+                    expect.objectContaining({
                         distance: expectedMetrics.distance,
                         strokeCount: expectedMetrics.strokeCount,
                     }),
                 );
-                expect(Math.abs(emittedValues[0].revTime - expectedMetrics.revTime))
-                    .withContext(`revTime: ${emittedValues[0].revTime} -> ${expectedMetrics.revTime}`)
-                    .toBeLessThanOrEqual(200);
-                expect(Math.abs(emittedValues[0].strokeTime - expectedMetrics.strokeTime))
-                    .withContext(
-                        `strokeTime: ${emittedValues[0].strokeTime} -> ${expectedMetrics.strokeTime}`,
-                    )
-                    .toBeLessThanOrEqual(200);
+                expect(
+                    Math.abs(emittedValues[0].revTime - expectedMetrics.revTime),
+                    `revTime: ${emittedValues[0].revTime} -> ${expectedMetrics.revTime}`,
+                ).toBeLessThanOrEqual(200);
+                expect(
+                    Math.abs(emittedValues[0].strokeTime - expectedMetrics.strokeTime),
+                    `strokeTime: ${emittedValues[0].strokeTime} -> ${expectedMetrics.strokeTime}`,
+                ).toBeLessThanOrEqual(200);
                 expect(mockErgConnectionService.resetMeasurementCharacteristic).toHaveBeenCalled();
             });
 
@@ -856,9 +894,11 @@ describe("ErgMetricsService", (): void => {
                         const {
                             expectedMetrics,
                             metricsDataViews,
-                        }: { expectedMetrics: Array<IBaseMetrics>; metricsDataViews: Array<DataView> } =
-                            createMeasurementDataViews(deltaMetrics, createFTMSMeasurementDataView);
-                        mockMeasurementUUID.and.returnValue(
+                        }: {
+                            expectedMetrics: Array<IBaseMetrics>;
+                            metricsDataViews: Array<DataView>;
+                        } = createMeasurementDataViews(deltaMetrics, createFTMSMeasurementDataView);
+                        mockMeasurementUUID.mockReturnValue(
                             BluetoothUUID.getCharacteristic(ROWER_DATA_CHARACTERISTIC),
                         );
                         service
@@ -875,24 +915,22 @@ describe("ErgMetricsService", (): void => {
                             measurementTriggerHandler.triggerChanged(dataView);
                         });
 
-                        expect(emittedValues).toHaveSize(3);
+                        expect(emittedValues).toHaveLength(3);
                         expectedMetrics.forEach((expectedMetric: IBaseMetrics, index: number): void => {
                             expect(emittedValues[index]).toEqual(
-                                jasmine.objectContaining({
+                                expect.objectContaining({
                                     distance: expectedMetric.distance,
                                     strokeCount: expectedMetric.strokeCount,
                                 }),
                             );
-                            expect(Math.abs(emittedValues[index].revTime - expectedMetric.revTime))
-                                .withContext(
-                                    `revTime[${index}]: ${emittedValues[index].revTime} -> ${expectedMetric.revTime}`,
-                                )
-                                .toBeLessThanOrEqual(20 * 1000); // so within 33 milliseconds which is due to rounding
-                            expect(Math.abs(emittedValues[index].strokeTime - expectedMetric.strokeTime))
-                                .withContext(
-                                    `strokeTime[${index}]: ${emittedValues[index].strokeTime} -> ${expectedMetric.strokeTime}`,
-                                )
-                                .toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
+                            expect(
+                                Math.abs(emittedValues[index].revTime - expectedMetric.revTime),
+                                `revTime[${index}]: ${emittedValues[index].revTime} -> ${expectedMetric.revTime}`,
+                            ).toBeLessThanOrEqual(20 * 1000); // so within 33 milliseconds which is due to rounding
+                            expect(
+                                Math.abs(emittedValues[index].strokeTime - expectedMetric.strokeTime),
+                                `strokeTime[${index}]: ${emittedValues[index].strokeTime} -> ${expectedMetric.strokeTime}`,
+                            ).toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
                         });
                     });
 
@@ -901,9 +939,11 @@ describe("ErgMetricsService", (): void => {
                         const {
                             expectedMetrics: expectedMetricsCPS,
                             metricsDataViews: metricsDataViewsCPS,
-                        }: { expectedMetrics: Array<IBaseMetrics>; metricsDataViews: Array<DataView> } =
-                            createMeasurementDataViews(deltaMetrics, createCPSMeasurementDataView);
-                        mockMeasurementUUID.and.returnValue(
+                        }: {
+                            expectedMetrics: Array<IBaseMetrics>;
+                            metricsDataViews: Array<DataView>;
+                        } = createMeasurementDataViews(deltaMetrics, createCPSMeasurementDataView);
+                        mockMeasurementUUID.mockReturnValue(
                             BluetoothUUID.getCharacteristic(CYCLING_POWER_CHARACTERISTIC),
                         );
                         service
@@ -920,24 +960,22 @@ describe("ErgMetricsService", (): void => {
                             measurementTriggerHandler.triggerChanged(dataView);
                         });
 
-                        expect(emittedValues).toHaveSize(3);
+                        expect(emittedValues).toHaveLength(3);
                         expectedMetricsCPS.forEach((expectedMetric: IBaseMetrics, index: number): void => {
                             expect(emittedValues[index]).toEqual(
-                                jasmine.objectContaining({
+                                expect.objectContaining({
                                     distance: expectedMetric.distance,
                                     strokeCount: expectedMetric.strokeCount,
                                 }),
                             );
-                            expect(Math.abs(emittedValues[index].revTime - expectedMetric.revTime))
-                                .withContext(
-                                    `revTime[${index}]: ${emittedValues[index].revTime} -> ${expectedMetric.revTime}`,
-                                )
-                                .toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
-                            expect(Math.abs(emittedValues[index].strokeTime - expectedMetric.strokeTime))
-                                .withContext(
-                                    `strokeTime[${index}]: ${emittedValues[index].strokeTime} -> ${expectedMetric.strokeTime}`,
-                                )
-                                .toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
+                            expect(
+                                Math.abs(emittedValues[index].revTime - expectedMetric.revTime),
+                                `revTime[${index}]: ${emittedValues[index].revTime} -> ${expectedMetric.revTime}`,
+                            ).toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
+                            expect(
+                                Math.abs(emittedValues[index].strokeTime - expectedMetric.strokeTime),
+                                `strokeTime[${index}]: ${emittedValues[index].strokeTime} -> ${expectedMetric.strokeTime}`,
+                            ).toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
                         });
                     });
 
@@ -946,9 +984,11 @@ describe("ErgMetricsService", (): void => {
                         const {
                             expectedMetrics: expectedMetricsCSC,
                             metricsDataViews: metricsDataViewsCSC,
-                        }: { expectedMetrics: Array<IBaseMetrics>; metricsDataViews: Array<DataView> } =
-                            createMeasurementDataViews(deltaMetrics, createCSCMeasurementDataView);
-                        mockMeasurementUUID.and.returnValue(
+                        }: {
+                            expectedMetrics: Array<IBaseMetrics>;
+                            metricsDataViews: Array<DataView>;
+                        } = createMeasurementDataViews(deltaMetrics, createCSCMeasurementDataView);
+                        mockMeasurementUUID.mockReturnValue(
                             BluetoothUUID.getCharacteristic(CYCLING_SPEED_AND_CADENCE_CHARACTERISTIC),
                         );
                         service
@@ -965,43 +1005,44 @@ describe("ErgMetricsService", (): void => {
                             measurementTriggerHandler.triggerChanged(dataView);
                         });
 
-                        expect(emittedValues).toHaveSize(3);
+                        expect(emittedValues).toHaveLength(3);
                         expectedMetricsCSC.forEach((expectedMetric: IBaseMetrics, index: number): void => {
                             expect(emittedValues[index]).toEqual(
-                                jasmine.objectContaining({
+                                expect.objectContaining({
                                     distance: expectedMetric.distance,
                                     strokeCount: expectedMetric.strokeCount,
                                 }),
                             );
-                            expect(Math.abs(emittedValues[index].revTime - expectedMetric.revTime))
-                                .withContext(
-                                    `revTime[${index}]: ${emittedValues[index].revTime} -> ${expectedMetric.revTime}`,
-                                )
-                                .toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
-                            expect(Math.abs(emittedValues[index].strokeTime - expectedMetric.strokeTime))
-                                .withContext(
-                                    `strokeTime[${index}]: ${emittedValues[index].strokeTime} -> ${expectedMetric.strokeTime}`,
-                                )
-                                .toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
+                            expect(
+                                Math.abs(emittedValues[index].revTime - expectedMetric.revTime),
+                                `revTime[${index}]: ${emittedValues[index].revTime} -> ${expectedMetric.revTime}`,
+                            ).toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
+                            expect(
+                                Math.abs(emittedValues[index].strokeTime - expectedMetric.strokeTime),
+                                `strokeTime[${index}]: ${emittedValues[index].strokeTime} -> ${expectedMetric.strokeTime}`,
+                            ).toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
                         });
                     });
                 });
 
                 it("should apply distinctUntilChanged based on distance and stroke count", async (): Promise<void> => {
                     const emittedValues: Array<IBaseMetrics> = [];
-                    const { metricsDataViews }: { metricsDataViews: Array<DataView> } =
-                        createMeasurementDataViews(
-                            [
-                                ...deltaMetrics,
-                                {
-                                    distance: 0,
-                                    strokeCount: 0,
-                                    revTime: createBaseMetrics().revTime / 3,
-                                    strokeTime: createBaseMetrics().strokeTime / 3,
-                                },
-                            ],
-                            createCPSMeasurementDataView,
-                        );
+                    const {
+                        metricsDataViews,
+                    }: {
+                        metricsDataViews: Array<DataView>;
+                    } = createMeasurementDataViews(
+                        [
+                            ...deltaMetrics,
+                            {
+                                distance: 0,
+                                strokeCount: 0,
+                                revTime: createBaseMetrics().revTime / 3,
+                                strokeTime: createBaseMetrics().strokeTime / 3,
+                            },
+                        ],
+                        createCPSMeasurementDataView,
+                    );
                     service
                         .streamMeasurement$()
                         .pipe(takeUntil(destroySubject))
@@ -1016,10 +1057,11 @@ describe("ErgMetricsService", (): void => {
                         measurementTriggerHandler.triggerChanged(dataView);
                     });
 
-                    expect(emittedValues).toHaveSize(3);
+                    expect(emittedValues).toHaveLength(3);
                 });
 
-                it("should emit the last data 4.5s after the last emission", fakeAsync((): void => {
+                it("should emit the last data 4.5s after the last emission", async (): Promise<void> => {
+                    vi.useFakeTimers();
                     const emittedValues: Array<IBaseMetrics> = [];
 
                     service
@@ -1031,13 +1073,13 @@ describe("ErgMetricsService", (): void => {
                             },
                         });
 
-                    measurementTrigger.then((handler: ListenerTrigger<DataView>): void => {
-                        handler.triggerChanged(createCPSMeasurementDataView(createBaseMetrics()));
-                        expect(emittedValues).toHaveSize(1);
-                        tick(4500);
-                        expect(emittedValues).toHaveSize(2);
-                    });
-                }));
+                    const handler = await measurementTrigger;
+                    handler.triggerChanged(createCPSMeasurementDataView(createBaseMetrics()));
+                    expect(emittedValues).toHaveLength(1);
+                    await vi.advanceTimersByTimeAsync(4500);
+                    expect(emittedValues).toHaveLength(2);
+                    vi.useRealTimers();
+                });
 
                 it("should reset measurement characteristic when observable completes", async (): Promise<void> => {
                     const measurementValueChangeReady = createMeasurementValueChangedListenerReady();
@@ -1055,10 +1097,15 @@ describe("ErgMetricsService", (): void => {
 
         describe("when characteristic errors", (): void => {
             beforeEach((): void => {
+                vi.useFakeTimers();
                 measurementCharacteristicSubject.next(mockMeasurementCharacteristic);
             });
 
-            it("should retry up to 4 times", fakeAsync((): void => {
+            afterEach((): void => {
+                vi.useRealTimers();
+            });
+
+            it("should retry up to 4 times", async (): Promise<void> => {
                 service
                     .streamMeasurement$()
                     .pipe(takeUntil(destroySubject))
@@ -1070,80 +1117,80 @@ describe("ErgMetricsService", (): void => {
 
                 measurementCharacteristicSubject.error(new Error("test error unknown"));
 
-                tick(4 * 2000);
+                await vi.advanceTimersByTimeAsync(4 * 2000);
 
                 expect(mockErgConnectionService.readMeasurementCharacteristic).toHaveBeenCalledTimes(4);
                 expect(mockErgConnectionService.connectToMeasurement).toHaveBeenCalledTimes(4);
-            }));
+            });
 
-            it("should delay retry by 2000ms", fakeAsync((): void => {
+            it("should delay retry by 2000ms", async (): Promise<void> => {
                 service.streamMeasurement$().pipe(takeUntil(destroySubject)).subscribe();
 
                 measurementCharacteristicSubject.error(new Error("test error unknown"));
                 // reset so we have only one call to connect after the timeout
-                mockErgConnectionService.connectToMeasurement.calls.reset();
+                vi.mocked(mockErgConnectionService.connectToMeasurement).mockClear();
 
-                tick(2000);
+                await vi.advanceTimersByTimeAsync(2000);
 
-                expect(mockErgConnectionService.connectToMeasurement).toHaveBeenCalledOnceWith(
+                expect(mockErgConnectionService.connectToMeasurement).toHaveBeenCalledTimes(1);
+
+                expect(mockErgConnectionService.connectToMeasurement).toHaveBeenCalledWith(
                     mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
                 );
-            }));
+            });
 
             describe("when error message contains 'unknown'", (): void => {
-                it("should get GATT from connection service", fakeAsync((): void => {
-                    const gattSpy = Object.getOwnPropertyDescriptor(mockBluetoothDevice, "gatt")
-                        ?.get as jasmine.Spy<() => BluetoothRemoteGATTServer | undefined>;
+                it("should get GATT from connection service", async (): Promise<void> => {
+                    const gattSpy = vi.spyOn(mockBluetoothDevice, "gatt", "get");
 
                     service.streamMeasurement$().pipe(takeUntil(destroySubject)).subscribe();
 
                     measurementCharacteristicSubject.error(new Error("unknown connection issue"));
-                    gattSpy.calls.reset();
-                    tick(2000);
+                    gattSpy.mockClear();
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(gattSpy).toHaveBeenCalled();
-                }));
+                });
 
-                it("should reconnect to measurement when GATT available", fakeAsync((): void => {
+                it("should reconnect to measurement when GATT available", async (): Promise<void> => {
                     service.streamMeasurement$().pipe(takeUntil(destroySubject)).subscribe();
 
                     measurementCharacteristicSubject.error(new Error("unknown connection issue"));
-                    tick(2000);
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(mockErgConnectionService.connectToMeasurement).toHaveBeenCalledWith(
                         mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
                     );
-                }));
+                });
             });
 
             describe("should not attempt reconnection", (): void => {
-                it("when error message does not contain 'unknown'", fakeAsync((): void => {
+                it("when error message does not contain 'unknown'", async (): Promise<void> => {
                     const connectSpy = mockErgConnectionService.connectToMeasurement;
-                    connectSpy.calls.reset();
+                    vi.mocked(connectSpy).mockClear();
 
                     service.streamMeasurement$().pipe(takeUntil(destroySubject)).subscribe();
 
                     measurementCharacteristicSubject.error(new Error("different error"));
-                    tick(2000);
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(connectSpy).not.toHaveBeenCalled();
-                }));
+                });
 
-                it("when GATT is unavailable", fakeAsync((): void => {
-                    const gattSpy = Object.getOwnPropertyDescriptor(mockBluetoothDevice, "gatt")
-                        ?.get as jasmine.Spy<() => BluetoothRemoteGATTServer | undefined>;
-                    gattSpy.and.returnValue(undefined);
+                it("when GATT is unavailable", async (): Promise<void> => {
+                    const gattSpy = vi.spyOn(mockBluetoothDevice, "gatt", "get");
+                    gattSpy.mockReturnValue(undefined);
 
                     const connectSpy = mockErgConnectionService.connectToMeasurement;
-                    connectSpy.calls.reset();
+                    vi.mocked(connectSpy).mockClear();
 
                     service.streamMeasurement$().pipe(takeUntil(destroySubject)).subscribe();
 
                     measurementCharacteristicSubject.error(new Error("unknown connection issue"));
-                    tick(2000);
+                    await vi.advanceTimersByTimeAsync(2000);
 
                     expect(connectSpy).not.toHaveBeenCalled();
-                }));
+                });
             });
         });
     });

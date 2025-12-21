@@ -1,11 +1,12 @@
-/* To learn more about this file see: https://angular.io/config/tsconfig. */
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
         "outDir": "./out-tsc/spec",
+        "skipLibCheck": true,
         "types": [
             "web-bluetooth",
-            "w3c-web-usb"
+            "w3c-web-usb",
+            "node"
         ]
     },
     "include": [

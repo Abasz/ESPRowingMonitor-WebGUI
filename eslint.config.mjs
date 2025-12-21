@@ -39,6 +39,9 @@ export default [
                 ...globals.browser,
                 ...globals.jasmine,
                 BluetoothAdvertisingEvent: true,
+                BluetoothServiceUUID: true,
+                BluetoothCharacteristicUUID: true,
+                BluetoothDeviceEventMap: true,
             },
             parser: typescriptParser,
             parserOptions: {

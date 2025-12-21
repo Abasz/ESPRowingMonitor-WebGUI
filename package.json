@@ -10,8 +10,8 @@
         "build:prepare": "npm run build:tools && node out-tsc/tools/auto-version.js && node out-tsc/tools/fetch-profiles.js",
         "build:tools": "tsc -p tools/tsconfig.json",
         "watch": "ng build --watch --configuration development",
-        "test": "ng test --watch=false",
-        "test:tools": "echo 'Tools tests will be migrated to Vitest in Phase 2'",
+        "test": "npm run test:tools && ng test --watch=false",
+        "test:tools": "vitest run tools/",
         "generate-version": "npm run build:tools && node out-tsc/tools/auto-version.js",
         "fetch-profiles": "npm run build:tools && node out-tsc/tools/fetch-profiles.js"
     },

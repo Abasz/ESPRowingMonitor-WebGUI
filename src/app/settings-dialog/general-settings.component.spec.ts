@@ -1,6 +1,6 @@
 import { HarnessLoader } from "@angular/cdk/testing";
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
-import { provideZonelessChangeDetection } from "@angular/core";
+import { provideZonelessChangeDetection, signal, WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ReactiveFormsModule } from "@angular/forms";
 import { MatOptionHarness } from "@angular/material/core/testing";
@@ -9,6 +9,7 @@ import { MatSelectHarness } from "@angular/material/select/testing";
 import { MatTooltipHarness } from "@angular/material/tooltip/testing";
 import { SwUpdate } from "@angular/service-worker";
 import { of } from "rxjs";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BleServiceFlag, IDeviceInformation, LogLevel } from "../../common/ble.interfaces";
 import { IRowerSettings } from "../../common/common.interfaces";
@@ -21,11 +22,15 @@ import { GeneralSettingsComponent } from "./general-settings.component";
 describe("GeneralSettingsComponent", (): void => {
     let component: GeneralSettingsComponent;
     let fixture: ComponentFixture<GeneralSettingsComponent>;
-    let loader: HarnessLoader;
-    let mockConfigManagerService: jasmine.SpyObj<ConfigManagerService>;
-    let mockSwUpdate: jasmine.SpyObj<SwUpdate>;
-    let mockMatDialog: jasmine.SpyObj<MatDialog>;
-    let mockFirmwareUpdateManagerService: jasmine.SpyObj<FirmwareUpdateManagerService>;
+    let mockConfigManagerService: Pick<ConfigManagerService, "getItem">;
+    let mockSwUpdate: Pick<SwUpdate, "checkForUpdate" | "isEnabled">;
+    let mockMatDialog: Pick<MatDialog, "open">;
+    let mockFirmwareUpdateManagerService: Pick<
+        FirmwareUpdateManagerService,
+        "openFirmwareSelector" | "isUpdateAvailable"
+    >;
+
+    let isUpdateAvailableSignal: WritableSignal<undefined | boolean>;
 
     const mockRowerSettings: IRowerSettings = {
         generalSettings: {
@@ -76,26 +81,29 @@ describe("GeneralSettingsComponent", (): void => {
     };
 
     beforeEach(async (): Promise<void> => {
-        mockConfigManagerService = jasmine.createSpyObj<ConfigManagerService>("ConfigManagerService", [
-            "getItem",
-        ]);
-        mockConfigManagerService.getItem.and.returnValue("off");
+        mockConfigManagerService = {
+            getItem: vi.fn(),
+        };
+        vi.mocked(mockConfigManagerService.getItem).mockReturnValue("off");
 
-        mockSwUpdate = jasmine.createSpyObj<SwUpdate>("SwUpdate", ["checkForUpdate"], {
+        mockSwUpdate = {
+            checkForUpdate: vi.fn(),
             isEnabled: true,
-        });
-        mockSwUpdate.checkForUpdate.and.resolveTo(false);
+        };
+        vi.mocked(mockSwUpdate.checkForUpdate).mockResolvedValue(false);
 
-        mockMatDialog = jasmine.createSpyObj<MatDialog>("MatDialog", ["open"]);
-        mockMatDialog.open.and.returnValue({
-            afterClosed: jasmine.createSpy("afterClosed").and.returnValue(of(undefined)),
+        mockMatDialog = {
+            open: vi.fn(),
+        };
+        vi.mocked(mockMatDialog.open).mockReturnValue({
+            afterClosed: vi.fn().mockReturnValue(of(undefined)),
         } as unknown as ReturnType<MatDialog["open"]>);
 
-        mockFirmwareUpdateManagerService = jasmine.createSpyObj<FirmwareUpdateManagerService>(
-            "FirmwareUpdateManagerService",
-            ["openFirmwareSelector", "isUpdateAvailable"],
-        );
-        mockFirmwareUpdateManagerService.isUpdateAvailable.and.returnValue(undefined);
+        isUpdateAvailableSignal = signal<undefined | boolean>(undefined);
+        mockFirmwareUpdateManagerService = {
+            openFirmwareSelector: vi.fn(),
+            isUpdateAvailable: isUpdateAvailableSignal,
+        };
 
         await TestBed.configureTestingModule({
             imports: [GeneralSettingsComponent, ReactiveFormsModule],
@@ -110,11 +118,11 @@ describe("GeneralSettingsComponent", (): void => {
 
         fixture = TestBed.createComponent(GeneralSettingsComponent);
         component = fixture.componentInstance;
-        loader = TestbedHarnessEnvironment.loader(fixture);
 
         fixture.componentRef.setInput("rowerSettings", mockRowerSettings);
         fixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
         fixture.componentRef.setInput("isConnected", true);
+        // do not call whenStable here becuase some tests rely on ngOnInit not having been called yet
     });
 
     describe("as part of component creation", (): void => {
@@ -146,13 +154,15 @@ describe("GeneralSettingsComponent", (): void => {
         });
 
         it("should set isServiceWorkerAvailable based on navigator", (): void => {
-            expect(component.isServiceWorkerAvailable).toBe("serviceWorker" in navigator);
+            expect(component.isServiceWorkerAvailable).toBe(
+                "serviceWorker" in navigator && !!navigator.serviceWorker,
+            );
         });
     });
 
     describe("as part of template rendering", (): void => {
-        it("should display the compile date in the template", (): void => {
-            fixture.detectChanges();
+        it("should display the compile date in the template", async (): Promise<void> => {
+            await fixture.whenStable();
             const nativeElement = fixture.debugElement.nativeElement;
             const spans = nativeElement.querySelectorAll("span") as NodeListOf<HTMLSpanElement>;
             const guiVersionSpan = Array.from(spans).find(
@@ -173,8 +183,8 @@ describe("GeneralSettingsComponent", (): void => {
             describe("when service worker is not available", (): void => {
                 let localFixture: ComponentFixture<GeneralSettingsComponent>;
 
-                beforeEach((): void => {
-                    spyOnProperty(navigator, "serviceWorker", "get").and.returnValue(
+                beforeEach(async (): Promise<void> => {
+                    vi.spyOn(navigator, "serviceWorker", "get").mockReturnValue(
                         undefined as unknown as ServiceWorkerContainer,
                     );
 
@@ -182,15 +192,13 @@ describe("GeneralSettingsComponent", (): void => {
                     localFixture.componentRef.setInput("rowerSettings", mockRowerSettings);
                     localFixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
                     localFixture.componentRef.setInput("isConnected", true);
-                    localFixture.detectChanges();
+                    await localFixture.whenStable();
                 });
 
                 it("should not display the update button", (): void => {
                     const guiUpdateButton = localFixture.nativeElement.querySelector(
                         "div.tab-content > div[versionInfo] button mat-icon",
                     );
-
-                    console.log(guiUpdateButton);
 
                     expect(guiUpdateButton).toBeNull();
                 });
@@ -211,13 +219,24 @@ describe("GeneralSettingsComponent", (): void => {
             });
 
             describe("when service worker is available", (): void => {
+                let localFixture: ComponentFixture<GeneralSettingsComponent>;
+                let localLoader: HarnessLoader;
                 let guiUpdateDiv: HTMLDivElement;
 
-                beforeEach((): void => {
-                    fixture.detectChanges();
+                beforeEach(async (): Promise<void> => {
+                    vi.spyOn(navigator, "serviceWorker", "get").mockReturnValue(
+                        {} as unknown as ServiceWorkerContainer,
+                    );
+
+                    localFixture = TestBed.createComponent(GeneralSettingsComponent);
+                    localLoader = TestbedHarnessEnvironment.loader(localFixture);
+                    localFixture.componentRef.setInput("rowerSettings", mockRowerSettings);
+                    localFixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
+                    localFixture.componentRef.setInput("isConnected", true);
+                    await localFixture.whenStable();
 
                     guiUpdateDiv = Array.from<HTMLSpanElement>(
-                        fixture.nativeElement.querySelectorAll("div[versionInfo] > span"),
+                        localFixture.nativeElement.querySelectorAll("div[versionInfo] > span"),
                     ).filter((element: HTMLSpanElement): boolean =>
                         element.textContent.includes("GUI Version:"),
                     )[0].parentElement as HTMLDivElement;
@@ -226,8 +245,9 @@ describe("GeneralSettingsComponent", (): void => {
 
                 describe("when not checking for updates", (): void => {
                     it("should display correct tooltip text", async (): Promise<void> => {
-                        component.isGuiUpdateInProgress.set(false);
-                        const tooltip = await loader.getHarness(
+                        localFixture.componentInstance.isGuiUpdateInProgress.set(false);
+
+                        const tooltip = await localLoader.getHarness(
                             MatTooltipHarness.with({
                                 ancestor: "[data-test-gui-update]",
                             }),
@@ -239,10 +259,9 @@ describe("GeneralSettingsComponent", (): void => {
                     });
 
                     it("should not add rotating class to icon", (): void => {
-                        component.isGuiUpdateInProgress.set(false);
-                        fixture.detectChanges();
+                        localFixture.componentInstance.isGuiUpdateInProgress.set(false);
 
-                        const refreshIcon = fixture.nativeElement.querySelector(
+                        const refreshIcon = localFixture.nativeElement.querySelector(
                             "div[versionInfo][data-test-gui-update] mat-icon",
                         );
 
@@ -253,10 +272,9 @@ describe("GeneralSettingsComponent", (): void => {
 
                 describe("when update check is in progress", (): void => {
                     it("should display correct tooltip text", async (): Promise<void> => {
-                        component.isGuiUpdateInProgress.set(true);
-                        fixture.detectChanges();
+                        localFixture.componentInstance.isGuiUpdateInProgress.set(true);
 
-                        const tooltip = await loader.getHarness(
+                        const tooltip = await localLoader.getHarness(
                             MatTooltipHarness.with({
                                 ancestor: "[data-test-gui-update]",
                             }),
@@ -267,11 +285,11 @@ describe("GeneralSettingsComponent", (): void => {
                         expect(await tooltip.getTooltipText()).toBe("Checking for update");
                     });
 
-                    it("should add rotating class to icon", (): void => {
-                        component.isGuiUpdateInProgress.set(true);
-                        fixture.detectChanges();
+                    it("should add rotating class to icon", async (): Promise<void> => {
+                        localFixture.componentInstance.isGuiUpdateInProgress.set(true);
+                        await localFixture.whenStable();
 
-                        const refreshIcon = fixture.nativeElement.querySelector(
+                        const refreshIcon = localFixture.nativeElement.querySelector(
                             "div[versionInfo][data-test-gui-update] mat-icon",
                         );
 
@@ -281,22 +299,20 @@ describe("GeneralSettingsComponent", (): void => {
                 });
 
                 it("should call checkForUpdates when GUI update button is clicked", (): void => {
-                    spyOn(component, "checkForUpdates");
-                    fixture.detectChanges();
+                    vi.spyOn(localFixture.componentInstance, "checkForUpdates");
 
-                    const guiUpdateButton = fixture.nativeElement.querySelector(
+                    const guiUpdateButton = localFixture.nativeElement.querySelector(
                         "div[versionInfo][data-test-gui-update] button",
                     );
                     guiUpdateButton.click();
 
-                    expect(component.checkForUpdates).toHaveBeenCalled();
+                    expect(localFixture.componentInstance.checkForUpdates).toHaveBeenCalled();
                 });
 
                 it("should reactively update tooltip text when isGuiUpdateInProgress signal changes", async (): Promise<void> => {
-                    component.isGuiUpdateInProgress.set(false);
-                    fixture.detectChanges();
+                    localFixture.componentInstance.isGuiUpdateInProgress.set(false);
 
-                    const tooltip = await loader.getHarness(
+                    const tooltip = await localLoader.getHarness(
                         MatTooltipHarness.with({
                             ancestor: "[data-test-gui-update]",
                         }),
@@ -306,55 +322,46 @@ describe("GeneralSettingsComponent", (): void => {
 
                     expect(await tooltip.getTooltipText()).toBe("Check for update");
 
-                    component.isGuiUpdateInProgress.set(true);
-                    fixture.detectChanges();
+                    localFixture.componentInstance.isGuiUpdateInProgress.set(true);
 
                     expect(await tooltip.getTooltipText()).toBe("Checking for update");
 
-                    component.isGuiUpdateInProgress.set(false);
-                    fixture.detectChanges();
+                    localFixture.componentInstance.isGuiUpdateInProgress.set(false);
 
                     expect(await tooltip.getTooltipText()).toBe("Check for update");
                 });
 
-                it("should reactively update icon rotation when isGuiUpdateInProgress signal changes", (): void => {
-                    component.isGuiUpdateInProgress.set(false);
-                    fixture.detectChanges();
+                it("should reactively update icon rotation when isGuiUpdateInProgress signal changes", async (): Promise<void> => {
+                    localFixture.componentInstance.isGuiUpdateInProgress.set(false);
 
-                    let refreshIcon = fixture.nativeElement.querySelector(
+                    let refreshIcon = localFixture.nativeElement.querySelector(
                         "div[versionInfo][data-test-gui-update] mat-icon",
                     );
-                    expect(refreshIcon.classList.contains("rotating"))
-                        .withContext("progress is false")
-                        .toBe(false);
+                    expect(refreshIcon.classList.contains("rotating"), "progress is false").toBe(false);
 
-                    component.isGuiUpdateInProgress.set(true);
-                    fixture.detectChanges();
+                    localFixture.componentInstance.isGuiUpdateInProgress.set(true);
+                    await localFixture.whenStable();
 
-                    refreshIcon = fixture.nativeElement.querySelector(
+                    refreshIcon = localFixture.nativeElement.querySelector(
                         "div[versionInfo][data-test-gui-update] mat-icon",
                     );
-                    expect(refreshIcon.classList.contains("rotating"))
-                        .withContext("progress is true")
-                        .toBe(true);
+                    expect(refreshIcon.classList.contains("rotating"), "progress is true").toBe(true);
 
-                    component.isGuiUpdateInProgress.set(false);
-                    fixture.detectChanges();
+                    localFixture.componentInstance.isGuiUpdateInProgress.set(false);
+                    await localFixture.whenStable();
 
-                    refreshIcon = fixture.nativeElement.querySelector(
+                    refreshIcon = localFixture.nativeElement.querySelector(
                         "div[versionInfo][data-test-gui-update] mat-icon",
                     );
-                    expect(refreshIcon.classList.contains("rotating"))
-                        .withContext("progress is false again")
-                        .toBe(false);
+                    expect(refreshIcon.classList.contains("rotating"), "progress is false again").toBe(false);
                 });
             });
         });
 
         describe("firmware upload button", (): void => {
-            it("should be enabled when connected", (): void => {
+            it("should be enabled when connected", async (): Promise<void> => {
                 fixture.componentRef.setInput("isConnected", true);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const btns = Array.from(
                     fixture.debugElement.nativeElement.querySelectorAll(
@@ -372,9 +379,9 @@ describe("GeneralSettingsComponent", (): void => {
                 }
             });
 
-            it("should be hidden when not connected", (): void => {
+            it("should be hidden when not connected", async (): Promise<void> => {
                 fixture.componentRef.setInput("isConnected", false);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const btns = Array.from(
                     fixture.debugElement.nativeElement.querySelectorAll(
@@ -392,14 +399,14 @@ describe("GeneralSettingsComponent", (): void => {
 
         describe("firmware update button", (): void => {
             describe("when update is available for custom hardware", (): void => {
-                beforeEach((): void => {
-                    mockFirmwareUpdateManagerService.isUpdateAvailable.and.returnValue(true);
+                beforeEach(async (): Promise<void> => {
+                    isUpdateAvailableSignal.set(true);
                     fixture.componentRef.setInput("deviceInfo", {
                         ...mockDeviceInfo,
                         hardwareRevision: "custom",
                     });
                     fixture.componentRef.setInput("isConnected", true);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should display firmware update link with deployed_code_update icon", (): void => {
@@ -426,11 +433,11 @@ describe("GeneralSettingsComponent", (): void => {
             });
 
             describe("when update is available for supported hardware", (): void => {
-                beforeEach((): void => {
-                    mockFirmwareUpdateManagerService.isUpdateAvailable.and.returnValue(true);
+                beforeEach(async (): Promise<void> => {
+                    isUpdateAvailableSignal.set(true);
                     fixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
                     fixture.componentRef.setInput("isConnected", true);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should display update button with deployed_code_update icon", (): void => {
@@ -444,7 +451,7 @@ describe("GeneralSettingsComponent", (): void => {
                 });
 
                 it("should call onFirmwareUpdateClick when update button is clicked", (): void => {
-                    spyOn(component, "onFirmwareUpdateClick");
+                    vi.spyOn(component, "onFirmwareUpdateClick");
 
                     const updateButton: HTMLButtonElement | null = Array.from<HTMLElement>(
                         fixture.nativeElement.querySelectorAll(".erg-info button mat-icon"),
@@ -465,11 +472,11 @@ describe("GeneralSettingsComponent", (): void => {
             });
 
             describe("when no update is available for supported hardware", (): void => {
-                beforeEach((): void => {
-                    mockFirmwareUpdateManagerService.isUpdateAvailable.and.returnValue(false);
+                beforeEach(async (): Promise<void> => {
+                    isUpdateAvailableSignal.set(false);
                     fixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
                     fixture.componentRef.setInput("isConnected", true);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should display reflash button with compare_arrows icon", (): void => {
@@ -481,7 +488,7 @@ describe("GeneralSettingsComponent", (): void => {
                 });
 
                 it("should call onFirmwareUpdateClick when reflash button is clicked", (): void => {
-                    spyOn(component, "onFirmwareUpdateClick");
+                    vi.spyOn(component, "onFirmwareUpdateClick");
 
                     const reflashButton: HTMLButtonElement | null = Array.from<HTMLElement>(
                         fixture.nativeElement.querySelectorAll(".erg-info button mat-icon"),
@@ -494,9 +501,9 @@ describe("GeneralSettingsComponent", (): void => {
                 });
             });
 
-            it("should show firmware update buttons when connected", (): void => {
+            it("should show firmware update buttons when connected", async (): Promise<void> => {
                 fixture.componentRef.setInput("isConnected", true);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const firmwareButtons: Array<HTMLElement> = Array.from<HTMLElement>(
                     fixture.nativeElement.querySelectorAll(".erg-info button, .erg-info a"),
@@ -505,9 +512,9 @@ describe("GeneralSettingsComponent", (): void => {
                 expect(firmwareButtons.length).toBeGreaterThan(0);
             });
 
-            it("should hide firmware update buttons when not connected", (): void => {
+            it("should hide firmware update buttons when not connected", async (): Promise<void> => {
                 fixture.componentRef.setInput("isConnected", false);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const firmwareButtons: Array<HTMLElement> = Array.from<HTMLElement>(
                     fixture.nativeElement.querySelectorAll(
@@ -520,9 +527,9 @@ describe("GeneralSettingsComponent", (): void => {
         });
 
         describe("hardware revision display", (): void => {
-            it("should show hardware revision span when hardwareRevision is defined", (): void => {
+            it("should show hardware revision span when hardwareRevision is defined", async (): Promise<void> => {
                 fixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const spans = fixture.nativeElement.querySelectorAll(
                     ".erg-info span",
@@ -536,14 +543,14 @@ describe("GeneralSettingsComponent", (): void => {
                 expect(hardwareSpan?.textContent).toContain("Hardware: Rev 1");
             });
 
-            it("should hide hardware revision span when hardwareRevision is undefined", (): void => {
+            it("should hide hardware revision span when hardwareRevision is undefined", async (): Promise<void> => {
                 const deviceInfoWithoutHardware: IDeviceInformation = {
                     ...mockDeviceInfo,
                     hardwareRevision: undefined,
                 };
 
                 fixture.componentRef.setInput("deviceInfo", deviceInfoWithoutHardware);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const spans = fixture.nativeElement.querySelectorAll(
                     ".erg-info span",
@@ -556,14 +563,14 @@ describe("GeneralSettingsComponent", (): void => {
                 expect(hardwareSpan).toBeUndefined();
             });
 
-            it("should hide hardware revision span when hardwareRevision is empty string", (): void => {
+            it("should hide hardware revision span when hardwareRevision is empty string", async (): Promise<void> => {
                 const deviceInfoWithEmptyHardware: IDeviceInformation = {
                     ...mockDeviceInfo,
                     hardwareRevision: "",
                 };
 
                 fixture.componentRef.setInput("deviceInfo", deviceInfoWithEmptyHardware);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const spans = fixture.nativeElement.querySelectorAll(
                     ".erg-info span",
@@ -583,14 +590,14 @@ describe("GeneralSettingsComponent", (): void => {
                 let localLoader: HarnessLoader;
 
                 beforeEach(async (): Promise<void> => {
-                    spyOnProperty(navigator, "usb", "get").and.returnValue({} as USB);
+                    vi.spyOn(navigator, "usb", "get").mockReturnValue({} as USB);
 
                     localFixture = TestBed.createComponent(GeneralSettingsComponent);
                     localLoader = TestbedHarnessEnvironment.loader(localFixture);
                     localFixture.componentRef.setInput("rowerSettings", mockRowerSettings);
                     localFixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
                     localFixture.componentRef.setInput("isConnected", true);
-                    localFixture.detectChanges();
+                    await localFixture.whenStable();
                 });
 
                 it("should have isAntSupported set to true", (): void => {
@@ -633,7 +640,7 @@ describe("GeneralSettingsComponent", (): void => {
 
                 beforeEach(async (): Promise<void> => {
                     // mock navigator to not have USB support
-                    spyOnProperty(navigator, "usb", "get").and.returnValue(undefined as unknown as USB);
+                    vi.spyOn(navigator, "usb", "get").mockReturnValue(undefined as unknown as USB);
 
                     // create new component instance with mocked navigator
                     localFixture = TestBed.createComponent(GeneralSettingsComponent);
@@ -641,7 +648,7 @@ describe("GeneralSettingsComponent", (): void => {
                     localFixture.componentRef.setInput("rowerSettings", mockRowerSettings);
                     localFixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
                     localFixture.componentRef.setInput("isConnected", true);
-                    localFixture.detectChanges();
+                    await localFixture.whenStable();
                 });
 
                 it("should have isAntSupported set to false", (): void => {
@@ -681,8 +688,8 @@ describe("GeneralSettingsComponent", (): void => {
     });
 
     describe("as part of form initialization", (): void => {
-        it("should initialize form with correct default values from rowerSettings", (): void => {
-            fixture.detectChanges();
+        it("should initialize form with correct default values from rowerSettings", async (): Promise<void> => {
+            await fixture.whenStable();
 
             expect(component.settingsForm.value.bleMode).toBe(BleServiceFlag.CpsService);
             expect(component.settingsForm.value.logLevel).toBe(LogLevel.Info);
@@ -691,16 +698,15 @@ describe("GeneralSettingsComponent", (): void => {
             expect(component.settingsForm.value.heartRateMonitor).toBe("off");
         });
 
-        it("should emit form validity on initialization", (): void => {
-            spyOn(component.isFormValidChange, "emit");
-
-            fixture.detectChanges();
+        it("should emit form validity on initialization", async (): Promise<void> => {
+            vi.spyOn(component.isFormValidChange, "emit");
+            await fixture.whenStable();
 
             expect(component.isFormValidChange.emit).toHaveBeenCalledWith(true);
         });
 
         it("should retrieve heart rate monitor setting from ConfigManager", (): void => {
-            mockConfigManagerService.getItem.and.returnValue("ble");
+            vi.mocked(mockConfigManagerService.getItem).mockReturnValue("ble");
 
             component.ngOnInit();
 
@@ -710,30 +716,28 @@ describe("GeneralSettingsComponent", (): void => {
     });
 
     describe("as part of form validation", (): void => {
-        it("should validate bleMode field", (): void => {
+        it("should validate bleMode field", async (): Promise<void> => {
+            await fixture.whenStable();
             const bleModeControl = component.settingsForm.controls.bleMode;
 
             bleModeControl.setValue(BleServiceFlag.CpsService);
-            fixture.detectChanges();
 
             expect(bleModeControl.valid).toBe(true);
 
             bleModeControl.setValue(BleServiceFlag.FtmsService);
-            fixture.detectChanges();
 
             expect(bleModeControl.valid).toBe(true);
         });
 
-        it("should validate logLevel field", (): void => {
+        it("should validate logLevel field", async (): Promise<void> => {
+            await fixture.whenStable();
             const logLevelControl = component.settingsForm.controls.logLevel;
 
             logLevelControl.setValue(LogLevel.Silent);
-            fixture.detectChanges();
 
             expect(logLevelControl.valid).toBe(true);
 
             logLevelControl.setValue(LogLevel.Verbose);
-            fixture.detectChanges();
 
             expect(logLevelControl.valid).toBe(true);
         });
@@ -751,29 +755,27 @@ describe("GeneralSettingsComponent", (): void => {
             expect(heartRateControl.valid).toBe(true);
         });
 
-        it("should update form validity when form value changes", (): void => {
-            fixture.detectChanges();
-            spyOn(component.isFormValidChange, "emit");
+        it("should update form validity when form value changes", async (): Promise<void> => {
+            vi.spyOn(component.isFormValidChange, "emit");
 
             component.settingsForm.controls.bleMode.setValue(BleServiceFlag.FtmsService);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             expect(component.isFormValidChange.emit).toHaveBeenCalledWith(true);
         });
 
-        it("should emit false when form becomes invalid", (): void => {
-            fixture.detectChanges();
-            spyOn(component.isFormValidChange, "emit");
+        it("should emit false when form becomes invalid", async (): Promise<void> => {
+            await fixture.whenStable();
+            vi.spyOn(component.isFormValidChange, "emit");
             component.settingsForm.controls.logLevel.setValue(10 as unknown as LogLevel);
-
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             expect(component.isFormValidChange.emit).toHaveBeenCalledWith(false);
         });
     });
 
     describe("as part of form state management", (): void => {
-        it("should handle form value changes correctly", (): void => {
+        it("should handle form value changes correctly", async (): Promise<void> => {
             const newSettings = {
                 ...mockRowerSettings,
                 generalSettings: {
@@ -784,8 +786,7 @@ describe("GeneralSettingsComponent", (): void => {
             };
 
             fixture.componentRef.setInput("rowerSettings", newSettings);
-
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             expect(component.settingsForm.value.bleMode).toBe(BleServiceFlag.FtmsService);
             expect(component.settingsForm.value.logLevel).toBe(LogLevel.Verbose);
@@ -800,27 +801,25 @@ describe("GeneralSettingsComponent", (): void => {
                 "logToSdCard",
             ];
             for (const key of keys) {
-                expect(controls[key].disabled).withContext(`${key} should be disabled`).toBe(true);
+                expect(controls[key].disabled, `${key} should be disabled`).toBe(true);
             }
             expect(controls.heartRateMonitor.disabled).toBe(false);
         });
 
         describe("after ngOnInit", (): void => {
-            it("should always enable heartRateMonitor control", (): void => {
+            it("should always enable heartRateMonitor control", async (): Promise<void> => {
                 fixture.componentRef.setInput("isConnected", false);
                 fixture.componentRef.setInput("rowerSettings", mockRowerSettings);
-
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 expect(component.settingsForm.controls.heartRateMonitor.enabled).toBe(true);
             });
 
             describe("when connected", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     fixture.componentRef.setInput("isConnected", true);
                     fixture.componentRef.setInput("rowerSettings", mockRowerSettings);
-
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should enable controls with defined values", (): void => {
@@ -847,10 +846,11 @@ describe("GeneralSettingsComponent", (): void => {
             });
 
             describe("when not connected", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     fixture.componentRef.setInput("isConnected", false);
                     fixture.componentRef.setInput("rowerSettings", mockRowerSettings);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
+                    component.ngOnInit();
                 });
 
                 it("should disable all controls except heartRateMonitor", (): void => {
@@ -864,11 +864,9 @@ describe("GeneralSettingsComponent", (): void => {
                     ];
                     for (const key of keys) {
                         if (key === "heartRateMonitor") {
-                            expect(controls[key].enabled).withContext(`${key} should be enabled`).toBe(true);
+                            expect(controls[key].enabled, `${key} should be enabled`).toBe(true);
                         } else {
-                            expect(controls[key].disabled)
-                                .withContext(`${key} should be disabled`)
-                                .toBe(true);
+                            expect(controls[key].disabled, `${key} should be disabled`).toBe(true);
                         }
                     }
                 });
@@ -879,13 +877,11 @@ describe("GeneralSettingsComponent", (): void => {
     describe("checkForUpdates method", (): void => {
         it("should exist and be callable", async (): Promise<void> => {
             expect(component.checkForUpdates).toBeDefined();
-            await expectAsync(component.checkForUpdates()).not.toBeRejected();
+            await expect(component.checkForUpdates()).resolves.not.toThrow();
         });
 
         it("should not call swUpdate.checkForUpdate when service worker is disabled", async (): Promise<void> => {
-            (
-                Object.getOwnPropertyDescriptor(mockSwUpdate, "isEnabled")?.get as jasmine.Spy<() => boolean>
-            ).and.returnValue(false);
+            vi.spyOn(mockSwUpdate, "isEnabled", "get").mockReturnValue(false);
 
             await component.checkForUpdates();
 
@@ -895,11 +891,7 @@ describe("GeneralSettingsComponent", (): void => {
 
         describe("when service worker is enabled", (): void => {
             beforeEach((): void => {
-                (
-                    Object.getOwnPropertyDescriptor(mockSwUpdate, "isEnabled")?.get as jasmine.Spy<
-                        () => boolean
-                    >
-                ).and.returnValue(true);
+                vi.spyOn(mockSwUpdate, "isEnabled", "get").mockReturnValue(true);
             });
 
             it("should set isGuiUpdateInProgress to true before checking for updates", async (): Promise<void> => {
@@ -914,7 +906,7 @@ describe("GeneralSettingsComponent", (): void => {
             });
 
             it("should set isGuiUpdateInProgress to false after update check completes", async (): Promise<void> => {
-                mockSwUpdate.checkForUpdate.and.resolveTo(true);
+                vi.mocked(mockSwUpdate.checkForUpdate).mockResolvedValue(true);
 
                 await component.checkForUpdates();
 
@@ -932,9 +924,9 @@ describe("GeneralSettingsComponent", (): void => {
             });
 
             it("should reset isGuiUpdateInProgress even if update check fails", async (): Promise<void> => {
-                mockSwUpdate.checkForUpdate.and.rejectWith(new Error("Update check failed"));
+                vi.mocked(mockSwUpdate.checkForUpdate).mockRejectedValue(new Error("Update check failed"));
 
-                await expectAsync(component.checkForUpdates()).toBeRejected();
+                await expect(component.checkForUpdates()).rejects.toThrow();
                 expect(component.isGuiUpdateInProgress()).toBe(false);
             });
         });
@@ -1009,7 +1001,7 @@ describe("GeneralSettingsComponent", (): void => {
     describe("onFirmwareUpdateClick method", (): void => {
         it("should call openFirmwareSelector with hardware revision", async (): Promise<void> => {
             fixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             await component.onFirmwareUpdateClick();
 
@@ -1021,7 +1013,7 @@ describe("GeneralSettingsComponent", (): void => {
                 ...mockDeviceInfo,
                 hardwareRevision: undefined,
             });
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             await component.onFirmwareUpdateClick();
 
@@ -1033,7 +1025,7 @@ describe("GeneralSettingsComponent", (): void => {
                 ...mockDeviceInfo,
                 hardwareRevision: "",
             });
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             await component.onFirmwareUpdateClick();
 
@@ -1042,49 +1034,49 @@ describe("GeneralSettingsComponent", (): void => {
     });
 
     describe("isSupportedDevice computed signal", (): void => {
-        it("should return true for supported hardware revision", (): void => {
+        it("should return true for supported hardware revision", async (): Promise<void> => {
             fixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             expect(component.isSupportedDevice()).toBe(true);
         });
 
-        it("should return false for custom hardware", (): void => {
+        it("should return false for custom hardware", async (): Promise<void> => {
             fixture.componentRef.setInput("deviceInfo", {
                 ...mockDeviceInfo,
                 hardwareRevision: "custom",
             });
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             expect(component.isSupportedDevice()).toBe(false);
         });
 
-        it("should return false for CUSTOM in uppercase", (): void => {
+        it("should return false for CUSTOM in uppercase", async (): Promise<void> => {
             fixture.componentRef.setInput("deviceInfo", {
                 ...mockDeviceInfo,
                 hardwareRevision: "CUSTOM",
             });
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             expect(component.isSupportedDevice()).toBe(false);
         });
 
-        it("should return false when hardware revision is undefined", (): void => {
+        it("should return false when hardware revision is undefined", async (): Promise<void> => {
             fixture.componentRef.setInput("deviceInfo", {
                 ...mockDeviceInfo,
                 hardwareRevision: undefined,
             });
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             expect(component.isSupportedDevice()).toBe(false);
         });
 
-        it("should return true for mixed case custom hardware", (): void => {
+        it("should return true for mixed case custom hardware", async (): Promise<void> => {
             fixture.componentRef.setInput("deviceInfo", {
                 ...mockDeviceInfo,
                 hardwareRevision: "Custom",
             });
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             expect(component.isSupportedDevice()).toBe(false);
         });

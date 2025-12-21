@@ -1,7 +1,8 @@
 import { provideZonelessChangeDetection } from "@angular/core";
-import { fakeAsync, TestBed, tick } from "@angular/core/testing";
+import { TestBed } from "@angular/core/testing";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { BehaviorSubject } from "rxjs";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     BleOpCodes,
@@ -28,14 +29,27 @@ import { ErgSettingsService } from "./erg-settings.service";
 
 describe("ErgSettingsService rowing control-point API", (): void => {
     let service: ErgSettingsService;
-    let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
-    let mockErgConnectionService: jasmine.SpyObj<ErgConnectionService>;
-    let mockBluetoothDevice: jasmine.SpyObj<BluetoothDevice>;
+    let mockSnackBar: Pick<MatSnackBar, "open">;
+    let mockErgConnectionService: Pick<
+        ErgConnectionService,
+        | "readSettingsCharacteristic"
+        | "readStrokeSettingsCharacteristic"
+        | "readMeasurementCharacteristic"
+        | "resetSettingsCharacteristic"
+        | "resetStrokeSettingsCharacteristic"
+        | "connectToSettings"
+        | "connectToStrokeSettings"
+        | "discover"
+        | "bluetoothDevice"
+        | "settingsCharacteristic$"
+        | "strokeSettingsCharacteristic$"
+    >;
+    let mockBluetoothDevice: BluetoothDevice;
 
     // characteristics and services
-    let mockSettingsCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockStrokeSettingsCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockSettingsControlPointCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockSettingsCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockStrokeSettingsCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockSettingsControlPointCharacteristic: BluetoothRemoteGATTCharacteristic;
 
     // subjects for observables
     let settingsCharacteristicSubject: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>;
@@ -46,19 +60,27 @@ describe("ErgSettingsService rowing control-point API", (): void => {
     ) => Promise<ListenerTrigger<DataView>>;
 
     beforeEach((): void => {
-        mockSnackBar = jasmine.createSpyObj<MatSnackBar>("MatSnackBar", ["open"]);
+        mockSnackBar = {
+            open: vi.fn(),
+        };
 
         mockBluetoothDevice = createMockBluetoothDevice("test-device-id", "Test Ergo", true);
         mockSettingsCharacteristic = createMockCharacteristic(mockBluetoothDevice);
         mockStrokeSettingsCharacteristic = createMockCharacteristic(mockBluetoothDevice);
         mockSettingsControlPointCharacteristic = createMockCharacteristic(mockBluetoothDevice);
 
-        (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService
-            .withArgs(SETTINGS_SERVICE)
-            .and.resolveTo(mockSettingsCharacteristic.service);
-        (mockSettingsCharacteristic.service as jasmine.SpyObj<BluetoothRemoteGATTService>).getCharacteristic
-            .withArgs(SETTINGS_CONTROL_POINT)
-            .and.resolveTo(mockSettingsControlPointCharacteristic);
+        vi.mocked(mockBluetoothDevice.gatt!.getPrimaryService).mockImplementation(
+            (service: unknown): Promise<BluetoothRemoteGATTService> =>
+                service === SETTINGS_SERVICE
+                    ? Promise.resolve(mockSettingsCharacteristic.service)
+                    : Promise.reject(new Error("Service not found")),
+        );
+        vi.mocked(mockSettingsCharacteristic.service.getCharacteristic).mockImplementation(
+            (char: unknown): Promise<BluetoothRemoteGATTCharacteristic> =>
+                char === SETTINGS_CONTROL_POINT
+                    ? Promise.resolve(mockSettingsControlPointCharacteristic)
+                    : Promise.reject(new Error("Characteristic not found")),
+        );
 
         settingsCharacteristicSubject = new BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>(
             undefined,
@@ -67,35 +89,34 @@ describe("ErgSettingsService rowing control-point API", (): void => {
             BluetoothRemoteGATTCharacteristic | undefined
         >(undefined);
 
-        mockErgConnectionService = jasmine.createSpyObj(
-            "ErgConnectionService",
-            [
-                "readSettingsCharacteristic",
-                "readStrokeSettingsCharacteristic",
-                "readMeasurementCharacteristic",
-                "resetSettingsCharacteristic",
-                "resetStrokeSettingsCharacteristic",
-                "connectToSettings",
-                "connectToStrokeSettings",
-                "discover",
-            ],
-            {
-                bluetoothDevice: mockBluetoothDevice,
-                settingsCharacteristic$: settingsCharacteristicSubject.asObservable(),
-                strokeSettingsCharacteristic$: strokeSettingsCharacteristicSubject.asObservable(),
-            },
-        );
+        mockErgConnectionService = {
+            readSettingsCharacteristic: vi.fn(),
+            readStrokeSettingsCharacteristic: vi.fn(),
+            readMeasurementCharacteristic: vi.fn(),
+            resetSettingsCharacteristic: vi.fn(),
+            resetStrokeSettingsCharacteristic: vi.fn(),
+            connectToSettings: vi.fn(),
+            connectToStrokeSettings: vi.fn(),
+            discover: vi.fn(),
+            bluetoothDevice: mockBluetoothDevice,
+            settingsCharacteristic$: settingsCharacteristicSubject.asObservable(),
+            strokeSettingsCharacteristic$: strokeSettingsCharacteristicSubject.asObservable(),
+        };
 
-        mockErgConnectionService.readSettingsCharacteristic.and.returnValue(mockSettingsCharacteristic);
-        mockErgConnectionService.readStrokeSettingsCharacteristic.and.returnValue(
+        vi.mocked(mockErgConnectionService.readSettingsCharacteristic).mockReturnValue(
+            mockSettingsCharacteristic,
+        );
+        vi.mocked(mockErgConnectionService.readStrokeSettingsCharacteristic).mockReturnValue(
             mockStrokeSettingsCharacteristic,
         );
-        mockErgConnectionService.readMeasurementCharacteristic.and.returnValue(mockSettingsCharacteristic);
+        vi.mocked(mockErgConnectionService.readMeasurementCharacteristic).mockReturnValue(
+            mockSettingsCharacteristic,
+        );
 
-        createControlPointValueChangedListenerReady = changedListenerReadyFactory<
-            typeof mockSettingsControlPointCharacteristic,
-            DataView
-        >(mockSettingsControlPointCharacteristic, "characteristicvaluechanged");
+        createControlPointValueChangedListenerReady = changedListenerReadyFactory(
+            mockSettingsControlPointCharacteristic,
+            "characteristicvaluechanged",
+        );
 
         TestBed.configureTestingModule({
             providers: [
@@ -119,11 +140,8 @@ describe("ErgSettingsService rowing control-point API", (): void => {
 
         describe("when device is not connected", (): void => {
             beforeEach((): void => {
-                mockErgConnectionService.readSettingsCharacteristic.and.returnValue(undefined);
-                Object.defineProperty(mockErgConnectionService, "bluetoothDevice", {
-                    get: (): BluetoothDevice | undefined => undefined,
-                    configurable: true,
-                });
+                vi.mocked(mockErgConnectionService.readSettingsCharacteristic).mockReturnValue(undefined);
+                vi.spyOn(mockErgConnectionService, "bluetoothDevice", "get").mockReturnValue(undefined);
             });
 
             it("should display not connected message", async (): Promise<void> => {
@@ -146,9 +164,9 @@ describe("ErgSettingsService rowing control-point API", (): void => {
 
         describe("when service is not available", (): void => {
             beforeEach((): void => {
-                (
-                    Object.getOwnPropertyDescriptor(mockSettingsCharacteristic, "service")?.get as jasmine.Spy
-                ).and.returnValue(undefined);
+                vi.spyOn(mockSettingsCharacteristic, "service", "get").mockReturnValue(
+                    undefined as unknown as BluetoothRemoteGATTService,
+                );
             });
 
             it("should display not connected message", async (): Promise<void> => {
@@ -251,21 +269,23 @@ describe("ErgSettingsService rowing control-point API", (): void => {
         });
 
         describe("when BLE operation throws error", (): void => {
-            it("should display timeout message when TimeoutError thrown", fakeAsync((): void => {
+            it("should display timeout message when TimeoutError thrown", async (): Promise<void> => {
+                vi.useFakeTimers();
                 service.changeMachineSettings(mockMachineSettings).catch((): void => {
                     // no-op
                 });
 
-                tick(10000);
+                await vi.advanceTimersByTimeAsync(10000);
 
                 expect(mockSnackBar.open).toHaveBeenCalledWith(
                     "Failed to set machine settings, request timed out",
                     "Dismiss",
                 );
-            }));
+                vi.useRealTimers();
+            });
 
             it("should display generic error message for other errors", async (): Promise<void> => {
-                mockSettingsControlPointCharacteristic.writeValueWithoutResponse.and.rejectWith(
+                vi.mocked(mockSettingsControlPointCharacteristic.writeValueWithoutResponse).mockRejectedValue(
                     new Error("BLE error"),
                 );
 
@@ -290,7 +310,7 @@ describe("ErgSettingsService rowing control-point API", (): void => {
 
         describe("when device is not connected", (): void => {
             beforeEach((): void => {
-                mockErgConnectionService.readSettingsCharacteristic.and.returnValue(undefined);
+                vi.mocked(mockErgConnectionService.readSettingsCharacteristic).mockReturnValue(undefined);
             });
 
             it("should display not connected message", async (): Promise<void> => {
@@ -313,9 +333,9 @@ describe("ErgSettingsService rowing control-point API", (): void => {
 
         describe("when service is not available", (): void => {
             beforeEach((): void => {
-                (
-                    Object.getOwnPropertyDescriptor(mockSettingsCharacteristic, "service")?.get as jasmine.Spy
-                ).and.returnValue(undefined);
+                vi.spyOn(mockSettingsCharacteristic, "service", "get").mockReturnValue(
+                    undefined as unknown as BluetoothRemoteGATTService,
+                );
             });
 
             it("should display not connected message", async (): Promise<void> => {
@@ -416,21 +436,23 @@ describe("ErgSettingsService rowing control-point API", (): void => {
         });
 
         describe("when BLE operation throws error", (): void => {
-            it("should display timeout error message when TimeoutError thrown", fakeAsync((): void => {
+            it("should display timeout error message when TimeoutError thrown", async (): Promise<void> => {
+                vi.useFakeTimers();
                 service.changeSensorSignalSettings(mockSensorSignalSettings).catch((): void => {
                     // no-op
                 });
 
-                tick(1000);
+                await vi.advanceTimersByTimeAsync(1000);
 
                 expect(mockSnackBar.open).toHaveBeenCalledWith(
                     "Failed to set sensor signal settings, request timed out",
                     "Dismiss",
                 );
-            }));
+                vi.useRealTimers();
+            });
 
             it("should display generic error message when other error thrown", async (): Promise<void> => {
-                mockSettingsControlPointCharacteristic.writeValueWithoutResponse.and.rejectWith(
+                vi.mocked(mockSettingsControlPointCharacteristic.writeValueWithoutResponse).mockRejectedValue(
                     new Error("BLE error"),
                 );
                 const triggerHandler = createControlPointValueChangedListenerReady();
@@ -460,7 +482,7 @@ describe("ErgSettingsService rowing control-point API", (): void => {
 
         describe("when device is not connected", (): void => {
             beforeEach((): void => {
-                mockErgConnectionService.readSettingsCharacteristic.and.returnValue(undefined);
+                vi.mocked(mockErgConnectionService.readSettingsCharacteristic).mockReturnValue(undefined);
             });
 
             it("should display not connected message", async (): Promise<void> => {
@@ -483,9 +505,9 @@ describe("ErgSettingsService rowing control-point API", (): void => {
 
         describe("when service is not available", (): void => {
             beforeEach((): void => {
-                (
-                    Object.getOwnPropertyDescriptor(mockSettingsCharacteristic, "service")?.get as jasmine.Spy
-                ).and.returnValue(undefined);
+                vi.spyOn(mockSettingsCharacteristic, "service", "get").mockReturnValue(
+                    undefined as unknown as BluetoothRemoteGATTService,
+                );
             });
 
             it("should display not connected message", async (): Promise<void> => {
@@ -591,33 +613,37 @@ describe("ErgSettingsService rowing control-point API", (): void => {
         });
 
         describe("when BLE operation throws error", (): void => {
-            it("should display timeout error message when TimeoutError thrown", fakeAsync((): void => {
+            it("should display timeout error message when TimeoutError thrown", async (): Promise<void> => {
+                vi.useFakeTimers();
                 service.changeDragFactorSettings(mockDragFactorSettings).catch((): void => {
                     // no-op
                 });
 
-                tick(1000);
+                await vi.advanceTimersByTimeAsync(1000);
 
                 expect(mockSnackBar.open).toHaveBeenCalledWith(
                     "Failed to set machine settings, request timed out",
                     "Dismiss",
                 );
-            }));
+                vi.useRealTimers();
+            });
 
-            it("should re-throw TimeoutError", fakeAsync((): void => {
+            it("should re-throw TimeoutError", async (): Promise<void> => {
+                vi.useFakeTimers();
                 let thrownError: Error | undefined;
 
                 service.changeDragFactorSettings(mockDragFactorSettings).catch((error: Error): void => {
                     thrownError = error;
                 });
 
-                tick(1000);
+                await vi.advanceTimersByTimeAsync(1000);
 
                 expect(thrownError?.name).toBe("TimeoutError");
-            }));
+                vi.useRealTimers();
+            });
 
             it("should display generic error message when other error thrown", async (): Promise<void> => {
-                mockSettingsControlPointCharacteristic.writeValueWithoutResponse.and.rejectWith(
+                vi.mocked(mockSettingsControlPointCharacteristic.writeValueWithoutResponse).mockRejectedValue(
                     new Error("BLE error"),
                 );
 
@@ -627,20 +653,22 @@ describe("ErgSettingsService rowing control-point API", (): void => {
                 (await triggerHandler).triggerChanged(
                     ((): Error => new Error("BLE error"))() as unknown as DataView,
                 );
-                await expectAsync(sut).toBeRejected();
+                await expect(sut).rejects.toThrow();
 
                 expect(mockSnackBar.open).toHaveBeenCalledWith("Failed to set machine settings", "Dismiss");
             });
 
             it("should re-throw other errors", async (): Promise<void> => {
                 const testError = new Error("BLE error");
-                mockSettingsControlPointCharacteristic.writeValueWithoutResponse.and.rejectWith(testError);
+                vi.mocked(mockSettingsControlPointCharacteristic.writeValueWithoutResponse).mockRejectedValue(
+                    testError,
+                );
                 const triggerHandler = createControlPointValueChangedListenerReady();
 
                 const sut = service.changeDragFactorSettings(mockDragFactorSettings);
                 (await triggerHandler).triggerChanged(testError as unknown as DataView);
 
-                await expectAsync(sut).toBeRejectedWith(testError);
+                await expect(sut).rejects.toEqual(testError);
             });
         });
     });
@@ -660,10 +688,10 @@ describe("ErgSettingsService rowing control-point API", (): void => {
 
         describe("when device is not connected", (): void => {
             beforeEach((): void => {
-                mockErgConnectionService.readSettingsCharacteristic.and.returnValue(undefined);
-                (
-                    Object.getOwnPropertyDescriptor(mockSettingsCharacteristic, "service")?.get as jasmine.Spy
-                ).and.returnValue(undefined);
+                vi.mocked(mockErgConnectionService.readSettingsCharacteristic).mockReturnValue(undefined);
+                vi.spyOn(mockSettingsCharacteristic, "service", "get").mockReturnValue(
+                    undefined as unknown as BluetoothRemoteGATTService,
+                );
             });
 
             it("should display not connected message", async (): Promise<void> => {
@@ -686,9 +714,9 @@ describe("ErgSettingsService rowing control-point API", (): void => {
 
         describe("when service is not available", (): void => {
             beforeEach((): void => {
-                (
-                    Object.getOwnPropertyDescriptor(mockSettingsCharacteristic, "service")?.get as jasmine.Spy
-                ).and.returnValue(undefined);
+                vi.spyOn(mockSettingsCharacteristic, "service", "get").mockReturnValue(
+                    undefined as unknown as BluetoothRemoteGATTService,
+                );
             });
 
             it("should display not connected message", async (): Promise<void> => {
@@ -745,61 +773,62 @@ describe("ErgSettingsService rowing control-point API", (): void => {
                 await sut;
 
                 expect(mockSettingsControlPointCharacteristic.writeValueWithoutResponse).toHaveBeenCalled();
-                const writeCallArgs =
-                    mockSettingsControlPointCharacteristic.writeValueWithoutResponse.calls.argsFor(0);
+                const writeCallArgs = vi.mocked(
+                    mockSettingsControlPointCharacteristic.writeValueWithoutResponse,
+                ).mock.calls[0];
                 const payload = writeCallArgs[0] as DataView;
 
-                expect(payload.byteLength)
-                    .withContext("SetStrokeDetectionSettings: payload.byteLength")
-                    .toBe(16);
-                expect(payload.getUint8(0))
-                    .withContext("SetStrokeDetectionSettings: opcode")
-                    .toBe(BleOpCodes.SetStrokeDetectionSettings);
+                expect(payload.byteLength, "SetStrokeDetectionSettings: payload.byteLength").toBe(16);
+                expect(payload.getUint8(0), "SetStrokeDetectionSettings: opcode").toBe(
+                    BleOpCodes.SetStrokeDetectionSettings,
+                );
 
                 // verify payload structure: strokeDetectionType (2 bits) + impulseDataArrayLength (6 bits)
                 const expectedByte1 =
                     (mockStrokeDetectionSettings.strokeDetectionType & 0x03) |
                     ((mockStrokeDetectionSettings.impulseDataArrayLength & 0x3f) << 2);
-                expect(payload.getUint8(1))
-                    .withContext("SetStrokeDetectionSettings: strokeDetectionType+impulseDataArrayLength")
-                    .toBe(expectedByte1);
+                expect(
+                    payload.getUint8(1),
+                    "SetStrokeDetectionSettings: strokeDetectionType+impulseDataArrayLength",
+                ).toBe(expectedByte1);
 
                 // verify torque values (scaled to int16)
-                expect(payload.getInt16(2, true))
-                    .withContext("SetStrokeDetectionSettings: minimumPoweredTorque")
-                    .toBe(Math.round(mockStrokeDetectionSettings.minimumPoweredTorque * 10000));
-                expect(payload.getInt16(4, true))
-                    .withContext("SetStrokeDetectionSettings: minimumDragTorque")
-                    .toBe(Math.round(mockStrokeDetectionSettings.minimumDragTorque * 10000));
+                expect(payload.getInt16(2, true), "SetStrokeDetectionSettings: minimumPoweredTorque").toBe(
+                    Math.round(mockStrokeDetectionSettings.minimumPoweredTorque * 10000),
+                );
+                expect(payload.getInt16(4, true), "SetStrokeDetectionSettings: minimumDragTorque").toBe(
+                    Math.round(mockStrokeDetectionSettings.minimumDragTorque * 10000),
+                );
 
                 // verify recovery slope margin (float32)
-                expect(payload.getFloat32(6, true))
-                    .withContext("SetStrokeDetectionSettings: minimumRecoverySlopeMargin")
-                    .toBeCloseTo(mockStrokeDetectionSettings.minimumRecoverySlopeMargin!, 5);
+                expect(
+                    payload.getFloat32(6, true),
+                    "SetStrokeDetectionSettings: minimumRecoverySlopeMargin",
+                ).toBeCloseTo(mockStrokeDetectionSettings.minimumRecoverySlopeMargin!, 5);
 
                 // verify recovery slope (scaled to int16)
-                expect(payload.getInt16(10, true))
-                    .withContext("SetStrokeDetectionSettings: minimumRecoverySlope")
-                    .toBe(Math.round(mockStrokeDetectionSettings.minimumRecoverySlope * 1000));
+                expect(payload.getInt16(10, true), "SetStrokeDetectionSettings: minimumRecoverySlope").toBe(
+                    Math.round(mockStrokeDetectionSettings.minimumRecoverySlope * 1000),
+                );
 
                 // verify timing values (packed into 3 bytes)
                 const recoveryTimeBits = mockStrokeDetectionSettings.minimumRecoveryTime & 0x0fff;
                 const driveTimeBits = (mockStrokeDetectionSettings.minimumDriveTime & 0x0fff) << 12;
                 const expectedTimingValue = recoveryTimeBits | driveTimeBits;
-                expect(payload.getUint8(12))
-                    .withContext("SetStrokeDetectionSettings: timingByte0")
-                    .toBe(expectedTimingValue & 0xff);
-                expect(payload.getUint8(13))
-                    .withContext("SetStrokeDetectionSettings: timingByte1")
-                    .toBe((expectedTimingValue >> 8) & 0xff);
-                expect(payload.getUint8(14))
-                    .withContext("SetStrokeDetectionSettings: timingByte2")
-                    .toBe((expectedTimingValue >> 16) & 0xff);
+                expect(payload.getUint8(12), "SetStrokeDetectionSettings: timingByte0").toBe(
+                    expectedTimingValue & 0xff,
+                );
+                expect(payload.getUint8(13), "SetStrokeDetectionSettings: timingByte1").toBe(
+                    (expectedTimingValue >> 8) & 0xff,
+                );
+                expect(payload.getUint8(14), "SetStrokeDetectionSettings: timingByte2").toBe(
+                    (expectedTimingValue >> 16) & 0xff,
+                );
 
                 // verify drive handle forces capacity
-                expect(payload.getUint8(15))
-                    .withContext("SetStrokeDetectionSettings: driveHandleForcesMaxCapacity")
-                    .toBe(mockStrokeDetectionSettings.driveHandleForcesMaxCapacity);
+                expect(payload.getUint8(15), "SetStrokeDetectionSettings: driveHandleForcesMaxCapacity").toBe(
+                    mockStrokeDetectionSettings.driveHandleForcesMaxCapacity,
+                );
             });
 
             it("should display success message when operation succeeds", async (): Promise<void> => {
@@ -839,21 +868,23 @@ describe("ErgSettingsService rowing control-point API", (): void => {
         });
 
         describe("when BLE operation throws error", (): void => {
-            it("should display timeout error message when TimeoutError thrown", fakeAsync((): void => {
+            it("should display timeout error message when TimeoutError thrown", async (): Promise<void> => {
+                vi.useFakeTimers();
                 service.changeStrokeSettings(mockStrokeDetectionSettings).catch((): void => {
                     // no-op
                 });
 
-                tick(1000);
+                await vi.advanceTimersByTimeAsync(1000);
 
                 expect(mockSnackBar.open).toHaveBeenCalledWith(
                     "Failed to set stroke detection settings, request timed out",
                     "Dismiss",
                 );
-            }));
+                vi.useRealTimers();
+            });
 
             it("should display generic error message for other errors", async (): Promise<void> => {
-                mockSettingsControlPointCharacteristic.writeValueWithoutResponse.and.rejectWith(
+                vi.mocked(mockSettingsControlPointCharacteristic.writeValueWithoutResponse).mockRejectedValue(
                     new Error("BLE error"),
                 );
                 const triggerHandler = createControlPointValueChangedListenerReady();

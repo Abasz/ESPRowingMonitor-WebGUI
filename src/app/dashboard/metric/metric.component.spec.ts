@@ -5,6 +5,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatCardHarness } from "@angular/material/card/testing";
 import { MatIconHarness } from "@angular/material/icon/testing";
 import { MatTooltipHarness } from "@angular/material/tooltip/testing";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { MetricComponent } from "./metric.component";
 
@@ -41,15 +42,15 @@ describe("MetricComponent", (): void => {
             expect(component.unit()).toBeUndefined();
         });
 
-        it("should render string value correctly", (): void => {
+        it("should render string value correctly", async (): Promise<void> => {
             fixture.componentRef.setInput("value", "test-value");
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const valueSpan = fixture.nativeElement.querySelector("div.value span:first-child");
             expect(valueSpan.textContent.trim()).toBe("test-value");
 
             fixture.componentRef.setInput("value", 42);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const valueSpanNumber = fixture.nativeElement.querySelector("div.value span:first-child");
             expect(valueSpanNumber.textContent.trim()).toBe("42");
@@ -61,15 +62,15 @@ describe("MetricComponent", (): void => {
         describe("mat-card element", (): void => {
             it("should render mat-card element", async (): Promise<void> => {
                 fixture.componentRef.setInput("value", "test");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const cardHarness = await loader.getHarness(MatCardHarness);
                 expect(cardHarness).toBeTruthy();
             });
 
-            it("should apply correct CSS class to mat-card", (): void => {
+            it("should apply correct CSS class to mat-card", async (): Promise<void> => {
                 fixture.componentRef.setInput("value", "test");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const matCard = fixture.nativeElement.querySelector("mat-card");
                 expect(matCard).toBeTruthy();
@@ -78,11 +79,11 @@ describe("MetricComponent", (): void => {
         });
 
         describe("when icon is provided", (): void => {
-            beforeEach((): void => {
+            beforeEach(async (): Promise<void> => {
                 fixture.componentRef.setInput("icon", "test-icon");
                 fixture.componentRef.setInput("value", "123");
                 fixture.componentRef.setInput("title", "Test Title");
-                fixture.detectChanges();
+                await fixture.whenStable();
             });
 
             it("should render mat-icon element", async (): Promise<void> => {
@@ -104,7 +105,7 @@ describe("MetricComponent", (): void => {
             it("should have a tooltip attached to the icon", async (): Promise<void> => {
                 const tooltips = await loader.getAllHarnesses(MatTooltipHarness);
 
-                expect(tooltips).toHaveSize(1);
+                expect(tooltips).toHaveLength(1);
             });
 
             it("should show tooltip text equal to title input", async (): Promise<void> => {
@@ -128,18 +129,18 @@ describe("MetricComponent", (): void => {
             });
         });
 
-        describe("when icon is undefined", (): void => {
-            beforeEach((): void => {
+        describe("when icon is undefined", async (): Promise<void> => {
+            beforeEach(async (): Promise<void> => {
                 fixture.componentRef.setInput("icon", undefined);
                 fixture.componentRef.setInput("value", "123");
                 fixture.componentRef.setInput("title", "Test Title");
-                fixture.detectChanges();
+                await fixture.whenStable();
             });
 
             it("should not render mat-icon element", async (): Promise<void> => {
                 try {
                     await loader.getHarness(MatIconHarness);
-                    fail("Expected MatIconHarness not to be found");
+                    throw new Error("Expected MatIconHarness not to be found");
                 } catch (error) {
                     expect(error).toBeDefined();
                 }
@@ -165,10 +166,10 @@ describe("MetricComponent", (): void => {
         });
 
         describe("value display", (): void => {
-            beforeEach((): void => {
+            beforeEach(async (): Promise<void> => {
                 fixture.componentRef.setInput("value", "123");
                 fixture.componentRef.setInput("unit", "kg");
-                fixture.detectChanges();
+                await fixture.whenStable();
             });
 
             it("should render value div container", (): void => {
@@ -210,9 +211,9 @@ describe("MetricComponent", (): void => {
 
         describe("value input signal", (): void => {
             describe("with string value", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     fixture.componentRef.setInput("value", "test-string");
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should display string value correctly", (): void => {
@@ -227,9 +228,9 @@ describe("MetricComponent", (): void => {
             });
 
             describe("with number value", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     fixture.componentRef.setInput("value", 42);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should display number value correctly", (): void => {
@@ -244,9 +245,9 @@ describe("MetricComponent", (): void => {
             });
 
             describe("with decimal number value", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     fixture.componentRef.setInput("value", 42.5);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should display decimal number correctly", (): void => {
@@ -256,9 +257,9 @@ describe("MetricComponent", (): void => {
                 });
             });
 
-            it("with zero value should display correctly", (): void => {
+            it("with zero value should display correctly", async (): Promise<void> => {
                 fixture.componentRef.setInput("value", 0);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const valueSpan = fixture.nativeElement.querySelector("div.value span:first-child");
 
@@ -268,10 +269,10 @@ describe("MetricComponent", (): void => {
 
         describe("title input signal", (): void => {
             describe("when title is provided", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     fixture.componentRef.setInput("title", "Test Title");
                     fixture.componentRef.setInput("value", "123");
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should return title from signal", (): void => {
@@ -288,10 +289,10 @@ describe("MetricComponent", (): void => {
             });
 
             describe("when title is undefined", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     fixture.componentRef.setInput("title", undefined);
                     fixture.componentRef.setInput("value", "123");
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should return undefined from signal", (): void => {
@@ -302,10 +303,10 @@ describe("MetricComponent", (): void => {
 
         describe("unit input signal", (): void => {
             describe("when unit is provided", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     fixture.componentRef.setInput("unit", "kg");
                     fixture.componentRef.setInput("value", "123");
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should return unit from signal", (): void => {
@@ -320,10 +321,10 @@ describe("MetricComponent", (): void => {
             });
 
             describe("when unit is undefined", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     fixture.componentRef.setInput("unit", undefined);
                     fixture.componentRef.setInput("value", "123");
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should return undefined from signal", (): void => {
@@ -338,10 +339,10 @@ describe("MetricComponent", (): void => {
                 });
             });
 
-            it("with empty string unit should display empty unit correctly", (): void => {
+            it("with empty string unit should display empty unit correctly", async (): Promise<void> => {
                 fixture.componentRef.setInput("unit", "");
                 fixture.componentRef.setInput("value", "123");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const unitSpan = fixture.nativeElement.querySelector("span.unit");
 
@@ -351,10 +352,10 @@ describe("MetricComponent", (): void => {
 
         describe("icon input signal", (): void => {
             describe("when icon is provided", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     fixture.componentRef.setInput("icon", "speed");
                     fixture.componentRef.setInput("value", "123");
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should return icon name from signal", (): void => {
@@ -371,11 +372,11 @@ describe("MetricComponent", (): void => {
             });
 
             describe("when icon is undefined", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     fixture.componentRef.setInput("icon", undefined);
                     fixture.componentRef.setInput("value", "123");
                     fixture.componentRef.setInput("title", "Test Title");
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should return undefined from signal", (): void => {
@@ -392,10 +393,10 @@ describe("MetricComponent", (): void => {
             });
 
             describe("with empty string icon", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     fixture.componentRef.setInput("icon", "");
                     fixture.componentRef.setInput("value", "123");
-                    fixture.detectChanges();
+                    await fixture.whenStable();
                 });
 
                 it("should treat empty string as truthy", (): void => {
@@ -406,7 +407,7 @@ describe("MetricComponent", (): void => {
                     fixture.componentRef.setInput("icon", "");
                     fixture.componentRef.setInput("title", "Test Title");
                     fixture.componentRef.setInput("value", "Test Value");
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     const matIcon = fixture.nativeElement.querySelector("mat-icon");
                     expect(matIcon).toBe(null);
@@ -420,12 +421,12 @@ describe("MetricComponent", (): void => {
 
     describe("as part of input combinations", (): void => {
         describe("with all inputs provided", (): void => {
-            it("should render complete metric display", (): void => {
+            it("should render complete metric display", async (): Promise<void> => {
                 fixture.componentRef.setInput("icon", "star");
                 fixture.componentRef.setInput("title", "Rating");
                 fixture.componentRef.setInput("value", "4.5");
                 fixture.componentRef.setInput("unit", "stars");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const valueElement = fixture.nativeElement.querySelector(".value span:first-child");
                 const unitElement = fixture.nativeElement.querySelector(".value .unit");
@@ -440,7 +441,7 @@ describe("MetricComponent", (): void => {
                 fixture.componentRef.setInput("icon", "home");
                 fixture.componentRef.setInput("title", "Home Title");
                 fixture.componentRef.setInput("value", "123");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const matIcon = await loader.getHarness(MatIconHarness);
                 expect(await matIcon.getName()).toBe("home");
@@ -449,10 +450,10 @@ describe("MetricComponent", (): void => {
                 expect(titleElement).toBe(null);
             });
 
-            it("should combine value and unit correctly", (): void => {
+            it("should combine value and unit correctly", async (): Promise<void> => {
                 fixture.componentRef.setInput("value", "42");
                 fixture.componentRef.setInput("unit", "kg");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const valueElement = fixture.nativeElement.querySelector(".value span:first-child");
                 const unitElement = fixture.nativeElement.querySelector(".value .unit");
@@ -463,9 +464,9 @@ describe("MetricComponent", (): void => {
         });
 
         describe("with minimal inputs", (): void => {
-            it("should render with only value", (): void => {
+            it("should render with only value", async (): Promise<void> => {
                 fixture.componentRef.setInput("value", "123");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const valueElement = fixture.nativeElement.querySelector(".value span:first-child");
                 expect(valueElement?.textContent?.trim()).toBe("123");
@@ -478,9 +479,9 @@ describe("MetricComponent", (): void => {
                 expect(titleElement.textContent.trim()).toBe("");
             });
 
-            it("should handle undefined optional inputs gracefully", (): void => {
+            it("should handle undefined optional inputs gracefully", async (): Promise<void> => {
                 fixture.componentRef.setInput("value", "123");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const valueElement = fixture.nativeElement.querySelector(".value span:first-child");
                 expect(valueElement?.textContent?.trim()).toBe("123");
@@ -493,11 +494,11 @@ describe("MetricComponent", (): void => {
 
     describe("as part of edge case handling", (): void => {
         describe("with special characters", (): void => {
-            it("should handle special characters in title", (): void => {
+            it("should handle special characters in title", async (): Promise<void> => {
                 const titleWithSpecialChars = "Test & Title <script>alert('xss')</script> €";
                 fixture.componentRef.setInput("title", titleWithSpecialChars);
                 fixture.componentRef.setInput("value", "123");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const titleSpan = fixture.nativeElement.querySelector("span.title");
 
@@ -505,20 +506,20 @@ describe("MetricComponent", (): void => {
                 expect(titleSpan.innerHTML).not.toContain("<script>");
             });
 
-            it("should handle special characters in unit", (): void => {
+            it("should handle special characters in unit", async (): Promise<void> => {
                 const unitWithSpecialChars = "m/s² & °C";
                 fixture.componentRef.setInput("unit", unitWithSpecialChars);
                 fixture.componentRef.setInput("value", "25");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const unitSpan = fixture.nativeElement.querySelector("span.unit");
                 expect(unitSpan.textContent.trim()).toBe(unitWithSpecialChars);
             });
 
-            it("should handle special characters in value", (): void => {
+            it("should handle special characters in value", async (): Promise<void> => {
                 const valueWithSpecialChars = "< 0.01% & > 99%";
                 fixture.componentRef.setInput("value", valueWithSpecialChars);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const valueSpan = fixture.nativeElement.querySelector("div.value span:first-child");
 
@@ -528,25 +529,25 @@ describe("MetricComponent", (): void => {
         });
 
         describe("with very long content", (): void => {
-            it("should handle long title content", (): void => {
+            it("should handle long title content", async (): Promise<void> => {
                 const longTitle =
                     "Very Long Title That Might Overflow The Container Width " +
                     "And Should Be Handled Properly Without Breaking The Layout Or Causing Display Issues";
                 fixture.componentRef.setInput("title", longTitle);
                 fixture.componentRef.setInput("value", "123");
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const titleSpan = fixture.nativeElement.querySelector("span.title");
                 expect(titleSpan.textContent.trim()).toBe(longTitle);
                 expect(titleSpan).toBeTruthy();
             });
 
-            it("should handle long value content", (): void => {
+            it("should handle long value content", async (): Promise<void> => {
                 const longValue =
                     "Very Long Value String That Should Be Handled Properly " +
                     "Without Breaking The Component Layout Or Causing Overflow Issues In The Display";
                 fixture.componentRef.setInput("value", longValue);
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const valueSpan = fixture.nativeElement.querySelector("div.value span:first-child");
                 expect(valueSpan.textContent.trim()).toBe(longValue);
@@ -556,9 +557,9 @@ describe("MetricComponent", (): void => {
 
         describe("with numeric edge cases", (): void => {
             describe("with negative number", (): void => {
-                it("should display negative number correctly", (): void => {
+                it("should display negative number correctly", async (): Promise<void> => {
                     fixture.componentRef.setInput("value", -42.5);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     const valueSpan = fixture.nativeElement.querySelector("div.value span:first-child");
                     expect(valueSpan.textContent.trim()).toBe("-42.5");
@@ -566,9 +567,9 @@ describe("MetricComponent", (): void => {
             });
 
             describe("with very large number", (): void => {
-                it("should display large number correctly", (): void => {
+                it("should display large number correctly", async (): Promise<void> => {
                     fixture.componentRef.setInput("value", 1234567890.123);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     const valueSpan = fixture.nativeElement.querySelector("div.value span:first-child");
                     expect(valueSpan.textContent.trim()).toBe("1234567890.123");
@@ -576,9 +577,9 @@ describe("MetricComponent", (): void => {
             });
 
             describe("with scientific notation", (): void => {
-                it("should display scientific notation correctly", (): void => {
+                it("should display scientific notation correctly", async (): Promise<void> => {
                     fixture.componentRef.setInput("value", 1.23e-10);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     const valueSpan = fixture.nativeElement.querySelector("div.value span:first-child");
                     expect(valueSpan.textContent.trim()).toBe("1.23e-10");

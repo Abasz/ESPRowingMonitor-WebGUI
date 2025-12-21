@@ -10,7 +10,8 @@ import {
     MatSnackBarRef,
     TextOnlySnackBar,
 } from "@angular/material/snack-bar";
-import { Observable, of, Subject } from "rxjs";
+import { firstValueFrom, Observable, of, Subject } from "rxjs";
+import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import { ISessionSummary } from "../../common/common.interfaces";
 import { DataRecorderService } from "../../common/services/data-recorder.service";
@@ -25,8 +26,17 @@ describe("LogbookDialogComponent", (): void => {
 
     let summaries$: Subject<Array<ISessionSummary>>;
 
-    let dataRecorderSpy: jasmine.SpyObj<DataRecorderService>;
-    let snackBarSpy: jasmine.SpyObj<MatSnackBar>;
+    let dataRecorderSpy: Pick<
+        DataRecorderService,
+        | "getSessionSummaries$"
+        | "deleteSession"
+        | "export"
+        | "exportSessionToJson"
+        | "exportSessionToTcx"
+        | "exportSessionToCsv"
+        | "import"
+    >;
+    let snackBarSpy: Pick<MatSnackBar, "open" | "openFromComponent">;
 
     const SESSIONS: Array<ISessionSummary> = [
         {
@@ -49,27 +59,30 @@ describe("LogbookDialogComponent", (): void => {
 
     beforeEach(async (): Promise<void> => {
         summaries$ = new Subject<Array<ISessionSummary>>();
-        dataRecorderSpy = jasmine.createSpyObj("DataRecorderService", [
-            "getSessionSummaries$",
-            "deleteSession",
-            "export",
-            "exportSessionToJson",
-            "exportSessionToTcx",
-            "exportSessionToCsv",
-            "import",
-        ]);
-        dataRecorderSpy.getSessionSummaries$.and.returnValue(summaries$.asObservable());
-        dataRecorderSpy.deleteSession.and.resolveTo([1, 1, 1, 1]);
+        dataRecorderSpy = {
+            getSessionSummaries$: vi.fn(),
+            deleteSession: vi.fn(),
+            export: vi.fn(),
+            exportSessionToJson: vi.fn(),
+            exportSessionToTcx: vi.fn(),
+            exportSessionToCsv: vi.fn(),
+            import: vi.fn(),
+        };
+        vi.mocked(dataRecorderSpy.getSessionSummaries$).mockReturnValue(summaries$.asObservable());
+        vi.mocked(dataRecorderSpy.deleteSession).mockResolvedValue([1, 1, 1, 1]);
 
-        snackBarSpy = jasmine.createSpyObj(["open", "openFromComponent"]);
+        snackBarSpy = {
+            open: vi.fn(),
+            openFromComponent: vi.fn(),
+        };
 
-        snackBarSpy.open.and.returnValue({
+        vi.mocked(snackBarSpy.open).mockReturnValue({
             afterDismissed: (): Observable<MatSnackBarDismiss> => of({ dismissedByAction: false }),
             onAction: (): Observable<void> => of(),
         } as unknown as MatSnackBarRef<TextOnlySnackBar>);
-        snackBarSpy.openFromComponent.and.returnValue({
+        vi.mocked(snackBarSpy.openFromComponent).mockReturnValue({
             onAction: (): Observable<boolean> => of(true),
-            dismiss: jasmine.createSpy("dismiss"),
+            dismiss: vi.fn(),
         } as unknown as MatSnackBarRef<SnackBarConfirmComponent>);
 
         await TestBed.configureTestingModule({
@@ -92,8 +105,14 @@ describe("LogbookDialogComponent", (): void => {
 
     it("should dismiss confirm snackbar on ngOnDestroy when present", (): void => {
         component.deleteSession(SESSIONS[0].sessionId);
-        const dismissSpy = jasmine.createSpy("dismiss");
-        (component as unknown as { confirmSnackBarRef: { dismiss: jasmine.Spy } }).confirmSnackBarRef = {
+        const dismissSpy = vi.fn();
+        (
+            component as unknown as {
+                confirmSnackBarRef: {
+                    dismiss: Mock;
+                };
+            }
+        ).confirmSnackBarRef = {
             dismiss: dismissSpy,
         };
 
@@ -103,19 +122,17 @@ describe("LogbookDialogComponent", (): void => {
     });
 
     describe("template", (): void => {
-        it("should render one table row per session", (): void => {
+        it("should render one table row per session", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const rows = fixture.nativeElement.querySelectorAll("mat-row");
-            expect(rows).toHaveSize(SESSIONS.length);
+            expect(rows).toHaveLength(SESSIONS.length);
         });
 
-        it("should show date and time from sessionId", (): void => {
+        it("should show date and time from sessionId", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const firstRowDateCell = fixture.nativeElement.querySelector("mat-row .date");
             const expectedDate = new Date(SESSIONS[0].sessionId);
@@ -123,31 +140,28 @@ describe("LogbookDialogComponent", (): void => {
             expect(firstRowDateCell.textContent).toContain(expectedDate.toTimeString().substring(0, 8));
         });
 
-        it("should show calculated duration in the Time column", (): void => {
+        it("should show calculated duration in the Time column", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-
-            fixture.detectChanges();
+            await fixture.whenStable();
             const firstRowTimeCell = fixture.nativeElement.querySelector("mat-row .time");
 
             expect(firstRowTimeCell.textContent.trim().length).toBeGreaterThan(0);
         });
 
-        it("should update table rows when getSessionSummaries$ emits", (): void => {
+        it("should update table rows when getSessionSummaries$ emits", async (): Promise<void> => {
             summaries$.next([]);
-            fixture.detectChanges();
-            expect(fixture.nativeElement.querySelectorAll("mat-row")).toHaveSize(0);
+            expect(fixture.nativeElement.querySelectorAll("mat-row")).toHaveLength(0);
 
             summaries$.next(SESSIONS);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const rows = fixture.nativeElement.querySelectorAll("mat-row");
-            expect(rows).toHaveSize(SESSIONS.length);
+            expect(rows).toHaveLength(SESSIONS.length);
         });
 
-        it("distance column should show meters as distance/100", (): void => {
+        it("distance column should show meters as distance/100", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const firstRowDistanceCell = fixture.nativeElement.querySelector("mat-row .distance");
             const expectedDistance = SESSIONS[0].distance / 100;
@@ -155,19 +169,17 @@ describe("LogbookDialogComponent", (): void => {
         });
 
         describe("device name", (): void => {
-            it("should show provided device name", (): void => {
+            it("should show provided device name", async (): Promise<void> => {
                 summaries$.next(SESSIONS);
-
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const firstRowDeviceCell = fixture.nativeElement.querySelector("mat-row .device-name");
                 expect(firstRowDeviceCell.textContent.trim()).toBe(SESSIONS[0].deviceName);
             });
 
-            it("should fall back to 'Unknown' when deviceName is missing", (): void => {
+            it("should fall back to 'Unknown' when deviceName is missing", async (): Promise<void> => {
                 summaries$.next(SESSIONS);
-
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const rows = fixture.nativeElement.querySelectorAll("mat-row");
                 const secondRowDeviceCell = rows[1]?.querySelector(".device-name");
@@ -176,10 +188,9 @@ describe("LogbookDialogComponent", (): void => {
         });
 
         describe("sorting", (): void => {
-            it("should default to sorting by sessionId descending (newest first)", (): void => {
+            it("should default to sorting by sessionId descending (newest first)", async (): Promise<void> => {
                 summaries$.next(SESSIONS);
-
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 const firstRowDateCell = fixture.nativeElement.querySelector("mat-row .date");
                 const newestSessionDate = new Date(SESSIONS[0].sessionId);
@@ -187,14 +198,13 @@ describe("LogbookDialogComponent", (): void => {
             });
 
             describe("by Time column", (): void => {
-                it("should place shorter duration first when sorting Time ascending", (): void => {
+                it("should place shorter duration first when sorting Time ascending", async (): Promise<void> => {
                     summaries$.next(SESSIONS);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     const timeHeader = fixture.nativeElement.querySelector(".time[mat-sort-header]");
                     expect(timeHeader).not.toBeNull();
                     timeHeader.click();
-                    fixture.detectChanges();
 
                     const firstRowTimeCell = fixture.nativeElement.querySelector("mat-row .time");
                     expect(firstRowTimeCell).not.toBeNull();
@@ -206,15 +216,14 @@ describe("LogbookDialogComponent", (): void => {
                     );
                 });
 
-                it("should place longer duration first when sorting Time descending", (): void => {
+                it("should place longer duration first when sorting Time descending", async (): Promise<void> => {
                     summaries$.next(SESSIONS);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     const timeHeader = fixture.nativeElement.querySelector(".time[mat-sort-header]");
                     expect(timeHeader).not.toBeNull();
                     timeHeader.click(); // first click for ascending
                     timeHeader.click(); // second click for descending
-                    fixture.detectChanges();
 
                     const firstRowTimeCell = fixture.nativeElement.querySelector("mat-row .time");
                     expect(firstRowTimeCell).not.toBeNull();
@@ -228,14 +237,13 @@ describe("LogbookDialogComponent", (): void => {
             });
 
             describe("by Distance column", (): void => {
-                it("should place smaller distance first when sorting Distance ascending", (): void => {
+                it("should place smaller distance first when sorting Distance ascending", async (): Promise<void> => {
                     summaries$.next(SESSIONS);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     const distanceHeader = fixture.nativeElement.querySelector(".distance[mat-sort-header]");
                     expect(distanceHeader).not.toBeNull();
                     distanceHeader.click();
-                    fixture.detectChanges();
 
                     const firstRowDistanceCell = fixture.nativeElement.querySelector("mat-row .distance");
                     expect(firstRowDistanceCell).not.toBeNull();
@@ -244,15 +252,14 @@ describe("LogbookDialogComponent", (): void => {
                     );
                 });
 
-                it("should place larger distance first when sorting Distance descending", (): void => {
+                it("should place larger distance first when sorting Distance descending", async (): Promise<void> => {
                     summaries$.next(SESSIONS);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     const distanceHeader = fixture.nativeElement.querySelector(".distance[mat-sort-header]");
                     expect(distanceHeader).not.toBeNull();
                     distanceHeader.click(); // first click for ascending
                     distanceHeader.click(); // second click for descending
-                    fixture.detectChanges();
 
                     const firstRowDistanceCell = fixture.nativeElement.querySelector("mat-row .distance");
                     expect(firstRowDistanceCell).not.toBeNull();
@@ -263,25 +270,24 @@ describe("LogbookDialogComponent", (): void => {
             });
 
             describe("by Strokes column", (): void => {
-                it("should place fewer strokes first when sorting Strokes ascending", (): void => {
+                it("should place fewer strokes first when sorting Strokes ascending", async (): Promise<void> => {
                     summaries$.next(SESSIONS);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     const strokesHeader = fixture.nativeElement.querySelector(
                         ".stroke-count[mat-sort-header]",
                     );
                     expect(strokesHeader).not.toBeNull();
                     strokesHeader.click();
-                    fixture.detectChanges();
 
                     const firstRowStrokesCell = fixture.nativeElement.querySelector("mat-row .stroke-count");
                     expect(firstRowStrokesCell).not.toBeNull();
                     expect(firstRowStrokesCell.textContent.trim()).toBe(SESSIONS[1].strokeCount.toString());
                 });
 
-                it("should place more strokes first when sorting Strokes descending", (): void => {
+                it("should place more strokes first when sorting Strokes descending", async (): Promise<void> => {
                     summaries$.next(SESSIONS);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     const strokesHeader = fixture.nativeElement.querySelector(
                         ".stroke-count[mat-sort-header]",
@@ -289,7 +295,6 @@ describe("LogbookDialogComponent", (): void => {
                     expect(strokesHeader).not.toBeNull();
                     strokesHeader.click(); // first click for ascending
                     strokesHeader.click(); // second click for descending
-                    fixture.detectChanges();
 
                     const firstRowStrokesCell = fixture.nativeElement.querySelector("mat-row .stroke-count");
                     expect(firstRowStrokesCell).not.toBeNull();
@@ -298,14 +303,13 @@ describe("LogbookDialogComponent", (): void => {
             });
 
             describe("by Device column", (): void => {
-                it("should sort by device name lexicographically when sorting Device ascending", (): void => {
+                it("should sort by device name lexicographically when sorting Device ascending", async (): Promise<void> => {
                     summaries$.next(SESSIONS);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     const deviceHeader = fixture.nativeElement.querySelector(".device-name[mat-sort-header]");
                     expect(deviceHeader).not.toBeNull();
                     deviceHeader.click();
-                    fixture.detectChanges();
 
                     const firstRowDeviceCell = fixture.nativeElement.querySelector("mat-row .device-name");
                     expect(firstRowDeviceCell).not.toBeNull();
@@ -313,15 +317,14 @@ describe("LogbookDialogComponent", (): void => {
                     expect(firstRowDeviceCell.textContent.trim()).toBe(SESSIONS[0].deviceName);
                 });
 
-                it("should place 'Unknown' first when sorting Device descending", (): void => {
+                it("should place 'Unknown' first when sorting Device descending", async (): Promise<void> => {
                     summaries$.next(SESSIONS);
-                    fixture.detectChanges();
+                    await fixture.whenStable();
 
                     const deviceHeader = fixture.nativeElement.querySelector(".device-name[mat-sort-header]");
                     expect(deviceHeader).not.toBeNull();
                     deviceHeader.click(); // first click for ascending
                     deviceHeader.click(); // second click for descending
-                    fixture.detectChanges();
 
                     const firstRowDeviceCell = fixture.nativeElement.querySelector("mat-row .device-name");
                     expect(firstRowDeviceCell).not.toBeNull();
@@ -343,12 +346,11 @@ describe("LogbookDialogComponent", (): void => {
             expect(await menu.isOpen()).toBeFalsy();
             await button.click();
             expect(await menu.isOpen()).toBeTruthy();
-            expect(await menu.getItems()).toHaveSize(3);
+            expect(await menu.getItems()).toHaveLength(3);
         });
 
         it("should call exportSessionToJson with sessionId when JSON option clicked", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-            fixture.detectChanges();
 
             await component.exportToJson(SESSIONS[0].sessionId);
 
@@ -357,7 +359,6 @@ describe("LogbookDialogComponent", (): void => {
 
         it("should call exportSessionToTcx with sessionId when TCX option clicked", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-            fixture.detectChanges();
 
             await component.exportToTcx(SESSIONS[0].sessionId);
 
@@ -366,7 +367,6 @@ describe("LogbookDialogComponent", (): void => {
 
         it("should call exportSessionToCsv with sessionId when CSV option clicked", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-            fixture.detectChanges();
 
             await component.exportToCsv(SESSIONS[0].sessionId);
 
@@ -377,8 +377,7 @@ describe("LogbookDialogComponent", (): void => {
     describe("exportToJson method", (): void => {
         it("should call respective service method with the given sessionId", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-            dataRecorderSpy.exportSessionToJson.and.resolveTo();
-            fixture.detectChanges();
+            vi.mocked(dataRecorderSpy.exportSessionToJson).mockResolvedValue();
 
             await component.exportToJson(SESSIONS[0].sessionId);
 
@@ -388,16 +387,15 @@ describe("LogbookDialogComponent", (): void => {
         it("shows snackbar on exportToJson error", async (): Promise<void> => {
             // arrange
             summaries$.next(SESSIONS);
-            dataRecorderSpy.exportSessionToJson.and.returnValue(
+            vi.mocked(dataRecorderSpy.exportSessionToJson).mockReturnValue(
                 Promise.reject(new Error("export json error")),
             );
-            fixture.detectChanges();
 
             await component.exportToJson(SESSIONS[0].sessionId);
 
             // assert
             expect(snackBarSpy.open).toHaveBeenCalledWith(
-                jasmine.stringMatching(/Error while downloading session: export json error/),
+                expect.stringMatching(/Error while downloading session: export json error/),
                 "Dismiss",
             );
         });
@@ -407,8 +405,7 @@ describe("LogbookDialogComponent", (): void => {
         it("should call respective service method with the given sessionId", async (): Promise<void> => {
             // arrange
             summaries$.next(SESSIONS);
-            dataRecorderSpy.exportSessionToTcx.and.resolveTo();
-            fixture.detectChanges();
+            vi.mocked(dataRecorderSpy.exportSessionToTcx).mockResolvedValue();
 
             await component.exportToTcx(SESSIONS[0].sessionId);
 
@@ -419,14 +416,13 @@ describe("LogbookDialogComponent", (): void => {
         it("shows snackbar on exportToTcx error", async (): Promise<void> => {
             // arrange
             summaries$.next(SESSIONS);
-            dataRecorderSpy.exportSessionToTcx.and.rejectWith(new Error("export tcx error"));
-            fixture.detectChanges();
+            vi.mocked(dataRecorderSpy.exportSessionToTcx).mockRejectedValue(new Error("export tcx error"));
 
             await component.exportToTcx(SESSIONS[0].sessionId);
 
             // assert
             expect(snackBarSpy.open).toHaveBeenCalledWith(
-                jasmine.stringMatching(/Error while downloading session: export tcx error/),
+                expect.stringMatching(/Error while downloading session: export tcx error/),
                 "Dismiss",
             );
         });
@@ -435,8 +431,7 @@ describe("LogbookDialogComponent", (): void => {
     describe("exportToCsv method", (): void => {
         it("should call respective service method with the given sessionId", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-            dataRecorderSpy.exportSessionToCsv.and.resolveTo();
-            fixture.detectChanges();
+            vi.mocked(dataRecorderSpy.exportSessionToCsv).mockResolvedValue();
 
             await component.exportToCsv(SESSIONS[0].sessionId);
 
@@ -445,97 +440,91 @@ describe("LogbookDialogComponent", (): void => {
 
         it("shows snackbar on exportToCsv error", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-            dataRecorderSpy.exportSessionToCsv.and.rejectWith(new Error("export csv error"));
-            fixture.detectChanges();
+            vi.mocked(dataRecorderSpy.exportSessionToCsv).mockRejectedValue(new Error("export csv error"));
 
             await component.exportToCsv(SESSIONS[0].sessionId);
 
             expect(snackBarSpy.open).toHaveBeenCalledWith(
-                jasmine.stringMatching(/Error while downloading session: export csv error/),
+                expect.stringMatching(/Error while downloading session: export csv error/),
                 "Dismiss",
             );
         });
     });
 
     describe("deleteSession method", (): void => {
-        it("should open confirm snackbar when delete button clicked", (): void => {
+        it("should open confirm snackbar when delete button clicked", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const deleteButton = fixture.nativeElement.querySelector("mat-row .delete-button");
             deleteButton.click();
 
             expect(snackBarSpy.openFromComponent).toHaveBeenCalledWith(
                 SnackBarConfirmComponent,
-                jasmine.objectContaining({
+                expect.objectContaining({
                     data: { text: "Are sure you want to delete?", confirm: "Yes" },
                 }),
             );
         });
 
-        it("should call dataRecorder.deleteSession after user confirms", (): void => {
+        it("should call dataRecorder.deleteSession after user confirms", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-            fixture.detectChanges();
-            dataRecorderSpy.deleteSession.and.returnValue(
-                Promise.resolve([1, 1, 1, 1] as [number, number, number, number]),
-            );
+            await fixture.whenStable();
+            vi.mocked(dataRecorderSpy.deleteSession).mockResolvedValue([1, 1, 1, 1]);
 
             const deleteButton = fixture.nativeElement.querySelector("mat-row .delete-button");
             deleteButton.click();
-            const mockConfirmRef = snackBarSpy.openFromComponent.calls.mostRecent().returnValue;
-            mockConfirmRef.onAction().subscribe(); // trigger the confirmation
+            const lastCallResult = vi.mocked(snackBarSpy.openFromComponent).mock.results[
+                vi.mocked(snackBarSpy.openFromComponent).mock.results.length - 1
+            ];
+            const mockConfirmRef = lastCallResult?.value as MatSnackBarRef<SnackBarConfirmComponent>;
+            if (mockConfirmRef) {
+                mockConfirmRef.onAction().subscribe(); // trigger the confirmation
+            }
 
             expect(dataRecorderSpy.deleteSession).toHaveBeenCalledWith(SESSIONS[0].sessionId);
         });
 
         it("should show success snackbar after successful deletion", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-            fixture.detectChanges();
-            dataRecorderSpy.deleteSession.and.returnValue(
+            await fixture.whenStable();
+            vi.mocked(dataRecorderSpy.deleteSession).mockReturnValue(
                 Promise.resolve([1, 1, 1, 1] as [number, number, number, number]),
             );
 
             const deleteButton = fixture.nativeElement.querySelector("mat-row .delete-button");
             deleteButton.click();
-            const mockConfirmRef = snackBarSpy.openFromComponent.calls.mostRecent().returnValue;
+            const lastCallResult = vi.mocked(snackBarSpy.openFromComponent).mock.results[
+                vi.mocked(snackBarSpy.openFromComponent).mock.results.length - 1
+            ];
+            const mockConfirmRef = lastCallResult?.value as MatSnackBarRef<SnackBarConfirmComponent>;
 
-            // trigger the confirmation and wait for completion
-            await new Promise<void>((resolve: () => void): void => {
-                mockConfirmRef.onAction().subscribe({
-                    next: (): void => resolve(),
-                    error: (): void => resolve(),
-                });
-            });
-
+            await firstValueFrom(mockConfirmRef.onAction());
             await fixture.whenStable();
 
             expect(snackBarSpy.open).toHaveBeenCalledWith(
-                jasmine.stringMatching(/Session ".*" was deleted/),
+                expect.stringMatching(/Session ".*" was deleted/),
                 "Dismiss",
             );
         });
 
         it("should show error snackbar if deletion fails", async (): Promise<void> => {
             summaries$.next(SESSIONS);
-            fixture.detectChanges();
-            dataRecorderSpy.deleteSession.and.rejectWith(new Error("Delete failed"));
+            await fixture.whenStable();
+            vi.mocked(dataRecorderSpy.deleteSession).mockRejectedValue(new Error("Delete failed"));
 
             const deleteButton = fixture.nativeElement.querySelector("mat-row .delete-button");
             deleteButton.click();
-            const mockConfirmRef = snackBarSpy.openFromComponent.calls.mostRecent().returnValue;
+            const lastCallResult = vi.mocked(snackBarSpy.openFromComponent).mock.results[
+                vi.mocked(snackBarSpy.openFromComponent).mock.results.length - 1
+            ];
+            const mockConfirmRef = lastCallResult?.value as MatSnackBarRef<SnackBarConfirmComponent>;
 
-            // trigger the confirmation and wait for completion
-            await new Promise<void>((resolve: () => void): void => {
-                mockConfirmRef.onAction().subscribe({
-                    next: (): void => resolve(),
-                    error: (): void => resolve(),
-                });
-            });
-
+            await firstValueFrom(mockConfirmRef.onAction());
             await fixture.whenStable();
 
             expect(snackBarSpy.open).toHaveBeenCalledWith(
-                jasmine.stringMatching(/An error occurred while deleting session ".*"/),
+                expect.stringMatching(/An error occurred while deleting session ".*"/),
                 "Dismiss",
             );
         });
@@ -543,28 +532,25 @@ describe("LogbookDialogComponent", (): void => {
 
     describe("export method", (): void => {
         it("should call DataRecorderService.export with progress callback", async (): Promise<void> => {
-            fixture.detectChanges();
-
             const exportButton = fixture.nativeElement.querySelector("[mat-dialog-actions] button");
             expect(exportButton).not.toBeNull();
             expect(exportButton.textContent.trim()).toBe("Export");
             exportButton.click();
 
-            expect(dataRecorderSpy.export).toHaveBeenCalledWith(jasmine.any(Function));
+            expect(dataRecorderSpy.export).toHaveBeenCalledWith(expect.any(Function));
         });
 
-        it("should show progress bar while exporting and disable buttons", (): void => {
+        it("should show progress bar while exporting and disable buttons", async (): Promise<void> => {
             const exportPromise = new Promise<void>((resolve: () => void): void => {
                 // keep resolve available but unused for this test
                 void resolve;
             });
-            dataRecorderSpy.export.and.returnValue(exportPromise);
-            fixture.detectChanges();
+            vi.mocked(dataRecorderSpy.export).mockReturnValue(exportPromise);
 
             const exportButton = fixture.nativeElement.querySelector("[mat-dialog-actions] button");
             expect(exportButton.textContent.trim()).toBe("Export");
             exportButton.click();
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const progressBar = fixture.nativeElement.querySelector("mat-progress-bar");
             expect(progressBar).not.toBeNull();
@@ -578,8 +564,6 @@ describe("LogbookDialogComponent", (): void => {
 
         describe("on export success", (): void => {
             it("should show success snackbar", async (): Promise<void> => {
-                fixture.detectChanges();
-
                 const exportButton = fixture.nativeElement.querySelector("[mat-dialog-actions] button");
                 exportButton.click();
                 await fixture.whenStable();
@@ -588,14 +572,15 @@ describe("LogbookDialogComponent", (): void => {
             });
 
             it("should hide progress bar", async (): Promise<void> => {
-                fixture.detectChanges();
-
                 const exportButton = fixture.nativeElement.querySelector("[mat-dialog-actions] button");
                 exportButton.click();
                 await fixture.whenStable();
 
                 // simulate snackbar afterDismissed
-                const mockSnackBarRef = snackBarSpy.open.calls.mostRecent().returnValue;
+                const lastCallResult = vi.mocked(snackBarSpy.open).mock.results[
+                    vi.mocked(snackBarSpy.open).mock.results.length - 1
+                ];
+                const mockSnackBarRef = lastCallResult?.value as MatSnackBarRef<TextOnlySnackBar>;
                 mockSnackBarRef.afterDismissed().subscribe();
 
                 expect(component.importExportProgress()).toBeUndefined();
@@ -604,8 +589,7 @@ describe("LogbookDialogComponent", (): void => {
 
         describe("on export error", (): void => {
             it("should show failure snackbar", async (): Promise<void> => {
-                dataRecorderSpy.export.and.rejectWith(new Error("Export failed"));
-                fixture.detectChanges();
+                vi.mocked(dataRecorderSpy.export).mockRejectedValue(new Error("Export failed"));
 
                 const exportButton = fixture.nativeElement.querySelector("[mat-dialog-actions] button");
                 exportButton.click();
@@ -617,15 +601,17 @@ describe("LogbookDialogComponent", (): void => {
             });
 
             it("should hide progress bar", async (): Promise<void> => {
-                dataRecorderSpy.export.and.rejectWith(new Error("Export failed"));
-                fixture.detectChanges();
+                vi.mocked(dataRecorderSpy.export).mockRejectedValue(new Error("Export failed"));
 
                 const exportButton = fixture.nativeElement.querySelector("[mat-dialog-actions] button");
                 exportButton.click();
                 await fixture.whenStable();
 
                 // simulate snackbar afterDismissed
-                const mockSnackBarRef = snackBarSpy.open.calls.mostRecent().returnValue;
+                const lastCallResult = vi.mocked(snackBarSpy.open).mock.results[
+                    vi.mocked(snackBarSpy.open).mock.results.length - 1
+                ];
+                const mockSnackBarRef = lastCallResult?.value as MatSnackBarRef<TextOnlySnackBar>;
                 mockSnackBarRef.afterDismissed().subscribe();
 
                 expect(component.importExportProgress()).toBeUndefined();
@@ -635,9 +621,10 @@ describe("LogbookDialogComponent", (): void => {
 
     describe("import method", (): void => {
         it("should open file picker when Import clicked", (): void => {
-            fixture.detectChanges();
             const fileInput = fixture.nativeElement.querySelector("input[type='file']");
-            spyOn(fileInput, "click");
+            vi.spyOn(fileInput, "click").mockImplementation((): void => {
+                // no-op
+            });
 
             const importButton = fixture.nativeElement.querySelector(
                 "[mat-dialog-actions] button:nth-child(2)",
@@ -650,7 +637,6 @@ describe("LogbookDialogComponent", (): void => {
 
         it("should call DataRecorderService.import with selected file and progress callback", async (): Promise<void> => {
             const mockFile = new File(["test content"], "test.csv", { type: "text/csv" });
-            fixture.detectChanges();
 
             const fileInput = fixture.nativeElement.querySelector("input[type='file']");
             Object.defineProperty(fileInput, "files", {
@@ -661,13 +647,12 @@ describe("LogbookDialogComponent", (): void => {
             fileInput.dispatchEvent(new Event("change"));
             await fixture.whenStable();
 
-            expect(dataRecorderSpy.import).toHaveBeenCalledWith(mockFile, jasmine.any(Function));
+            expect(dataRecorderSpy.import).toHaveBeenCalledWith(mockFile, expect.any(Function));
         });
 
         describe("on import success", (): void => {
             it("should show success snackbar", async (): Promise<void> => {
                 const mockFile = new File(["test content"], "test.csv", { type: "text/csv" });
-                fixture.detectChanges();
 
                 const fileInput = fixture.nativeElement.querySelector("input[type='file']");
                 Object.defineProperty(fileInput, "files", {
@@ -683,7 +668,6 @@ describe("LogbookDialogComponent", (): void => {
 
             it("should clear progress after success", async (): Promise<void> => {
                 const mockFile = new File(["test content"], "test.csv", { type: "text/csv" });
-                fixture.detectChanges();
 
                 const fileInput = fixture.nativeElement.querySelector("input[type='file']");
                 Object.defineProperty(fileInput, "files", {
@@ -695,7 +679,10 @@ describe("LogbookDialogComponent", (): void => {
                 await fixture.whenStable();
 
                 // simulate snackbar afterDismissed
-                const mockSnackBarRef = snackBarSpy.open.calls.mostRecent().returnValue;
+                const lastCallResult = vi.mocked(snackBarSpy.open).mock.results[
+                    vi.mocked(snackBarSpy.open).mock.results.length - 1
+                ];
+                const mockSnackBarRef = lastCallResult?.value as MatSnackBarRef<TextOnlySnackBar>;
                 mockSnackBarRef.afterDismissed().subscribe();
 
                 expect(component.importExportProgress()).toBeUndefined();
@@ -705,8 +692,7 @@ describe("LogbookDialogComponent", (): void => {
         describe("on import error", (): void => {
             it("should show failure snackbar", async (): Promise<void> => {
                 const mockFile = new File(["test content"], "test.csv", { type: "text/csv" });
-                dataRecorderSpy.import.and.rejectWith(new Error("Import failed"));
-                fixture.detectChanges();
+                vi.mocked(dataRecorderSpy.import).mockRejectedValue(new Error("Import failed"));
 
                 const fileInput = fixture.nativeElement.querySelector("input[type='file']");
                 Object.defineProperty(fileInput, "files", {
@@ -724,8 +710,7 @@ describe("LogbookDialogComponent", (): void => {
 
             it("should clear progress", async (): Promise<void> => {
                 const mockFile = new File(["test content"], "test.csv", { type: "text/csv" });
-                dataRecorderSpy.import.and.rejectWith(new Error("Import failed"));
-                fixture.detectChanges();
+                vi.mocked(dataRecorderSpy.import).mockRejectedValue(new Error("Import failed"));
 
                 const fileInput = fixture.nativeElement.querySelector("input[type='file']");
                 Object.defineProperty(fileInput, "files", {
@@ -737,7 +722,10 @@ describe("LogbookDialogComponent", (): void => {
                 await fixture.whenStable();
 
                 // simulate snackbar afterDismissed
-                const mockSnackBarRef = snackBarSpy.open.calls.mostRecent().returnValue;
+                const lastCallResult = vi.mocked(snackBarSpy.open).mock.results[
+                    vi.mocked(snackBarSpy.open).mock.results.length - 1
+                ];
+                const mockSnackBarRef = lastCallResult?.value as MatSnackBarRef<TextOnlySnackBar>;
                 mockSnackBarRef.afterDismissed().subscribe();
 
                 expect(component.importExportProgress()).toBeUndefined();
@@ -745,7 +733,6 @@ describe("LogbookDialogComponent", (): void => {
         });
 
         it("should do nothing when no file is selected", (): void => {
-            fixture.detectChanges();
             const fileInput = fixture.nativeElement.querySelector("input[type='file']");
             Object.defineProperty(fileInput, "files", {
                 value: [],

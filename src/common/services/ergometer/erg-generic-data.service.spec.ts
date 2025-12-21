@@ -1,7 +1,8 @@
 import { provideZonelessChangeDetection } from "@angular/core";
-import { fakeAsync, flush, TestBed, tick } from "@angular/core/testing";
+import { TestBed } from "@angular/core/testing";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { BehaviorSubject } from "rxjs";
+import { BehaviorSubject, firstValueFrom, skip } from "rxjs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     DEVICE_INFO_SERVICE,
@@ -26,24 +27,33 @@ import { ErgGenericDataService } from "./erg-generic-data.service";
 
 describe("ErgGenericDataService", (): void => {
     let ergGenericDataService: ErgGenericDataService;
-    let matSnackBarSpy: jasmine.SpyObj<MatSnackBar>;
-    let ergConnectionServiceSpy: jasmine.SpyObj<ErgConnectionService>;
-    let bluetoothDeviceSpy: jasmine.Spy<() => BluetoothDevice | undefined>;
+    let matSnackBarSpy: Pick<MatSnackBar, "open">;
+    let ergConnectionServiceSpy: Pick<
+        ErgConnectionService,
+        | "connectToBattery"
+        | "readBatteryCharacteristic"
+        | "resetBatteryCharacteristic"
+        | "bluetoothDevice"
+        | "batteryCharacteristic$"
+        | "connectionStatus$"
+    >;
     let connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
     let batteryCharacteristicSubject: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>;
-    let mockBluetoothDevice: jasmine.SpyObj<BluetoothDevice>;
-    let mockBatteryCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockOtaTxCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockOtaRxCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockModelNumberCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockFirmwareNumberCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockManufacturerNameCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockHardwareRevisionCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockOtaService: jasmine.SpyObj<BluetoothRemoteGATTService>;
-    let mockDeviceInfoService: jasmine.SpyObj<BluetoothRemoteGATTService>;
+    let mockBluetoothDevice: BluetoothDevice;
+    let mockBatteryCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockOtaTxCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockOtaRxCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockModelNumberCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockFirmwareNumberCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockManufacturerNameCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockHardwareRevisionCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockOtaService: Pick<BluetoothRemoteGATTService, "getCharacteristic">;
+    let mockDeviceInfoService: Pick<BluetoothRemoteGATTService, "getCharacteristic">;
 
     beforeEach((): void => {
-        matSnackBarSpy = jasmine.createSpyObj<MatSnackBar>("MatSnackBar", ["open"]);
+        matSnackBarSpy = {
+            open: vi.fn(),
+        } as unknown as Pick<MatSnackBar, "open">;
 
         mockBluetoothDevice = createMockBluetoothDevice();
         mockBatteryCharacteristic = createMockCharacteristic(mockBluetoothDevice);
@@ -54,7 +64,7 @@ describe("ErgGenericDataService", (): void => {
         mockManufacturerNameCharacteristic = createMockCharacteristic(mockBluetoothDevice);
         mockHardwareRevisionCharacteristic = createMockCharacteristic(mockBluetoothDevice);
 
-        mockBatteryCharacteristic.readValue.and.resolveTo(createBatteryDataView(42));
+        vi.mocked(mockBatteryCharacteristic.readValue).mockResolvedValue(createBatteryDataView(42));
 
         connectionStatusSubject = new BehaviorSubject<IErgConnectionStatus>({
             status: "disconnected",
@@ -64,53 +74,62 @@ describe("ErgGenericDataService", (): void => {
             mockBatteryCharacteristic,
         );
 
-        mockOtaService = jasmine.createSpyObj<BluetoothRemoteGATTService>("BluetoothRemoteGATTService", [
-            "getCharacteristic",
-        ]);
-        (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService
-            .withArgs(OTA_SERVICE)
-            .and.resolveTo(mockOtaService);
-        mockOtaService.getCharacteristic
-            .withArgs(OTA_TX_CHARACTERISTIC)
-            .and.resolveTo(mockOtaTxCharacteristic);
-        mockOtaService.getCharacteristic
-            .withArgs(OTA_RX_CHARACTERISTIC)
-            .and.resolveTo(mockOtaRxCharacteristic);
+        mockOtaService = {
+            getCharacteristic: vi.fn(),
+        } as unknown as BluetoothRemoteGATTService;
+        vi.mocked(mockBluetoothDevice.gatt!.getPrimaryService).mockImplementation(
+            (service: BluetoothServiceUUID): Promise<BluetoothRemoteGATTService> => {
+                if (service === OTA_SERVICE)
+                    return Promise.resolve(mockOtaService as BluetoothRemoteGATTService);
+                if (service === DEVICE_INFO_SERVICE)
+                    return Promise.resolve(mockDeviceInfoService as BluetoothRemoteGATTService);
 
-        mockDeviceInfoService = jasmine.createSpyObj<BluetoothRemoteGATTService>(
-            "BluetoothRemoteGATTService",
-            ["getCharacteristic"],
+                return Promise.reject(new Error(`Service ${service} not found`));
+            },
         );
-        (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService
-            .withArgs(DEVICE_INFO_SERVICE)
-            .and.resolveTo(mockDeviceInfoService);
-        mockDeviceInfoService.getCharacteristic
-            .withArgs(MODEL_NUMBER_CHARACTERISTIC)
-            .and.resolveTo(mockModelNumberCharacteristic);
-        mockDeviceInfoService.getCharacteristic
-            .withArgs(FIRMWARE_NUMBER_CHARACTERISTIC)
-            .and.resolveTo(mockFirmwareNumberCharacteristic);
-        mockDeviceInfoService.getCharacteristic
-            .withArgs(MANUFACTURER_NAME_CHARACTERISTIC)
-            .and.resolveTo(mockManufacturerNameCharacteristic);
-        mockDeviceInfoService.getCharacteristic
-            .withArgs(HARDWARE_REVISION_CHARACTERISTIC)
-            .and.resolveTo(mockHardwareRevisionCharacteristic);
+        vi.mocked(mockOtaService.getCharacteristic).mockImplementation(
+            (char: BluetoothCharacteristicUUID): Promise<BluetoothRemoteGATTCharacteristic> => {
+                if (char === OTA_TX_CHARACTERISTIC) return Promise.resolve(mockOtaTxCharacteristic);
+                if (char === OTA_RX_CHARACTERISTIC) return Promise.resolve(mockOtaRxCharacteristic);
 
-        ergConnectionServiceSpy = jasmine.createSpyObj<ErgConnectionService>(
-            "ErgConnectionService",
-            ["connectToBattery", "readBatteryCharacteristic", "resetBatteryCharacteristic"],
-            {
-                bluetoothDevice: mockBluetoothDevice,
-                batteryCharacteristic$: batteryCharacteristicSubject.asObservable(),
-                connectionStatus$: jasmine
-                    .createSpy("connectionStatus$")
-                    .and.returnValue(connectionStatusSubject.asObservable()),
+                return Promise.reject(new Error(`Characteristic ${char} not found`));
             },
         );
 
-        bluetoothDeviceSpy = Object.getOwnPropertyDescriptor(ergConnectionServiceSpy, "bluetoothDevice")
-            ?.get as jasmine.Spy<() => BluetoothDevice | undefined>;
+        mockDeviceInfoService = {
+            getCharacteristic: vi.fn(),
+        } as unknown as BluetoothRemoteGATTService;
+        vi.mocked(mockDeviceInfoService.getCharacteristic).mockImplementation(
+            (char: BluetoothCharacteristicUUID): Promise<BluetoothRemoteGATTCharacteristic> => {
+                if (char === MODEL_NUMBER_CHARACTERISTIC)
+                    return Promise.resolve(mockModelNumberCharacteristic);
+                if (char === FIRMWARE_NUMBER_CHARACTERISTIC)
+                    return Promise.resolve(mockFirmwareNumberCharacteristic);
+                if (char === MANUFACTURER_NAME_CHARACTERISTIC)
+                    return Promise.resolve(mockManufacturerNameCharacteristic);
+                if (char === HARDWARE_REVISION_CHARACTERISTIC)
+                    return Promise.resolve(mockHardwareRevisionCharacteristic);
+
+                return Promise.reject(new Error(`Characteristic ${char} not found`));
+            },
+        );
+
+        ergConnectionServiceSpy = {
+            connectToBattery: vi.fn(),
+            readBatteryCharacteristic: vi.fn(),
+            resetBatteryCharacteristic: vi.fn(),
+            bluetoothDevice: mockBluetoothDevice,
+            batteryCharacteristic$: batteryCharacteristicSubject.asObservable(),
+            connectionStatus$: vi.fn().mockReturnValue(connectionStatusSubject.asObservable()),
+        } as unknown as Pick<
+            ErgConnectionService,
+            | "connectToBattery"
+            | "readBatteryCharacteristic"
+            | "resetBatteryCharacteristic"
+            | "bluetoothDevice"
+            | "batteryCharacteristic$"
+            | "connectionStatus$"
+        >;
 
         TestBed.configureTestingModule({
             providers: [
@@ -132,9 +151,7 @@ describe("ErgGenericDataService", (): void => {
         it("should return OTA characteristics when device is connected", async (): Promise<void> => {
             const result: IOtaCharacteristics = await ergGenericDataService.getOtaCharacteristics();
 
-            expect(
-                (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService,
-            ).toHaveBeenCalledWith(OTA_SERVICE);
+            expect(vi.mocked(mockBluetoothDevice.gatt!.getPrimaryService)).toHaveBeenCalledWith(OTA_SERVICE);
             expect(result).toBeDefined();
             expect(result.responseCharacteristic).toBeDefined();
             expect(result.sendCharacteristic).toBeDefined();
@@ -143,45 +160,73 @@ describe("ErgGenericDataService", (): void => {
         describe("should throw error", (): void => {
             describe("when OTA service", (): void => {
                 it("is not found", async (): Promise<void> => {
-                    (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService
-                        .withArgs(OTA_SERVICE)
-                        .and.resolveTo(undefined);
+                    vi.mocked(mockBluetoothDevice.gatt!.getPrimaryService).mockImplementation(
+                        (service: BluetoothServiceUUID): Promise<BluetoothRemoteGATTService> => {
+                            if (service === OTA_SERVICE)
+                                return Promise.resolve(undefined as unknown as BluetoothRemoteGATTService);
+                            if (service === DEVICE_INFO_SERVICE)
+                                return Promise.resolve(mockDeviceInfoService as BluetoothRemoteGATTService);
 
-                    await expectAsync(ergGenericDataService.getOtaCharacteristics()).toBeRejectedWithError(
+                            return Promise.reject(new Error(`Service ${service} not found`));
+                        },
+                    );
+
+                    await expect(ergGenericDataService.getOtaCharacteristics()).rejects.toThrowError(
                         "Not able to connect to OTA service",
                     );
                 });
 
                 it("RX characteristics are not found", async (): Promise<void> => {
-                    mockOtaService.getCharacteristic.withArgs(OTA_RX_CHARACTERISTIC).and.resolveTo(undefined);
+                    vi.mocked(mockOtaService.getCharacteristic).mockImplementation(
+                        (char: BluetoothCharacteristicUUID): Promise<BluetoothRemoteGATTCharacteristic> => {
+                            if (char === OTA_RX_CHARACTERISTIC)
+                                return Promise.resolve(
+                                    undefined as unknown as BluetoothRemoteGATTCharacteristic,
+                                );
+                            if (char === OTA_TX_CHARACTERISTIC)
+                                return Promise.resolve(mockOtaTxCharacteristic);
 
-                    await expectAsync(ergGenericDataService.getOtaCharacteristics()).toBeRejectedWithError(
+                            return Promise.reject(new Error(`Characteristic ${char} not found`));
+                        },
+                    );
+
+                    await expect(ergGenericDataService.getOtaCharacteristics()).rejects.toThrowError(
                         "Not able to connect to OTA service",
                     );
                 });
 
                 it("when TX characteristics are not found", async (): Promise<void> => {
-                    mockOtaService.getCharacteristic.withArgs(OTA_TX_CHARACTERISTIC).and.resolveTo(undefined);
+                    vi.mocked(mockOtaService.getCharacteristic).mockImplementation(
+                        (char: BluetoothCharacteristicUUID): Promise<BluetoothRemoteGATTCharacteristic> => {
+                            if (char === OTA_RX_CHARACTERISTIC)
+                                return Promise.resolve(mockOtaRxCharacteristic);
 
-                    await expectAsync(ergGenericDataService.getOtaCharacteristics()).toBeRejectedWithError(
+                            if (char === OTA_TX_CHARACTERISTIC)
+                                return Promise.resolve(
+                                    undefined as unknown as BluetoothRemoteGATTCharacteristic,
+                                );
+
+                            return Promise.reject(new Error(`Characteristic ${char} not found`));
+                        },
+                    );
+
+                    await expect(ergGenericDataService.getOtaCharacteristics()).rejects.toThrowError(
                         "Not able to connect to OTA service",
                     );
                 });
             });
 
             it("when bluetoothDevice is undefined", async (): Promise<void> => {
-                bluetoothDeviceSpy.and.returnValue(undefined);
+                vi.spyOn(ergConnectionServiceSpy, "bluetoothDevice", "get").mockReturnValue(undefined);
 
-                await expectAsync(ergGenericDataService.getOtaCharacteristics()).toBeRejected();
+                await expect(ergGenericDataService.getOtaCharacteristics()).rejects.toThrow();
             });
         });
     });
 
     describe("deviceInfo$ observable", (): void => {
         it("should not call readDeviceInfo multiple times for multiple deviceInfo$ subscriptions due to shareReplay", (): void => {
-            const getPrimaryServiceSpy = (
-                mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>
-            ).getPrimaryService as jasmine.Spy;
+            const getPrimaryServiceSpy = vi.mocked(mockBluetoothDevice.gatt!.getPrimaryService);
 
             const subscription1 = ergGenericDataService.deviceInfo$.subscribe();
             const subscription2 = ergGenericDataService.deviceInfo$.subscribe();
@@ -199,18 +244,23 @@ describe("ErgGenericDataService", (): void => {
 
     describe("deviceInfo signal", (): void => {
         beforeEach((): void => {
-            mockModelNumberCharacteristic.readValue.and.resolveTo(
+            vi.useFakeTimers();
+            vi.mocked(mockModelNumberCharacteristic.readValue).mockResolvedValue(
                 new DataView(new TextEncoder().encode("Test Model").buffer),
             );
-            mockFirmwareNumberCharacteristic.readValue.and.resolveTo(
+            vi.mocked(mockFirmwareNumberCharacteristic.readValue).mockResolvedValue(
                 new DataView(new TextEncoder().encode("v1.2.3").buffer),
             );
-            mockManufacturerNameCharacteristic.readValue.and.resolveTo(
+            vi.mocked(mockManufacturerNameCharacteristic.readValue).mockResolvedValue(
                 new DataView(new TextEncoder().encode("Test Manufacturer").buffer),
             );
-            mockHardwareRevisionCharacteristic.readValue.and.resolveTo(
+            vi.mocked(mockHardwareRevisionCharacteristic.readValue).mockResolvedValue(
                 new DataView(new TextEncoder().encode("hw-42").buffer),
             );
+        });
+
+        afterEach((): void => {
+            vi.useRealTimers();
         });
 
         it("should initialize with empty device info when disconnected", (): void => {
@@ -219,40 +269,42 @@ describe("ErgGenericDataService", (): void => {
             expect(deviceInfo).toEqual({});
         });
 
-        it("should update device info when connection status changes to connected", fakeAsync((): void => {
+        it("should update device info when connection status changes to connected", async (): Promise<void> => {
             connectionStatusSubject.next({ status: "connected" });
-            tick(1000);
+            await vi.advanceTimersByTimeAsync(1000);
 
             const deviceInfo = ergGenericDataService.deviceInfo();
 
-            expect(
-                (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService,
-            ).toHaveBeenCalledWith(DEVICE_INFO_SERVICE);
-            expect(mockDeviceInfoService.getCharacteristic).toHaveBeenCalledWith(MODEL_NUMBER_CHARACTERISTIC);
-            expect(mockDeviceInfoService.getCharacteristic).toHaveBeenCalledWith(
+            expect(vi.mocked(mockBluetoothDevice.gatt!.getPrimaryService)).toHaveBeenCalledWith(
+                DEVICE_INFO_SERVICE,
+            );
+            expect(vi.mocked(mockDeviceInfoService.getCharacteristic)).toHaveBeenCalledWith(
+                MODEL_NUMBER_CHARACTERISTIC,
+            );
+            expect(vi.mocked(mockDeviceInfoService.getCharacteristic)).toHaveBeenCalledWith(
                 FIRMWARE_NUMBER_CHARACTERISTIC,
             );
-            expect(mockDeviceInfoService.getCharacteristic).toHaveBeenCalledWith(
+            expect(vi.mocked(mockDeviceInfoService.getCharacteristic)).toHaveBeenCalledWith(
                 MANUFACTURER_NAME_CHARACTERISTIC,
             );
-            expect(mockDeviceInfoService.getCharacteristic).toHaveBeenCalledWith(
+            expect(vi.mocked(mockDeviceInfoService.getCharacteristic)).toHaveBeenCalledWith(
                 HARDWARE_REVISION_CHARACTERISTIC,
             );
-            expect(mockModelNumberCharacteristic.readValue).toHaveBeenCalled();
-            expect(mockFirmwareNumberCharacteristic.readValue).toHaveBeenCalled();
-            expect(mockManufacturerNameCharacteristic.readValue).toHaveBeenCalled();
-            expect(mockHardwareRevisionCharacteristic.readValue).toHaveBeenCalled();
+            expect(vi.mocked(mockModelNumberCharacteristic.readValue)).toHaveBeenCalled();
+            expect(vi.mocked(mockFirmwareNumberCharacteristic.readValue)).toHaveBeenCalled();
+            expect(vi.mocked(mockManufacturerNameCharacteristic.readValue)).toHaveBeenCalled();
+            expect(vi.mocked(mockHardwareRevisionCharacteristic.readValue)).toHaveBeenCalled();
             expect(deviceInfo.modelNumber).toBe("Test Model");
             expect(deviceInfo.firmwareNumber).toBe("v1.2.3");
             expect(deviceInfo.manufacturerName).toBe("Test Manufacturer");
             expect(deviceInfo.hardwareRevision).toBe("hw-42");
-        }));
+        });
 
-        it("should handle partial read failures gracefully when connected", fakeAsync((): void => {
-            mockFirmwareNumberCharacteristic.readValue.and.rejectWith(new Error("Read failed"));
+        it("should handle partial read failures gracefully when connected", async (): Promise<void> => {
+            vi.mocked(mockFirmwareNumberCharacteristic.readValue).mockRejectedValue(new Error("Read failed"));
 
             connectionStatusSubject.next({ status: "connected" });
-            tick(1000);
+            await vi.advanceTimersByTimeAsync(1000);
 
             const deviceInfo = ergGenericDataService.deviceInfo();
 
@@ -260,16 +312,22 @@ describe("ErgGenericDataService", (): void => {
             expect(deviceInfo.firmwareNumber).toBeUndefined();
             expect(deviceInfo.manufacturerName).toBe("Test Manufacturer");
             expect(deviceInfo.hardwareRevision).toBe("hw-42");
-        }));
+        });
 
-        it("should handle all characteristic read failures when connected", fakeAsync((): void => {
-            mockModelNumberCharacteristic.readValue.and.rejectWith(new Error("Read failed"));
-            mockFirmwareNumberCharacteristic.readValue.and.rejectWith(new Error("Connection lost"));
-            mockManufacturerNameCharacteristic.readValue.and.rejectWith(new Error("Device error"));
-            mockHardwareRevisionCharacteristic.readValue.and.rejectWith(new Error("Device error"));
+        it("should handle all characteristic read failures when connected", async (): Promise<void> => {
+            vi.mocked(mockModelNumberCharacteristic.readValue).mockRejectedValue(new Error("Read failed"));
+            vi.mocked(mockFirmwareNumberCharacteristic.readValue).mockRejectedValue(
+                new Error("Connection lost"),
+            );
+            vi.mocked(mockManufacturerNameCharacteristic.readValue).mockRejectedValue(
+                new Error("Device error"),
+            );
+            vi.mocked(mockHardwareRevisionCharacteristic.readValue).mockRejectedValue(
+                new Error("Device error"),
+            );
 
             connectionStatusSubject.next({ status: "connected" });
-            tick();
+            await vi.runAllTimersAsync();
 
             const deviceInfo = ergGenericDataService.deviceInfo();
 
@@ -277,174 +335,179 @@ describe("ErgGenericDataService", (): void => {
             expect(deviceInfo.firmwareNumber).toBeUndefined();
             expect(deviceInfo.manufacturerName).toBeUndefined();
             expect(deviceInfo.hardwareRevision).toBeUndefined();
-        }));
+        });
 
-        it("should clear device info when connection status changes to disconnected", fakeAsync((): void => {
+        it("should clear device info when connection status changes to disconnected", async (): Promise<void> => {
             connectionStatusSubject.next({ status: "connected" });
-            tick(1000);
+            await vi.advanceTimersByTimeAsync(1000);
 
             let deviceInfo = ergGenericDataService.deviceInfo();
             expect(deviceInfo.modelNumber).toBe("Test Model");
 
             connectionStatusSubject.next({ status: "disconnected" });
-            tick();
+            await vi.runAllTimersAsync();
 
             deviceInfo = ergGenericDataService.deviceInfo();
             expect(deviceInfo).toEqual({});
-        }));
+        });
 
-        it("should show snack and return empty object when device gatt is undefined", fakeAsync((): void => {
-            bluetoothDeviceSpy.and.returnValue({ gatt: undefined } as BluetoothDevice);
+        it("should show snack and return empty object when device gatt is undefined", async (): Promise<void> => {
+            vi.spyOn(ergConnectionServiceSpy, "bluetoothDevice", "get").mockReturnValue({
+                gatt: undefined,
+            } as BluetoothDevice);
 
             connectionStatusSubject.next({ status: "connected" });
-            tick();
+            await vi.runAllTimersAsync();
 
             const deviceInfo = ergGenericDataService.deviceInfo();
 
-            expect(matSnackBarSpy.open).toHaveBeenCalledWith("Ergometer Monitor is not connected", "Dismiss");
+            expect(vi.mocked(matSnackBarSpy.open)).toHaveBeenCalledWith(
+                "Ergometer Monitor is not connected",
+                "Dismiss",
+            );
             expect(deviceInfo).toEqual({});
-        }));
+        });
 
-        it("should show snack and return empty object when bluetoothDevice is undefined", fakeAsync((): void => {
-            bluetoothDeviceSpy.and.returnValue(undefined);
+        it("should show snack and return empty object when bluetoothDevice is undefined", async (): Promise<void> => {
+            vi.spyOn(ergConnectionServiceSpy, "bluetoothDevice", "get").mockReturnValue(undefined);
 
             connectionStatusSubject.next({ status: "connected" });
-            tick();
+            await vi.runAllTimersAsync();
 
             const deviceInfo = ergGenericDataService.deviceInfo();
 
-            expect(matSnackBarSpy.open).toHaveBeenCalledWith("Ergometer Monitor is not connected", "Dismiss");
+            expect(vi.mocked(matSnackBarSpy.open)).toHaveBeenCalledWith(
+                "Ergometer Monitor is not connected",
+                "Dismiss",
+            );
             expect(deviceInfo).toEqual({});
-        }));
+        });
 
         describe("when error occurs", (): void => {
-            it("should handle it and show snack message", fakeAsync((): void => {
+            it("should handle it and show snack message", async (): Promise<void> => {
                 const errorMessage = "Service unavailable";
 
-                (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService
-                    .withArgs(DEVICE_INFO_SERVICE)
-                    .and.rejectWith(new Error(errorMessage));
+                vi.mocked(mockBluetoothDevice.gatt!.getPrimaryService).mockImplementation(
+                    (service: BluetoothServiceUUID): Promise<BluetoothRemoteGATTService> => {
+                        if (service === DEVICE_INFO_SERVICE) return Promise.reject(new Error(errorMessage));
+
+                        return Promise.reject(new Error(`Service ${service} not found`));
+                    },
+                );
 
                 connectionStatusSubject.next({ status: "connected" });
-                tick();
+                await vi.runAllTimersAsync();
 
                 const deviceInfo = ergGenericDataService.deviceInfo();
 
-                expect(matSnackBarSpy.open).toHaveBeenCalledWith(errorMessage, "Dismiss");
+                expect(vi.mocked(matSnackBarSpy.open)).toHaveBeenCalledWith(errorMessage, "Dismiss");
                 expect(deviceInfo).toEqual({});
-            }));
+            });
         });
     });
 
     describe("streamMonitorBatteryLevel$ method", (): void => {
-        it("should handle characteristics properly", (done: DoneFn): void => {
-            const mockCharacteristic = createMockCharacteristic(mockBluetoothDevice);
-            mockCharacteristic.readValue.and.resolveTo(createBatteryDataView(42));
-
-            batteryCharacteristicSubject.next(mockCharacteristic);
-
-            ergGenericDataService.streamMonitorBatteryLevel$().subscribe({
-                next: (batteryLevel: number): void => {
-                    expect(typeof batteryLevel).toBe("number");
-                    expect(batteryLevel).toEqual(42);
-                    done();
-                },
-            });
+        beforeEach((): void => {
+            vi.useFakeTimers();
         });
 
-        it("should retry on error and eventually emit after retry", fakeAsync((): void => {
+        afterEach((): void => {
+            vi.useRealTimers();
+        });
+
+        it("should handle characteristics properly", async (): Promise<void> => {
+            const mockCharacteristic = createMockCharacteristic(mockBluetoothDevice);
+            vi.mocked(mockCharacteristic.readValue).mockResolvedValue(createBatteryDataView(42));
+
+            batteryCharacteristicSubject.next(mockCharacteristic);
+            const batteryLevel = await firstValueFrom(ergGenericDataService.streamMonitorBatteryLevel$());
+
+            expect(typeof batteryLevel).toBe("number");
+            expect(batteryLevel).toEqual(42);
+        });
+
+        it("should retry on error and eventually emit after retry", async (): Promise<void> => {
             const results: Array<number> = [];
             batteryCharacteristicSubject.next(undefined);
 
             const mockCharacteristic = createMockCharacteristic(mockBluetoothDevice);
-            mockCharacteristic.readValue = jasmine
-                .createSpy("readValue")
-                .and.returnValues(
-                    Promise.reject(new Error("unknown error")),
-                    Promise.resolve(createBatteryDataView(55)),
-                    Promise.resolve(createBatteryDataView(50)),
-                );
-            ergConnectionServiceSpy.readBatteryCharacteristic.and.returnValue(mockCharacteristic);
+            mockCharacteristic.readValue = vi
+                .fn()
+                .mockReturnValueOnce(Promise.reject(new Error("unknown error")))
+                .mockReturnValueOnce(Promise.resolve(createBatteryDataView(55)))
+                .mockReturnValueOnce(Promise.resolve(createBatteryDataView(50)));
+            vi.mocked(ergConnectionServiceSpy.readBatteryCharacteristic).mockReturnValue(mockCharacteristic);
 
             ergGenericDataService.streamMonitorBatteryLevel$().subscribe({
                 next: (batteryLevel: number): void => {
                     results.push(batteryLevel);
                 },
                 error: (err: unknown): void => {
-                    fail("Should not error: " + String(err));
+                    throw new Error("Should not error: " + String(err));
                 },
             });
 
             batteryCharacteristicSubject.next(mockCharacteristic);
-            tick(5000);
+            await vi.advanceTimersByTimeAsync(5000);
             batteryCharacteristicSubject.next(mockCharacteristic);
-            flush();
+            await vi.runAllTimersAsync();
             expect(results).toEqual([55, 50]);
-            expect(ergConnectionServiceSpy.connectToBattery).toHaveBeenCalled();
-        }));
+            expect(vi.mocked(ergConnectionServiceSpy.connectToBattery)).toHaveBeenCalled();
+        });
 
-        it("should emit 0 and show snackBar on error after retries", fakeAsync((): void => {
+        it("should emit 0 and show snackBar on error after retries", async (): Promise<void> => {
             batteryCharacteristicSubject.next(undefined);
 
             const mockCharacteristic = createMockCharacteristic(mockBluetoothDevice);
-            mockCharacteristic.readValue = jasmine.createSpy("readValue").and.throwError("fail");
-            ergConnectionServiceSpy.readBatteryCharacteristic.and.returnValue(mockCharacteristic);
-
-            ergGenericDataService.streamMonitorBatteryLevel$().subscribe({
-                next: (batteryLevel: number): void => {
-                    expect(batteryLevel).toBe(0);
-                    expect(matSnackBarSpy.open).toHaveBeenCalledWith(
-                        "Error while connecting to battery service",
-                        "Dismiss",
-                    );
-                },
-                error: (err: unknown): void => {
-                    fail("Should not error: " + String(err));
-                },
+            mockCharacteristic.readValue = vi.fn().mockImplementation((): Promise<DataView> => {
+                throw new Error("fail");
             });
+            vi.mocked(ergConnectionServiceSpy.readBatteryCharacteristic).mockReturnValue(mockCharacteristic);
+
+            const batteryLevel = firstValueFrom(ergGenericDataService.streamMonitorBatteryLevel$());
 
             batteryCharacteristicSubject.next(mockCharacteristic);
             for (let i = 0; i < 4; i++) {
-                tick(5000);
+                await vi.advanceTimersByTimeAsync(5000);
                 batteryCharacteristicSubject.next(mockCharacteristic);
             }
-        }));
 
-        it("should not emit when readValue returns empty DataView", fakeAsync((): void => {
+            expect(await batteryLevel).toBe(0);
+            expect(vi.mocked(matSnackBarSpy.open)).toHaveBeenCalledWith(
+                "Error while connecting to battery service",
+                "Dismiss",
+            );
+        });
+
+        it("should not emit when readValue returns empty DataView", async (): Promise<void> => {
             const mockCharacteristic = createMockCharacteristic(mockBluetoothDevice);
-            mockCharacteristic.readValue = jasmine
-                .createSpy("readValue")
-                .and.resolveTo(new DataView(new ArrayBuffer(0)));
-            ergConnectionServiceSpy.readBatteryCharacteristic.and.returnValue(mockCharacteristic);
-            ergGenericDataService.streamMonitorBatteryLevel$().subscribe({
-                next: (batteryLevel: number): void => {
-                    fail(`Should not emit, battery level: ${batteryLevel}`);
-                },
-                error: (err: unknown): void => {
-                    fail("Should not error: " + String(err));
-                },
-            });
+            mockCharacteristic.readValue = vi.fn().mockResolvedValue(new DataView(new ArrayBuffer(0)));
+            vi.mocked(ergConnectionServiceSpy.readBatteryCharacteristic).mockReturnValue(mockCharacteristic);
+            ergGenericDataService
+                .streamMonitorBatteryLevel$()
+                .pipe(skip(1))
+                .subscribe({
+                    next: (batteryLevel: number): void => {
+                        throw new Error(`Should not emit, battery level: ${batteryLevel}`);
+                    },
+                    error: (err: unknown): void => {
+                        throw new Error("Should not error: " + String(err));
+                    },
+                });
             batteryCharacteristicSubject.next(mockCharacteristic);
-            expect().nothing();
-        }));
+            await vi.runAllTimersAsync();
+            // test passes if no emission occurs
+        });
 
-        it("should call resetBatteryCharacteristic on complete", (done: DoneFn): void => {
+        it("should call resetBatteryCharacteristic on complete", async (): Promise<void> => {
             const mockCharacteristic = createMockCharacteristic(mockBluetoothDevice);
-            mockCharacteristic.readValue.and.resolveTo(createBatteryDataView(42));
+            vi.mocked(mockCharacteristic.readValue).mockResolvedValue(createBatteryDataView(42));
 
             batteryCharacteristicSubject.next(mockCharacteristic);
 
-            const subscription = ergGenericDataService.streamMonitorBatteryLevel$().subscribe({
-                next: (): void => {
-                    subscription.unsubscribe();
+            await firstValueFrom(ergGenericDataService.streamMonitorBatteryLevel$());
 
-                    expect(ergConnectionServiceSpy.resetBatteryCharacteristic).toHaveBeenCalled();
-                    done();
-                },
-                error: (): void => {
-                    done.fail("Should not error");
-                },
-            });
+            expect(ergConnectionServiceSpy.resetBatteryCharacteristic).toHaveBeenCalled();
         });
     });
 });

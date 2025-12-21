@@ -1,6 +1,7 @@
-import { provideZonelessChangeDetection } from "@angular/core";
-import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
-import { BehaviorSubject, of } from "rxjs";
+import { provideZonelessChangeDetection, signal } from "@angular/core";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { BehaviorSubject, Observable, of } from "rxjs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BleServiceFlag } from "../../common/ble.interfaces";
 import {
@@ -23,11 +24,15 @@ import { DashboardComponent } from "./dashboard.component";
 describe("DashboardComponent", (): void => {
     let component: DashboardComponent;
     let fixture: ComponentFixture<DashboardComponent>;
-    let metricsServiceSpy: jasmine.SpyObj<MetricsService>;
-    let ergConnectionServiceSpy: jasmine.SpyObj<ErgConnectionService>;
-    let utilsServiceSpy: jasmine.SpyObj<UtilsService>;
+    let metricsServiceSpy: Pick<
+        MetricsService,
+        "getActivityStartTime" | "allMetrics$" | "heartRateData$" | "hrConnectionStatus$"
+    >;
+    let ergConnectionServiceSpy: Pick<ErgConnectionService, "connectionStatus$">;
+    let utilsServiceSpy: Pick<UtilsService, "enableWakeLock" | "disableWakeLock">;
     let allMetricsSubject: BehaviorSubject<ICalculatedMetrics>;
     let heartRateDataSubject: BehaviorSubject<IHeartRate | undefined>;
+    let connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
 
     // test data constants
     const mockInitialMetrics: ICalculatedMetrics = {
@@ -62,37 +67,45 @@ describe("DashboardComponent", (): void => {
 
     beforeEach(async (): Promise<void> => {
         // const mocks to satisfy the imported component providers only
-        const ergGenericDataServiceSpy = jasmine.createSpyObj(
-            "ErgGenericDataService",
-            ["streamMonitorBatteryLevel$"],
-            {
-                batteryLevel$: of(50),
-            },
-        );
-        ergGenericDataServiceSpy.streamMonitorBatteryLevel$.and.returnValue(of(50));
-        const configManagerServiceSpy = jasmine.createSpyObj("ConfigManagerService", [], {
+        const ergGenericDataServiceSpy = {
+            streamMonitorBatteryLevel$: vi.fn(),
+            batteryLevel$: of(50),
+        };
+        ergGenericDataServiceSpy.streamMonitorBatteryLevel$.mockReturnValue(of(50));
+        const configManagerServiceSpy = {
             heartRateMonitorChanged$: of("off" as HeartRateMonitorMode),
-        });
-        const heartRateServiceSpy = jasmine.createSpyObj("HeartRateService", ["discover"]);
-        const ergSettingsServiceSpy = jasmine.createSpyObj("ErgSettingsService", [
-            "getSettings",
-            "saveSettings",
-        ]);
+        };
+        const heartRateServiceSpy = {
+            discover: vi.fn(),
+        };
+        const ergSettingsServiceSpy = {
+            getSettings: vi.fn(),
+            saveSettings: vi.fn(),
+            rowerSettings: signal({
+                generalSettings: BleServiceFlag.CpsService,
+            }),
+        };
 
         // actual spies used for this test
         allMetricsSubject = new BehaviorSubject<ICalculatedMetrics>(mockInitialMetrics);
         heartRateDataSubject = new BehaviorSubject<IHeartRate | undefined>(undefined);
+        connectionStatusSubject = new BehaviorSubject<IErgConnectionStatus>(mockDisconnectedStatus);
 
-        metricsServiceSpy = jasmine.createSpyObj("MetricsService", ["getActivityStartTime"], {
+        metricsServiceSpy = {
+            getActivityStartTime: vi.fn(),
             allMetrics$: allMetricsSubject.asObservable(),
             heartRateData$: heartRateDataSubject.asObservable(),
             hrConnectionStatus$: of({ status: "disconnected" } as IHRConnectionStatus),
-        });
+        };
 
-        ergConnectionServiceSpy = jasmine.createSpyObj("ErgConnectionService", ["connectionStatus$"]);
-        ergConnectionServiceSpy.connectionStatus$.and.returnValue(of(mockDisconnectedStatus));
+        ergConnectionServiceSpy = {
+            connectionStatus$: (): Observable<IErgConnectionStatus> => connectionStatusSubject.asObservable(),
+        };
 
-        utilsServiceSpy = jasmine.createSpyObj("UtilsService", ["enableWakeLock", "disableWakeLock"]);
+        utilsServiceSpy = {
+            enableWakeLock: vi.fn(),
+            disableWakeLock: vi.fn(),
+        };
 
         await TestBed.configureTestingModule({
             imports: [DashboardComponent],
@@ -122,8 +135,9 @@ describe("DashboardComponent", (): void => {
         });
 
         it("should initialize signals with correct default values", (): void => {
-            metricsServiceSpy.getActivityStartTime.and.returnValue(mockInitialMetrics.activityStartTime);
-            fixture.detectChanges();
+            vi.mocked(metricsServiceSpy.getActivityStartTime).mockReturnValue(
+                mockInitialMetrics.activityStartTime,
+            );
 
             expect(component.elapseTime()).toBe(0);
             expect(component.heartRateData()).toBeUndefined();
@@ -134,27 +148,36 @@ describe("DashboardComponent", (): void => {
     describe("elapseTime signal", (): void => {
         describe("when erg is disconnected", (): void => {
             it("should maintain initial value of 0", (): void => {
-                fixture.detectChanges();
                 expect(component.elapseTime()).toBe(0);
             });
         });
 
         describe("when erg connects", (): void => {
+            const now = Date.now();
+
             beforeEach((): void => {
-                ergConnectionServiceSpy.connectionStatus$.and.returnValue(of(mockConnectedStatus));
-                metricsServiceSpy.getActivityStartTime.and.returnValue(mockInitialMetrics.activityStartTime);
+                vi.useFakeTimers();
+                vi.setSystemTime(now);
+                vi.mocked(metricsServiceSpy.getActivityStartTime).mockReturnValue(
+                    mockInitialMetrics.activityStartTime,
+                );
             });
 
-            it("should start calculating elapsed time from activity start", fakeAsync((): void => {
-                const activityStartTime = new Date(Date.now() - 5000);
-                metricsServiceSpy.getActivityStartTime.and.returnValue(activityStartTime);
+            afterEach((): void => {
+                vi.useRealTimers();
+            });
 
-                fixture.detectChanges();
+            it("should start calculating elapsed time from activity start", async (): Promise<void> => {
+                const activityStartTime = new Date(now - 5000);
+                vi.mocked(metricsServiceSpy.getActivityStartTime).mockReturnValue(activityStartTime);
+                expect(component.elapseTime()).toBe(0);
 
-                tick(40000);
-                // component uses interval to measure time. Unfortunately testing does not work with rxjs interval operator
-                expect(component.elapseTime()).toBeGreaterThanOrEqual(0);
-            }));
+                connectionStatusSubject.next(mockConnectedStatus);
+
+                expect(component.elapseTime()).toBeCloseTo(5, 0);
+                await vi.advanceTimersByTimeAsync(2000);
+                expect(component.elapseTime()).toBeCloseTo(7, 0);
+            });
 
             it("should update when activity start time changes", (): void => {
                 const newMetrics = {
@@ -162,13 +185,10 @@ describe("DashboardComponent", (): void => {
                     activityStartTime: new Date("2024-01-01T10:05:00.000Z"),
                 };
 
-                fixture.detectChanges();
-
                 // the pairwise operator requires two emissions to detect changes
                 // but since the elapsed time signal only starts after connection,
                 // we'll just verify the component can handle metrics updates
                 allMetricsSubject.next(newMetrics);
-                fixture.detectChanges();
 
                 expect(component.rowingData().activityStartTime).toEqual(newMetrics.activityStartTime);
             });
@@ -177,18 +197,15 @@ describe("DashboardComponent", (): void => {
 
     describe("heartRateData signal", (): void => {
         it("should reflect current heart rate data from service", (): void => {
-            fixture.detectChanges();
             expect(component.heartRateData()).toBeUndefined();
 
             heartRateDataSubject.next(mockHeartRateData);
-            fixture.detectChanges();
 
             expect(component.heartRateData()).toEqual(mockHeartRateData);
         });
 
         it("should handle undefined heart rate data", (): void => {
             heartRateDataSubject.next(undefined);
-            fixture.detectChanges();
 
             expect(component.heartRateData()).toBeUndefined();
         });
@@ -196,8 +213,6 @@ describe("DashboardComponent", (): void => {
 
     describe("rowingData signal", (): void => {
         it("should initialize with default metrics values", (): void => {
-            fixture.detectChanges();
-
             expect(component.rowingData()).toEqual(mockInitialMetrics);
         });
 
@@ -209,10 +224,7 @@ describe("DashboardComponent", (): void => {
                 avgStrokePower: 250,
             };
 
-            fixture.detectChanges();
-
             allMetricsSubject.next(updatedMetrics);
-            fixture.detectChanges();
 
             expect(component.rowingData()).toEqual(updatedMetrics);
         });
@@ -222,7 +234,7 @@ describe("DashboardComponent", (): void => {
         it("should enable wake lock", async (): Promise<void> => {
             await component.ngAfterViewInit();
 
-            expect(utilsServiceSpy.enableWakeLock).toHaveBeenCalled();
+            expect(vi.mocked(utilsServiceSpy.enableWakeLock)).toHaveBeenCalled();
         });
     });
 
@@ -230,15 +242,11 @@ describe("DashboardComponent", (): void => {
         it("should disable wake lock", (): void => {
             component.ngOnDestroy();
 
-            expect(utilsServiceSpy.disableWakeLock).toHaveBeenCalled();
+            expect(vi.mocked(utilsServiceSpy.disableWakeLock)).toHaveBeenCalled();
         });
     });
 
     describe("component template integration", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
         it("should render without errors", (): void => {
             expect(fixture.nativeElement).toBeTruthy();
             expect(fixture.debugElement.query((): boolean => true)).toBeTruthy();
@@ -251,7 +259,6 @@ describe("DashboardComponent", (): void => {
                 distance: 500,
             };
             allMetricsSubject.next(updatedMetrics);
-            fixture.detectChanges();
 
             expect(component.heartRateData()).toEqual(mockHeartRateData);
             expect(component.rowingData().distance).toBe(500);
@@ -260,8 +267,6 @@ describe("DashboardComponent", (): void => {
 
     describe("error handling", (): void => {
         it("should handle service errors gracefully", (): void => {
-            fixture.detectChanges();
-
             // create a separate error subject for this test
             const errorSubject = new BehaviorSubject<ICalculatedMetrics>(mockInitialMetrics);
 
@@ -273,7 +278,6 @@ describe("DashboardComponent", (): void => {
 
     describe("memory management", (): void => {
         it("should clean up subscriptions on destroy", (): void => {
-            fixture.detectChanges();
             const destroyComponent = (): void => {
                 component.ngOnDestroy();
                 fixture.destroy();

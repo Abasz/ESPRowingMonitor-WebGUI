@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HeartRateMonitorMode } from "../common.interfaces";
 
@@ -9,22 +10,23 @@ describe("ConfigManagerService", (): void => {
     let configManagerService: ConfigManagerService;
 
     const withSecureContextAndBluetooth = (): void => {
-        spyOnProperty(globalThis, "isSecureContext", "get").and.returnValue(true);
-        spyOnProperty(globalThis, "navigator", "get").and.returnValue({
+        vi.spyOn(globalThis, "isSecureContext", "get").mockReturnValue(true);
+
+        vi.spyOn(globalThis, "navigator", "get").mockReturnValue({
             bluetooth: {},
         } as Navigator);
     };
 
     const withInsecureContext = (): void => {
-        spyOnProperty(globalThis, "isSecureContext", "get").and.returnValue(false);
-        spyOnProperty(globalThis, "navigator", "get").and.returnValue({
+        vi.spyOn(globalThis, "isSecureContext", "get").mockReturnValue(false);
+        vi.spyOn(globalThis, "navigator", "get").mockReturnValue({
             bluetooth: {},
         } as Navigator);
     };
 
     const withNoBluetooth = (): void => {
-        spyOnProperty(globalThis, "isSecureContext", "get").and.returnValue(true);
-        spyOnProperty(globalThis, "navigator", "get").and.returnValue({} as Navigator);
+        vi.spyOn(globalThis, "isSecureContext", "get").mockReturnValue(true);
+        vi.spyOn(globalThis, "navigator", "get").mockReturnValue({} as Navigator);
     };
 
     beforeEach((): void => {
@@ -33,8 +35,13 @@ describe("ConfigManagerService", (): void => {
         });
     });
 
+    afterEach((): void => {
+        vi.restoreAllMocks();
+    });
+
     it("should be created", (): void => {
         withSecureContextAndBluetooth();
+        vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
         configManagerService = TestBed.inject(ConfigManagerService);
 
         expect(configManagerService).toBeTruthy();
@@ -44,19 +51,21 @@ describe("ConfigManagerService", (): void => {
         it("should initialize config from localStorage when secure and bluetooth is available", (): void => {
             withSecureContextAndBluetooth();
 
-            const getItemSpy = spyOn(localStorage, "getItem").and.callFake((key: string): string | null => {
-                switch (key) {
-                    case "heartRateMonitor":
-                        return "ble";
-                    case "heartRateBleId":
-                        return "hr-123";
-                    case "ergoMonitorBleId":
-                        return "erg-456";
-                    default:
-                        return null;
-                }
-            });
-            const setItemSpy = spyOn(localStorage, "setItem");
+            const getItemSpy = vi
+                .spyOn(Storage.prototype, "getItem")
+                .mockImplementation((key: string): string | null => {
+                    switch (key) {
+                        case "heartRateMonitor":
+                            return "ble";
+                        case "heartRateBleId":
+                            return "hr-123";
+                        case "ergoMonitorBleId":
+                            return "erg-456";
+                        default:
+                            return null;
+                    }
+                });
+            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
@@ -71,9 +80,8 @@ describe("ConfigManagerService", (): void => {
 
         it("should force HR off and clear BLE ids on insecure context and persist them", (): void => {
             withInsecureContext();
-
-            spyOn(localStorage, "getItem").and.returnValue(null);
-            const setItemSpy = spyOn(localStorage, "setItem");
+            vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
+            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
@@ -90,8 +98,8 @@ describe("ConfigManagerService", (): void => {
         it("should force HR off and clear BLE ids when bluetooth API is unavailable and persist them", (): void => {
             withNoBluetooth();
 
-            spyOn(localStorage, "getItem").and.returnValue(null);
-            const setItemSpy = spyOn(localStorage, "setItem");
+            vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
+            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
@@ -109,7 +117,7 @@ describe("ConfigManagerService", (): void => {
     describe("getConfig method", (): void => {
         it("should return a copy of the current config", (): void => {
             withSecureContextAndBluetooth();
-            spyOn(localStorage, "getItem").and.returnValue(null);
+            vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
@@ -123,7 +131,7 @@ describe("ConfigManagerService", (): void => {
     describe("getItem method", (): void => {
         it("should return the value for a given key", (): void => {
             withSecureContextAndBluetooth();
-            spyOn(localStorage, "getItem").and.callFake((key: string): string | null => {
+            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
                 return key === "heartRateMonitor" ? "ant" : null;
             });
 
@@ -136,8 +144,8 @@ describe("ConfigManagerService", (): void => {
     describe("setItem method", (): void => {
         it("should persist to localStorage and update the in-memory value", (): void => {
             withSecureContextAndBluetooth();
-            spyOn(localStorage, "getItem").and.returnValue(null);
-            const setItemSpy = spyOn(localStorage, "setItem");
+            vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
+            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
@@ -154,7 +162,8 @@ describe("ConfigManagerService", (): void => {
     describe("heartRateMonitorChanged$ observable", (): void => {
         it("should emit initial value and next values only when heartRateMonitor changes", (): void => {
             withSecureContextAndBluetooth();
-            spyOn(localStorage, "getItem").and.callFake((key: string): string | null => {
+
+            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
                 return key === "heartRateMonitor" ? "off" : null;
             });
 
@@ -165,15 +174,15 @@ describe("ConfigManagerService", (): void => {
                 events.push(mode);
             });
 
-            expect(events).toHaveSize(1);
+            expect(events).toHaveLength(1);
             expect(events[0]).toBe("off");
 
             configManagerService.setItem("ergoMonitorBleId", "foo");
-            expect(events).toHaveSize(1);
+            expect(events).toHaveLength(1);
 
             configManagerService.setItem("heartRateMonitor", "ble");
             expect(events[events.length - 1]).toBe("ble");
-            expect(events).toHaveSize(2);
+            expect(events).toHaveLength(2);
         });
     });
 });

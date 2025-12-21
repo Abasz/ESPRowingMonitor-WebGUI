@@ -4,16 +4,18 @@ import process from "node:process";
 import { tmpdir } from "os";
 import { join } from "path";
 
+import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
+
 import type { GitHubRelease } from "./auto-version";
 import * as autoVersion from "./auto-version";
 
-type FetchSpy = jasmine.Spy<(...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>>;
+type FetchSpy = Mock;
 
 describe("auto-version", (): void => {
     let fetchSpy: FetchSpy;
 
     beforeEach((): void => {
-        fetchSpy = spyOn(globalThis, "fetch");
+        fetchSpy = vi.spyOn(globalThis, "fetch");
     });
 
     const releaseBase: GitHubRelease = {
@@ -25,9 +27,15 @@ describe("auto-version", (): void => {
     };
 
     beforeEach((): void => {
-        spyOn(console, "log").and.stub();
-        spyOn(console, "warn").and.stub();
-        spyOn(console, "error").and.stub();
+        vi.spyOn(console, "log").mockImplementation((): void => {
+            /* no-op*/
+        });
+        vi.spyOn(console, "warn").mockImplementation((): void => {
+            /* no-op*/
+        });
+        vi.spyOn(console, "error").mockImplementation((): void => {
+            /* no-op*/
+        });
     });
 
     describe("formatProfileName", (): void => {
@@ -113,7 +121,7 @@ describe("auto-version", (): void => {
                 json: async (): Promise<GitHubRelease> => release,
             } as Response;
 
-            fetchSpy.and.resolveTo(response);
+            fetchSpy.mockResolvedValue(response);
 
             const result = await autoVersion.fetchLatestRelease();
 
@@ -131,9 +139,9 @@ describe("auto-version", (): void => {
                 json: async (): Promise<unknown> => null,
             } as Response;
 
-            fetchSpy.and.resolveTo(response);
+            fetchSpy.mockResolvedValue(response);
 
-            await expectAsync(autoVersion.fetchLatestRelease()).toBeRejectedWithError(
+            await expect(autoVersion.fetchLatestRelease()).rejects.toThrowError(
                 "Failed to fetch release: 500 Internal Server Error",
             );
         });
@@ -153,12 +161,12 @@ describe("auto-version", (): void => {
                 arrayBuffer: async (): Promise<ArrayBuffer> => payload.buffer,
             } as Response;
 
-            fetchSpy.and.resolveTo(response);
+            fetchSpy.mockResolvedValue(response);
 
             await autoVersion.downloadAsset("https://example.com/firmware.zip", outputPath);
 
             const fileContents = await promises.readFile(outputPath);
-            expect(Buffer.from(fileContents).equals(Buffer.from(payload))).toBeTrue();
+            expect(Buffer.from(fileContents).equals(Buffer.from(payload))).toBe(true);
 
             await promises.rm(tempDir, { recursive: true, force: true });
         });
@@ -172,11 +180,11 @@ describe("auto-version", (): void => {
                 arrayBuffer: async (): Promise<ArrayBuffer> => new ArrayBuffer(0),
             } as Response;
 
-            fetchSpy.and.resolveTo(response);
+            fetchSpy.mockResolvedValue(response);
 
-            await expectAsync(
+            await expect(
                 autoVersion.downloadAsset("https://example.com/missing.zip", "./missing.zip"),
-            ).toBeRejectedWithError("Failed to download https://example.com/missing.zip: 404 Not Found");
+            ).rejects.toThrowError("Failed to download https://example.com/missing.zip: 404 Not Found");
         });
     });
 
@@ -194,10 +202,10 @@ describe("auto-version", (): void => {
                 ],
             };
 
-            const fetchLatestReleaseSpy = jasmine.createSpy("fetchLatestRelease").and.resolveTo(release);
-            const downloadSpy = jasmine.createSpy("downloadAsset").and.resolveTo();
-            const mkdirSpy = jasmine.createSpy("mkdir").and.resolveTo(undefined);
-            const writeFileSpy = jasmine.createSpy("writeFile").and.resolveTo();
+            const fetchLatestReleaseSpy = vi.fn().mockResolvedValue(release);
+            const downloadSpy = vi.fn().mockResolvedValue(undefined);
+            const mkdirSpy = vi.fn().mockResolvedValue(undefined);
+            const writeFileSpy = vi.fn().mockResolvedValue(undefined);
 
             await autoVersion.main({
                 fetchLatestRelease: fetchLatestReleaseSpy,
@@ -213,7 +221,7 @@ describe("auto-version", (): void => {
                 "./src/assets/firmware/firmware-concept2ModelD.zip",
             );
             expect(writeFileSpy).toHaveBeenCalledTimes(1);
-            const writeArgs = writeFileSpy.calls.mostRecent().args;
+            const writeArgs = vi.mocked(writeFileSpy).mock.lastCall as [string, string, string];
             expect(writeArgs[0]).toBe("./src/common/data/version.ts");
             expect(writeArgs[1] as string).toContain("version: 'v1.0.0'");
             expect(writeArgs[1] as string).toContain("firmware-concept2ModelD.zip");
@@ -222,14 +230,16 @@ describe("auto-version", (): void => {
 
         it("should log errors and exit the process on failure", async (): Promise<void> => {
             const failure = new Error("network down");
-            const fetchLatestReleaseSpy = jasmine.createSpy("fetchLatestRelease").and.rejectWith(failure);
-            const exitSpy = spyOn(process, "exit").and.callFake((code?: number): never => {
-                throw new Error(`exit-${code}`);
-            });
+            const fetchLatestReleaseSpy = vi.fn().mockRejectedValue(failure);
+            const exitSpy = vi
+                .spyOn(process, "exit")
+                .mockImplementation((code?: string | number | null): never => {
+                    throw new Error(`exit-${code}`);
+                });
 
-            await expectAsync(
+            await expect(
                 autoVersion.main({ fetchLatestRelease: fetchLatestReleaseSpy }),
-            ).toBeRejectedWithError("exit-1");
+            ).rejects.toThrowError("exit-1");
 
             expect(exitSpy).toHaveBeenCalledWith(1);
         });

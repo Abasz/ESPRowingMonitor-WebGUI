@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { TestBed } from "@angular/core/testing";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OtaError, OtaRequestOpCodes, OtaResponseOpCodes } from "../../common/ble.interfaces";
 import { ErgGenericDataService } from "../../common/services/ergometer/erg-generic-data.service";
@@ -7,19 +7,20 @@ import { ErgGenericDataService } from "../../common/services/ergometer/erg-gener
 import { OtaService } from "./ota.service";
 
 // mock helper to create fake characteristics
-function createMockCharacteristic(): jasmine.SpyObj<BluetoothRemoteGATTCharacteristic> {
-    const spy = jasmine.createSpyObj("BluetoothRemoteGATTCharacteristic", [
-        "writeValueWithoutResponse",
-        "startNotifications",
-        "stopNotifications",
-        "addEventListener",
-        "removeEventListener",
-    ]);
-
-    spy.service = jasmine.createSpyObj("BluetoothRemoteGATTService", ["device"]);
-    spy.service.device = jasmine.createSpyObj("BluetoothDevice", ["addEventListener", "removeEventListener"]);
-
-    return spy;
+function createMockCharacteristic(): BluetoothRemoteGATTCharacteristic {
+    return {
+        writeValueWithoutResponse: vi.fn(),
+        startNotifications: vi.fn(),
+        stopNotifications: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        service: {
+            device: {
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+            } as unknown as BluetoothDevice,
+        } as BluetoothRemoteGATTService,
+    } as unknown as BluetoothRemoteGATTCharacteristic;
 }
 
 // mock helper to create test files
@@ -58,60 +59,74 @@ function createSingleByteResponse(responseCode: OtaResponseOpCodes): DataView {
 
 describe("OtaService", (): void => {
     let service: OtaService;
-    let mockErgGenericDataService: jasmine.SpyObj<ErgGenericDataService>;
-    let mockResponseCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockSendCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockErgGenericDataService: Pick<ErgGenericDataService, "getOtaCharacteristics">;
+    let mockResponseCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockSendCharacteristic: BluetoothRemoteGATTCharacteristic;
+
     const valueChangedListenerReady: (
         broadcastValue?: DataView,
         runCount?: number,
-    ) => Promise<{ callCount: number }> = async (broadcastValue?: DataView, runCount: number = 1) => {
+    ) => Promise<{
+        callCount: number;
+    }> = async (broadcastValue?: DataView, runCount: number = 1): Promise<{ callCount: number }> => {
         let callCount = 1;
 
         for (; callCount <= runCount; ) {
-            await new Promise((resolve: (value: { callCount: number }) => void) => {
-                mockResponseCharacteristic.addEventListener
-                    .withArgs("characteristicvaluechanged", jasmine.any(Function), undefined)
-                    .and.callFake((_: string, handler: (event: Event) => void) => {
+            await new Promise((resolve: (value: { callCount: number }) => void): void => {
+                vi.mocked(mockResponseCharacteristic.addEventListener).mockImplementation(
+                    (
+                        _: string,
+                        handler: EventListenerOrEventListenerObject,
+                        options?: boolean | AddEventListenerOptions,
+                    ): void => {
                         charValueListener = handler;
-                        if (broadcastValue) {
+                        if (
+                            broadcastValue &&
+                            typeof charValueListener === "function" &&
+                            options === undefined
+                        ) {
                             charValueListener({
                                 target: { value: broadcastValue },
                             } as unknown as Event);
                         }
                         callCount++;
                         resolve({ callCount });
-                    });
+                    },
+                );
             });
         }
 
         return { callCount };
     };
 
-    let charValueListener: ((event: Event) => void) | undefined = undefined;
+    let charValueListener: EventListenerOrEventListenerObject | undefined = undefined;
 
     beforeEach((): void => {
-        mockErgGenericDataService = jasmine.createSpyObj("ErgGenericDataService", ["getOtaCharacteristics"]);
+        mockErgGenericDataService = {
+            getOtaCharacteristics: vi.fn(),
+        } as unknown as Pick<ErgGenericDataService, "getOtaCharacteristics">;
         mockResponseCharacteristic = createMockCharacteristic();
         mockSendCharacteristic = createMockCharacteristic();
-        mockErgGenericDataService.getOtaCharacteristics.and.returnValue(
-            Promise.resolve({
-                responseCharacteristic: mockResponseCharacteristic,
-                sendCharacteristic: mockSendCharacteristic,
-            }),
-        );
+        vi.mocked(mockErgGenericDataService.getOtaCharacteristics).mockResolvedValue({
+            responseCharacteristic:
+                mockResponseCharacteristic as unknown as BluetoothRemoteGATTCharacteristic,
+            sendCharacteristic: mockSendCharacteristic as unknown as BluetoothRemoteGATTCharacteristic,
+        });
         TestBed.configureTestingModule({
             providers: [OtaService, { provide: ErgGenericDataService, useValue: mockErgGenericDataService }],
         });
 
         service = TestBed.inject(OtaService);
 
-        mockResponseCharacteristic.startNotifications.and.resolveTo(mockResponseCharacteristic);
-        mockResponseCharacteristic.stopNotifications.and.resolveTo(mockResponseCharacteristic);
+        vi.mocked(mockResponseCharacteristic.startNotifications).mockResolvedValue(
+            mockResponseCharacteristic,
+        );
+        vi.mocked(mockResponseCharacteristic.stopNotifications).mockResolvedValue(mockResponseCharacteristic);
 
         charValueListener = undefined;
 
-        mockResponseCharacteristic.removeEventListener.and.callFake(
-            (_: string, handler: (event: Event) => void) => {
+        vi.mocked(mockResponseCharacteristic.removeEventListener).mockImplementation(
+            (_: string, handler: EventListenerOrEventListenerObject): void => {
                 if (charValueListener === handler) {
                     charValueListener = undefined;
                 }
@@ -149,7 +164,7 @@ describe("OtaService", (): void => {
                 await valueChangedListenerReady(
                     createBeginResponseDataView(OtaResponseOpCodes.Ok, expectedAttr, expectedBuffer),
                 );
-                mockSendCharacteristic.writeValueWithoutResponse.calls.reset();
+                vi.mocked(mockSendCharacteristic.writeValueWithoutResponse).mockClear();
                 await valueChangedListenerReady(createSingleByteResponse(OtaResponseOpCodes.Ok));
                 await performOtaPromise;
 
@@ -158,7 +173,8 @@ describe("OtaService", (): void => {
                     Math.ceil(100 / expectedAttr) + endMessageCount,
                 );
 
-                const firstPayload = mockSendCharacteristic.writeValueWithoutResponse.calls.allArgs()[0][0];
+                const firstPayload = vi.mocked(mockSendCharacteristic.writeValueWithoutResponse).mock
+                    .calls[0][0];
                 expect(firstPayload.byteLength - 1).toBe(expectedAttr);
             });
 
@@ -171,10 +187,10 @@ describe("OtaService", (): void => {
                 await valueChangedListenerReady(
                     createBeginResponseDataView(OtaResponseOpCodes.Ok, expectedAttribute, expectedBuffer),
                 );
-                mockSendCharacteristic.writeValueWithoutResponse.calls.reset();
+                vi.mocked(mockSendCharacteristic.writeValueWithoutResponse).mockClear();
                 await valueChangedListenerReady(createSingleByteResponse(OtaResponseOpCodes.NotOk));
 
-                await expectAsync(performOtaPromise).toBeRejected();
+                await expect(performOtaPromise).rejects.toThrow();
                 expect(mockSendCharacteristic.writeValueWithoutResponse).toHaveBeenCalledTimes(
                     expectedBuffer / expectedAttribute,
                 );
@@ -186,8 +202,8 @@ describe("OtaService", (): void => {
                 const performOtaPromise = service.performOta(testFile);
                 await valueChangedListenerReady(createSingleByteResponse(OtaResponseOpCodes.NotOk));
 
-                await expectAsync(performOtaPromise).toBeRejectedWith(
-                    jasmine.objectContaining({ name: "BeginError" }),
+                await expect(performOtaPromise).rejects.toEqual(
+                    expect.objectContaining({ name: "BeginError" }),
                 );
             });
 
@@ -200,7 +216,7 @@ describe("OtaService", (): void => {
                 );
                 await valueChangedListenerReady(malformedResponse);
 
-                await expectAsync(performOtaPromise).toBeRejectedWithError(OtaError, "IncorrectFormat");
+                await expect(performOtaPromise).rejects.toThrowError(OtaError);
             });
 
             it("should return IncorrectFirmwareSize when firmware is too large", async (): Promise<void> => {
@@ -211,19 +227,16 @@ describe("OtaService", (): void => {
                     createSingleByteResponse(OtaResponseOpCodes.IncorrectFirmwareSize),
                 );
 
-                await expectAsync(performOtaPromise).toBeRejectedWithError(OtaError, "IncorrectFirmwareSize");
+                await expect(performOtaPromise).rejects.toThrowError(OtaError);
             });
 
             it("should handle rejection when ErgGenericDataService.getOtaCharacteristics() rejects", async (): Promise<void> => {
-                mockErgGenericDataService.getOtaCharacteristics.and.returnValue(
-                    Promise.reject(new Error("Connection failed")),
+                vi.mocked(mockErgGenericDataService.getOtaCharacteristics).mockRejectedValue(
+                    new Error("Connection failed"),
                 );
                 const testFile = createTestFile(100);
 
-                await expectAsync(service.performOta(testFile)).toBeRejectedWithError(
-                    Error,
-                    "Connection failed",
-                );
+                await expect(service.performOta(testFile)).rejects.toThrowError(Error);
             });
         });
 
@@ -237,25 +250,23 @@ describe("OtaService", (): void => {
                 await valueChangedListenerReady(
                     createBeginResponseDataView(OtaResponseOpCodes.Ok, expectedAttr, expectedBuffer),
                 );
-                mockSendCharacteristic.writeValueWithoutResponse.calls.reset();
+                vi.mocked(mockSendCharacteristic.writeValueWithoutResponse).mockClear();
                 const responseSpy = await valueChangedListenerReady(
                     createSingleByteResponse(OtaResponseOpCodes.Ok),
                 );
                 await performOtaPromise;
 
-                expect(
-                    mockSendCharacteristic.writeValueWithoutResponse.calls
-                        .all()
-                        .slice(0, -1)
-                        .forEach((call: jasmine.CallInfo<(value: BufferSource) => Promise<void>>) => {
-                            const payload = call.args[0];
-                            expect(payload.byteLength - 1).toBeLessThanOrEqual(expectedAttr);
-                        }),
-                );
+                vi.mocked(mockSendCharacteristic.writeValueWithoutResponse)
+                    .mock.calls.slice(0, -1)
+                    .forEach((call: Array<unknown>): void => {
+                        const payload = call[0];
+                        expect((payload as Uint8Array).byteLength - 1).toBeLessThanOrEqual(expectedAttr);
+                    });
 
-                expect(responseSpy.callCount)
-                    .withContext("Should expect file size / expectedBuffer amount of response")
-                    .toBe(testFile.size / expectedBuffer);
+                expect(
+                    responseSpy.callCount,
+                    "Should expect file size / expectedBuffer amount of response",
+                ).toBe(testFile.size / expectedBuffer);
             });
 
             it("should update progress after each batch of packages sent", async (): Promise<void> => {
@@ -279,8 +290,8 @@ describe("OtaService", (): void => {
 
                 await valueChangedListenerReady(createSingleByteResponse(OtaResponseOpCodes.NotOk));
 
-                await expectAsync(performOtaPromise).toBeRejectedWith(
-                    jasmine.objectContaining({
+                await expect(performOtaPromise).rejects.toEqual(
+                    expect.objectContaining({
                         name: "PackageError",
                     }),
                 );
@@ -313,8 +324,8 @@ describe("OtaService", (): void => {
 
                 await performOtaPromise;
 
-                const endCall = mockSendCharacteristic.writeValueWithoutResponse.calls.mostRecent()
-                    .args[0] as Uint8Array;
+                const endCall = vi.mocked(mockSendCharacteristic.writeValueWithoutResponse).mock
+                    .lastCall?.[0] as Uint8Array;
 
                 expect(endCall[0]).toBe(OtaRequestOpCodes.End);
                 expect(endCall.byteLength).toBe(17);
@@ -332,8 +343,8 @@ describe("OtaService", (): void => {
 
                 await valueChangedListenerReady(createSingleByteResponse(OtaResponseOpCodes.NotOk));
 
-                await expectAsync(performOtaPromise).toBeRejectedWith(
-                    jasmine.objectContaining({
+                await expect(performOtaPromise).rejects.toEqual(
+                    expect.objectContaining({
                         name: "InstallError",
                     }),
                 );
@@ -351,8 +362,8 @@ describe("OtaService", (): void => {
 
                 await valueChangedListenerReady(createSingleByteResponse(OtaResponseOpCodes.ChecksumError));
 
-                await expectAsync(performOtaPromise).toBeRejectedWith(
-                    jasmine.objectContaining({
+                await expect(performOtaPromise).rejects.toEqual(
+                    expect.objectContaining({
                         name: "InstallError",
                     }),
                 );
@@ -377,10 +388,9 @@ describe("OtaService", (): void => {
 
             expect(service.progress()).toBeGreaterThan(0);
 
-            mockSendCharacteristic =
-                undefined as unknown as jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-            mockResponseCharacteristic =
-                undefined as unknown as jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+            mockSendCharacteristic = undefined as unknown as BluetoothRemoteGATTCharacteristic;
+            mockResponseCharacteristic = undefined as unknown as BluetoothRemoteGATTCharacteristic;
+            mockResponseCharacteristic = undefined as unknown as BluetoothRemoteGATTCharacteristic;
 
             await service.abortOta();
 
@@ -403,7 +413,7 @@ describe("OtaService", (): void => {
 
             await valueChangedListenerReady(createSingleByteResponse(OtaResponseOpCodes.Ok));
 
-            await expectAsync(abortPromise).toBeResolved();
+            await expect(abortPromise).resolves.not.toThrow();
         });
 
         it("should throw AbortError when device returns non-Ok for abort", async (): Promise<void> => {
@@ -411,8 +421,8 @@ describe("OtaService", (): void => {
 
             await valueChangedListenerReady(createSingleByteResponse(OtaResponseOpCodes.NotOk));
 
-            await expectAsync(abortPromise).toBeRejectedWith(
-                jasmine.objectContaining({
+            await expect(abortPromise).rejects.toEqual(
+                expect.objectContaining({
                     name: "AbortError",
                 }),
             );

@@ -1,11 +1,12 @@
 import { HarnessLoader } from "@angular/cdk/testing";
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
-import { provideZonelessChangeDetection } from "@angular/core";
-import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
+import { provideZonelessChangeDetection, signal, Signal, WritableSignal } from "@angular/core";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatButtonHarness } from "@angular/material/button/testing";
 import { MatDialog } from "@angular/material/dialog";
 import { MatTooltipHarness } from "@angular/material/tooltip/testing";
 import { BehaviorSubject } from "rxjs";
+import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import { IDeviceInformation } from "../../common/ble.interfaces";
 import { IErgConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
@@ -21,18 +22,24 @@ describe("OpenSettingsButtonComponent", (): void => {
     let component: OpenSettingsButtonComponent;
     let fixture: ComponentFixture<OpenSettingsButtonComponent>;
     let loader: HarnessLoader;
-    let mockErgGenericDataService: jasmine.SpyObj<ErgGenericDataService>;
-    let mockErgSettingsService: jasmine.SpyObj<ErgSettingsService>;
-    let mockErgConnectionService: jasmine.SpyObj<ErgConnectionService>;
-    let mockUtilsService: jasmine.SpyObj<UtilsService>;
-    let mockDialog: jasmine.SpyObj<MatDialog>;
-    let mockMainSpinner: jasmine.SpyObj<{ open: () => void; close: () => void }>;
+    let mockErgGenericDataService: Pick<ErgGenericDataService, "deviceInfo" | "deviceInfo$">;
+    let mockErgSettingsService: Pick<ErgSettingsService, "rowerSettings">;
+    let mockErgConnectionService: Pick<ErgConnectionService, "connectionStatus$">;
+    let mockUtilsService: Pick<UtilsService, "mainSpinner">;
+    let mockDialog: Pick<MatDialog, "open">;
+    let mockMainSpinner: Pick<
+        {
+            open: () => void;
+            close: () => void;
+        },
+        "open" | "close"
+    >;
     let ergConnectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
     let deviceInfoSubject: BehaviorSubject<IDeviceInformation>;
-    let rowerSettingsSignal: jasmine.Spy<() => IRowerSettings>;
-    let deviceInfoSignal: jasmine.Spy<() => IDeviceInformation | undefined>;
-    let isSecureContextSpy: jasmine.Spy<() => boolean>;
-    let navigatorBluetoothSpy: jasmine.Spy<() => Bluetooth | undefined>;
+    let rowerSettingsSignal: WritableSignal<IRowerSettings>;
+    let deviceInfoSignal: WritableSignal<IDeviceInformation>;
+    let isSecureContextSpy: Mock;
+    let navigatorBluetoothSpy: Mock;
 
     const mockErgConnectionStatus: IErgConnectionStatus = {
         status: "disconnected",
@@ -89,26 +96,37 @@ describe("OpenSettingsButtonComponent", (): void => {
     beforeEach(async (): Promise<void> => {
         ergConnectionStatusSubject = new BehaviorSubject<IErgConnectionStatus>(mockErgConnectionStatus);
         deviceInfoSubject = new BehaviorSubject<IDeviceInformation>({});
-        rowerSettingsSignal = jasmine.createSpy("rowerSettings").and.returnValue(mockRowerSettings);
-        deviceInfoSignal = jasmine.createSpy("deviceInfo").and.returnValue(mockDeviceInfo);
-        mockMainSpinner = jasmine.createSpyObj("mainSpinner", ["open", "close"]);
+        rowerSettingsSignal = signal(mockRowerSettings);
+        deviceInfoSignal = signal(mockDeviceInfo);
+        mockMainSpinner = {
+            open: vi.fn(),
+            close: vi.fn(),
+        };
 
-        mockErgGenericDataService = jasmine.createSpyObj("ErgGenericDataService", [], {
-            deviceInfo: deviceInfoSignal,
+        mockErgGenericDataService = {
+            deviceInfo: deviceInfoSignal as unknown as Signal<IDeviceInformation>,
             deviceInfo$: deviceInfoSubject.asObservable(),
-        });
+        };
 
-        mockErgSettingsService = jasmine.createSpyObj("ErgSettingsService", [], {
-            rowerSettings: rowerSettingsSignal,
-        });
+        mockErgSettingsService = {
+            rowerSettings: rowerSettingsSignal as unknown as Signal<IRowerSettings>,
+        };
 
-        mockErgConnectionService = jasmine.createSpyObj("ErgConnectionService", ["connectionStatus$"]);
-        mockErgConnectionService.connectionStatus$.and.returnValue(ergConnectionStatusSubject.asObservable());
+        mockErgConnectionService = {
+            connectionStatus$: vi.fn(),
+        };
+        vi.mocked(mockErgConnectionService.connectionStatus$).mockReturnValue(
+            ergConnectionStatusSubject.asObservable(),
+        );
 
-        mockUtilsService = jasmine.createSpyObj("UtilsService", ["mainSpinner"]);
-        mockUtilsService.mainSpinner.and.returnValue(mockMainSpinner);
+        mockUtilsService = {
+            mainSpinner: vi.fn(),
+        };
+        vi.mocked(mockUtilsService.mainSpinner).mockReturnValue(mockMainSpinner);
 
-        mockDialog = jasmine.createSpyObj("MatDialog", ["open"]);
+        mockDialog = {
+            open: vi.fn(),
+        };
 
         await TestBed.configureTestingModule({
             imports: [OpenSettingsButtonComponent],
@@ -122,10 +140,10 @@ describe("OpenSettingsButtonComponent", (): void => {
             ],
         }).compileComponents();
 
-        isSecureContextSpy = spyOnProperty(window, "isSecureContext", "get").and.returnValue(true);
-        navigatorBluetoothSpy = spyOnProperty(navigator, "bluetooth", "get").and.returnValue(
-            {} as unknown as Bluetooth,
-        );
+        isSecureContextSpy = vi.spyOn(window, "isSecureContext", "get").mockReturnValue(true);
+        navigatorBluetoothSpy = vi
+            .spyOn(navigator, "bluetooth", "get")
+            .mockReturnValue({} as unknown as Bluetooth);
 
         fixture = TestBed.createComponent(OpenSettingsButtonComponent);
         component = fixture.componentInstance;
@@ -138,20 +156,16 @@ describe("OpenSettingsButtonComponent", (): void => {
         });
 
         it("should initialize ergConnectionStatus signal", (): void => {
-            fixture.detectChanges();
-
             expect(component.ergConnectionStatus()).toEqual(mockErgConnectionStatus);
         });
 
         it("should initialize rowerSettings signal", (): void => {
-            fixture.detectChanges();
-
             expect(component.rowerSettings()).toEqual(mockRowerSettings);
         });
 
         it("should detect BLE availability when secure context is true", (): void => {
-            isSecureContextSpy.and.returnValue(true);
-            navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+            isSecureContextSpy.mockReturnValue(true);
+            navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
             const newFixture = TestBed.createComponent(OpenSettingsButtonComponent);
             const newComponent = newFixture.componentInstance;
@@ -160,7 +174,7 @@ describe("OpenSettingsButtonComponent", (): void => {
         });
 
         it("should detect BLE unavailability when secure context is false", (): void => {
-            isSecureContextSpy.and.returnValue(false);
+            isSecureContextSpy.mockReturnValue(false);
 
             const newFixture = TestBed.createComponent(OpenSettingsButtonComponent);
             const newComponent = newFixture.componentInstance;
@@ -169,8 +183,8 @@ describe("OpenSettingsButtonComponent", (): void => {
         });
 
         it("should detect BLE unavailability when bluetooth API is missing", (): void => {
-            isSecureContextSpy.and.returnValue(true);
-            navigatorBluetoothSpy.and.returnValue(undefined);
+            isSecureContextSpy.mockReturnValue(true);
+            navigatorBluetoothSpy.mockReturnValue(undefined);
 
             const newFixture = TestBed.createComponent(OpenSettingsButtonComponent);
             const newComponent = newFixture.componentInstance;
@@ -181,14 +195,14 @@ describe("OpenSettingsButtonComponent", (): void => {
 
     describe("as part of template rendering", (): void => {
         describe("when BLE is available", (): void => {
-            beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+            beforeEach(async (): Promise<void> => {
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 fixture = TestBed.createComponent(OpenSettingsButtonComponent);
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
-                fixture.detectChanges();
+                await fixture.whenStable();
             });
 
             it("should render button element", (): void => {
@@ -221,13 +235,12 @@ describe("OpenSettingsButtonComponent", (): void => {
         });
 
         it("should not render any content when BLE is not available", (): void => {
-            isSecureContextSpy.and.returnValue(false);
-            navigatorBluetoothSpy.and.returnValue(undefined);
+            isSecureContextSpy.mockReturnValue(false);
+            navigatorBluetoothSpy.mockReturnValue(undefined);
 
             fixture = TestBed.createComponent(OpenSettingsButtonComponent);
             component = fixture.componentInstance;
             loader = TestbedHarnessEnvironment.loader(fixture);
-            fixture.detectChanges();
 
             const content = fixture.nativeElement.querySelector("*");
             expect(content).toBeNull();
@@ -239,7 +252,6 @@ describe("OpenSettingsButtonComponent", (): void => {
             describe("when ergConnectionStatus is not connecting", (): void => {
                 beforeEach((): void => {
                     ergConnectionStatusSubject.next({ status: "disconnected", deviceName: undefined });
-                    fixture.detectChanges();
                 });
 
                 it("should not open main spinner", async (): Promise<void> => {
@@ -256,7 +268,7 @@ describe("OpenSettingsButtonComponent", (): void => {
                         autoFocus: false,
                         data: {
                             rowerSettings: mockRowerSettings,
-                            ergConnectionStatus: jasmine.any(Object),
+                            ergConnectionStatus: expect.any(Object),
                             deviceInfo: mockDeviceInfo,
                         },
                     });
@@ -266,7 +278,6 @@ describe("OpenSettingsButtonComponent", (): void => {
             describe("when ergConnectionStatus is connecting", (): void => {
                 beforeEach((): void => {
                     ergConnectionStatusSubject.next({ status: "connecting", deviceName: undefined });
-                    fixture.detectChanges();
                 });
 
                 it("should open main spinner", async (): Promise<void> => {
@@ -297,7 +308,7 @@ describe("OpenSettingsButtonComponent", (): void => {
                             autoFocus: false,
                             data: {
                                 rowerSettings: mockRowerSettings,
-                                ergConnectionStatus: jasmine.any(Object),
+                                ergConnectionStatus: expect.any(Object),
                                 deviceInfo: mockDeviceInfo,
                             },
                         });
@@ -312,33 +323,34 @@ describe("OpenSettingsButtonComponent", (): void => {
 
                         deviceInfoSubject.next(mockDeviceInfo);
 
-                        await expectAsync(sut).toBeResolved();
+                        await expect(sut).resolves.not.toThrow();
                         expect(mockDialog.open).toHaveBeenCalled();
                     });
 
-                    it("when device info timeouts", fakeAsync((): void => {
+                    it("when device info timeouts", async (): Promise<void> => {
+                        vi.useFakeTimers();
                         const sut = component.openSettings();
 
                         ergConnectionStatusSubject.next({ status: "connected", deviceName: "Device" });
 
-                        tick(5000);
-                        expect(async (): Promise<void> => await sut).not.toThrow();
+                        await vi.advanceTimersByTimeAsync(5000);
+                        await expect(sut).resolves.not.toThrow();
                         expect(mockDialog.open).toHaveBeenCalled();
-                    }));
+                        vi.useRealTimers();
+                    });
                 });
             });
         });
 
         it("should trigger openSettings when clicked", async (): Promise<void> => {
-            isSecureContextSpy.and.returnValue(true);
-            navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+            isSecureContextSpy.mockReturnValue(true);
+            navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
             fixture = TestBed.createComponent(OpenSettingsButtonComponent);
             component = fixture.componentInstance;
             loader = TestbedHarnessEnvironment.loader(fixture);
-            fixture.detectChanges();
 
-            spyOn(component, "openSettings").and.resolveTo();
+            vi.spyOn(component, "openSettings").mockResolvedValue();
 
             const buttonHarness = await loader.getHarness(MatButtonHarness);
             await buttonHarness.click();
@@ -349,24 +361,22 @@ describe("OpenSettingsButtonComponent", (): void => {
 
     describe("as part of signal reactivity", (): void => {
         it("ergConnectionStatus signal should update when ErgConnectionService emits new value", (): void => {
-            fixture.detectChanges();
             expect(component.ergConnectionStatus().status).toBe("disconnected");
 
             ergConnectionStatusSubject.next({ status: "connected", deviceName: "Device" });
-            fixture.detectChanges();
 
             expect(component.ergConnectionStatus().status).toBe("connected");
         });
 
         it("should provide current rower settings to dialog", async (): Promise<void> => {
             const newSettings = { ...mockRowerSettings, logLevel: "debug" as const };
-            rowerSettingsSignal.and.returnValue(newSettings);
+            rowerSettingsSignal.set(newSettings);
 
             await component.openSettings();
 
             expect(mockDialog.open).toHaveBeenCalledWith(SettingsDialogComponent, {
                 autoFocus: false,
-                data: jasmine.objectContaining({
+                data: expect.objectContaining({
                     rowerSettings: newSettings,
                 }),
             });
@@ -375,26 +385,26 @@ describe("OpenSettingsButtonComponent", (): void => {
         describe("deviceInfo signal updates", (): void => {
             it("should provide current device info to dialog", async (): Promise<void> => {
                 const newDeviceInfo = { ...mockDeviceInfo, deviceName: "Updated Device" };
-                deviceInfoSignal.and.returnValue(newDeviceInfo);
+                deviceInfoSignal.set(newDeviceInfo);
 
                 await component.openSettings();
 
                 expect(mockDialog.open).toHaveBeenCalledWith(SettingsDialogComponent, {
                     autoFocus: false,
-                    data: jasmine.objectContaining({
+                    data: expect.objectContaining({
                         deviceInfo: newDeviceInfo,
                     }),
                 });
             });
 
             it("should handle undefined device info", async (): Promise<void> => {
-                deviceInfoSignal.and.returnValue(undefined);
+                deviceInfoSignal.set(undefined as unknown as IDeviceInformation);
 
                 await component.openSettings();
 
                 expect(mockDialog.open).toHaveBeenCalledWith(SettingsDialogComponent, {
                     autoFocus: false,
-                    data: jasmine.objectContaining({
+                    data: expect.objectContaining({
                         deviceInfo: undefined,
                     }),
                 });
@@ -405,19 +415,18 @@ describe("OpenSettingsButtonComponent", (): void => {
     describe("as part of edge case handling", (): void => {
         describe("with browser compatibility issues", (): void => {
             it("should handle missing isSecureContext", (): void => {
-                isSecureContextSpy.and.returnValue(undefined as unknown as boolean);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+                isSecureContextSpy.mockReturnValue(undefined as unknown as boolean);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 const newFixture = TestBed.createComponent(OpenSettingsButtonComponent);
                 const newComponent = newFixture.componentInstance;
-                newFixture.detectChanges();
 
                 expect(newComponent.isBleAvailable).toBe(false);
             });
 
             it("should handle missing navigator.bluetooth", (): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue(undefined);
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue(undefined);
 
                 const newFixture = TestBed.createComponent(OpenSettingsButtonComponent);
                 const newComponent = newFixture.componentInstance;
@@ -428,16 +437,20 @@ describe("OpenSettingsButtonComponent", (): void => {
 
         describe("with service failures", (): void => {
             it("should handle dialog service error", async (): Promise<void> => {
-                mockDialog.open.and.throwError("Dialog error");
+                vi.mocked(mockDialog.open).mockImplementation((): never => {
+                    throw new Error("Dialog error");
+                });
 
-                await expectAsync(component.openSettings()).toBeRejected();
+                await expect(component.openSettings()).rejects.toThrow();
             });
 
             it("should handle utils service error", async (): Promise<void> => {
-                mockUtilsService.mainSpinner.and.throwError("Utils error");
+                vi.mocked(mockUtilsService.mainSpinner).mockImplementation((): never => {
+                    throw new Error("Utils error");
+                });
                 ergConnectionStatusSubject.next({ status: "connecting", deviceName: undefined });
 
-                await expectAsync(component.openSettings()).toBeRejected();
+                await expect(component.openSettings()).rejects.toThrow();
             });
         });
 
@@ -449,11 +462,8 @@ describe("OpenSettingsButtonComponent", (): void => {
                 { status: "disconnected", deviceName: undefined },
             ];
 
-            fixture.detectChanges();
-
             statuses.forEach((status: IErgConnectionStatus): void => {
                 ergConnectionStatusSubject.next(status);
-                fixture.detectChanges();
             });
 
             expect(component.ergConnectionStatus().status).toBe("disconnected");
@@ -462,14 +472,13 @@ describe("OpenSettingsButtonComponent", (): void => {
         describe("with null or undefined values", (): void => {
             it("should handle undefined device name in connection status", async (): Promise<void> => {
                 ergConnectionStatusSubject.next({ status: "connected", deviceName: undefined });
-                fixture.detectChanges();
 
                 await component.openSettings();
 
                 expect(mockDialog.open).toHaveBeenCalledWith(SettingsDialogComponent, {
                     autoFocus: false,
-                    data: jasmine.objectContaining({
-                        ergConnectionStatus: jasmine.objectContaining({
+                    data: expect.objectContaining({
+                        ergConnectionStatus: expect.objectContaining({
                             deviceName: undefined,
                         }),
                     }),
@@ -477,13 +486,13 @@ describe("OpenSettingsButtonComponent", (): void => {
             });
 
             it("should handle null rower settings", async (): Promise<void> => {
-                rowerSettingsSignal.and.returnValue(null as unknown as IRowerSettings);
+                rowerSettingsSignal.set(null as unknown as IRowerSettings);
 
                 await component.openSettings();
 
                 expect(mockDialog.open).toHaveBeenCalledWith(SettingsDialogComponent, {
                     autoFocus: false,
-                    data: jasmine.objectContaining({
+                    data: expect.objectContaining({
                         rowerSettings: null,
                     }),
                 });

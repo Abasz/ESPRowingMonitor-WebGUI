@@ -1,35 +1,32 @@
 import process from "node:process";
 import { join } from "path";
 
+import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
+
 import * as fetchProfiles from "./fetch-profiles";
 
-type FetchSpy = jasmine.Spy<(...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>>;
+type FetchSpy = Mock;
 
 const TEST_PROFILES = {
     concept2ModelD: `
 #ifndef GENERIC_ROWER_PROFILE_H
 #define GENERIC_ROWER_PROFILE_H
-
 #define DEVICE_NAME Concept2
 #define MODEL_NUMBER "Model D"
-
 // Machine settings
 #define FLYWHEEL_INERTIA 0.07848
 #define CONCEPT_2_MAGIC_NUMBER 2.8
 #define SPROCKET_RADIUS 1.5
 #define IMPULSES_PER_REVOLUTION 3
-
 // Sensor signal settings
 #define ROTATION_DEBOUNCE_TIME_MIN 7
 #define ROWING_STOPPED_THRESHOLD_PERIOD 7
-
 // Drag factor settings
 #define GOODNESS_OF_FIT_THRESHOLD 0.97
 #define MAX_DRAG_FACTOR_RECOVERY_PERIOD 6
 #define LOWER_DRAG_FACTOR_THRESHOLD 75
 #define UPPER_DRAG_FACTOR_THRESHOLD 250
 #define DRAG_COEFFICIENTS_ARRAY_LENGTH 1
-
 // Stroke detection settings
 #define STROKE_DETECTION_TORQUE
 #define IMPULSE_DATA_ARRAY_LENGTH 180
@@ -40,7 +37,6 @@ const TEST_PROFILES = {
 #define MINIMUM_RECOVERY_TIME 900
 #define MINIMUM_DRIVE_TIME 300
 #define DRIVE_HANDLE_FORCES_MAX_CAPACITY 255
-
 #endif
 `,
     kayakFirstOrange: `
@@ -118,10 +114,16 @@ describe("fetch-profiles", (): void => {
     let fetchSpy: FetchSpy;
 
     beforeEach((): void => {
-        fetchSpy = spyOn(globalThis, "fetch");
-        spyOn(console, "log").and.stub();
-        spyOn(console, "warn").and.stub();
-        spyOn(console, "error").and.stub();
+        fetchSpy = vi.spyOn(globalThis, "fetch");
+        vi.spyOn(console, "log").mockImplementation((): void => {
+            /* no-op*/
+        });
+        vi.spyOn(console, "warn").mockImplementation((): void => {
+            /* no-op*/
+        });
+        vi.spyOn(console, "error").mockImplementation((): void => {
+            /* no-op*/
+        });
     });
 
     describe("fetchRepositoryFiles function", (): void => {
@@ -142,7 +144,7 @@ describe("fetch-profiles", (): void => {
                 json: async (): Promise<typeof files> => files,
             } as Response;
 
-            fetchSpy.and.resolveTo(response);
+            fetchSpy.mockResolvedValue(response);
 
             await fetchProfiles.fetchRepositoryFiles("src/profiles");
 
@@ -168,7 +170,7 @@ describe("fetch-profiles", (): void => {
                 json: async (): Promise<typeof files> => files,
             } as Response;
 
-            fetchSpy.and.resolveTo(response);
+            fetchSpy.mockResolvedValue(response);
 
             const result = await fetchProfiles.fetchRepositoryFiles("src/profiles");
 
@@ -183,13 +185,11 @@ describe("fetch-profiles", (): void => {
                 json: async (): Promise<Array<never>> => [],
             } as Response;
 
-            fetchSpy.and.resolveTo(response);
+            fetchSpy.mockResolvedValue(response);
 
             const failingRequest = fetchProfiles.fetchRepositoryFiles("missing");
 
-            await expectAsync(failingRequest).toBeRejectedWithError(
-                "GitHub API request failed: 404 Not Found",
-            );
+            await expect(failingRequest).rejects.toThrowError("GitHub API request failed: 404 Not Found");
         });
     });
 
@@ -202,7 +202,7 @@ describe("fetch-profiles", (): void => {
                 text: async (): Promise<string> => "file-body",
             } as Response;
 
-            fetchSpy.and.resolveTo(response);
+            fetchSpy.mockResolvedValue(response);
 
             await fetchProfiles.fetchFileContent("https://example.com/file");
 
@@ -217,7 +217,7 @@ describe("fetch-profiles", (): void => {
                 text: async (): Promise<string> => "file-body",
             } as Response;
 
-            fetchSpy.and.resolveTo(response);
+            fetchSpy.mockResolvedValue(response);
 
             const result = await fetchProfiles.fetchFileContent("https://example.com/file");
 
@@ -232,13 +232,11 @@ describe("fetch-profiles", (): void => {
                 text: async (): Promise<string> => "",
             } as Response;
 
-            fetchSpy.and.resolveTo(response);
+            fetchSpy.mockResolvedValue(response);
 
             const failingDownload = fetchProfiles.fetchFileContent("https://example.com/file");
 
-            await expectAsync(failingDownload).toBeRejectedWithError(
-                "Failed to fetch file: 500 Server Error",
-            );
+            await expect(failingDownload).rejects.toThrowError("Failed to fetch file: 500 Server Error");
         });
     });
 
@@ -438,6 +436,7 @@ describe("fetch-profiles", (): void => {
             expect(result.settings.strokeDetectionSettings.impulseDataArrayLength).toBe(180);
             expect(result.settings.strokeDetectionSettings.minimumPoweredTorque).toBe(0.05);
             expect(result.settings.strokeDetectionSettings.minimumDragTorque).toBe(0.15);
+            // suppressDeprecation: minRecoverySlopeMargin is deprecated
             expect(result.settings.strokeDetectionSettings.minimumRecoverySlopeMargin).toBe(15);
             expect(result.settings.strokeDetectionSettings.minimumRecoverySlope).toBe(-35);
             expect(result.settings.strokeDetectionSettings.minimumRecoveryTime).toBe(900);
@@ -530,27 +529,27 @@ describe("fetch-profiles", (): void => {
         const createDependencies = (
             overrides: Partial<fetchProfiles.FetchProfilesDependencies> = {},
         ): fetchProfiles.FetchProfilesDependencies => ({
-            fetchRepositoryFiles: jasmine.createSpy("fetchRepositoryFiles"),
-            fetchFileContent: jasmine.createSpy("fetchFileContent"),
-            mkdir: jasmine.createSpy("mkdir"),
-            writeFile: jasmine.createSpy("writeFile"),
+            fetchRepositoryFiles: vi.fn(),
+            fetchFileContent: vi.fn(),
+            mkdir: vi.fn(),
+            writeFile: vi.fn(),
             cwd: (): string => "C:/repo",
             ...overrides,
         });
 
         describe("on the happy path", (): void => {
             let dependencies: fetchProfiles.FetchProfilesDependencies;
-            let fetchRepositoryFilesSpy: jasmine.Spy;
-            let fetchFileContentSpy: jasmine.Spy;
-            let mkdirSpy: jasmine.Spy;
-            let writeFileSpy: jasmine.Spy;
+            let fetchRepositoryFilesSpy: Mock;
+            let fetchFileContentSpy: Mock;
+            let mkdirSpy: Mock;
+            let writeFileSpy: Mock;
 
             beforeEach(async (): Promise<void> => {
                 dependencies = createDependencies();
-                fetchRepositoryFilesSpy = dependencies.fetchRepositoryFiles as jasmine.Spy;
-                fetchFileContentSpy = dependencies.fetchFileContent as jasmine.Spy;
-                mkdirSpy = dependencies.mkdir as jasmine.Spy;
-                writeFileSpy = dependencies.writeFile as jasmine.Spy;
+                fetchRepositoryFilesSpy = dependencies.fetchRepositoryFiles as Mock;
+                fetchFileContentSpy = dependencies.fetchFileContent as Mock;
+                mkdirSpy = dependencies.mkdir as Mock;
+                writeFileSpy = dependencies.writeFile as Mock;
 
                 const files = [
                     {
@@ -562,10 +561,10 @@ describe("fetch-profiles", (): void => {
                     },
                 ];
 
-                fetchRepositoryFilesSpy.and.resolveTo(files);
-                fetchFileContentSpy.and.resolveTo(TEST_PROFILES.concept2ModelD);
-                mkdirSpy.and.resolveTo(undefined);
-                writeFileSpy.and.resolveTo();
+                fetchRepositoryFilesSpy.mockResolvedValue(files);
+                fetchFileContentSpy.mockResolvedValue(TEST_PROFILES.concept2ModelD);
+                mkdirSpy.mockResolvedValue(undefined);
+                writeFileSpy.mockResolvedValue(undefined);
 
                 await fetchProfiles.main(dependencies);
             });
@@ -587,8 +586,9 @@ describe("fetch-profiles", (): void => {
             it("should write the generated TypeScript output", (): void => {
                 expect(writeFileSpy).toHaveBeenCalled();
 
-                const [outputPath, outputContent, encoding]: [string, string, string] =
-                    writeFileSpy.calls.mostRecent().args as [string, string, string];
+                const [outputPath, outputContent, encoding]: [string, string, string] = vi.mocked(
+                    writeFileSpy,
+                ).mock.lastCall as [string, string, string];
                 expect(outputPath).toBe(join("C:/repo", "src", "common", "data", "standard-profiles.ts"));
                 expect(typeof outputContent).toBe("string");
                 expect(outputContent).toContain("concept2ModelD");
@@ -598,14 +598,14 @@ describe("fetch-profiles", (): void => {
 
         it("should return without writing when no profiles are found", async (): Promise<void> => {
             const dependencies = createDependencies({
-                fetchRepositoryFiles: jasmine.createSpy("fetchRepositoryFiles"),
+                fetchRepositoryFiles: vi.fn(),
             });
-            const fetchRepositoryFilesSpy = dependencies.fetchRepositoryFiles as jasmine.Spy;
-            const fetchFileContentSpy = dependencies.fetchFileContent as jasmine.Spy;
-            const mkdirSpy = dependencies.mkdir as jasmine.Spy;
-            const writeFileSpy = dependencies.writeFile as jasmine.Spy;
+            const fetchRepositoryFilesSpy = dependencies.fetchRepositoryFiles as Mock;
+            const fetchFileContentSpy = dependencies.fetchFileContent as Mock;
+            const mkdirSpy = dependencies.mkdir as Mock;
+            const writeFileSpy = dependencies.writeFile as Mock;
 
-            fetchRepositoryFilesSpy.and.resolveTo([]);
+            fetchRepositoryFilesSpy.mockResolvedValue([]);
 
             await fetchProfiles.main(dependencies);
 
@@ -617,9 +617,9 @@ describe("fetch-profiles", (): void => {
 
         it("should continue processing when a profile fails to parse", async (): Promise<void> => {
             const dependencies = createDependencies();
-            const fetchRepositoryFilesSpy = dependencies.fetchRepositoryFiles as jasmine.Spy;
-            const fetchFileContentSpy = dependencies.fetchFileContent as jasmine.Spy;
-            const writeFileSpy = dependencies.writeFile as jasmine.Spy;
+            const fetchRepositoryFilesSpy = dependencies.fetchRepositoryFiles as Mock;
+            const fetchFileContentSpy = dependencies.fetchFileContent as Mock;
+            const writeFileSpy = dependencies.writeFile as Mock;
 
             const files = [
                 {
@@ -638,16 +638,18 @@ describe("fetch-profiles", (): void => {
                 },
             ];
 
-            fetchRepositoryFilesSpy.and.resolveTo(files);
-            fetchFileContentSpy.and.returnValues(TEST_PROFILES.concept2ModelD, "invalid content");
-            writeFileSpy.and.resolveTo();
+            fetchRepositoryFilesSpy.mockResolvedValue(files);
+            fetchFileContentSpy
+                .mockReturnValueOnce(TEST_PROFILES.concept2ModelD)
+                .mockReturnValueOnce("invalid content");
+            writeFileSpy.mockResolvedValue(undefined);
 
             await fetchProfiles.main(dependencies);
 
-            expect(fetchFileContentSpy.calls.count()).toBe(2);
+            expect(vi.mocked(fetchFileContentSpy).mock.calls.length).toBe(2);
             expect(writeFileSpy).toHaveBeenCalledTimes(1);
 
-            const writeFileArgs = writeFileSpy.calls.mostRecent().args as [string, string, string];
+            const writeFileArgs = vi.mocked(writeFileSpy).mock.lastCall as [string, string, string];
             const outputContent = writeFileArgs[1];
             expect(outputContent).toContain("concept2ModelD");
             expect(outputContent).not.toContain("brokenProfile");
@@ -655,20 +657,22 @@ describe("fetch-profiles", (): void => {
 
         it("should exit the process when an unexpected error occurs", async (): Promise<void> => {
             const failure = new Error("network down");
-            const fetchRepositoryFilesSpy = jasmine.createSpy("fetchRepositoryFiles").and.rejectWith(failure);
-            const mkdirSpy = jasmine.createSpy("mkdir");
-            const writeFileSpy = jasmine.createSpy("writeFile");
-            const exitSpy = spyOn(process, "exit").and.callFake((code?: number): never => {
-                throw new Error(`exit-${code}`);
-            });
+            const fetchRepositoryFilesSpy = vi.fn().mockRejectedValue(failure);
+            const mkdirSpy = vi.fn();
+            const writeFileSpy = vi.fn();
+            const exitSpy = vi
+                .spyOn(process, "exit")
+                .mockImplementation((code?: string | number | null): never => {
+                    throw new Error(`exit-${code}`);
+                });
 
-            await expectAsync(
+            await expect(
                 fetchProfiles.main({
                     fetchRepositoryFiles: fetchRepositoryFilesSpy,
                     mkdir: mkdirSpy,
                     writeFile: writeFileSpy,
                 }),
-            ).toBeRejectedWithError("exit-1");
+            ).rejects.toThrowError("exit-1");
 
             expect(fetchRepositoryFilesSpy).toHaveBeenCalledWith("src/profiles");
             expect(mkdirSpy).not.toHaveBeenCalled();

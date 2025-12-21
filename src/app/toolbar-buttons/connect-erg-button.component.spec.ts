@@ -6,6 +6,7 @@ import { MatButtonHarness } from "@angular/material/button/testing";
 import { MatIconHarness } from "@angular/material/icon/testing";
 import { MatTooltipHarness } from "@angular/material/tooltip/testing";
 import { BehaviorSubject } from "rxjs";
+import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import { BleServiceNames } from "../../common/ble.interfaces";
 import { IErgConnectionStatus } from "../../common/common.interfaces";
@@ -17,10 +18,10 @@ describe("ConnectErgButtonComponent", (): void => {
     let component: ConnectErgButtonComponent;
     let fixture: ComponentFixture<ConnectErgButtonComponent>;
     let loader: HarnessLoader;
-    let mockErgConnectionService: jasmine.SpyObj<ErgConnectionService>;
+    let mockErgConnectionService: Pick<ErgConnectionService, "discover" | "connectionStatus$">;
     let ergConnectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
-    let isSecureContextSpy: jasmine.Spy<() => boolean>;
-    let navigatorBluetoothSpy: jasmine.Spy<() => Bluetooth | undefined>;
+    let isSecureContextSpy: Mock;
+    let navigatorBluetoothSpy: Mock;
 
     const mockErgConnectionStatus: IErgConnectionStatus = {
         status: "disconnected",
@@ -30,13 +31,15 @@ describe("ConnectErgButtonComponent", (): void => {
     beforeEach(async (): Promise<void> => {
         ergConnectionStatusSubject = new BehaviorSubject<IErgConnectionStatus>(mockErgConnectionStatus);
 
-        mockErgConnectionService = jasmine.createSpyObj("ErgConnectionService", [
-            "discover",
-            "connectionStatus$",
-        ]);
-        mockErgConnectionService.discover.and.resolveTo();
+        mockErgConnectionService = {
+            discover: vi.fn(),
+            connectionStatus$: vi.fn(),
+        };
+        vi.mocked(mockErgConnectionService.discover).mockResolvedValue();
 
-        mockErgConnectionService.connectionStatus$.and.returnValue(ergConnectionStatusSubject.asObservable());
+        vi.mocked(mockErgConnectionService.connectionStatus$).mockReturnValue(
+            ergConnectionStatusSubject.asObservable(),
+        );
 
         await TestBed.configureTestingModule({
             imports: [ConnectErgButtonComponent],
@@ -46,10 +49,10 @@ describe("ConnectErgButtonComponent", (): void => {
             ],
         }).compileComponents();
 
-        isSecureContextSpy = spyOnProperty(window, "isSecureContext", "get").and.returnValue(true);
-        navigatorBluetoothSpy = spyOnProperty(navigator, "bluetooth", "get").and.returnValue(
-            {} as unknown as Bluetooth,
-        );
+        isSecureContextSpy = vi.spyOn(window, "isSecureContext", "get").mockReturnValue(true);
+        navigatorBluetoothSpy = vi
+            .spyOn(navigator, "bluetooth", "get")
+            .mockReturnValue({} as unknown as Bluetooth);
 
         fixture = TestBed.createComponent(ConnectErgButtonComponent);
         component = fixture.componentInstance;
@@ -75,8 +78,6 @@ describe("ConnectErgButtonComponent", (): void => {
         });
 
         it("should initialize ergConnectionStatus signal", (): void => {
-            fixture.detectChanges();
-
             expect(component.ergConnectionStatus()).toEqual(mockErgConnectionStatus);
         });
 
@@ -85,7 +86,7 @@ describe("ConnectErgButtonComponent", (): void => {
         });
 
         it("should detect BLE unavailability when not secure context", (): void => {
-            isSecureContextSpy.and.returnValue(false);
+            isSecureContextSpy.mockReturnValue(false);
 
             const newFixture = TestBed.createComponent(ConnectErgButtonComponent);
             const newComponent = newFixture.componentInstance;
@@ -94,7 +95,7 @@ describe("ConnectErgButtonComponent", (): void => {
         });
 
         it("should detect BLE unavailability when bluetooth API missing", (): void => {
-            navigatorBluetoothSpy.and.returnValue(undefined);
+            navigatorBluetoothSpy.mockReturnValue(undefined);
 
             const newFixture = TestBed.createComponent(ConnectErgButtonComponent);
             const newComponent = newFixture.componentInstance;
@@ -105,26 +106,23 @@ describe("ConnectErgButtonComponent", (): void => {
 
     describe("as part of template rendering", (): void => {
         describe("when BLE is available", (): void => {
-            beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+            beforeEach(async (): Promise<void> => {
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 // recreate the fixture so component reads the updated globals
                 fixture = TestBed.createComponent(ConnectErgButtonComponent);
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
+                await fixture.whenStable();
             });
 
             it("should render button element", async (): Promise<void> => {
-                fixture.detectChanges();
-
                 const buttonHarness = await loader.getHarness(MatButtonHarness);
                 expect(buttonHarness).toBeTruthy();
             });
 
             it("should render mat-icon element", async (): Promise<void> => {
-                fixture.detectChanges();
-
                 const iconHarness = await loader.getHarness(MatIconHarness);
                 expect(iconHarness).toBeTruthy();
             });
@@ -135,16 +133,12 @@ describe("ConnectErgButtonComponent", (): void => {
                 });
 
                 it("should display correct icon", async (): Promise<void> => {
-                    fixture.detectChanges();
-
                     const iconHarness = await loader.getHarness(MatIconHarness);
                     const iconName = await iconHarness.getName();
                     expect(iconName).toBe("bluetooth");
                 });
 
                 it("should display default tooltip", async (): Promise<void> => {
-                    fixture.detectChanges();
-
                     const tooltipHarness = await loader.getHarness(MatTooltipHarness);
                     await tooltipHarness.show();
                     const tooltipText = await tooltipHarness.getTooltipText();
@@ -152,29 +146,24 @@ describe("ConnectErgButtonComponent", (): void => {
                 });
 
                 it("should not have blink CSS class", (): void => {
-                    fixture.detectChanges();
-
                     const matIcon = fixture.nativeElement.querySelector("mat-icon");
                     expect(matIcon.classList.contains("blink")).toBe(false);
                 });
             });
 
             describe("with connecting status", (): void => {
-                beforeEach((): void => {
+                beforeEach(async (): Promise<void> => {
                     ergConnectionStatusSubject.next({ status: "connecting", deviceName: undefined });
+                    await fixture.whenStable();
                 });
 
                 it("should display correct icon", async (): Promise<void> => {
-                    fixture.detectChanges();
-
                     const iconHarness = await loader.getHarness(MatIconHarness);
                     const iconName = await iconHarness.getName();
                     expect(iconName).toBe("bluetooth_connected");
                 });
 
                 it("should display default tooltip", async (): Promise<void> => {
-                    fixture.detectChanges();
-
                     const tooltipHarness = await loader.getHarness(MatTooltipHarness);
                     await tooltipHarness.show();
                     const tooltipText = await tooltipHarness.getTooltipText();
@@ -182,8 +171,6 @@ describe("ConnectErgButtonComponent", (): void => {
                 });
 
                 it("should have blink CSS class", (): void => {
-                    fixture.detectChanges();
-
                     const matIcon = fixture.nativeElement.querySelector("mat-icon");
                     expect(matIcon.classList.contains("blink")).toBe(true);
                 });
@@ -195,16 +182,12 @@ describe("ConnectErgButtonComponent", (): void => {
                 });
 
                 it("should display correct icon", async (): Promise<void> => {
-                    fixture.detectChanges();
-
                     const iconHarness = await loader.getHarness(MatIconHarness);
                     const iconName = await iconHarness.getName();
                     expect(iconName).toBe("bluetooth_connected");
                 });
 
                 it("should display device name in tooltip", async (): Promise<void> => {
-                    fixture.detectChanges();
-
                     const tooltipHarness = await loader.getHarness(MatTooltipHarness);
                     await tooltipHarness.show();
                     const tooltipText = await tooltipHarness.getTooltipText();
@@ -212,8 +195,6 @@ describe("ConnectErgButtonComponent", (): void => {
                 });
 
                 it("should not have blink CSS class", (): void => {
-                    fixture.detectChanges();
-
                     const matIcon = fixture.nativeElement.querySelector("mat-icon");
                     expect(matIcon.classList.contains("blink")).toBe(false);
                 });
@@ -225,16 +206,12 @@ describe("ConnectErgButtonComponent", (): void => {
                 });
 
                 it("should display correct icon", async (): Promise<void> => {
-                    fixture.detectChanges();
-
                     const iconHarness = await loader.getHarness(MatIconHarness);
                     const iconName = await iconHarness.getName();
                     expect(iconName).toBe("bluetooth_searching");
                 });
 
                 it("should display searching tooltip", async (): Promise<void> => {
-                    fixture.detectChanges();
-
                     const tooltipHarness = await loader.getHarness(MatTooltipHarness);
                     await tooltipHarness.show();
                     const tooltipText = await tooltipHarness.getTooltipText();
@@ -242,8 +219,6 @@ describe("ConnectErgButtonComponent", (): void => {
                 });
 
                 it("should not have blink CSS class", (): void => {
-                    fixture.detectChanges();
-
                     const matIcon = fixture.nativeElement.querySelector("mat-icon");
                     expect(matIcon.classList.contains("blink")).toBe(false);
                 });
@@ -252,8 +227,8 @@ describe("ConnectErgButtonComponent", (): void => {
 
         describe("when BLE is not available", (): void => {
             beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(false);
-                navigatorBluetoothSpy.and.returnValue(undefined);
+                isSecureContextSpy.mockReturnValue(false);
+                navigatorBluetoothSpy.mockReturnValue(undefined);
 
                 // recreate the fixture so component reads the updated globals
                 fixture = TestBed.createComponent(ConnectErgButtonComponent);
@@ -262,8 +237,6 @@ describe("ConnectErgButtonComponent", (): void => {
             });
 
             it("should not render any content", (): void => {
-                fixture.detectChanges();
-
                 const content = fixture.nativeElement.querySelector("*");
                 expect(content).toBeNull();
             });
@@ -278,33 +251,33 @@ describe("ConnectErgButtonComponent", (): void => {
         });
 
         it("should handle successful discovery", async (): Promise<void> => {
-            mockErgConnectionService.discover.and.resolveTo();
+            vi.mocked(mockErgConnectionService.discover).mockResolvedValue();
 
-            await expectAsync(component.ergoMonitorDiscovery()).toBeResolved();
+            await expect(component.ergoMonitorDiscovery()).resolves.not.toThrow();
         });
 
         it("should handle discovery failure", async (): Promise<void> => {
             const error = new Error("Discovery failed");
-            mockErgConnectionService.discover.and.rejectWith(error);
+            vi.mocked(mockErgConnectionService.discover).mockRejectedValue(error);
 
-            await expectAsync(component.ergoMonitorDiscovery()).toBeRejected();
+            await expect(component.ergoMonitorDiscovery()).rejects.toThrow();
         });
     });
 
     describe("as part of user interactions", (): void => {
         describe("button click interaction", (): void => {
-            beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+            beforeEach(async (): Promise<void> => {
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 fixture = TestBed.createComponent(ConnectErgButtonComponent);
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
-                fixture.detectChanges();
+                await fixture.whenStable();
             });
 
             it("should trigger ergoMonitorDiscovery when clicked", async (): Promise<void> => {
-                spyOn(component, "ergoMonitorDiscovery").and.resolveTo();
+                vi.spyOn(component, "ergoMonitorDiscovery").mockResolvedValue();
 
                 const buttonHarness = await loader.getHarness(MatButtonHarness);
                 await buttonHarness.click();
@@ -321,17 +294,17 @@ describe("ConnectErgButtonComponent", (): void => {
 
     describe("as part of signal reactivity", (): void => {
         describe("ergConnectionStatus signal updates", (): void => {
-            beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+            beforeEach(async (): Promise<void> => {
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 fixture = TestBed.createComponent(ConnectErgButtonComponent);
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
+                await fixture.whenStable();
             });
 
             it("should update when ErgConnectionService emits new value", (): void => {
-                fixture.detectChanges();
                 expect(component.ergConnectionStatus()).toEqual({
                     status: "disconnected",
                     deviceName: undefined,
@@ -341,7 +314,6 @@ describe("ConnectErgButtonComponent", (): void => {
                     status: "connected",
                     deviceName: "New Device",
                 });
-                fixture.detectChanges();
 
                 expect(component.ergConnectionStatus()).toEqual({
                     status: "connected",
@@ -350,15 +322,12 @@ describe("ConnectErgButtonComponent", (): void => {
             });
 
             it("should update tooltip when device name changes", async (): Promise<void> => {
-                fixture.detectChanges();
-
                 let tooltipHarness = await loader.getHarness(MatTooltipHarness);
                 await tooltipHarness.show();
                 let tooltipText = await tooltipHarness.getTooltipText();
                 expect(tooltipText).toBe("Connect ESPRM");
 
                 ergConnectionStatusSubject.next({ status: "connected", deviceName: "Updated Device" });
-                fixture.detectChanges();
 
                 tooltipHarness = await loader.getHarness(MatTooltipHarness);
                 await tooltipHarness.show();
@@ -367,26 +336,23 @@ describe("ConnectErgButtonComponent", (): void => {
             });
 
             it("should update icon when status changes", async (): Promise<void> => {
-                fixture.detectChanges();
                 let iconHarness = await loader.getHarness(MatIconHarness);
                 let iconName = await iconHarness.getName();
                 expect(iconName).toBe("bluetooth");
 
                 ergConnectionStatusSubject.next({ status: "searching", deviceName: undefined });
-                fixture.detectChanges();
 
                 iconHarness = await loader.getHarness(MatIconHarness);
                 iconName = await iconHarness.getName();
                 expect(iconName).toBe("bluetooth_searching");
             });
 
-            it("should update CSS class when connecting status changes", (): void => {
-                fixture.detectChanges();
+            it("should update CSS class when connecting status changes", async (): Promise<void> => {
                 let matIcon = fixture.nativeElement.querySelector("mat-icon");
                 expect(matIcon.classList.contains("blink")).toBe(false);
 
                 ergConnectionStatusSubject.next({ status: "connecting", deviceName: undefined });
-                fixture.detectChanges();
+                await fixture.whenStable();
 
                 matIcon = fixture.nativeElement.querySelector("mat-icon");
                 expect(matIcon.classList.contains("blink")).toBe(true);
@@ -397,8 +363,8 @@ describe("ConnectErgButtonComponent", (): void => {
     describe("as part of edge case handling", (): void => {
         describe("with null or undefined connection status", (): void => {
             beforeEach((): void => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 fixture = TestBed.createComponent(ConnectErgButtonComponent);
                 component = fixture.componentInstance;
@@ -410,7 +376,6 @@ describe("ConnectErgButtonComponent", (): void => {
                     status: "connected",
                     deviceName: null as unknown as string,
                 });
-                fixture.detectChanges();
 
                 const tooltipHarness = await loader.getHarness(MatTooltipHarness);
                 await tooltipHarness.show();
@@ -423,7 +388,6 @@ describe("ConnectErgButtonComponent", (): void => {
                     status: "disconnected",
                     deviceName: undefined,
                 });
-                fixture.detectChanges();
 
                 const iconHarness = await loader.getHarness(MatIconHarness);
                 const iconName = await iconHarness.getName();
@@ -451,7 +415,6 @@ describe("ConnectErgButtonComponent", (): void => {
                     status: "disconnected",
                     deviceName: undefined,
                 });
-                fixture.detectChanges();
 
                 expect(component.ergConnectionStatus().status).toBe("disconnected");
                 const iconHarness = await loader.getHarness(MatIconHarness);
@@ -471,7 +434,7 @@ describe("ConnectErgButtonComponent", (): void => {
 
         describe("with browser compatibility issues", (): void => {
             it("should handle missing isSecureContext", (): void => {
-                isSecureContextSpy.and.returnValue(undefined as unknown as boolean);
+                isSecureContextSpy.mockReturnValue(undefined as unknown as boolean);
 
                 const newFixture = TestBed.createComponent(ConnectErgButtonComponent);
                 const newComponent = newFixture.componentInstance;
@@ -480,7 +443,7 @@ describe("ConnectErgButtonComponent", (): void => {
             });
 
             it("should handle missing navigator.bluetooth", (): void => {
-                navigatorBluetoothSpy.and.returnValue(undefined);
+                navigatorBluetoothSpy.mockReturnValue(undefined);
 
                 const newFixture = TestBed.createComponent(ConnectErgButtonComponent);
                 const newComponent = newFixture.componentInstance;

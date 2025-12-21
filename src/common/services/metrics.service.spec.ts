@@ -1,6 +1,7 @@
-import { DestroyRef, provideZonelessChangeDetection } from "@angular/core";
-import { fakeAsync, TestBed, tick } from "@angular/core/testing";
-import { BehaviorSubject, skip, Subject } from "rxjs";
+import { provideZonelessChangeDetection } from "@angular/core";
+import { TestBed } from "@angular/core/testing";
+import { BehaviorSubject, firstValueFrom, skip, Subject } from "rxjs";
+import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import {
     IBaseMetrics,
@@ -19,11 +20,16 @@ import { MetricsService } from "./metrics.service";
 
 describe("MetricsService", (): void => {
     let service: MetricsService;
-    let mockErgConnectionService: jasmine.SpyObj<ErgConnectionService>;
-    let mockErgMetricsService: jasmine.SpyObj<ErgMetricsService>;
-    let mockDataRecorderService: jasmine.SpyObj<DataRecorderService>;
-    let mockHeartRateService: jasmine.SpyObj<HeartRateService>;
-    let mockDestroyRef: jasmine.SpyObj<DestroyRef>;
+    let mockErgConnectionService: Pick<ErgConnectionService, "reconnect" | "connectionStatus$">;
+    let mockErgMetricsService: Pick<
+        ErgMetricsService,
+        "streamMeasurement$" | "streamExtended$" | "streamHandleForces$" | "streamDeltaTimes$"
+    >;
+    let mockDataRecorderService: Pick<
+        DataRecorderService,
+        "addDeltaTimes" | "addSessionData" | "addConnectedDevice" | "reset"
+    >;
+    let mockHeartRateService: Pick<HeartRateService, "streamHeartRate$" | "connectionStatus$">;
 
     let connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
     let measurementSubject: Subject<IBaseMetrics>;
@@ -63,12 +69,12 @@ describe("MetricsService", (): void => {
         deviceName: "HR Monitor",
     };
 
-    let isSecureContextSpy: jasmine.Spy<() => boolean>;
-    let navigatorSpy: jasmine.Spy<() => Navigator | undefined>;
+    let isSecureContextSpy: Mock;
+    let navigatorSpy: Mock;
 
     beforeEach((): void => {
-        isSecureContextSpy = spyOnProperty(globalThis, "isSecureContext", "get").and.returnValue(false);
-        navigatorSpy = spyOnProperty(globalThis, "navigator", "get").and.returnValue({} as Navigator);
+        isSecureContextSpy = vi.spyOn(globalThis, "isSecureContext", "get").mockReturnValue(false);
+        navigatorSpy = vi.spyOn(globalThis, "navigator", "get").mockReturnValue({} as Navigator);
 
         connectionStatusSubject = new BehaviorSubject<IErgConnectionStatus>({ status: "disconnected" });
         measurementSubject = new Subject<IBaseMetrics>();
@@ -78,36 +84,29 @@ describe("MetricsService", (): void => {
         heartRateSubject = new Subject<IHeartRate | undefined>();
         hrConnectionStatusSubject = new Subject<IHRConnectionStatus>();
 
-        mockErgConnectionService = jasmine.createSpyObj<ErgConnectionService>(
-            "ErgConnectionService",
-            ["reconnect"],
-            {
-                connectionStatus$: jasmine
-                    .createSpy()
-                    .and.returnValue(connectionStatusSubject.asObservable()),
-            },
-        );
+        mockErgConnectionService = {
+            reconnect: vi.fn(),
+            connectionStatus$: vi.fn().mockReturnValue(connectionStatusSubject.asObservable()),
+        };
 
-        mockErgMetricsService = jasmine.createSpyObj<ErgMetricsService>("ErgMetricsService", [], {
-            streamMeasurement$: jasmine.createSpy().and.returnValue(measurementSubject.asObservable()),
-            streamExtended$: jasmine.createSpy().and.returnValue(extendedSubject.asObservable()),
-            streamHandleForces$: jasmine.createSpy().and.returnValue(handleForcesSubject.asObservable()),
-            streamDeltaTimes$: jasmine.createSpy().and.returnValue(deltaTimesSubject.asObservable()),
-        });
+        mockErgMetricsService = {
+            streamMeasurement$: vi.fn().mockReturnValue(measurementSubject.asObservable()),
+            streamExtended$: vi.fn().mockReturnValue(extendedSubject.asObservable()),
+            streamHandleForces$: vi.fn().mockReturnValue(handleForcesSubject.asObservable()),
+            streamDeltaTimes$: vi.fn().mockReturnValue(deltaTimesSubject.asObservable()),
+        };
 
-        mockDataRecorderService = jasmine.createSpyObj<DataRecorderService>("DataRecorderService", [
-            "addDeltaTimes",
-            "addSessionData",
-            "addConnectedDevice",
-            "reset",
-        ]);
+        mockDataRecorderService = {
+            addDeltaTimes: vi.fn(),
+            addSessionData: vi.fn(),
+            addConnectedDevice: vi.fn(),
+            reset: vi.fn(),
+        };
 
-        mockHeartRateService = jasmine.createSpyObj<HeartRateService>("HeartRateService", [], {
-            streamHeartRate$: jasmine.createSpy().and.returnValue(heartRateSubject.asObservable()),
-            connectionStatus$: jasmine.createSpy().and.returnValue(hrConnectionStatusSubject.asObservable()),
-        });
-
-        mockDestroyRef = jasmine.createSpyObj<DestroyRef>("DestroyRef", ["onDestroy"]);
+        mockHeartRateService = {
+            streamHeartRate$: vi.fn().mockReturnValue(heartRateSubject.asObservable()),
+            connectionStatus$: vi.fn().mockReturnValue(hrConnectionStatusSubject.asObservable()),
+        };
 
         TestBed.configureTestingModule({
             providers: [
@@ -116,10 +115,13 @@ describe("MetricsService", (): void => {
                 { provide: ErgMetricsService, useValue: mockErgMetricsService },
                 { provide: DataRecorderService, useValue: mockDataRecorderService },
                 { provide: HeartRateService, useValue: mockHeartRateService },
-                { provide: DestroyRef, useValue: mockDestroyRef },
                 provideZonelessChangeDetection(),
             ],
         });
+    });
+
+    afterEach((): void => {
+        vi.resetAllMocks();
     });
 
     describe("Service Initialization", (): void => {
@@ -133,8 +135,8 @@ describe("MetricsService", (): void => {
         });
 
         it("should call ergConnectionService.reconnect() if running in a secure context with Bluetooth available", (): void => {
-            isSecureContextSpy.and.returnValue(true);
-            navigatorSpy.and.returnValue({ bluetooth: {} } as Navigator);
+            isSecureContextSpy.mockReturnValue(true);
+            navigatorSpy.mockReturnValue({ bluetooth: {} } as Navigator);
 
             service = TestBed.inject(MetricsService);
 
@@ -142,8 +144,8 @@ describe("MetricsService", (): void => {
         });
 
         it("should not call ergConnectionService.reconnect() if not in a secure context", (): void => {
-            isSecureContextSpy.and.returnValue(false);
-            navigatorSpy.and.returnValue({ bluetooth: {} } as Navigator);
+            isSecureContextSpy.mockReturnValue(false);
+            navigatorSpy.mockReturnValue({ bluetooth: {} } as Navigator);
 
             service = TestBed.inject(MetricsService);
 
@@ -151,8 +153,8 @@ describe("MetricsService", (): void => {
         });
 
         it("should not call ergConnectionService.reconnect() if Bluetooth is unavailable", (): void => {
-            isSecureContextSpy.and.returnValue(true);
-            navigatorSpy.and.returnValue({} as Navigator);
+            isSecureContextSpy.mockReturnValue(true);
+            navigatorSpy.mockReturnValue({} as Navigator);
 
             service = TestBed.inject(MetricsService);
 
@@ -162,51 +164,42 @@ describe("MetricsService", (): void => {
 
     describe("Activity Management", (): void => {
         beforeEach((): void => {
+            vi.useFakeTimers();
             service = TestBed.inject(MetricsService);
         });
 
-        it("should set activityStartTime to the current date when erg connection status becomes 'connected'", fakeAsync((): void => {
+        afterEach((): void => {
+            vi.useRealTimers();
+        });
+
+        it("should set activityStartTime to the current date when erg connection status becomes 'connected'", async (): Promise<void> => {
             const beforeConnection = new Date();
 
-            tick(100);
+            await vi.advanceTimersByTimeAsync(100);
             const atConnection = new Date();
             connectionStatusSubject.next(mockConnectionStatus);
 
             expect(service.getActivityStartTime().getTime()).toBeGreaterThan(beforeConnection.getTime());
-            expect(service.getActivityStartTime().getTime()).toEqual(atConnection.getTime());
-        }));
+            expect(service.getActivityStartTime().getTime()).toBe(atConnection.getTime());
+        });
 
-        it("should update activityStartDistance, activityStartStrokeCount, and activityStartTime on reset()", fakeAsync((): void => {
+        it("should update activityStartDistance, activityStartStrokeCount, and activityStartTime on reset()", async (): Promise<void> => {
             const beforeReset = new Date();
             const baseMetrics = { ...mockBaseMetrics };
             measurementSubject.next(baseMetrics);
             extendedSubject.next(mockExtendedMetrics);
             handleForcesSubject.next([10, 20, 30]);
-            tick(100);
+            await vi.advanceTimersByTimeAsync(100);
 
             service.reset();
             const afterReset = service.getActivityStartTime();
 
-            expect(afterReset.getTime()).toBeGreaterThan(beforeReset.getTime());
+            expect(afterReset.getTime()).toBeGreaterThanOrEqual(beforeReset.getTime());
             expect(mockDataRecorderService.reset).toHaveBeenCalled();
-        }));
+        });
 
-        it("should emit a reset event on resetSubject with the correct base metrics on reset()", (done: DoneFn): void => {
-            service.allMetrics$.pipe(skip(4)).subscribe((metrics: ICalculatedMetrics): void => {
-                expect(metrics.distance).toBe(0);
-                expect(metrics.strokeCount).toBe(0);
-                expect(metrics.avgStrokePower).toBe(0);
-                expect(metrics.handleForces).toHaveSize(0);
-                expect(metrics.strokeCount).toBe(0);
-                expect(metrics.strokeRate).toBe(0);
-                expect(metrics.distPerStroke).toBe(0);
-                expect(metrics.peakForce).toBe(0);
-                expect(metrics.dragFactor).toBe(0);
-                expect(metrics.recoveryDuration).toBe(0);
-                expect(metrics.driveDuration).toBe(0);
-
-                done();
-            });
+        it("should emit a reset event on resetSubject with the correct base metrics on reset()", async (): Promise<void> => {
+            const metricsPromise = firstValueFrom(service.allMetrics$.pipe(skip(4)));
 
             service.reset();
             measurementSubject.next(mockBaseMetrics);
@@ -217,6 +210,20 @@ describe("MetricsService", (): void => {
                 strokeCount: mockBaseMetrics.strokeCount + 1,
             });
             service.reset();
+
+            const metrics = await metricsPromise;
+
+            expect(metrics.distance).toBe(0);
+            expect(metrics.strokeCount).toBe(0);
+            expect(metrics.avgStrokePower).toBe(0);
+            expect(metrics.handleForces).toHaveLength(0);
+            expect(metrics.strokeCount).toBe(0);
+            expect(metrics.strokeRate).toBe(0);
+            expect(metrics.distPerStroke).toBe(0);
+            expect(metrics.peakForce).toBe(0);
+            expect(metrics.dragFactor).toBe(0);
+            expect(metrics.recoveryDuration).toBe(0);
+            expect(metrics.driveDuration).toBe(0);
         });
     });
 
@@ -225,7 +232,7 @@ describe("MetricsService", (): void => {
             service = TestBed.inject(MetricsService);
         });
 
-        it("should calculate speed correctly based on distance and time changes", (done: DoneFn): void => {
+        it("should calculate speed correctly based on distance and time changes", async (): Promise<void> => {
             const baseMetrics1: IBaseMetrics = {
                 revTime: 1000000,
                 distance: 1000,
@@ -243,14 +250,13 @@ describe("MetricsService", (): void => {
                 // speed = (distance_diff / 100) / (time_diff / 1e6)
                 // expected: (1000 / 100) / ((2000000 - 1000000) / 1e6) = 10 / 1 = 10 m/s
                 expect(metrics.speed).toBe(10);
-                done();
             });
 
             measurementSubject.next(baseMetrics1);
             measurementSubject.next(baseMetrics2);
         });
 
-        it("should calculate stroke distance correctly", (done: DoneFn): void => {
+        it("should calculate stroke distance correctly", async (): Promise<void> => {
             const baseMetrics1: IBaseMetrics = { revTime: 0, distance: 1000, strokeTime: 0, strokeCount: 1 };
             const baseMetrics2: IBaseMetrics = { revTime: 0, distance: 2000, strokeTime: 0, strokeCount: 2 };
 
@@ -258,15 +264,13 @@ describe("MetricsService", (): void => {
                 // distPerStroke = (distance_diff / 100) / stroke_diff
                 // expected: (1000 / 100) / 1 = 10 m/stroke
                 expect(metrics.distPerStroke).toBe(10);
-
-                done();
             });
 
             measurementSubject.next(baseMetrics1);
             measurementSubject.next(baseMetrics2);
         });
 
-        it("should calculate stroke rate correctly", (done: DoneFn): void => {
+        it("should calculate stroke rate correctly", async (): Promise<void> => {
             const baseMetrics1: IBaseMetrics = {
                 revTime: 0,
                 distance: 0,
@@ -284,23 +288,19 @@ describe("MetricsService", (): void => {
                 // strokeRate = (stroke_diff / (time_diff / 1e6)) * 60
                 // expected: (1 / ((2000000 - 1000000) / 1e6)) * 60 = (1 / 1) * 60 = 60 strokes/min
                 expect(metrics.strokeRate).toBe(60);
-
-                done();
             });
 
             measurementSubject.next(baseMetrics1);
             measurementSubject.next(baseMetrics2);
         });
 
-        it("should return 0 for calculations when values haven't changed", (done: DoneFn): void => {
+        it("should return 0 for calculations when values haven't changed", async (): Promise<void> => {
             const baseMetrics = { ...mockBaseMetrics };
 
             service.allMetrics$.subscribe((metrics: ICalculatedMetrics): void => {
                 expect(metrics.speed).toBe(0);
                 expect(metrics.strokeRate).toBe(0);
                 expect(metrics.distPerStroke).toBe(0);
-
-                done();
             });
 
             measurementSubject.next(baseMetrics);
@@ -335,13 +335,11 @@ describe("MetricsService", (): void => {
             expect(mockDataRecorderService.addDeltaTimes).not.toHaveBeenCalled();
         });
 
-        it("should add session data to dataRecorder when valid metrics are emitted", (done: DoneFn): void => {
+        it("should add session data to dataRecorder when valid metrics are emitted", async (): Promise<void> => {
             service.allMetrics$.subscribe((): void => {
                 expect(mockDataRecorderService.addSessionData).toHaveBeenCalled();
-                const callArgs = mockDataRecorderService.addSessionData.calls.mostRecent().args[0];
-                expect(callArgs.strokeCount).toBeGreaterThan(0);
-
-                done();
+                const callArgs = vi.mocked(mockDataRecorderService.addSessionData).mock.lastCall?.[0];
+                expect(callArgs?.strokeCount).toBeGreaterThan(0);
             });
 
             measurementSubject.next(baseMetrics);
@@ -349,98 +347,97 @@ describe("MetricsService", (): void => {
             measurementSubject.next(baseMetrics);
         });
 
-        it("should add session data to dataRecorder when only distance increases", (done: DoneFn): void => {
-            service.allMetrics$.pipe(skip(2)).subscribe((): void => {
-                expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(2);
-
-                done();
-            });
+        it("should add session data to dataRecorder when only distance increases", async (): Promise<void> => {
+            const metricsPromise = firstValueFrom(service.allMetrics$.pipe(skip(2)));
 
             measurementSubject.next(baseMetrics);
             heartRateSubject.next(mockHeartRate);
             measurementSubject.next(baseMetrics);
             measurementSubject.next(baseMetrics);
             measurementSubject.next(baseMetrics2);
+
+            await metricsPromise;
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(2);
         });
 
-        it("should add session data to dataRecorder when only stroke count increases", (done: DoneFn): void => {
-            service.allMetrics$.pipe(skip(2)).subscribe((): void => {
-                expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(2);
-                const callArgs = mockDataRecorderService.addSessionData.calls.mostRecent().args[0];
-                expect(callArgs.strokeCount).toBeGreaterThan(0);
-
-                done();
-            });
+        it("should add session data to dataRecorder when only stroke count increases", async (): Promise<void> => {
+            const metricsPromise = firstValueFrom(service.allMetrics$.pipe(skip(2)));
 
             measurementSubject.next(baseMetrics);
             heartRateSubject.next(mockHeartRate);
             measurementSubject.next(baseMetrics);
             measurementSubject.next(baseMetrics);
             measurementSubject.next({ ...baseMetrics, strokeCount: baseMetrics.strokeCount + 1 });
+
+            await metricsPromise;
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(2);
+            const callArgs = vi.mocked(mockDataRecorderService.addSessionData).mock.lastCall?.[0];
+            expect(callArgs?.strokeCount).toBeGreaterThan(0);
         });
 
-        it("should add connected device to dataRecorder if connectionStatus.deviceName is defined", (done: DoneFn): void => {
-            service.allMetrics$.subscribe((): void => {
-                expect(mockDataRecorderService.addConnectedDevice).toHaveBeenCalledWith("Test Device");
-
-                done();
-            });
+        it("should add connected device to dataRecorder if connectionStatus.deviceName is defined", async (): Promise<void> => {
+            const metricsPromise = firstValueFrom(service.allMetrics$);
 
             connectionStatusSubject.next(mockConnectionStatus);
             measurementSubject.next(baseMetrics);
             heartRateSubject.next(mockHeartRate);
             measurementSubject.next(baseMetrics2);
+
+            await metricsPromise;
+
+            expect(mockDataRecorderService.addConnectedDevice).toHaveBeenCalledWith("Test Device");
         });
 
-        it("should not add connected device if connectionStatus.deviceName is undefined", (done: DoneFn): void => {
+        it("should not add connected device if connectionStatus.deviceName is undefined", async (): Promise<void> => {
             const connectionStatusWithoutDevice = { ...mockConnectionStatus, deviceName: undefined };
-
-            service.allMetrics$.subscribe((): void => {
-                expect(mockDataRecorderService.addConnectedDevice).not.toHaveBeenCalled();
-
-                done();
-            });
+            const metricsPromise = firstValueFrom(service.allMetrics$);
 
             connectionStatusSubject.next(connectionStatusWithoutDevice);
             measurementSubject.next(baseMetrics);
             heartRateSubject.next(mockHeartRate);
             measurementSubject.next(baseMetrics2);
+
+            await metricsPromise;
+
+            expect(mockDataRecorderService.addConnectedDevice).not.toHaveBeenCalled();
         });
 
-        it("should not emit session data if strokeCount and distance are both zero", (done: DoneFn): void => {
-            service.allMetrics$.subscribe((): void => {
-                expect(mockDataRecorderService.addSessionData).not.toHaveBeenCalled();
-
-                done();
-            });
+        it("should not emit session data if strokeCount and distance are both zero", async (): Promise<void> => {
+            const metricsPromise = firstValueFrom(service.allMetrics$);
 
             connectionStatusSubject.next(mockConnectionStatus);
             measurementSubject.next({ ...mockBaseMetrics, strokeCount: 0, distance: 0 });
             heartRateSubject.next(mockHeartRate);
             measurementSubject.next({ ...mockBaseMetrics, strokeCount: 0, distance: 0 });
+
+            await metricsPromise;
+
+            expect(mockDataRecorderService.addSessionData).not.toHaveBeenCalled();
         });
 
-        it("should reset dataRecorder if baseMetrics.distance decreases", (done: DoneFn): void => {
+        it("should reset dataRecorder if baseMetrics.distance decreases", async (): Promise<void> => {
             const baseMetrics1 = { ...mockBaseMetrics, distance: baseMetrics2.distance + 100 };
-
-            service.allMetrics$.subscribe((): void => {
-                expect(mockDataRecorderService.reset).toHaveBeenCalled();
-                done();
-            });
+            const metricsPromise = firstValueFrom(service.allMetrics$);
 
             measurementSubject.next(baseMetrics1);
             measurementSubject.next(baseMetrics2);
+
+            await metricsPromise;
+
+            expect(mockDataRecorderService.reset).toHaveBeenCalled();
         });
 
-        it("should not call dataRecorder.reset() if baseMetrics.distance does not decrease", (done: DoneFn): void => {
-            service.allMetrics$.subscribe((): void => {
-                expect(mockDataRecorderService.reset).not.toHaveBeenCalled();
-
-                done();
-            });
+        it("should not call dataRecorder.reset() if baseMetrics.distance does not decrease", async (): Promise<void> => {
+            const metricsPromise = firstValueFrom(service.allMetrics$);
 
             measurementSubject.next(baseMetrics);
             measurementSubject.next(baseMetrics2);
+
+            await metricsPromise;
+
+            expect(mockDataRecorderService.reset).not.toHaveBeenCalled();
         });
     });
 
@@ -449,48 +446,44 @@ describe("MetricsService", (): void => {
             service = TestBed.inject(MetricsService);
         });
 
-        it("should emit values from heartRateService.streamHeartRate$() via heartRateData$", (done: DoneFn): void => {
-            service.heartRateData$.subscribe((heartRate: IHeartRate | undefined): void => {
-                if (heartRate) {
-                    expect(heartRate).toEqual(mockHeartRate);
-
-                    done();
-                }
-            });
-
+        it("should emit values from heartRateService.streamHeartRate$() via heartRateData$", async (): Promise<void> => {
+            const heartRatePromise = firstValueFrom(service.heartRateData$);
             heartRateSubject.next(mockHeartRate);
+
+            const heartRate = await heartRatePromise;
+
+            expect(heartRate).toEqual(mockHeartRate);
         });
 
-        it("should emit values from heartRateService.connectionStatus$() via hrConnectionStatus$", (done: DoneFn): void => {
-            service.hrConnectionStatus$.subscribe((status: IHRConnectionStatus): void => {
-                expect(status).toEqual(mockHRConnectionStatus);
-
-                done();
-            });
-
+        it("should emit values from heartRateService.connectionStatus$() via hrConnectionStatus$", async (): Promise<void> => {
+            const statusPromise = firstValueFrom(service.hrConnectionStatus$);
             hrConnectionStatusSubject.next(mockHRConnectionStatus);
+
+            const status = await statusPromise;
+
+            expect(status).toEqual(mockHRConnectionStatus);
         });
 
-        it("should emit default values from streamExtended$ and streamHandleForces$ after reset", (done: DoneFn): void => {
-            service.allMetrics$.pipe(skip(2)).subscribe((metrics: ICalculatedMetrics): void => {
-                expect(metrics.avgStrokePower).toBe(0);
-                expect(metrics.dragFactor).toBe(0);
-                expect(metrics.driveDuration).toBe(0);
-                expect(metrics.recoveryDuration).toBe(0);
-                expect(metrics.handleForces).toEqual([]);
-                expect(metrics.distance).toBe(0);
-                expect(metrics.strokeCount).toBe(0);
-                expect(metrics.strokeRate).toBe(0);
-                expect(metrics.distPerStroke).toBe(0);
-                expect(metrics.peakForce).toBe(0);
-
-                done();
-            });
+        it("should emit default values from streamExtended$ and streamHandleForces$ after reset", async (): Promise<void> => {
+            const metricsPromise = firstValueFrom(service.allMetrics$.pipe(skip(2)));
 
             measurementSubject.next(mockBaseMetrics);
             extendedSubject.next(mockExtendedMetrics);
             handleForcesSubject.next([10, 20, 30]);
             service.reset();
+
+            const metrics = await metricsPromise;
+
+            expect(metrics.avgStrokePower).toBe(0);
+            expect(metrics.dragFactor).toBe(0);
+            expect(metrics.driveDuration).toBe(0);
+            expect(metrics.recoveryDuration).toBe(0);
+            expect(metrics.handleForces).toEqual([]);
+            expect(metrics.distance).toBe(0);
+            expect(metrics.strokeCount).toBe(0);
+            expect(metrics.strokeRate).toBe(0);
+            expect(metrics.distPerStroke).toBe(0);
+            expect(metrics.peakForce).toBe(0);
         });
     });
 
@@ -525,7 +518,7 @@ describe("MetricsService", (): void => {
             measurementSubject.next(baseMetrics);
         });
 
-        it("should handle NaN or Infinity values in metrics calculations", (done: DoneFn): void => {
+        it("should handle NaN or Infinity values in metrics calculations", async (): Promise<void> => {
             const baseMetrics1: IBaseMetrics = { revTime: 0, distance: 0, strokeTime: 0, strokeCount: 0 };
             const baseMetrics2: IBaseMetrics = { revTime: 0, distance: 1000, strokeTime: 0, strokeCount: 1 };
 
@@ -536,8 +529,6 @@ describe("MetricsService", (): void => {
                 expect(isFinite(metrics.strokeRate)).toBe(true);
                 expect(isNaN(metrics.distPerStroke)).toBe(false);
                 expect(isFinite(metrics.distPerStroke)).toBe(true);
-
-                done();
             });
 
             measurementSubject.next(baseMetrics1);

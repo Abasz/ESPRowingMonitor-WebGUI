@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IRowingProfileSettings, ProfileData, StrokeDetectionType } from "../common.interfaces";
 import { CUSTOM_PROFILE_KEY, STANDARD_PROFILES } from "../data/standard-profiles";
@@ -57,6 +58,7 @@ describe("RowingProfileService", (): void => {
     });
 
     afterEach((): void => {
+        vi.restoreAllMocks();
         localStorage.clear();
     });
 
@@ -152,27 +154,30 @@ describe("RowingProfileService", (): void => {
 
         it("should return undefined and log warning when localStorage contains invalid JSON", (): void => {
             localStorage.setItem("rowingSettingsCustomProfile", "invalid-json");
-            spyOn(console, "warn");
+            vi.spyOn(console, "warn");
 
             const result = rowingProfileService.getCustomProfile();
 
             expect(result).toBeUndefined();
             expect(console.warn).toHaveBeenCalledWith(
                 "Failed to load custom profile from localStorage:",
-                jasmine.any(Error),
+                expect.any(Error),
             );
         });
 
         it("should handle localStorage access errors gracefully", (): void => {
-            spyOn(localStorage, "getItem").and.throwError("localStorage access denied");
-            spyOn(console, "warn");
+            const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation((): never => {
+                throw new Error("localStorage access denied");
+            });
+            vi.spyOn(console, "warn");
 
             const result = rowingProfileService.getCustomProfile();
 
+            expect(getItem).toHaveBeenCalled();
             expect(result).toBeUndefined();
             expect(console.warn).toHaveBeenCalledWith(
                 "Failed to load custom profile from localStorage:",
-                jasmine.any(Error),
+                expect.any(Error),
             );
         });
     });
@@ -203,14 +208,17 @@ describe("RowingProfileService", (): void => {
         });
 
         it("should handle localStorage save errors gracefully", (): void => {
-            spyOn(localStorage, "setItem").and.throwError("localStorage quota exceeded");
-            spyOn(console, "error");
+            const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation((): void => undefined);
+            const setItemSpy = vi.spyOn(Storage.prototype, "setItem").mockImplementation((): never => {
+                throw new Error("localStorage quota exceeded");
+            });
 
             rowingProfileService.saveAsCustomProfile(mockProfileSettings);
 
-            expect(console.error).toHaveBeenCalledWith(
+            expect(setItemSpy).toHaveBeenCalled();
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
                 "Failed to save custom profile to localStorage:",
-                jasmine.any(Error),
+                expect.any(Error),
             );
         });
 

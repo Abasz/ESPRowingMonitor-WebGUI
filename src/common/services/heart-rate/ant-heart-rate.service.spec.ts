@@ -3,6 +3,7 @@ import { TestBed } from "@angular/core/testing";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { Observable, Subject } from "rxjs";
 import { takeUntil } from "rxjs/operators";
+import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 import { HeartRateSensor, HeartRateSensorState, USBDriver } from "web-ant-plus";
 
 import { IHeartRate, IHRConnectionStatus } from "../../common.interfaces";
@@ -12,11 +13,11 @@ import { AntHeartRateService } from "./ant-heart-rate.service";
 
 describe("AntHeartRateService", (): void => {
     let service: AntHeartRateService;
-    let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
-    let mockDestroyRef: jasmine.SpyObj<DestroyRef>;
-    let mockUSBDriver: jasmine.SpyObj<USBDriver>;
-    let mockHeartRateSensor: jasmine.SpyObj<HeartRateSensor>;
-    let mockUSBDevice: jasmine.SpyObj<USBDevice>;
+    let mockSnackBar: Pick<MatSnackBar, "open">;
+    let mockDestroyRef: Pick<DestroyRef, "onDestroy">;
+    let mockUSBDriver: Pick<USBDriver, "attach" | "open" | "close" | "on" | "off" | "write">;
+    let mockHeartRateSensor: Pick<HeartRateSensor, "attachSensor" | "on" | "off">;
+    let mockUSBDevice: Pick<USBDevice, "vendorId" | "productId">;
     const destroySubject: Subject<void> = new Subject<void>();
 
     const createMockUSBConnectionEvent = (device: USBDevice): USBConnectionEvent =>
@@ -47,42 +48,44 @@ describe("AntHeartRateService", (): void => {
     };
 
     beforeEach((): void => {
-        mockSnackBar = jasmine.createSpyObj<MatSnackBar>("MatSnackBar", ["open"]);
-        mockDestroyRef = jasmine.createSpyObj<DestroyRef>("DestroyRef", [], {
-            onDestroy: jasmine.createSpy("onDestroy"),
-        });
+        mockSnackBar = {
+            open: vi.fn(),
+        };
+        mockDestroyRef = {
+            onDestroy: vi.fn(),
+        };
 
-        mockUSBDevice = jasmine.createSpyObj<USBDevice>("USBDevice", [], {
+        mockUSBDevice = {
             vendorId: 0x0fcf,
             productId: 0x1008,
-        });
+        };
 
-        mockUSBDriver = jasmine.createSpyObj<USBDriver>("USBDriver", [
-            "attach",
-            "open",
-            "close",
-            "on",
-            "off",
-            "write",
-        ]);
-        mockUSBDriver.attach.and.resolveTo();
+        mockUSBDriver = {
+            attach: vi.fn(),
+            open: vi.fn(),
+            close: vi.fn(),
+            on: vi.fn(),
+            off: vi.fn(),
+            write: vi.fn(),
+        };
+        vi.mocked(mockUSBDriver.attach).mockResolvedValue(true);
 
-        mockHeartRateSensor = jasmine.createSpyObj<HeartRateSensor>("HeartRateSensor", [
-            "attachSensor",
-            "on",
-            "off",
-        ]);
-        mockHeartRateSensor.attachSensor.and.resolveTo();
-        mockHeartRateSensor.on.and.returnValue(mockHeartRateSensor);
+        mockHeartRateSensor = {
+            attachSensor: vi.fn(),
+            on: vi.fn(),
+            off: vi.fn(),
+        };
+        vi.mocked(mockHeartRateSensor.attachSensor).mockResolvedValue();
+        vi.mocked(mockHeartRateSensor.on).mockReturnValue(mockHeartRateSensor as HeartRateSensor);
 
-        spyOnProperty(navigator, "usb", "get").and.returnValue({
-            open: jasmine.createSpy("open").and.resolveTo(mockUSBDevice),
-            addEventListener: jasmine.createSpy("addEventListener"),
-            removeEventListener: jasmine.createSpy("removeEventListener"),
+        vi.spyOn(navigator, "usb", "get").mockReturnValue({
+            open: vi.fn().mockResolvedValue(mockUSBDevice),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
         } as unknown as USB);
 
-        spyOn(USBDriver, "createFromNewDevice").and.resolveTo(mockUSBDriver);
-        spyOn(USBDriver, "createFromPairedDevice").and.resolveTo(mockUSBDriver);
+        vi.spyOn(USBDriver, "createFromNewDevice").mockResolvedValue(mockUSBDriver as USBDriver);
+        vi.spyOn(USBDriver, "createFromPairedDevice").mockResolvedValue(mockUSBDriver as USBDriver);
 
         Object.defineProperty(USBDriver, "supportedDevices", {
             value: [
@@ -92,28 +95,21 @@ describe("AntHeartRateService", (): void => {
             configurable: true,
         });
 
-        createUSBStartupListenerReady = changedListenerReadyFactory<typeof mockUSBDriver, void>(
-            mockUSBDriver,
-            "startup",
-            "on",
-        );
-        createHeartRateAttachedListenerReady = changedListenerReadyFactory<typeof mockHeartRateSensor, void>(
+        createUSBStartupListenerReady = changedListenerReadyFactory(mockUSBDriver, "startup", "on");
+        createHeartRateAttachedListenerReady = changedListenerReadyFactory(
             mockHeartRateSensor,
             "attached",
             "on",
         );
-        createHeartRateDetachedListenerReady = changedListenerReadyFactory<typeof mockHeartRateSensor, void>(
+        createHeartRateDetachedListenerReady = changedListenerReadyFactory(
             mockHeartRateSensor,
             "detached",
             "on",
         );
-        createHeartRateHbDataListenerReady = changedListenerReadyFactory<
-            typeof mockHeartRateSensor,
-            HeartRateSensorState
-        >(mockHeartRateSensor, "hbData", "on");
+        createHeartRateHbDataListenerReady = changedListenerReadyFactory(mockHeartRateSensor, "hbData", "on");
 
-        createUSBConnectListenerReady = changedListenerReadyFactory<typeof navigator.usb, USBConnectionEvent>(
-            navigator.usb as jasmine.SpyObj<typeof navigator.usb>,
+        createUSBConnectListenerReady = changedListenerReadyFactory(
+            navigator.usb,
             "connect",
             "addEventListener",
             false,
@@ -134,7 +130,7 @@ describe("AntHeartRateService", (): void => {
                 createHeartRateSensor: (stick: USBDriver) => HeartRateSensor;
             }
         ).createHeartRateSensor = (): HeartRateSensor => {
-            return mockHeartRateSensor;
+            return mockHeartRateSensor as HeartRateSensor;
         };
     });
 
@@ -359,7 +355,7 @@ describe("AntHeartRateService", (): void => {
                 const detached = createHeartRateDetachedListenerReady();
                 await simulateSuccessfulConnectionFlow(mockSensorData);
 
-                mockSnackBar.open.calls.reset();
+                vi.mocked(mockSnackBar.open).mockClear();
 
                 (await detached).triggerChanged();
 
@@ -378,7 +374,7 @@ describe("AntHeartRateService", (): void => {
                 const detached = createHeartRateDetachedListenerReady();
                 await simulateSuccessfulConnectionFlow(mockSensorData);
 
-                mockHeartRateSensor.attachSensor.calls.reset();
+                vi.mocked(mockHeartRateSensor.attachSensor).mockClear();
 
                 (await detached).triggerChanged();
 
@@ -440,7 +436,7 @@ describe("AntHeartRateService", (): void => {
 
         describe("when USB device selection is cancelled", (): void => {
             beforeEach((): void => {
-                (USBDriver.createFromNewDevice as jasmine.Spy).and.rejectWith(new Error("User cancelled"));
+                vi.mocked(USBDriver.createFromNewDevice).mockRejectedValue(new Error("User cancelled"));
             });
 
             it("should show snack bar message", async (): Promise<void> => {
@@ -464,7 +460,7 @@ describe("AntHeartRateService", (): void => {
 
         describe("when USB device creation throws error", (): void => {
             beforeEach((): void => {
-                (USBDriver.createFromNewDevice as jasmine.Spy).and.rejectWith(new Error("Device error"));
+                vi.mocked(USBDriver.createFromNewDevice).mockRejectedValue(new Error("Device error"));
             });
 
             it("should show snack bar message for error", async (): Promise<void> => {
@@ -540,7 +536,7 @@ describe("AntHeartRateService", (): void => {
 
         describe("when no paired device is available", (): void => {
             beforeEach((): void => {
-                (USBDriver.createFromPairedDevice as jasmine.Spy).and.resolveTo(undefined);
+                vi.mocked(USBDriver.createFromPairedDevice).mockResolvedValue(undefined);
             });
 
             it("should maintain disconnected status", async (): Promise<void> => {
@@ -560,13 +556,13 @@ describe("AntHeartRateService", (): void => {
 
         describe("when paired device creation throws error", (): void => {
             beforeEach((): void => {
-                (USBDriver.createFromPairedDevice as jasmine.Spy).and.rejectWith(
+                vi.mocked(USBDriver.createFromPairedDevice).mockRejectedValue(
                     new Error("Paired device error"),
                 );
             });
 
             it("should propagate error", async (): Promise<void> => {
-                await expectAsync(service.reconnect()).toBeRejected();
+                await expect(service.reconnect()).rejects.toThrow();
             });
 
             it("should reset connection status on error", async (): Promise<void> => {
@@ -578,7 +574,7 @@ describe("AntHeartRateService", (): void => {
                         connectionStatus = status;
                     });
 
-                await expectAsync(service.reconnect()).toBeRejected();
+                await expect(service.reconnect()).rejects.toThrow();
                 expect(connectionStatus?.status).toBe("disconnected");
             });
         });
@@ -587,7 +583,7 @@ describe("AntHeartRateService", (): void => {
     describe("USB connection event handling", (): void => {
         describe("when supported USB device is connected", (): void => {
             it("should filter supported vendor and product IDs", (): void => {
-                const mockEvent = createMockUSBConnectionEvent(mockUSBDevice);
+                const mockEvent = createMockUSBConnectionEvent(mockUSBDevice as USBDevice);
 
                 expect(mockEvent.device.vendorId).toBe(0x0fcf);
                 expect(mockEvent.device.productId).toBe(0x1008);
@@ -603,11 +599,11 @@ describe("AntHeartRateService", (): void => {
 
         describe("when unsupported USB device is connected", (): void => {
             it("should ignore unsupported vendor and product IDs", (): void => {
-                const unsupportedDevice = jasmine.createSpyObj("USBDevice", [], {
+                const unsupportedDevice: Partial<USBDevice> = {
                     vendorId: 0x1234,
                     productId: 0x5678,
-                });
-                const mockEvent = createMockUSBConnectionEvent(unsupportedDevice);
+                };
+                const mockEvent = createMockUSBConnectionEvent(unsupportedDevice as USBDevice);
 
                 expect(mockEvent.device.vendorId).toBe(0x1234);
                 expect(mockEvent.device.productId).toBe(0x5678);
@@ -694,13 +690,11 @@ describe("AntHeartRateService", (): void => {
 
                 await service.disconnectDevice();
 
-                expect(heartRateData[heartRateData.length - 2])
-                    .withContext("Initial valid emission")
-                    .toEqual({
-                        contactDetected: true,
-                        heartRate: 75,
-                        batteryLevel: 85,
-                    });
+                expect(heartRateData[heartRateData.length - 2], "Initial valid emission").toEqual({
+                    contactDetected: true,
+                    heartRate: 75,
+                    batteryLevel: 85,
+                });
                 expect(heartRateData[heartRateData.length - 1]).toBeUndefined();
             });
         });
@@ -721,28 +715,40 @@ describe("AntHeartRateService", (): void => {
 
             it("should handle disconnection when onConnect is undefined", async (): Promise<void> => {
                 // test that disconnectDevice handles undefined onConnect gracefully
-                expect((service as unknown as { onConnect: unknown }).onConnect).toBeUndefined();
+                expect(
+                    (
+                        service as unknown as {
+                            onConnect: unknown;
+                        }
+                    ).onConnect,
+                ).toBeUndefined();
 
-                await expectAsync(service.disconnectDevice()).toBeResolved();
+                await expect(service.disconnectDevice()).resolves.not.toThrow();
 
-                expect((service as unknown as { onConnect: unknown }).onConnect).toBeUndefined();
+                expect(
+                    (
+                        service as unknown as {
+                            onConnect: unknown;
+                        }
+                    ).onConnect,
+                ).toBeUndefined();
             });
         });
     });
 
     describe("USB connection event handling", (): void => {
         describe("when supported USB device is connected", (): void => {
-            let reconnectSpy: jasmine.Spy;
+            let reconnectSpy: Mock;
             beforeEach((): void => {
-                reconnectSpy = spyOn(service, "reconnect").and.resolveTo();
+                reconnectSpy = vi.spyOn(service, "reconnect").mockResolvedValue();
             });
 
             it("should filter supported vendor IDs", (): void => {
-                const supportedDevice = jasmine.createSpyObj("USBDevice", [], {
+                const supportedDevice: Partial<USBDevice> = {
                     vendorId: 0x0fcf,
                     productId: 0x1008,
-                });
-                const event = createMockUSBConnectionEvent(supportedDevice);
+                };
+                const event = createMockUSBConnectionEvent(supportedDevice as USBDevice);
 
                 expect(event.device.vendorId).toBe(0x0fcf);
                 expect(
@@ -753,11 +759,11 @@ describe("AntHeartRateService", (): void => {
             });
 
             it("should filter supported product IDs", (): void => {
-                const supportedDevice = jasmine.createSpyObj("USBDevice", [], {
+                const supportedDevice: Partial<USBDevice> = {
                     vendorId: 0x0fcf,
                     productId: 0x1009,
-                });
-                const event = createMockUSBConnectionEvent(supportedDevice);
+                };
+                const event = createMockUSBConnectionEvent(supportedDevice as USBDevice);
 
                 expect(event.device.productId).toBe(0x1009);
                 expect(
@@ -771,7 +777,7 @@ describe("AntHeartRateService", (): void => {
                 const usbTrigger = createUSBConnectListenerReady();
                 await service.discover();
 
-                (await usbTrigger).triggerChanged(createMockUSBConnectionEvent(mockUSBDevice));
+                (await usbTrigger).triggerChanged(createMockUSBConnectionEvent(mockUSBDevice as USBDevice));
 
                 expect(reconnectSpy).toHaveBeenCalled();
             });
@@ -779,15 +785,15 @@ describe("AntHeartRateService", (): void => {
 
         describe("when unsupported USB device is connected", (): void => {
             beforeEach((): void => {
-                spyOn(service, "reconnect").and.resolveTo();
+                vi.spyOn(service, "reconnect").mockResolvedValue();
             });
 
             it("should ignore unsupported vendor IDs", (): void => {
-                const unsupportedDevice = jasmine.createSpyObj("USBDevice", [], {
+                const unsupportedDevice: Partial<USBDevice> = {
                     vendorId: 0x1234,
                     productId: 0x5678,
-                });
-                const event = createMockUSBConnectionEvent(unsupportedDevice);
+                };
+                const event = createMockUSBConnectionEvent(unsupportedDevice as USBDevice);
 
                 expect(event.device.vendorId).toBe(0x1234);
                 expect(
@@ -798,11 +804,11 @@ describe("AntHeartRateService", (): void => {
             });
 
             it("should ignore unsupported product IDs", (): void => {
-                const unsupportedDevice = jasmine.createSpyObj("USBDevice", [], {
+                const unsupportedDevice: Partial<USBDevice> = {
                     vendorId: 0x0fcf,
                     productId: 0x9999,
-                });
-                const event = createMockUSBConnectionEvent(unsupportedDevice);
+                };
+                const event = createMockUSBConnectionEvent(unsupportedDevice as USBDevice);
 
                 expect(event.device.productId).toBe(0x9999);
                 expect(
@@ -813,10 +819,10 @@ describe("AntHeartRateService", (): void => {
             });
 
             it("should not trigger reconnection", (): void => {
-                const unsupportedDevice = jasmine.createSpyObj("USBDevice", [], {
+                const unsupportedDevice = {
                     vendorId: 0x9999,
                     productId: 0x9999,
-                });
+                };
                 const isSupported = USBDriver.supportedDevices.some(
                     (d: { vendor: number; product: number }): boolean =>
                         d.vendor === unsupportedDevice.vendorId && d.product === unsupportedDevice.productId,
@@ -829,136 +835,170 @@ describe("AntHeartRateService", (): void => {
     describe("connect method", (): void => {
         beforeEach((): void => {
             // setup common mocks for connect method tests
-            mockUSBDriver.open.and.resolveTo();
-            mockHeartRateSensor.attachSensor.and.resolveTo();
+            vi.mocked(mockUSBDriver.open).mockResolvedValue(undefined);
+            vi.mocked(mockHeartRateSensor.attachSensor).mockResolvedValue();
             // navigator.usb.addEventListener is already spied on in the main beforeEach
         });
 
         describe("when USB stick startup is successful", (): void => {
             beforeEach((): void => {
                 // setup successful USB stick startup
-                spyOn(service, "connectionStatus$").and.returnValue({
-                    subscribe: jasmine
-                        .createSpy("subscribe")
-                        .and.callFake((callback: (status: IHRConnectionStatus) => void): void => {
+                vi.spyOn(service, "connectionStatus$").mockReturnValue({
+                    subscribe: vi
+                        .fn()
+                        .mockImplementation((callback: (status: IHRConnectionStatus) => void): void => {
                             callback({ status: "searching" });
                         }),
-                } as jasmine.SpyObj<Observable<IHRConnectionStatus>>);
+                } as unknown as Observable<IHRConnectionStatus>);
             });
 
             it("should setup USB connect listener", async (): Promise<void> => {
-                await (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                    mockUSBDriver,
-                );
+                await (
+                    service as unknown as {
+                        connect: (driver: USBDriver) => Promise<void>;
+                    }
+                ).connect(mockUSBDriver as USBDriver);
                 expect(navigator.usb.addEventListener).toHaveBeenCalled();
-                const callArgs = (navigator.usb.addEventListener as jasmine.Spy).calls.mostRecent()
-                    .args as Array<unknown>;
+                const callArgs = vi.mocked(navigator.usb.addEventListener).mock.lastCall as Array<unknown>;
                 expect(callArgs[0]).toBe("connect");
                 expect(typeof callArgs[1]).toBe("function");
             });
 
             it("should store USB stick reference", async (): Promise<void> => {
-                await (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                    mockUSBDriver,
-                );
-                expect((service as unknown as { stick: USBDriver }).stick).toBe(mockUSBDriver);
+                await (
+                    service as unknown as {
+                        connect: (driver: USBDriver) => Promise<void>;
+                    }
+                ).connect(mockUSBDriver as USBDriver);
+                expect(
+                    (
+                        service as unknown as {
+                            stick: USBDriver;
+                        }
+                    ).stick,
+                ).toBe(mockUSBDriver);
             });
 
             it("should create heart rate sensor", async (): Promise<void> => {
-                await (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                    mockUSBDriver,
-                );
+                await (
+                    service as unknown as {
+                        connect: (driver: USBDriver) => Promise<void>;
+                    }
+                ).connect(mockUSBDriver as USBDriver);
 
                 // verify heart rate sensor was created and set
                 expect(
-                    (service as unknown as { heartRateSensorSubject: { next: jasmine.Spy } })
-                        .heartRateSensorSubject.next,
+                    (
+                        service as unknown as {
+                            heartRateSensorSubject: {
+                                next: (value: HeartRateSensor | undefined) => void;
+                            };
+                        }
+                    ).heartRateSensorSubject.next,
                 ).toBeDefined();
             });
 
             it("should show ready snack bar message", async (): Promise<void> => {
                 // this test is simplified since the snack bar is shown within an event handler
                 // we'll just verify the connect method completes without error
-                await expectAsync(
-                    (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                        mockUSBDriver,
-                    ),
-                ).toBeResolved();
+                await expect(
+                    (
+                        service as unknown as {
+                            connect: (driver: USBDriver) => Promise<void>;
+                        }
+                    ).connect(mockUSBDriver as USBDriver),
+                ).resolves.not.toThrow();
             });
 
             it("should set connection status to searching", async (): Promise<void> => {
                 // this test is simplified since the connect method is event-driven and async
                 // we'll just verify the method completes without error
-                await expectAsync(
-                    (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                        mockUSBDriver,
-                    ),
-                ).toBeResolved();
+                await expect(
+                    (
+                        service as unknown as {
+                            connect: (driver: USBDriver) => Promise<void>;
+                        }
+                    ).connect(mockUSBDriver as USBDriver),
+                ).resolves.not.toThrow();
             });
 
             it("should attach heart rate sensor", async (): Promise<void> => {
                 // this test is simplified since attachSensor is called within an event handler
                 // we'll just verify the connect method completes without error
-                await expectAsync(
-                    (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                        mockUSBDriver,
-                    ),
-                ).toBeResolved();
+                await expect(
+                    (
+                        service as unknown as {
+                            connect: (driver: USBDriver) => Promise<void>;
+                        }
+                    ).connect(mockUSBDriver as USBDriver),
+                ).resolves.not.toThrow();
             });
 
             it("should open USB stick", async (): Promise<void> => {
-                await (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                    mockUSBDriver,
-                );
+                await (
+                    service as unknown as {
+                        connect: (driver: USBDriver) => Promise<void>;
+                    }
+                ).connect(mockUSBDriver as USBDriver);
                 expect(mockUSBDriver.open).toHaveBeenCalled();
             });
 
             it("should resolve when connection is complete", async (): Promise<void> => {
-                await expectAsync(
-                    (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                        mockUSBDriver,
-                    ),
-                ).toBeResolved();
+                await expect(
+                    (
+                        service as unknown as {
+                            connect: (driver: USBDriver) => Promise<void>;
+                        }
+                    ).connect(mockUSBDriver as USBDriver),
+                ).resolves.not.toThrow();
             });
         });
 
         describe("when USB stick open throws error", (): void => {
             beforeEach((): void => {
-                mockUSBDriver.open.and.rejectWith(new Error("USB open failed"));
+                vi.mocked(mockUSBDriver.open).mockRejectedValue(new Error("USB open failed"));
             });
 
             it("should log error to console", async (): Promise<void> => {
-                spyOn(console, "error");
-                await (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                    mockUSBDriver,
-                );
-                expect(console.error).toHaveBeenCalledWith(jasmine.any(Error));
+                vi.spyOn(console, "error");
+                await (
+                    service as unknown as {
+                        connect: (driver: USBDriver) => Promise<void>;
+                    }
+                ).connect(mockUSBDriver as USBDriver);
+                expect(console.error).toHaveBeenCalledWith(expect.any(Error));
             });
 
             it("should reset heart rate sensor", async (): Promise<void> => {
                 // this test is simplified since it involves private subjects
                 // we'll just verify the connect method completes without error
-                await expectAsync(
-                    (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                        mockUSBDriver,
-                    ),
-                ).toBeResolved();
+                await expect(
+                    (
+                        service as unknown as {
+                            connect: (driver: USBDriver) => Promise<void>;
+                        }
+                    ).connect(mockUSBDriver as USBDriver),
+                ).resolves.not.toThrow();
             });
 
             it("should set connection status to disconnected", async (): Promise<void> => {
                 // this test is simplified since it involves private subjects
                 // we'll just verify the connect method completes without error
-                await expectAsync(
-                    (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                        mockUSBDriver,
-                    ),
-                ).toBeResolved();
+                await expect(
+                    (
+                        service as unknown as {
+                            connect: (driver: USBDriver) => Promise<void>;
+                        }
+                    ).connect(mockUSBDriver as USBDriver),
+                ).resolves.not.toThrow();
             });
 
             it("should show error snack bar message", async (): Promise<void> => {
-                await (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                    mockUSBDriver,
-                );
+                await (
+                    service as unknown as {
+                        connect: (driver: USBDriver) => Promise<void>;
+                    }
+                ).connect(mockUSBDriver as USBDriver);
                 expect(mockSnackBar.open).toHaveBeenCalledWith(
                     "An error occurred while communicating with ANT+ Stick",
                     "Dismiss",
@@ -967,13 +1007,15 @@ describe("AntHeartRateService", (): void => {
 
             it("should handle non-Error exceptions gracefully", async (): Promise<void> => {
                 // setup USB open to throw non-Error object
-                mockUSBDriver.open.and.rejectWith("string error");
+                vi.mocked(mockUSBDriver.open).mockRejectedValue("string error");
 
-                await expectAsync(
-                    (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                        mockUSBDriver,
-                    ),
-                ).toBeResolved();
+                await expect(
+                    (
+                        service as unknown as {
+                            connect: (driver: USBDriver) => Promise<void>;
+                        }
+                    ).connect(mockUSBDriver as USBDriver),
+                ).resolves.not.toThrow();
 
                 // should not show snack bar for non-Error exceptions
                 expect(mockSnackBar.open).not.toHaveBeenCalledWith(
@@ -983,11 +1025,13 @@ describe("AntHeartRateService", (): void => {
             });
 
             it("should not throw error", async (): Promise<void> => {
-                await expectAsync(
-                    (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                        mockUSBDriver,
-                    ),
-                ).toBeResolved();
+                await expect(
+                    (
+                        service as unknown as {
+                            connect: (driver: USBDriver) => Promise<void>;
+                        }
+                    ).connect(mockUSBDriver as USBDriver),
+                ).resolves.not.toThrow();
             });
         });
 
@@ -1001,8 +1045,13 @@ describe("AntHeartRateService", (): void => {
                 it("should update heart rate sensor subject", (): void => {
                     // test that heart rate sensor subject is updated when sensor attached
                     expect(
-                        (service as unknown as { heartRateSensorSubject: { next: jasmine.Spy } })
-                            .heartRateSensorSubject.next,
+                        (
+                            service as unknown as {
+                                heartRateSensorSubject: {
+                                    next: (value: HeartRateSensor | undefined) => void;
+                                };
+                            }
+                        ).heartRateSensorSubject.next,
                     ).toBeDefined();
                 });
 
@@ -1017,16 +1066,26 @@ describe("AntHeartRateService", (): void => {
                 it("should reset battery level", (): void => {
                     // test that battery level subject is set to undefined on detach
                     expect(
-                        (service as unknown as { batteryLevelSubject: { next: jasmine.Spy } })
-                            .batteryLevelSubject.next,
+                        (
+                            service as unknown as {
+                                batteryLevelSubject: {
+                                    next: (value: number | undefined) => void;
+                                };
+                            }
+                        ).batteryLevelSubject.next,
                     ).toBeDefined();
                 });
 
                 it("should reset heart rate sensor", (): void => {
                     // test that heart rate sensor subject is set to undefined on detach
                     expect(
-                        (service as unknown as { heartRateSensorSubject: { next: jasmine.Spy } })
-                            .heartRateSensorSubject.next,
+                        (
+                            service as unknown as {
+                                heartRateSensorSubject: {
+                                    next: (value: HeartRateSensor | undefined) => void;
+                                };
+                            }
+                        ).heartRateSensorSubject.next,
                     ).toBeDefined();
                 });
 
@@ -1038,8 +1097,13 @@ describe("AntHeartRateService", (): void => {
                 it("should set connection status to searching", (): void => {
                     // test that connection status is set to searching on detach
                     expect(
-                        (service as unknown as { connectionStatusSubject: { next: jasmine.Spy } })
-                            .connectionStatusSubject.next,
+                        (
+                            service as unknown as {
+                                connectionStatusSubject: {
+                                    next: (value: IHRConnectionStatus | undefined) => void;
+                                };
+                            }
+                        ).connectionStatusSubject.next,
                     ).toBeDefined();
                 });
 
@@ -1052,12 +1116,22 @@ describe("AntHeartRateService", (): void => {
             describe("when subscription is terminated", (): void => {
                 beforeEach((): void => {
                     // setup subscription termination scenario
-                    (service as unknown as { onConnect: undefined }).onConnect = undefined;
+                    (
+                        service as unknown as {
+                            onConnect: undefined;
+                        }
+                    ).onConnect = undefined;
                 });
 
                 it("should stop subscription when onConnect is undefined", (): void => {
                     // test that takeWhile stops subscription when onConnect is undefined
-                    expect((service as unknown as { onConnect: undefined }).onConnect).toBeUndefined();
+                    expect(
+                        (
+                            service as unknown as {
+                                onConnect: undefined;
+                            }
+                        ).onConnect,
+                    ).toBeUndefined();
                 });
             });
         });
@@ -1145,66 +1219,76 @@ describe("AntHeartRateService", (): void => {
     describe("as part of edge cases & robustness handling", (): void => {
         beforeEach((): void => {
             // setup common mocks for edge cases
-            mockUSBDriver.open.and.resolveTo();
-            mockUSBDriver.close.and.resolveTo();
-            mockHeartRateSensor.attachSensor.and.resolveTo();
+            vi.mocked(mockUSBDriver.open).mockResolvedValue(undefined);
+            vi.mocked(mockUSBDriver.close).mockResolvedValue();
+            vi.mocked(mockHeartRateSensor.attachSensor).mockResolvedValue();
         });
 
         describe("when USB driver creation throws errors", (): void => {
             it("should handle createFromNewDevice rejection gracefully", async (): Promise<void> => {
-                (USBDriver.createFromNewDevice as jasmine.Spy).and.rejectWith(new Error("Creation failed"));
-                spyOn(service, "disconnectDevice").and.resolveTo();
+                vi.mocked(USBDriver.createFromNewDevice).mockRejectedValue(new Error("Creation failed"));
+                vi.spyOn(service, "disconnectDevice").mockResolvedValue();
 
-                await expectAsync(service.discover()).toBeResolved();
+                await expect(service.discover()).resolves.not.toThrow();
             });
 
             it("should handle createFromPairedDevice rejection gracefully", async (): Promise<void> => {
-                (USBDriver.createFromPairedDevice as jasmine.Spy).and.rejectWith(new Error("Pairing failed"));
-                spyOn(service, "disconnectDevice").and.resolveTo();
-                spyOn(service, "reconnect").and.rejectWith(new Error("Pairing failed"));
+                vi.mocked(USBDriver.createFromPairedDevice).mockRejectedValue(new Error("Pairing failed"));
+                vi.spyOn(service, "disconnectDevice").mockResolvedValue();
+                vi.spyOn(service, "reconnect").mockRejectedValue(new Error("Pairing failed"));
 
-                await expectAsync(service.reconnect()).toBeRejected();
+                await expect(service.reconnect()).rejects.toThrow();
             });
         });
 
         describe("when heart rate sensor operations throw errors", (): void => {
             it("should handle attachSensor rejection gracefully", async (): Promise<void> => {
-                mockHeartRateSensor.attachSensor.and.rejectWith(new Error("Attach failed"));
+                vi.mocked(mockHeartRateSensor.attachSensor).mockRejectedValue(new Error("Attach failed"));
 
                 // test that when attachSensor fails, the method still works
-                await expectAsync(
-                    (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                        mockUSBDriver,
-                    ),
-                ).toBeResolved();
+                await expect(
+                    (
+                        service as unknown as {
+                            connect: (driver: USBDriver) => Promise<void>;
+                        }
+                    ).connect(mockUSBDriver as USBDriver),
+                ).resolves.not.toThrow();
             });
         });
 
         describe("when USB stick operations throw errors", (): void => {
             it("should handle stick open errors", async (): Promise<void> => {
-                mockUSBDriver.open.and.rejectWith(new Error("Open failed"));
+                vi.mocked(mockUSBDriver.open).mockRejectedValue(new Error("Open failed"));
 
                 // test that stick open errors are handled gracefully
-                await expectAsync(
-                    (service as unknown as { connect: (driver: USBDriver) => Promise<void> }).connect(
-                        mockUSBDriver,
-                    ),
-                ).toBeResolved();
+                await expect(
+                    (
+                        service as unknown as {
+                            connect: (driver: USBDriver) => Promise<void>;
+                        }
+                    ).connect(mockUSBDriver as USBDriver),
+                ).resolves.not.toThrow();
             });
 
             it("should handle stick close errors", async (): Promise<void> => {
                 // override the close method to reject for this specific test
-                mockUSBDriver.close.and.rejectWith(new Error("Close failed"));
-                (service as unknown as { stick: USBDriver }).stick = mockUSBDriver;
+                vi.mocked(mockUSBDriver.close).mockRejectedValue(new Error("Close failed"));
+                (
+                    service as unknown as {
+                        stick: USBDriver;
+                    }
+                ).stick = mockUSBDriver as USBDriver;
                 // ensure heart rate sensor is set so disconnectDevice has something to work with
                 (
                     service as unknown as {
-                        heartRateSensorSubject: { next: (value: HeartRateSensor | undefined) => void };
+                        heartRateSensorSubject: {
+                            next: (value: HeartRateSensor | undefined) => void;
+                        };
                     }
-                ).heartRateSensorSubject.next(mockHeartRateSensor);
+                ).heartRateSensorSubject.next(mockHeartRateSensor as unknown as HeartRateSensor);
 
                 // test that close errors are propagated
-                await expectAsync(service.disconnectDevice()).toBeRejected();
+                await expect(service.disconnectDevice()).rejects.toThrow();
             });
         });
 
@@ -1222,15 +1306,17 @@ describe("AntHeartRateService", (): void => {
 
         describe("when multiple rapid connections occur", (): void => {
             it("should handle rapid discover calls", async (): Promise<void> => {
-                spyOn(service, "disconnectDevice").and.resolveTo();
-                spyOn(
-                    service as unknown as { connect: (driver: USBDriver) => Promise<void> },
+                vi.spyOn(service, "disconnectDevice").mockResolvedValue();
+                vi.spyOn(
+                    service as unknown as {
+                        connect: (driver: USBDriver) => Promise<void>;
+                    },
                     "connect",
-                ).and.resolveTo();
+                ).mockResolvedValue();
 
                 // test that multiple discover calls don't cause issues
                 const promises = [service.discover(), service.discover(), service.discover()];
-                await expectAsync(Promise.all(promises)).toBeResolved();
+                await expect(Promise.all(promises)).resolves.not.toThrow();
 
                 // verify that disconnectDevice was called appropriately
                 expect(service.disconnectDevice).toHaveBeenCalled();

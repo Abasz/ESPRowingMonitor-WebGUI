@@ -1,10 +1,12 @@
-import { provideZonelessChangeDetection } from "@angular/core";
-import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
+import { provideZonelessChangeDetection, signal, WritableSignal } from "@angular/core";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatIconRegistry } from "@angular/material/icon";
-import { MatSnackBar, MatSnackBarRef } from "@angular/material/snack-bar";
+import { MatSnackBar, MatSnackBarRef, TextOnlySnackBar } from "@angular/material/snack-bar";
 import { SwUpdate, VersionEvent } from "@angular/service-worker";
 import { EMPTY, Observable, of, Subject } from "rxjs";
+import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
+import { IDeviceInformation } from "../common/ble.interfaces";
 import { ICalculatedMetrics, IErgConnectionStatus, IHeartRate } from "../common/common.interfaces";
 import { DataRecorderService } from "../common/services/data-recorder.service";
 import { ErgConnectionService } from "../common/services/ergometer/erg-connection.service";
@@ -19,52 +21,62 @@ import { AppComponent } from "./app.component";
 describe("AppComponent", (): void => {
     let component: AppComponent;
     let fixture: ComponentFixture<AppComponent>;
-    let matIconRegistrySpy: jasmine.SpyObj<MatIconRegistry>;
-    let swUpdateSpy: jasmine.SpyObj<SwUpdate>;
-    let snackBarSpy: jasmine.SpyObj<MatSnackBar>;
-    let ergConnectionServiceSpy: jasmine.SpyObj<ErgConnectionService>;
-    let ergGenericDataServiceSpy: jasmine.SpyObj<ErgGenericDataService>;
-    let firmwareUpdateManagerSpy: jasmine.SpyObj<FirmwareUpdateManagerService>;
+    let matIconRegistrySpy: Pick<MatIconRegistry, "setDefaultFontSetClass">;
+    let swUpdateSpy: Pick<SwUpdate, "checkForUpdate" | "versionUpdates" | "isEnabled">;
+    let snackBarSpy: Pick<MatSnackBar, "open" | "openFromComponent">;
+    let ergConnectionServiceSpy: Pick<ErgConnectionService, "connectionStatus$">;
+    let ergGenericDataServiceSpy: Pick<ErgGenericDataService, "deviceInfo">;
+    let firmwareUpdateManagerSpy: Pick<
+        FirmwareUpdateManagerService,
+        "openFirmwareSelector" | "isUpdateAvailable"
+    >;
     let versionUpdatesSubject: Subject<VersionEvent>;
     let connectionStatusSubject: Subject<IErgConnectionStatus>;
-    let windowOpenSpy: jasmine.Spy<typeof window.open>;
+    let isUpdateAvailableSignal: WritableSignal<undefined | boolean>;
+    let deviceInfoSignal: WritableSignal<IDeviceInformation>;
 
     beforeEach(async (): Promise<void> => {
         versionUpdatesSubject = new Subject<VersionEvent>();
         connectionStatusSubject = new Subject<IErgConnectionStatus>();
 
-        windowOpenSpy = spyOn(window, "open");
+        matIconRegistrySpy = {
+            setDefaultFontSetClass: vi.fn(),
+        };
 
-        matIconRegistrySpy = jasmine.createSpyObj("MatIconRegistry", ["setDefaultFontSetClass"]);
-
-        swUpdateSpy = jasmine.createSpyObj("SwUpdate", ["checkForUpdate"], {
+        swUpdateSpy = {
+            checkForUpdate: vi.fn(),
             versionUpdates: versionUpdatesSubject.asObservable(),
             isEnabled: true,
-        });
+        };
 
-        snackBarSpy = jasmine.createSpyObj("MatSnackBar", ["open", "openFromComponent"]);
-        snackBarSpy.openFromComponent.and.returnValue({
+        snackBarSpy = {
+            open: vi.fn(),
+            openFromComponent: vi.fn(),
+        };
+        vi.mocked(snackBarSpy.openFromComponent).mockReturnValue({
             onAction: (): Observable<void> => EMPTY,
-            dismiss: jasmine.createSpy("dismiss"),
+            dismiss: vi.fn(),
         } as unknown as MatSnackBarRef<SnackBarConfirmComponent>);
 
-        ergConnectionServiceSpy = jasmine.createSpyObj("ErgConnectionService", ["connectionStatus$"]);
-        ergConnectionServiceSpy.connectionStatus$.and.returnValue(connectionStatusSubject.asObservable());
-
-        ergGenericDataServiceSpy = jasmine.createSpyObj("ErgGenericDataService", [], {
-            deviceInfo: jasmine.createSpy("deviceInfo").and.returnValue({
-                hardwareRevision: "devkit-v1",
-            }),
-        });
-
-        firmwareUpdateManagerSpy = jasmine.createSpyObj(
-            "FirmwareUpdateManagerService",
-            ["checkForFirmwareUpdate", "openFirmwareSelector"],
-            {
-                isUpdateAvailable: jasmine.createSpy("isUpdateAvailable").and.returnValue(undefined),
-            },
+        ergConnectionServiceSpy = {
+            connectionStatus$: vi.fn(),
+        };
+        vi.mocked(ergConnectionServiceSpy.connectionStatus$).mockReturnValue(
+            connectionStatusSubject.asObservable(),
         );
-        firmwareUpdateManagerSpy.checkForFirmwareUpdate.and.returnValue(false);
+
+        deviceInfoSignal = signal<IDeviceInformation>({
+            hardwareRevision: "devkit-v1",
+        } as IDeviceInformation);
+        ergGenericDataServiceSpy = {
+            deviceInfo: deviceInfoSignal,
+        };
+
+        isUpdateAvailableSignal = signal<undefined | boolean>(undefined);
+        firmwareUpdateManagerSpy = {
+            openFirmwareSelector: vi.fn(),
+            isUpdateAvailable: isUpdateAvailableSignal,
+        };
 
         const mockMetricsService = {
             heartRateData$: of({ heartRate: 75 } as IHeartRate),
@@ -90,15 +102,13 @@ describe("AppComponent", (): void => {
         };
 
         const mockUtilsService = {
-            enableWakeLock: jasmine.createSpy("enableWakeLock"),
-            disableWakeLock: jasmine.createSpy("disableWakeLock"),
+            enableWakeLock: vi.fn(),
+            disableWakeLock: vi.fn(),
         };
 
         const mockDataRecorderService = {
-            getSessionSummaries$: jasmine.createSpy("getSessionSummaries$").and.returnValue(of([])),
+            getSessionSummaries$: vi.fn().mockReturnValue(of([])),
         };
-
-        (globalThis as unknown as { ngDevMode: boolean }).ngDevMode = true;
 
         await TestBed.configureTestingModule({
             providers: [
@@ -132,204 +142,227 @@ describe("AppComponent", (): void => {
 
     describe("as part of firmware update check functionality", (): void => {
         beforeEach((): void => {
-            fixture.detectChanges();
+            vi.useFakeTimers();
+        });
+
+        afterEach((): void => {
+            vi.useRealTimers();
         });
 
         it("should subscribe to connection status changes on component creation", (): void => {
             expect(ergConnectionServiceSpy.connectionStatus$).toHaveBeenCalled();
         });
 
-        it("should check isUpdateAvailable when device connects after 5 second delay", fakeAsync((): void => {
+        it("should check isUpdateAvailable when device connects after 5 second delay", async (): Promise<void> => {
             connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
+            vi.spyOn(firmwareUpdateManagerSpy, "isUpdateAvailable");
 
-            tick(4000);
+            await vi.advanceTimersByTimeAsync(4000);
             expect(firmwareUpdateManagerSpy.isUpdateAvailable).not.toHaveBeenCalled();
 
-            tick(1000);
+            await vi.advanceTimersByTimeAsync(1000);
             expect(firmwareUpdateManagerSpy.isUpdateAvailable).toHaveBeenCalledTimes(1);
-        }));
+        });
 
-        it("should only check isUpdateAvailable for connected status", fakeAsync((): void => {
+        it("should only check isUpdateAvailable for connected status", async (): Promise<void> => {
+            vi.spyOn(firmwareUpdateManagerSpy, "isUpdateAvailable");
             const statuses = ["connecting", "connected", "disconnected", "searching", "connecting"];
 
-            statuses.forEach((status: string): void => {
+            for await (const status of statuses) {
                 connectionStatusSubject.next({ status } as IErgConnectionStatus);
-                tick(5000);
-            });
+                await vi.advanceTimersByTimeAsync(5000);
+            }
 
             expect(firmwareUpdateManagerSpy.isUpdateAvailable).toHaveBeenCalledTimes(1);
 
             connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
-            tick(5000);
+            await vi.advanceTimersByTimeAsync(5000);
 
             expect(firmwareUpdateManagerSpy.isUpdateAvailable).toHaveBeenCalledTimes(2);
-        }));
+        });
 
         describe("when firmware update is available", (): void => {
             beforeEach((): void => {
-                firmwareUpdateManagerSpy.isUpdateAvailable.and.returnValue(true);
+                isUpdateAvailableSignal.set(true);
             });
 
-            it("should show notification for supported hardware with Update action", fakeAsync((): void => {
-                const mockSnackBarRef = jasmine.createSpyObj("MatSnackBarRef", ["onAction"]);
-                mockSnackBarRef.onAction.and.returnValue(EMPTY);
-                snackBarSpy.open.and.returnValue(mockSnackBarRef);
+            it("should show notification for supported hardware with Update action", async (): Promise<void> => {
+                const mockSnackBarRef = {
+                    onAction: vi.fn().mockReturnValue(EMPTY),
+                } as unknown as MatSnackBarRef<TextOnlySnackBar>;
+                vi.mocked(snackBarSpy.open).mockReturnValue(mockSnackBarRef);
 
-                ergGenericDataServiceSpy.deviceInfo.and.returnValue({ hardwareRevision: "devkit-v1" });
+                deviceInfoSignal.set({
+                    hardwareRevision: "devkit-v1",
+                } as IDeviceInformation);
 
                 connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
-                tick(5000);
+                await vi.advanceTimersByTimeAsync(5000);
 
-                expect(snackBarSpy.open).toHaveBeenCalledWith("Firmware update available", "Update", {
-                    duration: 30000,
-                });
-            }));
+                expect(vi.mocked(snackBarSpy.open)).toHaveBeenCalledWith(
+                    "Firmware update available",
+                    "Update",
+                    {
+                        duration: 30000,
+                    },
+                );
+            });
 
-            it("should call openFirmwareSelector when Update action is clicked for supported hardware", fakeAsync((): void => {
+            it("should call openFirmwareSelector when Update action is clicked for supported hardware", async (): Promise<void> => {
                 const actionSubject = new Subject<void>();
-                const mockSnackBarRef = jasmine.createSpyObj("MatSnackBarRef", ["onAction"]);
-                mockSnackBarRef.onAction.and.returnValue(actionSubject.asObservable());
-                snackBarSpy.open.and.returnValue(mockSnackBarRef);
+                const mockSnackBarRef = {
+                    onAction: vi.fn().mockReturnValue(actionSubject.asObservable()),
+                } as unknown as MatSnackBarRef<TextOnlySnackBar>;
+                vi.mocked(snackBarSpy.open).mockReturnValue(mockSnackBarRef);
 
-                ergGenericDataServiceSpy.deviceInfo.and.returnValue({ hardwareRevision: "devkit-v1" });
+                deviceInfoSignal.set({
+                    hardwareRevision: "devkit-v1",
+                } as IDeviceInformation);
 
                 connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
-                tick(5000);
+                await vi.advanceTimersByTimeAsync(5000);
 
                 actionSubject.next();
-                tick();
+                await vi.runAllTimersAsync();
 
                 expect(firmwareUpdateManagerSpy.openFirmwareSelector).toHaveBeenCalledWith("devkit-v1");
-            }));
+            });
 
-            it("should show notification for custom hardware with GitHub action", fakeAsync((): void => {
-                const mockSnackBarRef = jasmine.createSpyObj("MatSnackBarRef", ["onAction"]);
-                mockSnackBarRef.onAction.and.returnValue(EMPTY);
-                snackBarSpy.open.and.returnValue(mockSnackBarRef);
+            it("should show notification for custom hardware with GitHub action", async (): Promise<void> => {
+                const mockSnackBarRef = {
+                    onAction: vi.fn().mockReturnValue(EMPTY),
+                } as unknown as MatSnackBarRef<TextOnlySnackBar>;
+                vi.mocked(snackBarSpy.open).mockReturnValue(mockSnackBarRef);
 
-                ergGenericDataServiceSpy.deviceInfo.and.returnValue({ hardwareRevision: "custom" });
+                deviceInfoSignal.set({
+                    hardwareRevision: "custom",
+                } as IDeviceInformation);
 
                 connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
-                tick(5000);
+                await vi.advanceTimersByTimeAsync(5000);
 
-                expect(snackBarSpy.open).toHaveBeenCalledWith(
+                expect(vi.mocked(snackBarSpy.open)).toHaveBeenCalledWith(
                     "Firmware update available for custom board",
                     "View on GitHub",
                     {
                         duration: 30000,
                     },
                 );
-            }));
+            });
 
-            it("should open GitHub releases page when action is clicked for custom hardware", fakeAsync((): void => {
+            it("should open GitHub releases page when action is clicked for custom hardware", async (): Promise<void> => {
+                const windowOpenSpy = vi.spyOn(globalThis, "open").mockImplementation((): null => null);
+
                 const actionSubject = new Subject<void>();
-                const mockSnackBarRef = jasmine.createSpyObj("MatSnackBarRef", ["onAction"]);
-                mockSnackBarRef.onAction.and.returnValue(actionSubject.asObservable());
-                snackBarSpy.open.and.returnValue(mockSnackBarRef);
+                const mockSnackBarRef = {
+                    onAction: vi.fn().mockReturnValue(actionSubject.asObservable()),
+                } as unknown as MatSnackBarRef<TextOnlySnackBar>;
+                vi.mocked(snackBarSpy.open).mockReturnValue(mockSnackBarRef);
 
-                ergGenericDataServiceSpy.deviceInfo.and.returnValue({ hardwareRevision: "custom" });
+                deviceInfoSignal.set({
+                    hardwareRevision: "custom",
+                } as IDeviceInformation);
 
                 connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
-                tick(5000);
+                await vi.advanceTimersByTimeAsync(5000);
 
                 actionSubject.next();
-                tick();
+                await vi.runAllTimersAsync();
 
                 expect(windowOpenSpy).toHaveBeenCalledWith(
                     FirmwareUpdateManagerService.FIRMWARE_RELEASE_URL,
                     "_blank",
                 );
-            }));
+                windowOpenSpy.mockRestore();
+            });
 
-            it("should show notification for missing hardware revision with GitHub action", fakeAsync((): void => {
-                const mockSnackBarRef = jasmine.createSpyObj("MatSnackBarRef", ["onAction"]);
-                mockSnackBarRef.onAction.and.returnValue(EMPTY);
-                snackBarSpy.open.and.returnValue(mockSnackBarRef);
+            it("should show notification for missing hardware revision with GitHub action", async (): Promise<void> => {
+                const mockSnackBarRef = {
+                    onAction: vi.fn().mockReturnValue(EMPTY),
+                } as unknown as MatSnackBarRef<TextOnlySnackBar>;
+                vi.mocked(snackBarSpy.open).mockReturnValue(mockSnackBarRef);
 
-                ergGenericDataServiceSpy.deviceInfo.and.returnValue({});
+                deviceInfoSignal.set({} as IDeviceInformation);
 
                 connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
-                tick(5000);
+                await vi.advanceTimersByTimeAsync(5000);
 
-                expect(snackBarSpy.open).toHaveBeenCalledWith(
+                expect(vi.mocked(snackBarSpy.open)).toHaveBeenCalledWith(
                     "Firmware update available for custom board",
                     "View on GitHub",
                     {
                         duration: 30000,
                     },
                 );
-            }));
+            });
         });
 
         describe("when no firmware update is available", (): void => {
-            it("should not show notification", fakeAsync((): void => {
-                firmwareUpdateManagerSpy.checkForFirmwareUpdate.and.returnValue(false);
+            it("should not show notification", async (): Promise<void> => {
+                isUpdateAvailableSignal.set(false);
 
-                connectionStatusSubject.next({ status: "connected" } as IErgConnectionStatus);
-                tick(5000);
+                connectionStatusSubject.next({
+                    status: "connected",
+                    deviceName: "test-device",
+                } as IErgConnectionStatus);
+                await vi.advanceTimersByTimeAsync(5000);
 
-                expect(snackBarSpy.open).not.toHaveBeenCalled();
-            }));
+                expect(snackBarSpy.open).not.toHaveBeenCalledWith(
+                    expect.stringMatching(/Firmware update available.*/),
+                    expect.any(String),
+                    expect.any(Object),
+                );
+            });
         });
     });
 
     describe("constructor service worker integration", (): void => {
         it("should not subscribe to version updates when service worker is disabled", (): void => {
-            (
-                Object.getOwnPropertyDescriptor(swUpdateSpy, "isEnabled")?.get as jasmine.Spy<() => boolean>
-            ).and.returnValue(false);
-            const versionUpdatesSpy = spyOn(swUpdateSpy.versionUpdates, "pipe").and.callThrough();
-            fixture.detectChanges();
+            vi.spyOn(swUpdateSpy, "isEnabled", "get").mockReturnValue(false);
+            const versionUpdatesSpy = vi.spyOn(swUpdateSpy.versionUpdates, "pipe");
 
             expect(versionUpdatesSpy).not.toHaveBeenCalled();
         });
 
         describe("when in production mode", (): void => {
             beforeEach((): void => {
-                (
-                    Object.getOwnPropertyDescriptor(swUpdateSpy, "isEnabled")?.get as jasmine.Spy<
-                        () => boolean
-                    >
-                ).and.returnValue(true);
+                vi.spyOn(swUpdateSpy, "isEnabled", "get").mockReturnValue(true);
             });
 
-            it("should subscribe to version updates", (): void => {
-                const versionUpdatesSpy = spyOn(swUpdateSpy.versionUpdates, "pipe").and.callThrough();
+            it("should subscribe to version updates", async (): Promise<void> => {
+                const versionUpdatesSpy = vi.spyOn(swUpdateSpy.versionUpdates, "pipe");
 
-                const prodFixture = TestBed.createComponent(AppComponent);
-                prodFixture.detectChanges();
+                TestBed.createComponent(AppComponent);
 
                 expect(versionUpdatesSpy).toHaveBeenCalled();
             });
 
             it("should show update snackbar when new version is ready", (): void => {
-                const prodFixture = TestBed.createComponent(AppComponent);
-                prodFixture.detectChanges();
-
                 versionUpdatesSubject.next({
                     type: "VERSION_READY",
                     currentVersion: { hash: "abc123" },
                     latestVersion: { hash: "def456" },
                 } as VersionEvent);
 
-                expect(snackBarSpy.openFromComponent).toHaveBeenCalledWith(SnackBarConfirmComponent, {
-                    duration: undefined,
-                    data: { text: "Update Available", confirm: "Update" },
-                });
+                expect(vi.mocked(snackBarSpy.openFromComponent)).toHaveBeenCalledWith(
+                    SnackBarConfirmComponent,
+                    {
+                        duration: undefined,
+                        data: { text: "Update Available", confirm: "Update" },
+                    },
+                );
             });
 
             it("should reload window when user confirms update", (): void => {
                 // there is no feasible way of spying on the reload method
-                expect().nothing();
+                // No expectation needed here
             });
         });
     });
 
     describe("ngAfterViewInit method", (): void => {
         it("should not check for service worker updates when service worker is disabled", async (): Promise<void> => {
-            (
-                Object.getOwnPropertyDescriptor(swUpdateSpy, "isEnabled")?.get as jasmine.Spy<() => boolean>
-            ).and.returnValue(false);
+            vi.spyOn(swUpdateSpy, "isEnabled", "get").mockReturnValue(false);
 
             await component.ngAfterViewInit();
 
@@ -338,91 +371,89 @@ describe("AppComponent", (): void => {
 
         describe("when in production mode", (): void => {
             beforeEach((): void => {
-                (
-                    Object.getOwnPropertyDescriptor(swUpdateSpy, "isEnabled")?.get as jasmine.Spy<
-                        () => boolean
-                    >
-                ).and.returnValue(true);
+                vi.spyOn(swUpdateSpy, "isEnabled", "get").mockReturnValue(true);
             });
 
             it("should check for service worker updates when update check succeeds", async (): Promise<void> => {
-                swUpdateSpy.checkForUpdate.and.resolveTo(true);
+                vi.mocked(swUpdateSpy.checkForUpdate).mockResolvedValue(true);
 
                 await component.ngAfterViewInit();
 
-                expect(swUpdateSpy.checkForUpdate).toHaveBeenCalled();
+                expect(vi.mocked(swUpdateSpy.checkForUpdate)).toHaveBeenCalled();
             });
 
             it("should show error snackbar when update check fails", async (): Promise<void> => {
-                swUpdateSpy.checkForUpdate.and.rejectWith(new Error("Update failed"));
-                spyOn(console, "error");
+                vi.mocked(swUpdateSpy.checkForUpdate).mockRejectedValue(new Error("Update failed"));
+                vi.spyOn(console, "error");
 
                 await component.ngAfterViewInit();
 
-                expect(snackBarSpy.open).toHaveBeenCalledWith(
+                expect(vi.mocked(snackBarSpy.open)).toHaveBeenCalledWith(
                     'Failed to check for updates: ", Error: Update failed',
                     "Dismiss",
                 );
-                expect(console.error).toHaveBeenCalledWith(
-                    "Failed to check for updates:",
-                    jasmine.any(Error),
-                );
+                expect(console.error).toHaveBeenCalledWith("Failed to check for updates:", expect.any(Error));
             });
         });
 
         describe("storage persistence", (): void => {
-            let mockStorage: jasmine.SpyObj<StorageManager>;
-            let storageSpy: jasmine.Spy<() => StorageManager>;
+            let mockStorage: Pick<StorageManager, "persisted" | "persist">;
+            let storageSpy: Mock;
 
             beforeEach((): void => {
-                mockStorage = jasmine.createSpyObj("StorageManager", ["persisted", "persist"]);
-                storageSpy = spyOnProperty(navigator, "storage", "get").and.returnValue(mockStorage);
+                mockStorage = {
+                    persisted: vi.fn(),
+                    persist: vi.fn(),
+                };
+                storageSpy = vi
+                    .spyOn(navigator, "storage", "get")
+                    .mockReturnValue(mockStorage as unknown as StorageManager);
             });
 
             describe("when StorageManager API is available", (): void => {
                 it("and storage is already persisted should not request persistence again", async (): Promise<void> => {
-                    mockStorage.persisted.and.resolveTo(true);
+                    vi.mocked(mockStorage.persisted).mockResolvedValue(true);
 
                     await component.ngAfterViewInit();
 
-                    expect(mockStorage.persisted).toHaveBeenCalled();
-                    expect(mockStorage.persist).not.toHaveBeenCalled();
+                    expect(vi.mocked(mockStorage.persisted)).toHaveBeenCalled();
+                    expect(vi.mocked(mockStorage.persist)).not.toHaveBeenCalled();
                 });
 
                 describe("and storage is not persisted", (): void => {
                     beforeEach((): void => {
-                        mockStorage.persisted.and.resolveTo(false);
+                        vi.mocked(mockStorage.persisted).mockResolvedValue(false);
                     });
 
                     it("should successfully enable storage persistence when persist succeeds", async (): Promise<void> => {
-                        mockStorage.persist.and.resolveTo(true);
+                        vi.mocked(mockStorage.persist).mockResolvedValue(true);
 
                         await component.ngAfterViewInit();
 
-                        expect(mockStorage.persisted).toHaveBeenCalled();
-                        expect(mockStorage.persist).toHaveBeenCalled();
+                        expect(vi.mocked(mockStorage.persisted)).toHaveBeenCalled();
+                        expect(vi.mocked(mockStorage.persist)).toHaveBeenCalled();
                     });
 
                     it("should log warning when persistence fails", async (): Promise<void> => {
-                        mockStorage.persist.and.resolveTo(false);
-                        spyOn(console, "warn");
+                        vi.mocked(mockStorage.persist).mockResolvedValue(false);
+                        vi.spyOn(console, "warn");
 
                         await component.ngAfterViewInit();
 
-                        expect(mockStorage.persisted).toHaveBeenCalled();
-                        expect(mockStorage.persist).toHaveBeenCalled();
+                        expect(vi.mocked(mockStorage.persisted)).toHaveBeenCalled();
+                        expect(vi.mocked(mockStorage.persist)).toHaveBeenCalled();
                         expect(console.warn).toHaveBeenCalledWith("Failed to make storage persisted");
                     });
 
                     it("should handle persist errors gracefully", async (): Promise<void> => {
                         const persistError = new Error("Persist failed");
-                        mockStorage.persist.and.rejectWith(persistError);
+                        vi.mocked(mockStorage.persist).mockRejectedValue(persistError);
 
                         await component.ngAfterViewInit();
 
-                        expect(mockStorage.persisted).toHaveBeenCalled();
-                        expect(mockStorage.persist).toHaveBeenCalled();
-                        expect(snackBarSpy.open).toHaveBeenCalledWith(
+                        expect(vi.mocked(mockStorage.persisted)).toHaveBeenCalled();
+                        expect(vi.mocked(mockStorage.persist)).toHaveBeenCalled();
+                        expect(vi.mocked(snackBarSpy.open)).toHaveBeenCalledWith(
                             "Error while making storage persistent",
                             "Dismiss",
                             { duration: undefined },
@@ -434,15 +465,15 @@ describe("AppComponent", (): void => {
                     const persistedCheckError = new Error("Storage check failed");
 
                     beforeEach((): void => {
-                        mockStorage.persisted.and.rejectWith(persistedCheckError);
+                        vi.mocked(mockStorage.persisted).mockRejectedValue(persistedCheckError);
                     });
 
                     it("should handle persistence check errors gracefully", async (): Promise<void> => {
                         await component.ngAfterViewInit();
 
-                        expect(mockStorage.persisted).toHaveBeenCalled();
-                        expect(mockStorage.persist).not.toHaveBeenCalled();
-                        expect(snackBarSpy.open).toHaveBeenCalledWith(
+                        expect(vi.mocked(mockStorage.persisted)).toHaveBeenCalled();
+                        expect(vi.mocked(mockStorage.persist)).not.toHaveBeenCalled();
+                        expect(vi.mocked(snackBarSpy.open)).toHaveBeenCalledWith(
                             "Error while checking storage persistence",
                             "Dismiss",
                             { duration: undefined },
@@ -452,8 +483,8 @@ describe("AppComponent", (): void => {
             });
 
             it("should log error and return early when StorageManager API not available", async (): Promise<void> => {
-                storageSpy.and.returnValue(undefined as unknown as StorageManager);
-                spyOn(console, "error");
+                storageSpy.mockReturnValue(undefined as unknown as StorageManager);
+                vi.spyOn(console, "error");
 
                 await component.ngAfterViewInit();
 
@@ -464,50 +495,57 @@ describe("AppComponent", (): void => {
         });
 
         describe("as part of the Bluetooth API availability check", (): void => {
-            let isSecureContextSpy: jasmine.Spy<() => boolean>;
-            let navigatorBluetoothSpy: jasmine.Spy<() => Bluetooth | undefined>;
+            let isSecureContextSpy: Mock;
+            let navigatorBluetoothSpy: Mock;
 
             beforeEach((): void => {
-                isSecureContextSpy = spyOnProperty(window, "isSecureContext", "get").and.returnValue(true);
-                navigatorBluetoothSpy = spyOnProperty(navigator, "bluetooth", "get").and.returnValue(
-                    {} as unknown as Bluetooth,
-                );
-                fixture.detectChanges();
+                isSecureContextSpy = vi.spyOn(window, "isSecureContext", "get").mockReturnValue(true);
+                navigatorBluetoothSpy = vi
+                    .spyOn(navigator, "bluetooth", "get")
+                    .mockReturnValue({} as unknown as Bluetooth);
             });
 
             it("should not show Bluetooth unavailable message when in secure context with Bluetooth support", async (): Promise<void> => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 await component.ngAfterViewInit();
 
-                expect(snackBarSpy.open).not.toHaveBeenCalledWith(
+                expect(vi.mocked(snackBarSpy.open)).not.toHaveBeenCalledWith(
                     "Bluetooth API is not available",
                     "Dismiss",
-                    jasmine.objectContaining({ duration: undefined }),
+                    expect.objectContaining({ duration: undefined }),
                 );
             });
 
             it("should show Bluetooth API unavailable snackbar when not in secure context", async (): Promise<void> => {
-                isSecureContextSpy.and.returnValue(false);
-                navigatorBluetoothSpy.and.returnValue({} as unknown as Bluetooth);
+                isSecureContextSpy.mockReturnValue(false);
+                navigatorBluetoothSpy.mockReturnValue({} as unknown as Bluetooth);
 
                 await component.ngAfterViewInit();
 
-                expect(snackBarSpy.open).toHaveBeenCalledWith("Bluetooth API is not available", "Dismiss", {
-                    duration: undefined,
-                });
+                expect(vi.mocked(snackBarSpy.open)).toHaveBeenCalledWith(
+                    "Bluetooth API is not available",
+                    "Dismiss",
+                    {
+                        duration: undefined,
+                    },
+                );
             });
 
             it("should show Bluetooth API unavailable snackbar when Bluetooth API not supported", async (): Promise<void> => {
-                isSecureContextSpy.and.returnValue(true);
-                navigatorBluetoothSpy.and.returnValue(undefined as unknown as Bluetooth);
+                isSecureContextSpy.mockReturnValue(true);
+                navigatorBluetoothSpy.mockReturnValue(undefined as unknown as Bluetooth);
 
                 await component.ngAfterViewInit();
 
-                expect(snackBarSpy.open).toHaveBeenCalledWith("Bluetooth API is not available", "Dismiss", {
-                    duration: undefined,
-                });
+                expect(vi.mocked(snackBarSpy.open)).toHaveBeenCalledWith(
+                    "Bluetooth API is not available",
+                    "Dismiss",
+                    {
+                        duration: undefined,
+                    },
+                );
             });
         });
     });

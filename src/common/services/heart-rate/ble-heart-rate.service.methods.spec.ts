@@ -1,7 +1,8 @@
 import { provideZonelessChangeDetection } from "@angular/core";
-import { fakeAsync, TestBed, tick } from "@angular/core/testing";
+import { TestBed } from "@angular/core/testing";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { BehaviorSubject, skip, Subject, takeUntil } from "rxjs";
+import { BehaviorSubject, firstValueFrom, skip, Subject, takeUntil } from "rxjs";
+import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import { BATTERY_LEVEL_SERVICE, HEART_RATE_SERVICE } from "../../ble.interfaces";
 import { IHeartRate, IHRConnectionStatus } from "../../common.interfaces";
@@ -22,12 +23,12 @@ describe("BLEHeartRateService", (): void => {
     const destroySubject: Subject<void> = new Subject<void>();
 
     let service: BLEHeartRateService;
-    let mockConfigManager: jasmine.SpyObj<ConfigManagerService>;
-    let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
-    let mockBluetooth: jasmine.Spy<() => Bluetooth>;
-    let mockBluetoothDevice: jasmine.SpyObj<BluetoothDevice>;
-    let mockHeartRateCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockBatteryCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockConfigManager: Pick<ConfigManagerService, "getItem" | "setItem">;
+    let mockSnackBar: Pick<MatSnackBar, "open">;
+    let mockBluetooth: Mock;
+    let mockBluetoothDevice: BluetoothDevice;
+    let mockHeartRateCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockBatteryCharacteristic: BluetoothRemoteGATTCharacteristic;
 
     let createHeartRateValueChangedListenerReady: (
         broadcastValue?: DataView,
@@ -39,55 +40,65 @@ describe("BLEHeartRateService", (): void => {
     let createAdvertisementReceivedListenerReady: () => Promise<ListenerTrigger<BluetoothAdvertisingEvent>>;
 
     beforeEach((): void => {
-        mockConfigManager = jasmine.createSpyObj("ConfigManagerService", ["getItem", "setItem"]);
-        mockSnackBar = jasmine.createSpyObj("MatSnackBar", ["open"]);
+        mockConfigManager = {
+            getItem: vi.fn(),
+            setItem: vi.fn(),
+        };
+        mockSnackBar = {
+            open: vi.fn(),
+        };
 
         mockBluetoothDevice = createMockBluetoothDevice();
         mockHeartRateCharacteristic = createMockCharacteristic(mockBluetoothDevice);
         mockBatteryCharacteristic = createMockCharacteristic(mockBluetoothDevice);
 
-        createBatteryValueChangedListenerReady = changedListenerReadyFactory<
-            typeof mockBatteryCharacteristic,
-            DataView
-        >(mockBatteryCharacteristic, "characteristicvaluechanged");
-        createDeviceDisconnectListenerReady = changedListenerReadyFactory<typeof mockBluetoothDevice, void>(
+        createBatteryValueChangedListenerReady = changedListenerReadyFactory(
+            mockBatteryCharacteristic,
+            "characteristicvaluechanged",
+        );
+        createDeviceDisconnectListenerReady = changedListenerReadyFactory(
             mockBluetoothDevice,
             "gattserverdisconnected",
         );
-        createAdvertisementReceivedListenerReady = changedListenerReadyFactory<
-            typeof mockBluetoothDevice,
-            BluetoothAdvertisingEvent
-        >(mockBluetoothDevice, "advertisementreceived");
-        createHeartRateValueChangedListenerReady = changedListenerReadyFactory<
-            typeof mockHeartRateCharacteristic,
-            DataView
-        >(mockHeartRateCharacteristic, "characteristicvaluechanged");
+        createAdvertisementReceivedListenerReady = changedListenerReadyFactory(
+            mockBluetoothDevice,
+            "advertisementreceived",
+        );
+        createHeartRateValueChangedListenerReady = changedListenerReadyFactory(
+            mockHeartRateCharacteristic,
+            "characteristicvaluechanged",
+        );
 
         // setup default mock returns
-        mockConfigManager.getItem.and.returnValue("test-device-id");
-        (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).connect.and.resolveTo(
-            mockBluetoothDevice.gatt,
+        vi.mocked(mockConfigManager.getItem).mockReturnValue("test-device-id");
+        vi.mocked(mockBluetoothDevice.gatt!.connect).mockResolvedValue(
+            mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
         );
-        (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService
-            .withArgs(HEART_RATE_SERVICE)
-            .and.resolveTo(mockHeartRateCharacteristic.service);
-        (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService
-            .withArgs(BATTERY_LEVEL_SERVICE)
-            .and.resolveTo(mockBatteryCharacteristic.service);
-        (
-            mockHeartRateCharacteristic.service as jasmine.SpyObj<BluetoothRemoteGATTService>
-        ).getCharacteristic.and.resolveTo(mockHeartRateCharacteristic);
-        (
-            mockBatteryCharacteristic.service as jasmine.SpyObj<BluetoothRemoteGATTService>
-        ).getCharacteristic.and.resolveTo(mockBatteryCharacteristic);
-        mockBatteryCharacteristic.readValue.and.resolveTo(createBatteryDataView(20));
+        vi.mocked(mockBluetoothDevice.gatt!.getPrimaryService).mockImplementation(
+            (service: BluetoothServiceUUID): Promise<BluetoothRemoteGATTService> => {
+                if (service === HEART_RATE_SERVICE) {
+                    return Promise.resolve(mockHeartRateCharacteristic.service);
+                }
+                if (service === BATTERY_LEVEL_SERVICE) {
+                    return Promise.resolve(mockBatteryCharacteristic.service);
+                }
 
-        mockBluetooth = spyOnProperty(navigator, "bluetooth", "get").and.returnValue({
-            requestDevice: jasmine.createSpy("requestDevice").and.resolveTo(mockBluetoothDevice),
-            getDevices: jasmine.createSpy("getDevices").and.resolveTo([mockBluetoothDevice]),
+                return Promise.reject(new Error(`Service ${service} not found`));
+            },
+        );
+        vi.mocked(mockHeartRateCharacteristic.service.getCharacteristic).mockResolvedValue(
+            mockHeartRateCharacteristic,
+        );
+        vi.mocked(mockBatteryCharacteristic.service.getCharacteristic).mockResolvedValue(
+            mockBatteryCharacteristic,
+        );
+        vi.mocked(mockBatteryCharacteristic.readValue).mockResolvedValue(createBatteryDataView(20));
+        mockBluetooth = vi.spyOn(navigator, "bluetooth", "get").mockReturnValue({
+            requestDevice: vi.fn().mockResolvedValue(mockBluetoothDevice),
+            getDevices: vi.fn().mockResolvedValue([mockBluetoothDevice]),
         } as unknown as Bluetooth);
 
-        spyOnProperty(document, "visibilityState", "get").and.returnValue("visible");
+        vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
 
         TestBed.configureTestingModule({
             providers: [
@@ -107,17 +118,17 @@ describe("BLEHeartRateService", (): void => {
     });
 
     describe("connectionStatus$ method", (): void => {
-        it("should return observable of connection status", (): void => {
+        it("should return observable of connection status", async (): Promise<void> => {
             const status$ = service.connectionStatus$();
             expect(status$).toBeDefined();
 
-            status$.pipe(takeUntil(destroySubject)).subscribe((status: IHRConnectionStatus): void => {
-                expect(status).toEqual(
-                    jasmine.objectContaining({
-                        status: jasmine.any(String),
-                    }),
-                );
-            });
+            const status = await firstValueFrom(status$.pipe(takeUntil(destroySubject)));
+
+            expect(status).toEqual(
+                expect.objectContaining({
+                    status: expect.any(String),
+                }),
+            );
         });
 
         it("should emit current connection status", (): void => {
@@ -130,14 +141,16 @@ describe("BLEHeartRateService", (): void => {
                     statuses.push(status);
                 });
 
-            expect(statuses).toContain({ status: "disconnected" });
+            expect(statuses).toContainEqual(expect.objectContaining({ status: "disconnected" }));
         });
 
         it("should emit status changes", (): void => {
             const statuses: Array<IHRConnectionStatus> = [];
 
             (
-                service as unknown as { connectionStatusSubject: BehaviorSubject<IHRConnectionStatus> }
+                service as unknown as {
+                    connectionStatusSubject: BehaviorSubject<IHRConnectionStatus>;
+                }
             ).connectionStatusSubject.next({ status: "connecting" });
 
             service
@@ -154,7 +167,9 @@ describe("BLEHeartRateService", (): void => {
 
     describe("disconnectDevice method", (): void => {
         it("should reset device to undefined", async (): Promise<void> => {
-            const bluetoothDeviceSpy = service as unknown as { bluetoothDevice: BluetoothDevice | undefined };
+            const bluetoothDeviceSpy = service as unknown as {
+                bluetoothDevice: BluetoothDevice | undefined;
+            };
             bluetoothDeviceSpy.bluetoothDevice = mockBluetoothDevice;
 
             await service.disconnectDevice();
@@ -164,7 +179,7 @@ describe("BLEHeartRateService", (): void => {
 
         describe("when bluetooth device is undefined", (): void => {
             it("should resolve immediately", async (): Promise<void> => {
-                await expectAsync(service.disconnectDevice()).toBeResolved();
+                await expect(service.disconnectDevice()).resolves.not.toThrow();
             });
 
             it("should reset characteristics to undefined", async (): Promise<void> => {
@@ -185,20 +200,19 @@ describe("BLEHeartRateService", (): void => {
             });
 
             it("should abort cancellation token", async (): Promise<void> => {
-                const abortSpy = spyOn(AbortController.prototype, "abort");
+                const abortSpy = vi.spyOn(AbortController.prototype, "abort");
                 await service.disconnectDevice();
                 expect(abortSpy).toHaveBeenCalled();
             });
 
             it("should emit disconnected status", async (): Promise<void> => {
-                service
-                    .connectionStatus$()
-                    .pipe(skip(1), takeUntil(destroySubject))
-                    .subscribe((status: IHRConnectionStatus): void => {
-                        expect(status.status).toBe("disconnected");
-                    });
+                const status = firstValueFrom(
+                    service.connectionStatus$().pipe(skip(1), takeUntil(destroySubject)),
+                );
 
                 await service.disconnectDevice();
+
+                expect((await status).status).toBe("disconnected");
             });
         });
 
@@ -210,14 +224,13 @@ describe("BLEHeartRateService", (): void => {
 
         describe("when bluetooth device is connected", (): void => {
             beforeEach(async (): Promise<void> => {
-                (service as unknown as { bluetoothDevice: BluetoothDevice }).bluetoothDevice =
-                    mockBluetoothDevice;
                 (
-                    Object.getOwnPropertyDescriptor(mockBluetoothDevice.gatt, "connected")?.get as jasmine.Spy
-                ).and.returnValue(true);
-                (
-                    mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>
-                ).disconnect.and.returnValue();
+                    service as unknown as {
+                        bluetoothDevice: BluetoothDevice;
+                    }
+                ).bluetoothDevice = mockBluetoothDevice;
+                vi.spyOn(mockBluetoothDevice.gatt!, "connected", "get").mockReturnValue(true);
+                vi.mocked(mockBluetoothDevice.gatt!.disconnect).mockReturnValue();
             });
 
             it("should call gatt disconnect", async (): Promise<void> => {
@@ -238,7 +251,7 @@ describe("BLEHeartRateService", (): void => {
                 // trigger disconnect and verify it resolves
                 (await disconnectTrigger).triggerChanged();
 
-                await expectAsync(disconnectPromise).toBeResolved();
+                await expect(disconnectPromise).resolves.not.toThrow();
             });
 
             it("should reset all state after disconnection", async (): Promise<void> => {
@@ -248,48 +261,55 @@ describe("BLEHeartRateService", (): void => {
                 (await disconnectTrigger).triggerChanged();
                 await disconnectPromise;
 
-                const device = (service as unknown as { bluetoothDevice: BluetoothDevice | undefined })
-                    .bluetoothDevice;
+                const device = (
+                    service as unknown as {
+                        bluetoothDevice: BluetoothDevice | undefined;
+                    }
+                ).bluetoothDevice;
                 expect(device).toBeUndefined();
 
-                service
-                    .connectionStatus$()
-                    .pipe(takeUntil(destroySubject))
-                    .subscribe((status: IHRConnectionStatus): void => {
-                        expect(status.status).toBe("disconnected");
-                    });
+                const status = await firstValueFrom(
+                    service.connectionStatus$().pipe(takeUntil(destroySubject)),
+                );
+
+                expect(status.status).toBe("disconnected");
             });
         });
     });
 
     describe("discover method", (): void => {
         describe("when device selection is successful", (): void => {
-            let connectSpy: jasmine.Spy;
-            let disconnectSpy: jasmine.Spy;
+            let connectSpy: Mock;
+            let disconnectSpy: Mock;
 
             beforeEach((): void => {
-                connectSpy = spyOn(
-                    service as unknown as { connect: () => Promise<void> },
-                    "connect",
-                ).and.resolveTo();
-                disconnectSpy = spyOn(service, "disconnectDevice").and.resolveTo();
-                mockBluetooth.and.returnValue({
-                    requestDevice: jasmine.createSpy("requestDevice").and.resolveTo(mockBluetoothDevice),
-                    getDevices: jasmine.createSpy("getDevices").and.resolveTo([]),
+                connectSpy = vi
+                    .spyOn(
+                        service as unknown as {
+                            connect: () => Promise<void>;
+                        },
+                        "connect",
+                    )
+                    .mockResolvedValue();
+                disconnectSpy = vi.spyOn(service, "disconnectDevice").mockResolvedValue();
+                mockBluetooth.mockReturnValue({
+                    requestDevice: vi.fn().mockResolvedValue(mockBluetoothDevice),
+                    getDevices: vi.fn().mockResolvedValue([]),
                 } as unknown as Bluetooth);
             });
 
             it("should call disconnectDevice first", async (): Promise<void> => {
                 await service.discover();
 
-                expect(disconnectSpy).toHaveBeenCalledBefore(connectSpy);
+                expect(Math.min(...disconnectSpy.mock.invocationCallOrder)).toBeLessThan(
+                    Math.min(...connectSpy.mock.invocationCallOrder),
+                );
             });
 
             it("should request device with correct filters", async (): Promise<void> => {
                 await service.discover();
 
-                const bluetooth = navigator.bluetooth as unknown as { requestDevice: jasmine.Spy };
-                expect(bluetooth.requestDevice).toHaveBeenCalledWith({
+                expect(navigator.bluetooth.requestDevice).toHaveBeenCalledWith({
                     acceptAllDevices: false,
                     filters: [{ services: [HEART_RATE_SERVICE] }],
                     optionalServices: [BATTERY_LEVEL_SERVICE],
@@ -299,9 +319,8 @@ describe("BLEHeartRateService", (): void => {
             it("should include battery service as optional", async (): Promise<void> => {
                 await service.discover();
 
-                const bluetooth = navigator.bluetooth as unknown as { requestDevice: jasmine.Spy };
-                const args = bluetooth.requestDevice.calls.argsFor(0)[0];
-                expect(args.optionalServices).toContain(BATTERY_LEVEL_SERVICE);
+                const args = vi.mocked(navigator.bluetooth.requestDevice).mock.calls[0][0];
+                expect(args!.optionalServices).toContain(BATTERY_LEVEL_SERVICE);
             });
 
             it("should call connect with selected device", async (): Promise<void> => {
@@ -311,23 +330,25 @@ describe("BLEHeartRateService", (): void => {
             });
 
             it("should resolve when connection succeeds", async (): Promise<void> => {
-                await expectAsync(service.discover()).toBeResolved();
+                await expect(service.discover()).resolves.not.toThrow();
             });
         });
 
         describe("when device selection is cancelled", (): void => {
-            let reconnectSpy: jasmine.Spy;
+            let reconnectSpy: Mock;
 
             beforeEach((): void => {
-                reconnectSpy = spyOn(
-                    service as unknown as { reconnect: () => Promise<void> },
-                    "reconnect",
-                ).and.resolveTo();
-                mockBluetooth.and.returnValue({
-                    requestDevice: jasmine
-                        .createSpy("requestDevice")
-                        .and.rejectWith(new Error("User cancelled device selection")),
-                    getDevices: jasmine.createSpy("getDevices").and.resolveTo([]),
+                reconnectSpy = vi
+                    .spyOn(
+                        service as unknown as {
+                            reconnect: () => Promise<void>;
+                        },
+                        "reconnect",
+                    )
+                    .mockResolvedValue();
+                mockBluetooth.mockReturnValue({
+                    requestDevice: vi.fn().mockRejectedValue(new Error("User cancelled device selection")),
+                    getDevices: vi.fn().mockResolvedValue([]),
                 } as unknown as Bluetooth);
             });
 
@@ -338,32 +359,30 @@ describe("BLEHeartRateService", (): void => {
             });
 
             it("should not throw error", async (): Promise<void> => {
-                await expectAsync(service.discover()).toBeResolved();
+                await expect(service.discover()).resolves.not.toThrow();
             });
         });
 
         describe("when device selection throws error", (): void => {
-            let reconnectSpy: jasmine.Spy;
+            let reconnectSpy: Mock;
 
             beforeEach((): void => {
-                reconnectSpy = spyOn(
-                    service as unknown as { reconnect: () => Promise<void> },
-                    "reconnect",
-                ).and.resolveTo();
-                (
-                    Object.getOwnPropertyDescriptor(navigator, "bluetooth")?.get as jasmine.Spy<
-                        () => Bluetooth
-                    >
-                ).and.returnValue({
-                    requestDevice: jasmine
-                        .createSpy("requestDevice")
-                        .and.rejectWith(new Error("Bluetooth error")),
-                    getDevices: jasmine.createSpy("getDevices").and.resolveTo([]),
+                reconnectSpy = vi
+                    .spyOn(
+                        service as unknown as {
+                            reconnect: () => Promise<void>;
+                        },
+                        "reconnect",
+                    )
+                    .mockResolvedValue();
+                mockBluetooth.mockReturnValue({
+                    requestDevice: vi.fn().mockRejectedValue(new Error("Bluetooth error")),
+                    getDevices: vi.fn().mockResolvedValue([]),
                 } as unknown as Bluetooth);
             });
 
             it("should handle error gracefully", async (): Promise<void> => {
-                await expectAsync(service.discover()).toBeResolved();
+                await expect(service.discover()).resolves.not.toThrow();
             });
 
             it("should attempt reconnect", async (): Promise<void> => {
@@ -377,11 +396,11 @@ describe("BLEHeartRateService", (): void => {
     describe("reconnect method", (): void => {
         describe("when paired device exists", (): void => {
             beforeEach((): void => {
-                mockConfigManager.getItem.and.returnValue("test-device-id");
+                vi.mocked(mockConfigManager.getItem).mockReturnValue("test-device-id");
             });
 
             it("should call disconnectDevice first", async (): Promise<void> => {
-                const disconnectSpy = spyOn(service, "disconnectDevice").and.resolveTo();
+                const disconnectSpy = vi.spyOn(service, "disconnectDevice").mockResolvedValue();
 
                 await service.reconnect();
 
@@ -395,16 +414,16 @@ describe("BLEHeartRateService", (): void => {
             });
 
             it("should get device by stored ID", async (): Promise<void> => {
-                const getDevicesSpy = (navigator.bluetooth as unknown as { getDevices: jasmine.Spy })
-                    .getDevices;
-                getDevicesSpy.and.resolveTo([mockBluetoothDevice, {}]);
+                const getDevicesSpy = vi.mocked(navigator.bluetooth.getDevices);
+                getDevicesSpy.mockResolvedValue([mockBluetoothDevice, {} as BluetoothDevice]);
 
                 await service.reconnect();
 
                 expect(getDevicesSpy).toHaveBeenCalled();
-                expect(mockBluetoothDevice.watchAdvertisements)
-                    .withContext("Empty device was selected from the list")
-                    .toHaveBeenCalled();
+                expect(
+                    mockBluetoothDevice.watchAdvertisements,
+                    "Empty device was selected from the list",
+                ).toHaveBeenCalled();
             });
 
             it("should start watching advertisements", async (): Promise<void> => {
@@ -432,13 +451,13 @@ describe("BLEHeartRateService", (): void => {
 
                 await service.reconnect();
 
-                await expectAsync(advertisementReady).toBeResolved();
+                await expect(advertisementReady).resolves.not.toThrow();
             });
         });
 
         describe("when no paired device exists", (): void => {
             beforeEach((): void => {
-                mockConfigManager.getItem.and.returnValue("");
+                vi.mocked(mockConfigManager.getItem).mockReturnValue("");
             });
 
             it("should return early without further action", async (): Promise<void> => {
@@ -466,26 +485,26 @@ describe("BLEHeartRateService", (): void => {
                 await service.reconnect();
                 await service.reconnect();
 
-                expect(statuses).toHaveSize(3);
+                expect(statuses).toHaveLength(3);
                 expect(
                     statuses.every(
                         (status: IHRConnectionStatus): boolean => status.status === "disconnected",
                     ),
-                ).toBeTrue();
+                ).toBe(true);
             });
         });
 
         describe("when watchAdvertisements fails", (): void => {
             beforeEach((): void => {
-                mockConfigManager.getItem.and.returnValue("test-device-id");
-                (navigator.bluetooth as unknown as { getDevices: jasmine.Spy }).getDevices.and.resolveTo([
-                    mockBluetoothDevice,
-                ]);
-                mockBluetoothDevice.watchAdvertisements.and.rejectWith(new Error("Advertisement failed"));
+                vi.mocked(mockConfigManager.getItem).mockReturnValue("test-device-id");
+                vi.mocked(navigator.bluetooth.getDevices).mockResolvedValue([mockBluetoothDevice]);
+                vi.mocked(mockBluetoothDevice.watchAdvertisements).mockRejectedValueOnce(
+                    new Error("Advertisement failed"),
+                );
             });
 
             it("should handle error by calling reconnect again", async (): Promise<void> => {
-                const reconnectSpy = spyOn(service, "reconnect").and.callThrough();
+                const reconnectSpy = vi.spyOn(service, "reconnect");
 
                 await service.reconnect();
 
@@ -493,22 +512,21 @@ describe("BLEHeartRateService", (): void => {
             });
 
             it("should not throw unhandled error", async (): Promise<void> => {
-                await expectAsync(service.reconnect()).toBeResolved();
+                await expect(service.reconnect()).resolves.not.toThrow();
             });
         });
 
         describe("when document visibility changes", (): void => {
             beforeEach((): void => {
-                mockConfigManager.getItem.and.returnValue("test-device-id");
-                (navigator.bluetooth as unknown as { getDevices: jasmine.Spy }).getDevices.and.resolveTo([
-                    mockBluetoothDevice,
-                ]);
+                vi.mocked(mockConfigManager.getItem).mockReturnValue("test-device-id");
+                vi.mocked(navigator.bluetooth.getDevices).mockResolvedValue([mockBluetoothDevice]);
+                vi.mocked(mockBluetoothDevice.watchAdvertisements).mockResolvedValue(undefined);
             });
 
             it("should restart connection on visibility change to visible", async (): Promise<void> => {
                 const visibilityChangeReady = visibilityChangeListenerReady();
                 await service.reconnect();
-                mockBluetoothDevice.watchAdvertisements.calls.reset();
+                vi.mocked(mockBluetoothDevice.watchAdvertisements).mockClear();
 
                 (await visibilityChangeReady).triggerChanged();
 
@@ -518,7 +536,7 @@ describe("BLEHeartRateService", (): void => {
             it("should not restart when visibility changes to hidden", async (): Promise<void> => {
                 const visibilityChangeReady = visibilityChangeListenerReady("hidden");
                 await service.reconnect();
-                mockBluetoothDevice.watchAdvertisements.calls.reset();
+                vi.mocked(mockBluetoothDevice.watchAdvertisements).mockClear();
 
                 (await visibilityChangeReady).triggerChanged();
 
@@ -536,7 +554,7 @@ describe("BLEHeartRateService", (): void => {
                     status: "connecting",
                     deviceName: mockBluetoothDevice.name,
                 });
-                mockBluetoothDevice.watchAdvertisements.calls.reset();
+                vi.mocked(mockBluetoothDevice.watchAdvertisements).mockClear();
 
                 (await visibilityChangeReady).triggerChanged("visible");
 
@@ -547,13 +565,12 @@ describe("BLEHeartRateService", (): void => {
 
     describe("streamHRMonitorBatteryLevel$ method", (): void => {
         describe("when battery characteristic is undefined", (): void => {
-            it("should start with undefined", (): void => {
-                service
-                    .streamHRMonitorBatteryLevel$()
-                    .pipe(takeUntil(destroySubject))
-                    .subscribe((batteryLevel: number | undefined): void => {
-                        expect(batteryLevel).toBeUndefined();
-                    });
+            it("should start with undefined", async (): Promise<void> => {
+                const batteryLevel = await firstValueFrom(
+                    service.streamHRMonitorBatteryLevel$().pipe(takeUntil(destroySubject)),
+                );
+
+                expect(batteryLevel).toBeUndefined();
             });
         });
 
@@ -605,7 +622,7 @@ describe("BLEHeartRateService", (): void => {
                 });
 
                 it("should reset battery characteristic on finalize", (): void => {
-                    const batteryCharacteristicSpy = spyOn(
+                    const batteryCharacteristicSpy = vi.spyOn(
                         (
                             service as unknown as {
                                 batteryCharacteristic: BehaviorSubject<
@@ -618,39 +635,33 @@ describe("BLEHeartRateService", (): void => {
 
                     disconnectReady.triggerChanged();
 
-                    expect(batteryCharacteristicSpy).toHaveBeenCalledOnceWith(undefined);
+                    expect(batteryCharacteristicSpy).toHaveBeenCalledTimes(1);
+
+                    expect(batteryCharacteristicSpy).toHaveBeenCalledWith(undefined);
                 });
             });
 
             describe("when battery readings fail", (): void => {
                 beforeEach((): void => {
-                    mockBatteryCharacteristic.readValue.and.rejectWith(new Error("Read failed"));
+                    vi.mocked(mockBatteryCharacteristic.readValue).mockRejectedValue(
+                        new Error("Read failed"),
+                    );
                 });
 
                 it("should handle readValue errors", async (): Promise<void> => {
-                    const values: Array<number | undefined> = [];
                     const batteryValueChangeReady = createBatteryValueChangedListenerReady();
-                    service
-                        .streamHRMonitorBatteryLevel$()
-                        .pipe(takeUntil(destroySubject))
-                        .subscribe({
-                            next: (batteryLevel: number | undefined): void => {
-                                values.push(batteryLevel);
-                            },
-                            error: (): void => {
-                                fail("Observable should not error");
-                            },
-                        });
+                    const batteryLevel = firstValueFrom(
+                        service.streamHRMonitorBatteryLevel$().pipe(takeUntil(destroySubject)),
+                    );
 
                     (await batteryValueChangeReady).triggerChanged(createBatteryDataView(50));
 
-                    expect(values).toHaveSize(1);
-                    expect(values[0]).toBeUndefined();
+                    expect(await batteryLevel).toBeUndefined();
                 });
 
-                it("should still finalize properly", fakeAsync((): void => {
-                    const results: Array<number | undefined> = [];
-                    const batteryCharacteristicSpy = spyOn(
+                it("should still finalize properly", async (): Promise<void> => {
+                    vi.useFakeTimers();
+                    const batteryCharacteristicSpy = vi.spyOn(
                         (
                             service as unknown as {
                                 batteryCharacteristic: BehaviorSubject<
@@ -660,33 +671,38 @@ describe("BLEHeartRateService", (): void => {
                         ).batteryCharacteristic,
                         "next",
                     );
-                    service
-                        .streamHRMonitorBatteryLevel$()
-                        .pipe(takeUntil(destroySubject))
-                        .subscribe((value: number | undefined): void => {
-                            results.push(value);
-                        });
+                    const heartRateBatteryLevel = firstValueFrom(
+                        service.streamHRMonitorBatteryLevel$().pipe(takeUntil(destroySubject)),
+                    );
 
-                    tick(4 * 2000); // flush retries
+                    await vi.advanceTimersByTimeAsync(4 * 2000);
 
-                    expect(batteryCharacteristicSpy.calls.count()).toBeGreaterThan(4);
-                    expect(results[results.length - 1]).toBeUndefined();
-                }));
+                    expect(batteryCharacteristicSpy).toHaveBeenCalledExactlyOnceWith(undefined);
+                    expect(await heartRateBatteryLevel).toBeUndefined();
+                    vi.useRealTimers();
+                });
             });
         });
 
         describe("when battery characteristic errors", (): void => {
             beforeEach((): void => {
+                vi.useFakeTimers();
                 (
                     service as unknown as {
                         batteryCharacteristic: BehaviorSubject<BluetoothRemoteGATTCharacteristic | undefined>;
                     }
                 ).batteryCharacteristic.next(mockBatteryCharacteristic);
-                mockBatteryCharacteristic.readValue.and.rejectWith(new Error("Read failed unknown"));
+                vi.mocked(mockBatteryCharacteristic.readValue).mockRejectedValue(
+                    new Error("Read failed unknown"),
+                );
             });
 
-            it("should retry up to 4 times", fakeAsync((): void => {
-                const batteryCharacteristicSpy = spyOn(
+            afterEach((): void => {
+                vi.useRealTimers();
+            });
+
+            it("should retry up to 4 times", async (): Promise<void> => {
+                const batteryCharacteristicSpy = vi.spyOn(
                     (
                         service as unknown as {
                             batteryCharacteristic: BehaviorSubject<
@@ -698,27 +714,27 @@ describe("BLEHeartRateService", (): void => {
                 );
 
                 service.streamHRMonitorBatteryLevel$().pipe(takeUntil(destroySubject)).subscribe();
-                tick(4 * 2000); // flush retries
+                await vi.advanceTimersByTimeAsync(4 * 2000);
 
                 expect(
-                    batteryCharacteristicSpy.calls
-                        .allArgs()
-                        .filter(
+                    vi
+                        .mocked(batteryCharacteristicSpy)
+                        .mock.calls.filter(
                             ([args]: [BluetoothRemoteGATTCharacteristic | undefined]): boolean =>
                                 args === undefined,
                         ),
                 ).toEqual([[undefined], [undefined], [undefined], [undefined], [undefined]]);
-            }));
+            });
 
-            it("should reconnect to battery on retryable errors", fakeAsync((): void => {
+            it("should reconnect to battery on retryable errors", async (): Promise<void> => {
                 service.streamHRMonitorBatteryLevel$().pipe(takeUntil(destroySubject)).subscribe();
 
-                tick(4 * 2000); // flush retries
+                await vi.advanceTimersByTimeAsync(4 * 2000);
 
                 expect(mockBatteryCharacteristic.service.getCharacteristic).toHaveBeenCalledTimes(4);
-            }));
+            });
 
-            it("should emit only two undefined value", fakeAsync((): void => {
+            it("should emit only two undefined value", async (): Promise<void> => {
                 const results: Array<number | undefined> = [];
                 service
                     .streamHRMonitorBatteryLevel$()
@@ -727,25 +743,26 @@ describe("BLEHeartRateService", (): void => {
                         results.push(value);
                     });
 
-                tick(4 * 2000); // flush retries
+                await vi.advanceTimersByTimeAsync(4 * 2000);
 
-                expect(results)
-                    .withContext("Start with undefined and finalize with undefined")
-                    .toEqual([undefined, undefined]);
-            }));
+                expect(results, "Start with undefined and finalize with undefined").toEqual([
+                    undefined,
+                    undefined,
+                ]);
+            });
 
-            it("should show error snackbar on final error", fakeAsync((): void => {
+            it("should show error snackbar on final error", async (): Promise<void> => {
                 service.streamHRMonitorBatteryLevel$().pipe(takeUntil(destroySubject)).subscribe();
 
-                tick(3 * 2000); // flush retries
+                await vi.advanceTimersByTimeAsync(3 * 2000);
 
                 expect(mockSnackBar.open).not.toHaveBeenCalled();
-                tick(1 * 2000); // flush retries
+                await vi.advanceTimersByTimeAsync(1 * 2000);
                 expect(mockSnackBar.open).toHaveBeenCalledWith(
-                    jasmine.stringContaining("Error while connecting to"),
+                    expect.stringContaining("Error while connecting to"),
                     "Dismiss",
                 );
-            }));
+            });
         });
     });
 
@@ -1015,7 +1032,7 @@ describe("BLEHeartRateService", (): void => {
                         }),
                     );
 
-                    expect(result?.rrIntervals).toHaveSize(0);
+                    expect(result?.rrIntervals).toHaveLength(0);
                 });
             });
 
@@ -1046,14 +1063,14 @@ describe("BLEHeartRateService", (): void => {
             });
 
             it("and battery characteristic is not available should set battery level to undefined", async (): Promise<void> => {
-                service
-                    .streamHeartRate$()
-                    .pipe(skip(1), takeUntil(destroySubject))
-                    .subscribe((heartRate: IHeartRate | undefined): void => {
-                        expect(heartRate?.batteryLevel).toBeUndefined();
-                    });
+                const heartRatePromise = firstValueFrom(
+                    service.streamHeartRate$().pipe(skip(1), takeUntil(destroySubject)),
+                );
 
                 (await heartRateValueChangeReady).triggerChanged(mockDefaultHrData);
+                const heartRate = await heartRatePromise;
+
+                expect(heartRate?.batteryLevel).toBeUndefined();
             });
 
             it("and battery characteristic is available should merge into heart rate data", async (): Promise<void> => {
@@ -1063,21 +1080,22 @@ describe("BLEHeartRateService", (): void => {
                     }
                 ).batteryCharacteristic.next(mockBatteryCharacteristic);
 
-                service
-                    .streamHeartRate$()
-                    .pipe(skip(1), takeUntil(destroySubject))
-                    .subscribe((heartRate: IHeartRate | undefined): void => {
-                        expect(heartRate?.batteryLevel).toBe(75);
-                        expect(heartRate?.heartRate).toBe(140);
-                    });
+                const heartRatePromise = firstValueFrom(
+                    service.streamHeartRate$().pipe(skip(1), takeUntil(destroySubject)),
+                );
 
                 (await batteryValueChangeReady).triggerChanged(mockDefaultBatteryData);
                 (await heartRateValueChangeReady).triggerChanged(mockDefaultHrData);
+                const heartRate = await heartRatePromise;
+
+                expect(heartRate?.batteryLevel).toBe(75);
+                expect(heartRate?.heartRate).toBe(140);
             });
         });
 
         describe("when heart rate characteristic errors", (): void => {
             beforeEach(async (): Promise<void> => {
+                vi.useFakeTimers();
                 (
                     service as unknown as {
                         heartRateCharacteristic: BehaviorSubject<
@@ -1086,34 +1104,26 @@ describe("BLEHeartRateService", (): void => {
                     }
                 ).heartRateCharacteristic.next(mockHeartRateCharacteristic);
 
-                mockHeartRateCharacteristic.addEventListener.and.callFake((): void => {
+                vi.mocked(mockHeartRateCharacteristic.addEventListener).mockImplementation((): void => {
                     throw new Error("unknown");
                 });
             });
 
-            it("should emit one undefined value", fakeAsync((): void => {
+            afterEach((): void => {
+                vi.useRealTimers();
+            });
+
+            it("should emit one undefined value", async (): Promise<void> => {
+                const heartRate = firstValueFrom(service.streamHeartRate$().pipe(takeUntil(destroySubject)));
+
+                await vi.advanceTimersByTimeAsync(4 * 2000);
+
+                expect(await heartRate).toBeUndefined();
+            });
+
+            it("should still finalize properly", async (): Promise<void> => {
                 const results: Array<IHeartRate | undefined> = [];
-                service
-                    .streamHeartRate$()
-                    .pipe(takeUntil(destroySubject))
-                    .subscribe({
-                        next: (heartRate: IHeartRate | undefined): void => {
-                            results.push(heartRate);
-                        },
-                        error: (): void => {
-                            // no-op
-                        },
-                    });
-
-                tick(4 * 2000); // flush retries
-
-                expect(results).toHaveSize(1);
-                expect(results[0]).toBeUndefined();
-            }));
-
-            it("should still finalize properly", fakeAsync((): void => {
-                const results: Array<IHeartRate | undefined> = [];
-                const heartRateCharacteristicSpy = spyOn(
+                const heartRateCharacteristicSpy = vi.spyOn(
                     (
                         service as unknown as {
                             heartRateCharacteristic: BehaviorSubject<
@@ -1123,7 +1133,7 @@ describe("BLEHeartRateService", (): void => {
                     ).heartRateCharacteristic,
                     "next",
                 );
-                const connectionStatusSpy = spyOn(
+                const connectionStatusSpy = vi.spyOn(
                     (
                         service as unknown as {
                             connectionStatusSubject: BehaviorSubject<
@@ -1145,16 +1155,16 @@ describe("BLEHeartRateService", (): void => {
                         },
                     });
 
-                tick(4 * 2000); // flush retries
+                await vi.advanceTimersByTimeAsync(4 * 2000);
 
-                expect(heartRateCharacteristicSpy.calls.count()).toBeGreaterThan(4);
-                expect(connectionStatusSpy.calls.count()).toBeGreaterThan(4);
+                expect(heartRateCharacteristicSpy.mock.calls.length).toBeGreaterThan(4);
+                expect(connectionStatusSpy.mock.calls.length).toBeGreaterThan(4);
                 expect(results[results.length - 1]).toBeUndefined();
-            }));
+            });
 
-            it("should retry up to 4 times", fakeAsync((): void => {
+            it("should retry up to 4 times", async (): Promise<void> => {
                 const results: Array<IHeartRate | undefined> = [];
-                const heartRateCharacteristicSpy = spyOn(
+                const heartRateCharacteristicSpy = vi.spyOn(
                     (
                         service as unknown as {
                             heartRateCharacteristic: BehaviorSubject<
@@ -1176,19 +1186,17 @@ describe("BLEHeartRateService", (): void => {
                         },
                     });
 
-                tick(4 * 2000); // flush retries
+                await vi.advanceTimersByTimeAsync(4 * 2000);
 
                 expect(
-                    heartRateCharacteristicSpy.calls
-                        .allArgs()
-                        .filter(
-                            ([args]: [BluetoothRemoteGATTCharacteristic | undefined]): boolean =>
-                                args === undefined,
-                        ),
+                    heartRateCharacteristicSpy.mock.calls.filter(
+                        ([args]: [BluetoothRemoteGATTCharacteristic | undefined]): boolean =>
+                            args === undefined,
+                    ),
                 ).toEqual([[undefined], [undefined], [undefined], [undefined], [undefined]]);
-            }));
+            });
 
-            it("should reconnect to heart rate on retryable errors", fakeAsync((): void => {
+            it("should reconnect to heart rate on retryable errors", async (): Promise<void> => {
                 service
                     .streamHeartRate$()
                     .pipe(takeUntil(destroySubject))
@@ -1198,29 +1206,18 @@ describe("BLEHeartRateService", (): void => {
                         },
                     });
 
-                tick(4 * 2000); // flush retries
+                await vi.advanceTimersByTimeAsync(4 * 2000);
 
                 expect(mockHeartRateCharacteristic.service.getCharacteristic).toHaveBeenCalledTimes(4);
-            }));
+            });
 
-            it("should emit only one undefined value", fakeAsync((): void => {
-                const results: Array<IHeartRate | undefined> = [];
-                service
-                    .streamHeartRate$()
-                    .pipe(takeUntil(destroySubject))
-                    .subscribe({
-                        next: (heartRate: IHeartRate | undefined): void => {
-                            results.push(heartRate);
-                        },
-                        error: (): void => {
-                            // no-op
-                        },
-                    });
+            it("should emit only one undefined value", async (): Promise<void> => {
+                const heartRate = firstValueFrom(service.streamHeartRate$().pipe(takeUntil(destroySubject)));
 
-                tick(4 * 2000); // flush retries
+                await vi.advanceTimersByTimeAsync(4 * 2000);
 
-                expect(results).toEqual([undefined]);
-            }));
+                expect(await heartRate).toBeUndefined();
+            });
         });
     });
 });

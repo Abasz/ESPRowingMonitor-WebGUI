@@ -5,6 +5,7 @@ import { MAT_BOTTOM_SHEET_DATA, MatBottomSheetRef } from "@angular/material/bott
 import { MatSelectionListChange } from "@angular/material/list";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { of, throwError } from "rxjs";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FirmwareAsset } from "../../common/common.interfaces";
 import { versionInfo } from "../../common/data/version";
@@ -15,9 +16,12 @@ import { FirmwareProfileSelectionComponent } from "./firmware-profile-selection.
 describe("FirmwareProfileSelectionComponent", (): void => {
     let component: FirmwareProfileSelectionComponent;
     let fixture: ComponentFixture<FirmwareProfileSelectionComponent>;
-    let mockFirmwareUpdateManager: jasmine.SpyObj<FirmwareUpdateManagerService>;
-    let mockBottomSheetRef: jasmine.SpyObj<MatBottomSheetRef<FirmwareProfileSelectionComponent>>;
-    let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
+    let mockFirmwareUpdateManager: Pick<
+        FirmwareUpdateManagerService,
+        "getAvailableFirmwareProfiles" | "downloadFirmware"
+    >;
+    let mockBottomSheetRef: Pick<MatBottomSheetRef<FirmwareProfileSelectionComponent>, "dismiss">;
+    let mockSnackBar: Pick<MatSnackBar, "open">;
 
     const mockProfiles: Array<FirmwareAsset> = [
         {
@@ -37,12 +41,16 @@ describe("FirmwareProfileSelectionComponent", (): void => {
     ];
 
     beforeEach(async (): Promise<void> => {
-        mockFirmwareUpdateManager = jasmine.createSpyObj("FirmwareUpdateManagerService", [
-            "getAvailableFirmwareProfiles",
-            "downloadFirmware",
-        ]);
-        mockBottomSheetRef = jasmine.createSpyObj("MatBottomSheetRef", ["dismiss"]);
-        mockSnackBar = jasmine.createSpyObj("MatSnackBar", ["open"]);
+        mockFirmwareUpdateManager = {
+            getAvailableFirmwareProfiles: vi.fn(),
+            downloadFirmware: vi.fn(),
+        };
+        mockBottomSheetRef = {
+            dismiss: vi.fn(),
+        };
+        mockSnackBar = {
+            open: vi.fn(),
+        };
 
         await TestBed.configureTestingModule({
             imports: [FirmwareProfileSelectionComponent],
@@ -137,11 +145,13 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                 const arrayBuffer = new ArrayBuffer(8);
                 const response = new HttpResponse({ body: arrayBuffer });
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(response));
-                spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(response));
+                vi.spyOn(
+                    component as unknown as {
+                        extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                    },
                     "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(new File(["x"], "firmware.bin")));
+                ).mockResolvedValue(new File(["x"], "firmware.bin"));
 
                 const updatePromise = component.startUpdate(mockProfiles[0]);
 
@@ -156,11 +166,13 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                 const arrayBuffer = new ArrayBuffer(8);
                 const response = new HttpResponse({ body: arrayBuffer });
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(response));
-                spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(response));
+                vi.spyOn(
+                    component as unknown as {
+                        extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                    },
                     "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(new File(["x"], "firmware.bin")));
+                ).mockResolvedValue(new File(["x"], "firmware.bin"));
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -178,11 +190,13 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                 };
                 const response = new HttpResponse({ body: arrayBuffer });
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(progress, response));
-                spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(progress, response));
+                vi.spyOn(
+                    component as unknown as {
+                        extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                    },
                     "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(new File(["x"], "firmware.bin")));
+                ).mockResolvedValue(new File(["x"], "firmware.bin"));
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -198,11 +212,13 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                 };
                 const response = new HttpResponse({ body: arrayBuffer });
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(progress, response));
-                spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(progress, response));
+                vi.spyOn(
+                    component as unknown as {
+                        extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                    },
                     "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(new File(["x"], "firmware.bin")));
+                ).mockResolvedValue(new File(["x"], "firmware.bin"));
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -217,11 +233,13 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                 };
                 const response = new HttpResponse({ body: arrayBuffer });
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(progress, response));
-                spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(progress, response));
+                vi.spyOn(
+                    component as unknown as {
+                        extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                    },
                     "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(new File(["x"], "firmware.bin")));
+                ).mockResolvedValue(new File(["x"], "firmware.bin"));
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -237,11 +255,13 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                 };
                 const response = new HttpResponse({ body: arrayBuffer });
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(progress, response));
-                spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(progress, response));
+                vi.spyOn(
+                    component as unknown as {
+                        extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                    },
                     "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(new File(["x"], "firmware.bin")));
+                ).mockResolvedValue(new File(["x"], "firmware.bin"));
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -257,11 +277,13 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                 };
                 const response = new HttpResponse({ body: arrayBuffer });
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(progress, response));
-                spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(progress, response));
+                vi.spyOn(
+                    component as unknown as {
+                        extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                    },
                     "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(new File(["x"], "firmware.bin")));
+                ).mockResolvedValue(new File(["x"], "firmware.bin"));
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -272,11 +294,15 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                 const arrayBuffer = new ArrayBuffer(8);
                 const response = new HttpResponse({ body: arrayBuffer });
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(response));
-                const extractSpy = spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
-                    "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(new File(["x"], "firmware.bin")));
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(response));
+                const extractSpy = vi
+                    .spyOn(
+                        component as unknown as {
+                            extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                        },
+                        "extractFirmwareBin",
+                    )
+                    .mockResolvedValue(new File(["x"], "firmware.bin"));
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -295,11 +321,13 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                     status: 200,
                 });
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(mockResponse));
-                spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(mockResponse));
+                vi.spyOn(
+                    component as unknown as {
+                        extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                    },
                     "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(mockFirmwareFile));
+                ).mockResolvedValue(mockFirmwareFile);
 
                 await component.startUpdate(mockProfile);
 
@@ -313,11 +341,13 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                 const arrayBuffer = new ArrayBuffer(8);
                 const response = new HttpResponse({ body: arrayBuffer });
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(response));
-                spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(response));
+                vi.spyOn(
+                    component as unknown as {
+                        extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                    },
                     "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(new File(["x"], "firmware.bin")));
+                ).mockResolvedValue(new File(["x"], "firmware.bin"));
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -330,11 +360,13 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                 const arrayBuffer = new ArrayBuffer(8);
                 const response = new HttpResponse({ body: arrayBuffer });
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(response));
-                spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(response));
+                vi.spyOn(
+                    component as unknown as {
+                        extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                    },
                     "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(null));
+                ).mockResolvedValue(null);
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -347,11 +379,13 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                 const arrayBuffer = new ArrayBuffer(8);
                 const response = new HttpResponse({ body: arrayBuffer });
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(response));
-                spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(response));
+                vi.spyOn(
+                    component as unknown as {
+                        extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                    },
                     "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(null));
+                ).mockResolvedValue(null);
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -362,11 +396,13 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                 const arrayBuffer = new ArrayBuffer(8);
                 const response = new HttpResponse({ body: arrayBuffer });
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(response));
-                spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(response));
+                vi.spyOn(
+                    component as unknown as {
+                        extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                    },
                     "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(null));
+                ).mockResolvedValue(null);
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -376,19 +412,21 @@ describe("FirmwareProfileSelectionComponent", (): void => {
             it("should log error to console when extraction fails", async (): Promise<void> => {
                 const arrayBuffer = new ArrayBuffer(8);
                 const response = new HttpResponse({ body: arrayBuffer });
-                spyOn(console, "error");
+                vi.spyOn(console, "error");
 
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(of(response));
-                spyOn(
-                    component as unknown as { extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null> },
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(of(response));
+                vi.spyOn(
+                    component as unknown as {
+                        extractFirmwareBin: (b: ArrayBuffer) => Promise<File | null>;
+                    },
                     "extractFirmwareBin",
-                ).and.returnValue(Promise.resolve(null));
+                ).mockResolvedValue(null);
 
                 await component.startUpdate(mockProfiles[0]);
 
                 expect(console.error).toHaveBeenCalledWith(
                     "Failed to download or extract firmware:",
-                    jasmine.any(Error),
+                    expect.any(Error),
                 );
             });
         });
@@ -396,7 +434,9 @@ describe("FirmwareProfileSelectionComponent", (): void => {
         describe("when download fails", (): void => {
             it("should show error snackbar on download error", async (): Promise<void> => {
                 const error = new Error("Network error");
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(throwError((): Error => error));
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(
+                    throwError((): Error => error),
+                );
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -407,7 +447,9 @@ describe("FirmwareProfileSelectionComponent", (): void => {
 
             it("should reset isDownloading after download error", async (): Promise<void> => {
                 const error = new Error("Network error");
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(throwError((): Error => error));
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(
+                    throwError((): Error => error),
+                );
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -416,8 +458,10 @@ describe("FirmwareProfileSelectionComponent", (): void => {
 
             it("should log error to console on download failure", async (): Promise<void> => {
                 const error = new Error("Network error");
-                spyOn(console, "error");
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(throwError((): Error => error));
+                vi.spyOn(console, "error");
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(
+                    throwError((): Error => error),
+                );
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -426,7 +470,9 @@ describe("FirmwareProfileSelectionComponent", (): void => {
 
             it("should not dismiss bottom sheet on download error", async (): Promise<void> => {
                 const error = new Error("Network error");
-                mockFirmwareUpdateManager.downloadFirmware.and.returnValue(throwError((): Error => error));
+                vi.mocked(mockFirmwareUpdateManager.downloadFirmware).mockReturnValue(
+                    throwError((): Error => error),
+                );
 
                 await component.startUpdate(mockProfiles[0]);
 
@@ -459,46 +505,45 @@ describe("FirmwareProfileSelectionComponent", (): void => {
         it("should handle invalid zip data and throw error", async (): Promise<void> => {
             const invalidZipData = new ArrayBuffer(8); // not a valid zip file
 
-            await expectAsync(
+            await expect(
                 (
                     component as unknown as {
                         extractFirmwareBin: (data: ArrayBuffer) => Promise<File | null>;
                     }
                 ).extractFirmwareBin(invalidZipData),
-            ).toBeRejected();
+            ).rejects.toThrow();
         });
 
         it("should handle empty array buffer", async (): Promise<void> => {
             const emptyData = new ArrayBuffer(0);
 
-            await expectAsync(
+            await expect(
                 (
                     component as unknown as {
                         extractFirmwareBin: (data: ArrayBuffer) => Promise<File | null>;
                     }
                 ).extractFirmwareBin(emptyData),
-            ).toBeRejected();
+            ).rejects.toThrow();
         });
     });
 
     describe("as part of template rendering", (): void => {
-        beforeEach((): void => {
-            fixture.detectChanges();
-        });
-
-        it("should display firmware version in heading", (): void => {
+        it("should display firmware version in heading", async (): Promise<void> => {
+            await fixture.whenStable();
             const heading = fixture.nativeElement.querySelector("h3");
 
             expect(heading?.textContent).toContain(`v${versionInfo.latestFirmwareRelease.version}`);
         });
 
-        it("should render all available profiles in selection list", (): void => {
+        it("should render all available profiles in selection list", async (): Promise<void> => {
+            await fixture.whenStable();
             const options = fixture.nativeElement.querySelectorAll("mat-list-option");
 
             expect(options.length).toBe(2);
         });
 
-        it("should display profile names in list options", (): void => {
+        it("should display profile names in list options", async (): Promise<void> => {
+            await fixture.whenStable();
             const options = fixture.nativeElement.querySelectorAll("mat-list-option");
 
             expect(options[0].textContent?.trim()).toBe("Concept2 Model D");
@@ -507,58 +552,57 @@ describe("FirmwareProfileSelectionComponent", (): void => {
 
         it("should not show progress bar when not downloading", (): void => {
             component.isDownloading.set(false);
-            fixture.detectChanges();
 
             const progressBar = fixture.nativeElement.querySelector("mat-progress-bar");
 
             expect(progressBar).toBeFalsy();
         });
 
-        it("should show progress bar when downloading", (): void => {
+        it("should show progress bar when downloading", async (): Promise<void> => {
             component.isDownloading.set(true);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const progressBar = fixture.nativeElement.querySelector("mat-progress-bar");
 
             expect(progressBar).toBeTruthy();
         });
 
-        it("should display Starting text when progress mode is indeterminate and progress is 0", (): void => {
+        it("should display Starting text when progress mode is indeterminate and progress is 0", async (): Promise<void> => {
             component.isDownloading.set(true);
             component.progressMode.set("indeterminate");
             component.downloadProgress.set(0);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const progressText = fixture.nativeElement.textContent;
 
             expect(progressText).toContain("Starting");
         });
 
-        it("should display Downloading text when progress mode is determinate", (): void => {
+        it("should display Downloading text when progress mode is determinate", async (): Promise<void> => {
             component.isDownloading.set(true);
             component.progressMode.set("determinate");
             component.downloadProgress.set(50);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const progressText = fixture.nativeElement.textContent;
 
             expect(progressText).toContain("Downloading");
         });
 
-        it("should display Extracting text when progress is 100 and mode is indeterminate", (): void => {
+        it("should display Extracting text when progress is 100 and mode is indeterminate", async (): Promise<void> => {
             component.isDownloading.set(true);
             component.progressMode.set("indeterminate");
             component.downloadProgress.set(100);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const progressText = fixture.nativeElement.textContent;
 
             expect(progressText).toContain("Extracting");
         });
 
-        it("should disable Update button when no profile is selected", (): void => {
+        it("should disable Update button when no profile is selected", async (): Promise<void> => {
             component.selectedProfile.set(undefined);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const updateButton: HTMLButtonElement = Array.from<HTMLButtonElement>(
                 fixture.nativeElement.querySelectorAll("button"),
@@ -569,7 +613,6 @@ describe("FirmwareProfileSelectionComponent", (): void => {
 
         it("should enable Update button when profile is selected", (): void => {
             component.selectedProfile.set(mockProfiles[0]);
-            fixture.detectChanges();
 
             const updateButton: HTMLButtonElement = Array.from<HTMLButtonElement>(
                 fixture.nativeElement.querySelectorAll("button"),
@@ -578,9 +621,9 @@ describe("FirmwareProfileSelectionComponent", (): void => {
             expect(updateButton.disabled).toBe(false);
         });
 
-        it("should disable Cancel button when downloading", (): void => {
+        it("should disable Cancel button when downloading", async (): Promise<void> => {
             component.isDownloading.set(true);
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const cancelButton: HTMLButtonElement = Array.from<HTMLButtonElement>(
                 fixture.nativeElement.querySelectorAll("button"),
@@ -591,7 +634,6 @@ describe("FirmwareProfileSelectionComponent", (): void => {
 
         it("should enable Cancel button when not downloading", (): void => {
             component.isDownloading.set(false);
-            fixture.detectChanges();
 
             const cancelButton: HTMLButtonElement = Array.from<HTMLButtonElement>(
                 fixture.nativeElement.querySelectorAll("button"),
@@ -602,8 +644,7 @@ describe("FirmwareProfileSelectionComponent", (): void => {
 
         it("should call startUpdate when Update button is clicked", (): void => {
             component.selectedProfile.set(mockProfiles[0]);
-            fixture.detectChanges();
-            spyOn(component, "startUpdate");
+            vi.spyOn(component, "startUpdate");
 
             const updateButton: HTMLButtonElement = Array.from<HTMLButtonElement>(
                 fixture.nativeElement.querySelectorAll("button"),
@@ -615,8 +656,7 @@ describe("FirmwareProfileSelectionComponent", (): void => {
         });
 
         it("should call cancel when Cancel button is clicked", (): void => {
-            fixture.detectChanges();
-            spyOn(component, "cancel");
+            vi.spyOn(component, "cancel");
 
             const cancelButton: HTMLButtonElement = Array.from<HTMLButtonElement>(
                 fixture.nativeElement.querySelectorAll("button"),
@@ -643,7 +683,7 @@ describe("FirmwareProfileSelectionComponent", (): void => {
             }).compileComponents();
             fixture = TestBed.createComponent(FirmwareProfileSelectionComponent);
             component = fixture.componentInstance;
-            fixture.detectChanges();
+            await fixture.whenStable();
 
             const warning = fixture.nativeElement.querySelector(".no-profiles-warning");
             const options = fixture.nativeElement.querySelectorAll("mat-list-option");

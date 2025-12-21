@@ -1,7 +1,8 @@
 import { provideZonelessChangeDetection } from "@angular/core";
-import { fakeAsync, TestBed, tick } from "@angular/core/testing";
+import { TestBed } from "@angular/core/testing";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { BehaviorSubject, Subject, takeUntil } from "rxjs";
+import { BehaviorSubject, firstValueFrom, Subject, takeUntil } from "rxjs";
+import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import {
     BATTERY_LEVEL_CHARACTERISTIC,
@@ -9,7 +10,7 @@ import {
     HEART_RATE_CHARACTERISTIC,
     HEART_RATE_SERVICE,
 } from "../../ble.interfaces";
-import { IHeartRate, IHRConnectionStatus } from "../../common.interfaces";
+import { IHRConnectionStatus } from "../../common.interfaces";
 import {
     changedListenerReadyFactory,
     createBatteryDataView,
@@ -25,57 +26,68 @@ describe("BLEHeartRateService", (): void => {
     const destroySubject: Subject<void> = new Subject<void>();
 
     let service: BLEHeartRateService;
-    let mockConfigManager: jasmine.SpyObj<ConfigManagerService>;
-    let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
-    let mockBluetoothDevice: jasmine.SpyObj<BluetoothDevice>;
-    let mockHeartRateCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
-    let mockBatteryCharacteristic: jasmine.SpyObj<BluetoothRemoteGATTCharacteristic>;
+    let mockConfigManager: Pick<ConfigManagerService, "getItem" | "setItem">;
+    let mockSnackBar: Pick<MatSnackBar, "open">;
+    let mockBluetoothDevice: BluetoothDevice;
+    let mockHeartRateCharacteristic: BluetoothRemoteGATTCharacteristic;
+    let mockBatteryCharacteristic: BluetoothRemoteGATTCharacteristic;
 
     let createDeviceDisconnectListenerReady: () => Promise<ListenerTrigger<void>>;
     let createAdvertisementReceivedListenerReady: () => Promise<ListenerTrigger<BluetoothAdvertisingEvent>>;
 
     beforeEach((): void => {
-        mockConfigManager = jasmine.createSpyObj("ConfigManagerService", ["getItem", "setItem"]);
-        mockSnackBar = jasmine.createSpyObj("MatSnackBar", ["open"]);
+        mockConfigManager = {
+            getItem: vi.fn(),
+            setItem: vi.fn(),
+        };
+        mockSnackBar = {
+            open: vi.fn(),
+        };
 
         mockBluetoothDevice = createMockBluetoothDevice();
         mockHeartRateCharacteristic = createMockCharacteristic(mockBluetoothDevice);
         mockBatteryCharacteristic = createMockCharacteristic(mockBluetoothDevice);
 
-        createDeviceDisconnectListenerReady = changedListenerReadyFactory<typeof mockBluetoothDevice, void>(
+        createDeviceDisconnectListenerReady = changedListenerReadyFactory(
             mockBluetoothDevice,
             "gattserverdisconnected",
         );
-        createAdvertisementReceivedListenerReady = changedListenerReadyFactory<
-            typeof mockBluetoothDevice,
-            BluetoothAdvertisingEvent
-        >(mockBluetoothDevice, "advertisementreceived");
+        createAdvertisementReceivedListenerReady = changedListenerReadyFactory(
+            mockBluetoothDevice,
+            "advertisementreceived",
+        );
 
         // setup default mock returns
-        mockConfigManager.getItem.and.returnValue("test-device-id");
-        (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).connect.and.resolveTo(
-            mockBluetoothDevice.gatt,
+        vi.mocked(mockConfigManager.getItem).mockReturnValue("test-device-id");
+        vi.mocked(mockBluetoothDevice.gatt!.connect).mockResolvedValue(
+            mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
         );
-        (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService
-            .withArgs(HEART_RATE_SERVICE)
-            .and.resolveTo(mockHeartRateCharacteristic.service);
-        (mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>).getPrimaryService
-            .withArgs(BATTERY_LEVEL_SERVICE)
-            .and.resolveTo(mockBatteryCharacteristic.service);
-        (
-            mockHeartRateCharacteristic.service as jasmine.SpyObj<BluetoothRemoteGATTService>
-        ).getCharacteristic.and.resolveTo(mockHeartRateCharacteristic);
-        (
-            mockBatteryCharacteristic.service as jasmine.SpyObj<BluetoothRemoteGATTService>
-        ).getCharacteristic.and.resolveTo(mockBatteryCharacteristic);
-        mockBatteryCharacteristic.readValue.and.resolveTo(createBatteryDataView(20));
+        vi.mocked(mockBluetoothDevice.gatt!.getPrimaryService).mockImplementation(
+            (service: BluetoothServiceUUID): Promise<BluetoothRemoteGATTService> => {
+                if (service === HEART_RATE_SERVICE) {
+                    return Promise.resolve(mockHeartRateCharacteristic.service);
+                }
+                if (service === BATTERY_LEVEL_SERVICE) {
+                    return Promise.resolve(mockBatteryCharacteristic.service);
+                }
 
-        spyOnProperty(navigator, "bluetooth", "get").and.returnValue({
-            requestDevice: jasmine.createSpy("requestDevice").and.resolveTo(mockBluetoothDevice),
-            getDevices: jasmine.createSpy("getDevices").and.resolveTo([mockBluetoothDevice]),
+                return Promise.reject(new Error(`Service ${service} not found`));
+            },
+        );
+        vi.mocked(mockHeartRateCharacteristic.service.getCharacteristic).mockResolvedValue(
+            mockHeartRateCharacteristic,
+        );
+        vi.mocked(mockBatteryCharacteristic.service.getCharacteristic).mockResolvedValue(
+            mockBatteryCharacteristic,
+        );
+        vi.mocked(mockBatteryCharacteristic.readValue).mockResolvedValue(createBatteryDataView(20));
+
+        vi.spyOn(navigator, "bluetooth", "get").mockReturnValue({
+            requestDevice: vi.fn().mockResolvedValue(mockBluetoothDevice),
+            getDevices: vi.fn().mockResolvedValue([mockBluetoothDevice]),
         } as unknown as Bluetooth);
 
-        spyOnProperty(document, "visibilityState", "get").and.returnValue("visible");
+        vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
 
         TestBed.configureTestingModule({
             providers: [
@@ -99,35 +111,38 @@ describe("BLEHeartRateService", (): void => {
             expect(service).toBeTruthy();
         });
 
-        it("should initialize with disconnected connection status", (): void => {
-            service
-                .connectionStatus$()
-                .pipe(takeUntil(destroySubject))
-                .subscribe((status: IHRConnectionStatus): void => {
-                    expect(status).toEqual({ status: "disconnected" });
-                });
+        it("should initialize with disconnected connection status", async (): Promise<void> => {
+            const status = await firstValueFrom(service.connectionStatus$().pipe(takeUntil(destroySubject)));
+
+            expect(status).toEqual({ status: "disconnected" });
         });
 
-        it("should initialize with undefined characteristics", (): void => {
-            service
-                .streamHeartRate$()
-                .pipe(takeUntil(destroySubject))
-                .subscribe((heartRate: IHeartRate | undefined): void => {
-                    expect(heartRate).toBeUndefined();
-                });
+        it("should initialize with undefined characteristics", async (): Promise<void> => {
+            const heartRate = await firstValueFrom(
+                service.streamHeartRate$().pipe(takeUntil(destroySubject)),
+            );
 
-            service
-                .streamHRMonitorBatteryLevel$()
-                .pipe(takeUntil(destroySubject))
-                .subscribe((batteryLevel: number | undefined): void => {
-                    expect(batteryLevel).toBeUndefined();
-                });
+            expect(heartRate).toBeUndefined();
+
+            const batteryLevel = await firstValueFrom(
+                service.streamHRMonitorBatteryLevel$().pipe(takeUntil(destroySubject)),
+            );
+
+            expect(batteryLevel).toBeUndefined();
         });
     });
 
     describe("as part of connecting to devices", (): void => {
+        beforeEach((): void => {
+            vi.useFakeTimers();
+        });
+
+        afterEach((): void => {
+            vi.useRealTimers();
+        });
+
         describe("when initiating connection", (): void => {
-            it("should set connection status to connecting", fakeAsync((): void => {
+            it("should set connection status to connecting", async (): Promise<void> => {
                 const statuses: Array<IHRConnectionStatus> = [];
                 service
                     .connectionStatus$()
@@ -136,81 +151,84 @@ describe("BLEHeartRateService", (): void => {
                         statuses.push(status);
                     });
 
+                const discoverPromise = service.discover();
+                await vi.runAllTimersAsync();
+                await discoverPromise;
+
+                expect(statuses).toContainEqual(expect.objectContaining({ status: "connecting" }));
+            });
+
+            it("should store bluetooth device reference", async (): Promise<void> => {
                 service.discover();
 
-                tick(2000);
+                await vi.advanceTimersByTimeAsync(2000);
 
-                expect(statuses).toContain(jasmine.objectContaining({ status: "connecting" }));
-            }));
-
-            it("should store bluetooth device reference", fakeAsync((): void => {
-                service.discover();
-
-                tick(2000);
-
-                const storedDevice = (service as unknown as { bluetoothDevice: BluetoothDevice | undefined })
-                    .bluetoothDevice;
+                const storedDevice = (
+                    service as unknown as {
+                        bluetoothDevice: BluetoothDevice | undefined;
+                    }
+                ).bluetoothDevice;
                 expect(storedDevice).toBe(mockBluetoothDevice);
-            }));
+            });
 
-            it("should call gatt connect", fakeAsync((): void => {
+            it("should call gatt connect", async (): Promise<void> => {
                 service.discover();
 
-                tick(2000);
+                await vi.advanceTimersByTimeAsync(2000);
 
                 expect(mockBluetoothDevice.gatt?.connect).toHaveBeenCalled();
-            }));
+            });
 
-            it("should try connect to heart rate characteristic", fakeAsync((): void => {
+            it("should try connect to heart rate characteristic", async (): Promise<void> => {
                 service.discover();
 
-                tick(4000);
+                await vi.advanceTimersByTimeAsync(4000);
 
                 expect(mockHeartRateCharacteristic.service.getCharacteristic).toHaveBeenCalledWith(
                     HEART_RATE_CHARACTERISTIC,
                 );
-            }));
+            });
 
-            it("should save device ID to config", fakeAsync((): void => {
+            it("should save device ID to config", async (): Promise<void> => {
                 service.discover();
 
-                tick(4000);
+                await vi.advanceTimersByTimeAsync(4000);
 
                 expect(mockConfigManager.setItem).toHaveBeenCalledWith(
                     "heartRateBleId",
                     mockBluetoothDevice.id,
                 );
-            }));
+            });
 
-            it("should setup disconnect handler", fakeAsync((): void => {
+            it("should setup disconnect handler", async (): Promise<void> => {
                 createDeviceDisconnectListenerReady();
                 createAdvertisementReceivedListenerReady();
 
                 service.discover();
 
-                tick(4000);
+                await vi.advanceTimersByTimeAsync(4000);
 
                 expect(mockBluetoothDevice.addEventListener).toHaveBeenCalledWith(
                     "gattserverdisconnected",
-                    jasmine.any(Function),
+                    expect.any(Function),
                     undefined,
                 );
-            }));
+            });
 
             describe("when battery service", (): void => {
                 describe("is available", (): void => {
-                    it("should try connect to battery level characteristic", fakeAsync((): void => {
+                    it("should try connect to battery level characteristic", async (): Promise<void> => {
                         service.discover();
 
-                        tick(4000);
+                        await vi.advanceTimersByTimeAsync(4000);
 
                         expect(mockBatteryCharacteristic.service.getCharacteristic).toHaveBeenCalledWith(
                             BATTERY_LEVEL_CHARACTERISTIC,
                         );
-                    }));
+                    });
 
-                    it("should update battery characteristic subject", fakeAsync((): void => {
-                        const batteryCharacteristicSpy = spyOn(
+                    it("should update battery characteristic subject", async (): Promise<void> => {
+                        const batteryCharacteristicSpy = vi.spyOn(
                             (
                                 service as unknown as {
                                     batteryCharacteristic: BehaviorSubject<
@@ -223,76 +241,71 @@ describe("BLEHeartRateService", (): void => {
 
                         service.discover();
 
-                        tick(4000);
+                        await vi.advanceTimersByTimeAsync(4000);
 
                         expect(batteryCharacteristicSpy).toHaveBeenCalledWith(mockBatteryCharacteristic);
-                    }));
+                    });
 
-                    it("should complete connection process", fakeAsync((): void => {
+                    it("should complete connection process", async (): Promise<void> => {
                         service.discover();
 
-                        tick(4000);
+                        await vi.advanceTimersByTimeAsync(4000);
 
                         expect(mockConfigManager.setItem).toHaveBeenCalledWith(
                             "heartRateBleId",
                             mockBluetoothDevice.id,
                         );
-                    }));
+                    });
                 });
 
                 describe("is unavailable", (): void => {
-                    let mockGattConnected: jasmine.Spy<() => boolean>;
+                    let mockGattConnected: Mock;
                     beforeEach((): void => {
-                        (
-                            mockBatteryCharacteristic.service as jasmine.SpyObj<BluetoothRemoteGATTService>
-                        ).getCharacteristic.and.rejectWith(
+                        vi.mocked(mockBatteryCharacteristic.service.getCharacteristic).mockRejectedValue(
                             new Error("Heart rate characteristic not available"),
                         );
-                        mockGattConnected = Object.getOwnPropertyDescriptor(
-                            mockBluetoothDevice.gatt,
-                            "connected",
-                        )?.get as jasmine.Spy<() => boolean>;
-                        mockGattConnected.and.returnValue(true);
+                        mockGattConnected = vi.spyOn(mockBluetoothDevice.gatt!, "connected", "get");
+                        mockGattConnected.mockReturnValue(true);
                     });
 
-                    it("should show unavailable snackbar", fakeAsync((): void => {
+                    it("should show unavailable snackbar", async (): Promise<void> => {
                         service.discover();
 
-                        tick(4000);
+                        await vi.advanceTimersByTimeAsync(4000);
 
                         expect(mockSnackBar.open).toHaveBeenCalledWith(
                             "HR Monitor battery service is unavailable",
                             "Dismiss",
                         );
-                    }));
+                    });
 
-                    it("should throw error when device not connected", fakeAsync((): void => {
-                        mockGattConnected.and.returnValue(false);
-                        const reconnectSpy = spyOn(service, "reconnect");
+                    it("should throw error when device not connected", async (): Promise<void> => {
+                        mockGattConnected.mockReturnValue(false);
+                        const reconnectSpy = vi.spyOn(service, "reconnect");
 
                         service.discover();
 
-                        tick(4000);
+                        await vi.advanceTimersByTimeAsync(4000);
 
                         expect(reconnectSpy).toHaveBeenCalledTimes(1);
-                    }));
+                    });
                 });
             });
 
             describe("when heart rate service", (): void => {
                 describe("is available", (): void => {
-                    it("should try connect to heart rate characteristic", fakeAsync((): void => {
+                    it("should try connect to heart rate characteristic", async (): Promise<void> => {
                         service.discover();
 
-                        tick(4000);
+                        await vi.advanceTimersByTimeAsync(4000);
 
                         expect(mockHeartRateCharacteristic.service.getCharacteristic).toHaveBeenCalledWith(
                             HEART_RATE_CHARACTERISTIC,
                         );
-                    }));
+                    });
 
-                    it("should update heart rate characteristic subject", fakeAsync((): void => {
-                        const heartRateCharacteristicSpy = spyOn(
+                    it("should update heart rate characteristic subject", async (): Promise<void> => {
+                        const heartRateCharacteristicSpy = vi.spyOn(
                             (
                                 service as unknown as {
                                     heartRateCharacteristic: BehaviorSubject<
@@ -305,18 +318,15 @@ describe("BLEHeartRateService", (): void => {
 
                         service.discover();
 
-                        tick(4000);
+                        await vi.advanceTimersByTimeAsync(4000);
 
                         expect(heartRateCharacteristicSpy).toHaveBeenCalledWith(mockHeartRateCharacteristic);
-                    }));
+                    });
 
-                    it("should update connection status to connected", fakeAsync((): void => {
-                        (
-                            Object.getOwnPropertyDescriptor(mockBluetoothDevice.gatt, "connected")
-                                ?.get as jasmine.Spy<() => boolean>
-                        ).and.returnValue(true);
+                    it("should update connection status to connected", async (): Promise<void> => {
+                        vi.spyOn(mockBluetoothDevice.gatt!, "connected", "get").mockReturnValue(true);
 
-                        const connectionStatusSpy = spyOn(
+                        const connectionStatusSpy = vi.spyOn(
                             (
                                 service as unknown as {
                                     connectionStatusSubject: BehaviorSubject<IHRConnectionStatus>;
@@ -327,78 +337,73 @@ describe("BLEHeartRateService", (): void => {
 
                         service.discover();
 
-                        tick(4000);
+                        await vi.advanceTimersByTimeAsync(4000);
 
                         expect(connectionStatusSpy).toHaveBeenCalledWith({
                             deviceName: mockBluetoothDevice.name,
                             status: "connected",
                         });
-                    }));
+                    });
 
-                    it("should complete connection process", fakeAsync((): void => {
+                    it("should complete connection process", async (): Promise<void> => {
                         service.discover();
 
-                        tick(4000);
+                        await vi.advanceTimersByTimeAsync(4000);
 
                         expect(mockConfigManager.setItem).toHaveBeenCalledWith(
                             "heartRateBleId",
                             mockBluetoothDevice.id,
                         );
-                    }));
+                    });
                 });
 
                 describe("is unavailable", (): void => {
-                    let mockGattConnected: jasmine.Spy<() => boolean>;
+                    let mockGattConnected: Mock;
 
                     beforeEach((): void => {
-                        (
-                            mockHeartRateCharacteristic.service as jasmine.SpyObj<BluetoothRemoteGATTService>
-                        ).getCharacteristic.and.rejectWith(
+                        vi.mocked(mockHeartRateCharacteristic.service.getCharacteristic).mockRejectedValue(
                             new Error("Heart rate characteristic not available"),
                         );
-                        mockGattConnected = Object.getOwnPropertyDescriptor(
-                            mockBluetoothDevice.gatt,
-                            "connected",
-                        )?.get as jasmine.Spy<() => boolean>;
-                        mockGattConnected.and.returnValue(true);
+                        mockGattConnected = vi.spyOn(mockBluetoothDevice.gatt!, "connected", "get");
+                        mockGattConnected.mockReturnValue(true);
                     });
 
-                    it("should show unavailable snackbar", fakeAsync((): void => {
+                    it("should show unavailable snackbar", async (): Promise<void> => {
                         service.discover();
 
-                        tick(4000);
+                        await vi.advanceTimersByTimeAsync(4000);
 
                         expect(mockSnackBar.open).toHaveBeenCalledWith(
                             "Error connecting Heart Rate monitor",
                             "Dismiss",
                         );
-                    }));
+                    });
 
-                    it("should throw error when device not connected", fakeAsync((): void => {
-                        mockGattConnected.and.returnValue(false);
-                        const reconnectSpy = spyOn(service, "reconnect");
+                    it("should throw error when device not connected", async (): Promise<void> => {
+                        mockGattConnected.mockReturnValue(false);
+                        const reconnectSpy = vi.spyOn(service, "reconnect");
 
                         service.discover();
 
-                        tick(4000);
+                        await vi.advanceTimersByTimeAsync(4000);
 
                         expect(reconnectSpy).toHaveBeenCalledTimes(1);
-                    }));
+                    });
                 });
             });
         });
 
         describe("when gatt connection fails", (): void => {
-            let reconnectSpy: jasmine.Spy;
+            let reconnectSpy: Mock;
 
             beforeEach((): void => {
-                (
-                    mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>
-                ).connect.and.rejectWith(new Error("GATT connection failed"));
-                reconnectSpy = spyOn(service, "reconnect").and.resolveTo();
+                vi.mocked(mockBluetoothDevice.gatt!.connect).mockRejectedValue(
+                    new Error("GATT connection failed"),
+                );
+                reconnectSpy = vi.spyOn(service, "reconnect").mockResolvedValue();
             });
 
-            it("should set connection status to disconnected", fakeAsync((): void => {
+            it("should set connection status to disconnected", async (): Promise<void> => {
                 const statuses: Array<IHRConnectionStatus> = [];
                 service
                     .connectionStatus$()
@@ -407,80 +412,65 @@ describe("BLEHeartRateService", (): void => {
                         statuses.push(status);
                     });
 
-                service.discover();
+                const discoverPromise = service.discover();
+                await vi.runAllTimersAsync();
+                await discoverPromise;
 
-                tick(4000);
+                expect(statuses).toContainEqual(expect.objectContaining({ status: "disconnected" }));
+            });
 
-                expect(statuses).toContain(jasmine.objectContaining({ status: "disconnected" }));
-            }));
-
-            it("should show error snackbar if still connected", fakeAsync((): void => {
-                (
-                    Object.getOwnPropertyDescriptor(
-                        mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>,
-                        "connected",
-                    )?.get as jasmine.Spy
-                ).and.returnValue(true);
+            it("should show error snackbar if still connected", async (): Promise<void> => {
+                vi.spyOn(mockBluetoothDevice.gatt!, "connected", "get").mockReturnValue(true);
 
                 service.discover();
 
-                tick(4000);
+                await vi.advanceTimersByTimeAsync(4000);
 
                 expect(mockSnackBar.open).toHaveBeenCalledWith(
-                    jasmine.stringContaining("GATT connection failed"),
+                    expect.stringContaining("GATT connection failed"),
                     "Dismiss",
                 );
-            }));
+            });
 
-            it("should call reconnect if connection is false", fakeAsync((): void => {
-                (
-                    Object.getOwnPropertyDescriptor(
-                        mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>,
-                        "connected",
-                    )?.get as jasmine.Spy
-                ).and.returnValue(false);
+            it("should call reconnect if connection is false", async (): Promise<void> => {
+                vi.spyOn(mockBluetoothDevice.gatt!, "connected", "get").mockReturnValue(false);
 
                 service.discover();
 
-                tick(4000);
+                await vi.advanceTimersByTimeAsync(4000);
 
                 expect(reconnectSpy).toHaveBeenCalled();
-            }));
+            });
         });
 
         describe("when characteristic connection fails", (): void => {
             beforeEach((): void => {
-                (
-                    Object.getOwnPropertyDescriptor(
-                        mockBluetoothDevice.gatt as jasmine.SpyObj<BluetoothRemoteGATTServer>,
-                        "connected",
-                    )?.get as jasmine.Spy
-                ).and.returnValue(true);
+                vi.spyOn(mockBluetoothDevice.gatt!, "connected", "get").mockReturnValue(true);
             });
 
-            it("should handle battery characteristic errors", fakeAsync((): void => {
-                (
-                    mockBatteryCharacteristic.service as jasmine.SpyObj<BluetoothRemoteGATTService>
-                ).getCharacteristic.and.rejectWith(new Error("Battery characteristic not available"));
+            it("should handle battery characteristic errors", async (): Promise<void> => {
+                vi.mocked(mockBatteryCharacteristic.service.getCharacteristic).mockRejectedValue(
+                    new Error("Battery characteristic not available"),
+                );
 
                 service.discover();
 
-                tick(4000);
+                await vi.advanceTimersByTimeAsync(4000);
 
                 expect(mockSnackBar.open).toHaveBeenCalledWith(
                     "HR Monitor battery service is unavailable",
                     "Dismiss",
                 );
-            }));
+            });
 
-            it("should still complete connection process", fakeAsync((): void => {
-                (
-                    mockBatteryCharacteristic.service as jasmine.SpyObj<BluetoothRemoteGATTService>
-                ).getCharacteristic.and.rejectWith(new Error("Battery characteristic not available"));
+            it("should still complete connection process", async (): Promise<void> => {
+                vi.mocked(mockBatteryCharacteristic.service.getCharacteristic).mockRejectedValue(
+                    new Error("Battery characteristic not available"),
+                );
 
                 service.discover();
 
-                tick(4000);
+                await vi.advanceTimersByTimeAsync(4000);
 
                 expect(mockConfigManager.setItem).toHaveBeenCalledWith(
                     "heartRateBleId",
@@ -489,10 +479,10 @@ describe("BLEHeartRateService", (): void => {
 
                 expect(mockBluetoothDevice.addEventListener).toHaveBeenCalledWith(
                     "gattserverdisconnected",
-                    jasmine.any(Function),
+                    expect.any(Function),
                     undefined,
                 );
-            }));
+            });
         });
     });
 });
