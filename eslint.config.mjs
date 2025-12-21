@@ -38,7 +38,6 @@ export default [
             globals: {
                 ...globals.browser,
                 ...globals.jasmine,
-                DoneFn: "readonly",
                 BluetoothAdvertisingEvent: true,
             },
             parser: typescriptParser,
@@ -246,12 +245,7 @@ export default [
             ],
             "import/no-duplicates": "error",
             "import/newline-after-import": "error",
-            "import/no-unassigned-import": [
-                "error",
-                {
-                    allow: ["zone.js/**"],
-                },
-            ],
+            "import/no-unassigned-import": "error",
 
             // RxJS rules
             "rxjs/ban-observables": "error",

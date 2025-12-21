@@ -8,7 +8,7 @@
         (click)="ergoMonitorDiscovery()"
         mat-icon-button
     >
-        <mat-icon [ngClass]="ergConnectionStatus().status === 'connecting' ? 'blink' : ''">{{
+        <mat-icon [class]="ergConnectionStatus().status === 'connecting' ? 'blink' : ''">{{
             BleConnectionStatusIcons[ergConnectionStatus().status]
         }}</mat-icon>
     </button>

@@ -1,4 +1,3 @@
-import { provideHttpClient } from "@angular/common/http";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
@@ -27,7 +26,6 @@ describe("FirmwareUpdateManagerService", (): void => {
         TestBed.configureTestingModule({
             providers: [
                 FirmwareUpdateManagerService,
-                provideHttpClient(),
                 provideHttpClientTesting(),
                 { provide: ErgGenericDataService, useValue: mockErgGenericDataService },
                 provideZonelessChangeDetection(),

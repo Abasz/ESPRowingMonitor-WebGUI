@@ -1,4 +1,3 @@
-import { NgClass } from "@angular/common";
 import { ChangeDetectionStrategy, Component, Signal } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { MatIconButton } from "@angular/material/button";
@@ -16,7 +15,7 @@ import { MetricsService } from "../../common/services/metrics.service";
     templateUrl: "./connect-heart-rate-button.component.html",
     styleUrls: ["./connect-heart-rate-button.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatIcon, MatTooltip, MatIconButton, NgClass],
+    imports: [MatIcon, MatTooltip, MatIconButton],
     host: {
         "[style.display]": "this.heartRateMonitorMode() === 'off' ? 'contents' : 'block'",
     },

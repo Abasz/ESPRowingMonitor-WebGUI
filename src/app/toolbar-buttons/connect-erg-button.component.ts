@@ -1,4 +1,3 @@
-import { NgClass } from "@angular/common";
 import { ChangeDetectionStrategy, Component, Signal } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { MatIconButton } from "@angular/material/button";
@@ -14,7 +13,7 @@ import { ErgConnectionService } from "../../common/services/ergometer/erg-connec
     templateUrl: "./connect-erg-button.component.html",
     styleUrls: ["./connect-erg-button.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatIcon, MatTooltip, MatIconButton, NgClass],
+    imports: [MatIcon, MatTooltip, MatIconButton],
 })
 export class ConnectErgButtonComponent {
     readonly BleConnectionStatusIcons: {

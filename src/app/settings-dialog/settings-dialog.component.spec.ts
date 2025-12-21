@@ -1,4 +1,3 @@
-import { provideHttpClient } from "@angular/common/http";
 import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
@@ -293,7 +292,6 @@ describe("SettingsDialogComponent", (): void => {
         await TestBed.configureTestingModule({
             imports: [SettingsDialogComponent],
             providers: [
-                provideHttpClient(),
                 { provide: MatDialogRef, useValue: mockMatDialogRef },
                 { provide: MAT_DIALOG_DATA, useValue: mockDialogData },
                 { provide: ConfigManagerService, useValue: mockConfigManagerService },

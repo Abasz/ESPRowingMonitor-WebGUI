@@ -4,6 +4,7 @@ import {
     HttpHandler,
     HttpInterceptor,
     HttpRequest,
+    HttpStatusCode,
 } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
@@ -41,7 +42,7 @@ export class ErrorInterceptor implements HttpInterceptor {
                     }
                     this.snackBar.open(`ERROR: ${error.error.message}`, "Dismiss");
                 } else {
-                    this.snackBar.open(`ERROR: ${error.statusText}`, "Dismiss");
+                    this.snackBar.open(`ERROR: ${HttpStatusCode[error.status]}`, "Dismiss");
                 }
 
                 return throwError((): HttpErrorResponse => error);

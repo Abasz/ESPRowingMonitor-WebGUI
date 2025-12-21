@@ -9,7 +9,7 @@
             (click)="heartRateMonitorDiscovery()"
             mat-icon-button
         >
-            <mat-icon [ngClass]="hrConnectionStatus().status === 'connecting' ? 'blink' : ''">{{
+            <mat-icon [class]="hrConnectionStatus().status === 'connecting' ? 'blink' : ''">{{
                 hrConnectionStatus().status === "disconnected" ? "favorite" : "ecg_heart"
             }}</mat-icon>
         </button>
