@@ -1,4 +1,4 @@
-import { provideZonelessChangeDetection, signal, WritableSignal } from "@angular/core";
+import { signal, WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatIconRegistry } from "@angular/material/icon";
 import { MatSnackBar, MatSnackBarRef, TextOnlySnackBar } from "@angular/material/snack-bar";
@@ -121,7 +121,6 @@ describe("AppComponent", (): void => {
                 { provide: MetricsService, useValue: mockMetricsService },
                 { provide: UtilsService, useValue: mockUtilsService },
                 { provide: DataRecorderService, useValue: mockDataRecorderService },
-                provideZonelessChangeDetection(),
             ],
             imports: [AppComponent],
         }).compileComponents();

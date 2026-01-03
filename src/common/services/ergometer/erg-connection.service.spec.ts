@@ -1,4 +1,3 @@
-import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
@@ -211,7 +210,6 @@ describe("ErgConnectionService", (): void => {
                 ErgConnectionService,
                 { provide: MatSnackBar, useValue: matSnackBarSpy },
                 { provide: ConfigManagerService, useValue: configManagerServiceSpy },
-                provideZonelessChangeDetection(),
             ],
         });
 

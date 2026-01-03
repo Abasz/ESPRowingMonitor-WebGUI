@@ -1,6 +1,5 @@
 import { HarnessLoader } from "@angular/cdk/testing";
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
-import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatCard } from "@angular/material/card";
 import { MatCardHarness } from "@angular/material/card/testing";
@@ -42,7 +41,6 @@ describe("ForceCurveComponent", (): void => {
                         ChartDataLabels,
                     ],
                 }),
-                provideZonelessChangeDetection(),
             ],
             imports: [MatCard, BaseChartDirective, ForceCurveComponent],
         }).compileComponents();

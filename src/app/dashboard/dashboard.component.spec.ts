@@ -1,4 +1,4 @@
-import { provideZonelessChangeDetection, signal } from "@angular/core";
+import { signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { BehaviorSubject, Observable, of } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -117,7 +117,6 @@ describe("DashboardComponent", (): void => {
                 { provide: ConfigManagerService, useValue: configManagerServiceSpy },
                 { provide: HeartRateService, useValue: heartRateServiceSpy },
                 { provide: ErgSettingsService, useValue: ergSettingsServiceSpy },
-                provideZonelessChangeDetection(),
             ],
         }).compileComponents();
 

@@ -1,4 +1,3 @@
-import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { BehaviorSubject, firstValueFrom, Subject, takeUntil } from "rxjs";
@@ -94,7 +93,6 @@ describe("BLEHeartRateService", (): void => {
                 BLEHeartRateService,
                 { provide: ConfigManagerService, useValue: mockConfigManager },
                 { provide: MatSnackBar, useValue: mockSnackBar },
-                provideZonelessChangeDetection(),
             ],
         });
 

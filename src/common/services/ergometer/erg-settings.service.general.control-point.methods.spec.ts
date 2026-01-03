@@ -1,4 +1,3 @@
-import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { BehaviorSubject } from "rxjs";
@@ -118,7 +117,6 @@ describe("ErgSettingsService general control-point API", (): void => {
                 ErgSettingsService,
                 { provide: MatSnackBar, useValue: mockSnackBar },
                 { provide: ErgConnectionService, useValue: mockErgConnectionService },
-                provideZonelessChangeDetection(),
             ],
         });
 

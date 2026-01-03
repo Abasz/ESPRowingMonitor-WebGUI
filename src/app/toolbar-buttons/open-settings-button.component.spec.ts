@@ -1,6 +1,6 @@
 import { HarnessLoader } from "@angular/cdk/testing";
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
-import { provideZonelessChangeDetection, signal, Signal, WritableSignal } from "@angular/core";
+import { signal, Signal, WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatButtonHarness } from "@angular/material/button/testing";
 import { MatDialog } from "@angular/material/dialog";
@@ -136,7 +136,6 @@ describe("OpenSettingsButtonComponent", (): void => {
                 { provide: ErgConnectionService, useValue: mockErgConnectionService },
                 { provide: UtilsService, useValue: mockUtilsService },
                 { provide: MatDialog, useValue: mockDialog },
-                provideZonelessChangeDetection(),
             ],
         }).compileComponents();
 

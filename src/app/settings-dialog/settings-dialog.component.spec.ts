@@ -1,4 +1,3 @@
-import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { MatSnackBar, MatSnackBarRef, TextOnlySnackBar } from "@angular/material/snack-bar";
@@ -377,7 +376,6 @@ describe("SettingsDialogComponent", (): void => {
                 { provide: UtilsService, useValue: mockUtilsService },
                 { provide: SwUpdate, useValue: mockSwUpdate },
                 { provide: ErgConnectionService, useValue: mockErgConnectionService },
-                provideZonelessChangeDetection(),
             ],
         }).compileComponents();
 

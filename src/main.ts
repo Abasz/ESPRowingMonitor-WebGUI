@@ -1,6 +1,6 @@
 import { MediaMatcher } from "@angular/cdk/layout";
 import { HTTP_INTERCEPTORS } from "@angular/common/http";
-import { DestroyRef, importProvidersFrom, isDevMode, provideZonelessChangeDetection } from "@angular/core";
+import { DestroyRef, importProvidersFrom, isDevMode } from "@angular/core";
 import { MAT_SNACK_BAR_DEFAULT_OPTIONS, MatSnackBar } from "@angular/material/snack-bar";
 import { bootstrapApplication } from "@angular/platform-browser";
 import { provideRouter } from "@angular/router";
@@ -15,7 +15,6 @@ import { CustomMediaMatcher } from "./common/utils/media-matcher-override";
 
 bootstrapApplication(AppComponent, {
     providers: [
-        provideZonelessChangeDetection(),
         provideRouter([
             {
                 path: "",

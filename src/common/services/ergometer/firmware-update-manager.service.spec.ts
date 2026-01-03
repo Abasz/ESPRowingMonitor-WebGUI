@@ -1,5 +1,5 @@
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
-import { provideZonelessChangeDetection, signal, WritableSignal } from "@angular/core";
+import { signal, WritableSignal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { BehaviorSubject, Observable, of } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -32,7 +32,6 @@ describe("FirmwareUpdateManagerService", (): void => {
                 FirmwareUpdateManagerService,
                 provideHttpClientTesting(),
                 { provide: ErgGenericDataService, useValue: mockErgGenericDataService },
-                provideZonelessChangeDetection(),
             ],
         });
 

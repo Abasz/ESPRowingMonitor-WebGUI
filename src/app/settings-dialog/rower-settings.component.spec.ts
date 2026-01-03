@@ -1,4 +1,3 @@
-import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ReactiveFormsModule } from "@angular/forms";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -114,10 +113,7 @@ describe("RowingSettingsComponent", (): void => {
 
         await TestBed.configureTestingModule({
             imports: [RowingSettingsComponent, ReactiveFormsModule],
-            providers: [
-                { provide: RowingProfileService, useValue: mockRowingProfileService },
-                provideZonelessChangeDetection(),
-            ],
+            providers: [{ provide: RowingProfileService, useValue: mockRowingProfileService }],
         }).compileComponents();
 
         fixture = TestBed.createComponent(RowingSettingsComponent);

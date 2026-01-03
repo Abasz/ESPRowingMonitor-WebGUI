@@ -1,7 +1,7 @@
 import { HarnessLoader } from "@angular/cdk/testing";
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
 import { DatePipe } from "@angular/common";
-import { provideZonelessChangeDetection, signal, WritableSignal } from "@angular/core";
+import { signal, WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatButtonHarness } from "@angular/material/button/testing";
 import { MatDialog } from "@angular/material/dialog";
@@ -179,7 +179,6 @@ describe("SettingsBarComponent", (): void => {
                 { provide: UtilsService, useValue: mockUtilsService },
                 { provide: ConfigManagerService, useValue: mockConfigManagerService },
                 { provide: HeartRateService, useValue: mockHeartRateService },
-                provideZonelessChangeDetection(),
             ],
         }).compileComponents();
 

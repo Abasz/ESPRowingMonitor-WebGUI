@@ -1,6 +1,5 @@
 import { HarnessLoader } from "@angular/cdk/testing";
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
-import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatButtonHarness } from "@angular/material/button/testing";
 import { MatIconHarness } from "@angular/material/icon/testing";
@@ -43,10 +42,7 @@ describe("ConnectErgButtonComponent", (): void => {
 
         await TestBed.configureTestingModule({
             imports: [ConnectErgButtonComponent],
-            providers: [
-                { provide: ErgConnectionService, useValue: mockErgConnectionService },
-                provideZonelessChangeDetection(),
-            ],
+            providers: [{ provide: ErgConnectionService, useValue: mockErgConnectionService }],
         }).compileComponents();
 
         isSecureContextSpy = vi.spyOn(window, "isSecureContext", "get").mockReturnValue(true);

@@ -1,7 +1,9 @@
 import { ISessionData } from "./common.interfaces";
 
-export interface IMetricsEntity
-    extends Omit<ISessionData, "activityStartTime" | "peakForce" | "handleForces"> {
+export interface IMetricsEntity extends Omit<
+    ISessionData,
+    "activityStartTime" | "peakForce" | "handleForces"
+> {
     sessionId: number;
     timeStamp: number;
 }

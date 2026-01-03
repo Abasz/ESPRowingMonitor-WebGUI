@@ -1,4 +1,4 @@
-import { DestroyRef, provideZonelessChangeDetection } from "@angular/core";
+import { DestroyRef } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { Observable, Subject } from "rxjs";
@@ -120,7 +120,6 @@ describe("AntHeartRateService", (): void => {
                 AntHeartRateService,
                 { provide: MatSnackBar, useValue: mockSnackBar },
                 { provide: DestroyRef, useValue: mockDestroyRef },
-                provideZonelessChangeDetection(),
             ],
         });
 

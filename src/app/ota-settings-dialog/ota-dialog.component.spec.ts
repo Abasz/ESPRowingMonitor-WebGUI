@@ -1,4 +1,4 @@
-import { provideZonelessChangeDetection, signal } from "@angular/core";
+import { signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from "@angular/material/dialog";
 import { MatSnackBar, MatSnackBarRef } from "@angular/material/snack-bar";
@@ -68,7 +68,6 @@ describe("OtaDialogComponent", (): void => {
                 { provide: MatDialog, useValue: mockMatDialog },
                 { provide: MatSnackBar, useValue: mockSnackBar },
                 { provide: MAT_DIALOG_DATA, useValue: { ...mockDialogData } },
-                provideZonelessChangeDetection(),
             ],
         });
 

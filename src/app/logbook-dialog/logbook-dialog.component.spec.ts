@@ -1,5 +1,4 @@
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
-import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatButtonHarness } from "@angular/material/button/testing";
 import { MAT_DIALOG_DATA } from "@angular/material/dialog";
@@ -88,7 +87,6 @@ describe("LogbookDialogComponent", (): void => {
         await TestBed.configureTestingModule({
             imports: [LogbookDialogComponent],
             providers: [
-                provideZonelessChangeDetection(),
                 { provide: MAT_DIALOG_DATA, useValue: SESSIONS },
                 { provide: DataRecorderService, useValue: dataRecorderSpy },
                 { provide: MatSnackBar, useValue: snackBarSpy },

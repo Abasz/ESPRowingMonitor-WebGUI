@@ -1,4 +1,3 @@
-import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { BehaviorSubject, firstValueFrom, skip, Subject } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
@@ -115,7 +114,6 @@ describe("MetricsService", (): void => {
                 { provide: ErgMetricsService, useValue: mockErgMetricsService },
                 { provide: DataRecorderService, useValue: mockDataRecorderService },
                 { provide: HeartRateService, useValue: mockHeartRateService },
-                provideZonelessChangeDetection(),
             ],
         });
     });

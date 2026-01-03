@@ -1,6 +1,5 @@
 import { HarnessLoader } from "@angular/cdk/testing";
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
-import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatButtonHarness } from "@angular/material/button/testing";
 import { MatTooltipHarness } from "@angular/material/tooltip/testing";
@@ -55,7 +54,6 @@ describe("ConnectHeartRateButtonComponent", (): void => {
                 { provide: ConfigManagerService, useValue: mockConfigManagerService },
                 { provide: MetricsService, useValue: mockMetricsService },
                 { provide: HeartRateService, useValue: mockHeartRateService },
-                provideZonelessChangeDetection(),
             ],
         }).compileComponents();
 

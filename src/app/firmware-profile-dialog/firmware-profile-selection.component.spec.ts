@@ -1,5 +1,4 @@
 import { HttpEvent, HttpEventType, HttpResponse } from "@angular/common/http";
-import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MAT_BOTTOM_SHEET_DATA, MatBottomSheetRef } from "@angular/material/bottom-sheet";
 import { MatSelectionListChange } from "@angular/material/list";
@@ -59,7 +58,6 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                 { provide: MatBottomSheetRef, useValue: mockBottomSheetRef },
                 { provide: MatSnackBar, useValue: mockSnackBar },
                 { provide: MAT_BOTTOM_SHEET_DATA, useValue: mockProfiles },
-                provideZonelessChangeDetection(),
             ],
         }).compileComponents();
 
@@ -678,7 +676,6 @@ describe("FirmwareProfileSelectionComponent", (): void => {
                     { provide: MatBottomSheetRef, useValue: mockBottomSheetRef },
                     { provide: MatSnackBar, useValue: mockSnackBar },
                     { provide: MAT_BOTTOM_SHEET_DATA, useValue: [] },
-                    provideZonelessChangeDetection(),
                 ],
             }).compileComponents();
             fixture = TestBed.createComponent(FirmwareProfileSelectionComponent);

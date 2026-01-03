@@ -1,6 +1,6 @@
 import { HarnessLoader } from "@angular/cdk/testing";
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
-import { provideZonelessChangeDetection, signal, WritableSignal } from "@angular/core";
+import { signal, WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ReactiveFormsModule } from "@angular/forms";
 import { MatOptionHarness } from "@angular/material/core/testing";
@@ -112,7 +112,6 @@ describe("GeneralSettingsComponent", (): void => {
                 { provide: SwUpdate, useValue: mockSwUpdate },
                 { provide: MatDialog, useValue: mockMatDialog },
                 { provide: FirmwareUpdateManagerService, useValue: mockFirmwareUpdateManagerService },
-                provideZonelessChangeDetection(),
             ],
         }).compileComponents();
 

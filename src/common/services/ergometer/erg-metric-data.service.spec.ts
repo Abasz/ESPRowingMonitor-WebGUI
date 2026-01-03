@@ -1,4 +1,3 @@
-import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { BehaviorSubject, Subject } from "rxjs";
 import { takeUntil } from "rxjs/operators";
@@ -158,7 +157,6 @@ describe("ErgMetricsService", (): void => {
             providers: [
                 ErgMetricsService,
                 { provide: ErgConnectionService, useValue: mockErgConnectionService },
-                provideZonelessChangeDetection(),
             ],
         });
 

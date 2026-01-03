@@ -1,4 +1,3 @@
-import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { BehaviorSubject, firstValueFrom, skip } from "rxjs";
@@ -136,7 +135,6 @@ describe("ErgGenericDataService", (): void => {
                 ErgGenericDataService,
                 { provide: MatSnackBar, useValue: matSnackBarSpy },
                 { provide: ErgConnectionService, useValue: ergConnectionServiceSpy },
-                provideZonelessChangeDetection(),
             ],
         });
 
