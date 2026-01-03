@@ -10,7 +10,7 @@ The WebGUI supports all features of ESPRM API (i.e. it is able to take full adva
 
 This approach solves several issues that has been encounter with the distribution method (e.g. its accessed through https so secured context is not an issue). Updates to the WebGUI can this way be pushed automatically and no longer requires recompilation and uploading to the MCU, etc.
 
-**Note, the version served over the GitHub Pages is only compatible with version 5.2 and above of ESP Rowing Monitor. This is due to the fact that the WebGUI served via GitHub Pages do not work with the deprecated WebSocket based connection type (the issue is the lack of connection via ssl to the MCU and browser security prevents such connection, at least on chrome), i.e. it requires the new Extended BLE service introduced in version 5.2 of ESPRM. This is now default on the ESP Rowing Monitor firmware.**
+**Note, the version served over the GitHub Pages is only compatible with version 5.2.0 and above of ESP Rowing Monitor. This is due to the fact that the WebGUI served via GitHub Pages do not work with the deprecated WebSocket based connection type (the issue is the lack of connection via ssl to the MCU and browser security prevents such connection, at least on chrome), i.e. it requires the Extended BLE service introduced in version 5.2 of ESPRM. Starting with v7.0.0, the WebGUI has updated its BLE API implementation to align with the latest ESPRM firmware changes, including support for 16-bit drag factor and deprecated settings fields (for now still keeping backward compatibility).**
 
 For reference, the old README that related to the manual building and serving/hosting of the WebGUI have been moved [here](docs/deprecated-docs.md)
 
@@ -33,9 +33,14 @@ The WebGUI supports ANT+ HR monitors that can be enabled in the setting. Once th
 
 However the ANT+ needs a WinUSB driver (instead of generic libusb) otherwise itt will not work. This can be installed with [Zadig](https://zadig.akeo.ie/).
 
-## TCX export for Strava upload
+## Export Options for Workout Data
 
-It is possible to export logged workout data in TCX format that can be manually uploaded to Strava and other platforms.
+The WebGUI provides multiple export formats for logged workout data:
+
+- **TCX Export**: Export sessions in TCX format for manual upload to Strava and other fitness platforms.
+- **CSV Export**: Export detailed per-stroke data in CSV format (along with delta times), including elapsed time, distance, pace, power, stroke rate, drive/recovery durations, heart rate, drag factor, peak force, and handle forces. This is ideal for detailed analysis and data processing.
+- **JSON Export**: Export session data and delta times in JSON format for backup or custom processing.
+- **Web Share API Integration**: On supported mobile devices, you can share exported files directly using the native share functionality, with automatic fallback to traditional downloads on desktop.
 
 ## Experimental Logbook support
 
@@ -51,8 +56,19 @@ It is possible to request via the StorageManager API to persist the data and pre
 
 For further information please see the [here](https://dexie.org/docs/StorageManager) and [here](https://hackernoon.com/persistent-data-what-working-with-the-storage-api-looks-like)
 
+## Firmware Update Manager
+
+The WebGUI now includes a built-in firmware update manager that:
+
+- Automatically checks for firmware updates when connecting to a device
+- Downloads firmware profiles directly from the ESPRowingMonitor GitHub releases
+- Provides a UI for selecting the appropriate firmware profile for your hardware
+- Supports over-the-air (OTA) firmware updates directly from the browser
+
+This feature eliminates the need to manually download firmware files and simplifies the update process for users.
+
 ## Backlog
 
 - Implement calibration feature within the UI
 - Make sessions repayable, especially the force curves
-- Add web firmware flasher with WebSerial to support full browser setup of devices (i.e. drop the requirement of compiling firmware for supported boards)
+- Add web firmware flasher with WebSerial to support initial from scratch setup of devices solely from the browser (i.e. drop the requirement of using separate tools for flashing the device)
