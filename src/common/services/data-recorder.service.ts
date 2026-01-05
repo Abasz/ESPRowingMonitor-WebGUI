@@ -299,42 +299,51 @@ export class DataRecorderService {
         ].join(",");
 
         const startTime = rowingSessionData[0].timeStamp.getTime();
+        let csvBody = `${headers}\n`;
+        let previousStroke: ExportSessionData | undefined = rowingSessionData[0];
 
-        const csvBody = rowingSessionData.reduce(
-            (accumulator: string, data: ExportSessionData, index: number): string => {
-                if (index > 0 && rowingSessionData[index - 1].strokeCount === data.strokeCount) {
-                    return accumulator;
-                }
+        for (const data of rowingSessionData) {
+            if (previousStroke !== data && previousStroke.strokeCount === data.strokeCount) {
+                continue;
+            }
 
-                const handleForcesFormatted = `"${data.handleForces.map((force: number): string => force.toFixed(2)).join(",")}"`;
-                const heartRateValue =
-                    data.heartRate?.heartRate !== null && data.heartRate?.heartRate !== undefined
-                        ? data.heartRate.heartRate.toString()
-                        : "NaN";
+            const elapsedTime = (data.timeStamp.getTime() - startTime) / 1000;
 
-                const row = [
-                    data.strokeCount.toString(),
-                    ((data.timeStamp.getTime() - startTime) / 1000).toFixed(2),
-                    (data.distance / 100).toString(),
-                    (500 / data.speed).toFixed(2),
-                    (data.speed * 3.6).toFixed(2),
-                    data.avgStrokePower.toString(),
-                    Math.round(data.strokeRate).toString(),
-                    data.distPerStroke.toString(),
-                    data.driveDuration.toFixed(2),
-                    data.recoveryDuration.toFixed(2),
-                    heartRateValue,
-                    data.dragFactor.toString(),
-                    data.peakForce.toFixed(2),
-                    handleForcesFormatted,
-                ];
+            const calculatedSpeed =
+                previousStroke.distance === 0
+                    ? data.distance / 100 / elapsedTime
+                    : (data.strokeRate / 60) * data.distPerStroke;
 
-                return `${accumulator}${row.join(",")}\n`;
-            },
-            "",
-        );
+            const handleForcesFormatted = `"${data.handleForces.map((force: number): string => force.toFixed(2)).join(",")}"`;
+            const heartRateValue =
+                data.heartRate?.heartRate !== null && data.heartRate?.heartRate !== undefined
+                    ? data.heartRate.heartRate.toString()
+                    : "NaN";
 
-        return `${headers}\n${csvBody}`;
+            const isCalculatedSpeedNaN = isNaN(calculatedSpeed);
+
+            const row = [
+                data.strokeCount.toString(),
+                elapsedTime.toFixed(2),
+                (data.distance / 100).toString(),
+                (isCalculatedSpeedNaN || calculatedSpeed === 0 ? 0 : 500 / calculatedSpeed).toFixed(2),
+                (isCalculatedSpeedNaN ? 0 : calculatedSpeed * 3.6).toFixed(2),
+                data.avgStrokePower.toString(),
+                Math.round(data.strokeRate).toString(),
+                data.distPerStroke.toString(),
+                data.driveDuration.toFixed(2),
+                data.recoveryDuration.toFixed(2),
+                heartRateValue,
+                data.dragFactor.toString(),
+                data.peakForce.toFixed(2),
+                handleForcesFormatted,
+            ].join(",");
+
+            csvBody += `${row}\n`;
+            previousStroke = data;
+        }
+
+        return `${csvBody}\n`;
     }
 
     private formatDeltaTimesCsv(deltaTimes: Array<number>): string {

@@ -6,6 +6,14 @@ import { ISessionData, ISessionSummary } from "../common.interfaces";
 import { appDB } from "../utils/app-database";
 
 import { DataRecorderService } from "./data-recorder.service";
+import {
+    mockImportData,
+    setupSpeedCalculationFilterDuplicates,
+    setupSpeedCalculationFirstStrokeStartTime,
+    setupSpeedCalculationThreeStrokes,
+    setupSpeedCalculationZeroDistance,
+    setupSpeedCalculationZeroTimeDelta,
+} from "./data-recorder.test.helpers";
 
 function setupNavigatorWithShare(shareSpy: Mock): void {
     Object.defineProperty(navigator, "canShare", {
@@ -404,7 +412,7 @@ describe("DataRecorderService", (): void => {
                         speed: 4.0,
                         strokeCount: 55,
                         strokeRate: 22,
-                    } as Parameters<typeof appDB.sessionData.add>[0]);
+                    });
                     appDB.handleForces.put({
                         sessionId: testSessionId,
                         timeStamp: testSessionId + 1000,
@@ -555,7 +563,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.2,
                     strokeCount: 50,
                     strokeRate: 24,
-                } as Parameters<typeof appDB.sessionData.add>[0]);
+                });
                 appDB.handleForces.put({
                     sessionId: testSessionId,
                     timeStamp: testSessionId + 1000,
@@ -688,7 +696,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.2,
                     strokeCount: 50,
                     strokeRate: 24,
-                } as Parameters<typeof appDB.sessionData.add>[0]);
+                });
                 appDB.handleForces.put({
                     sessionId: testSessionId,
                     timeStamp: testSessionId + 1000,
@@ -805,7 +813,7 @@ describe("DataRecorderService", (): void => {
                     strokeCount: 50,
                     strokeRate: 24,
                     heartRate: { heartRate: 140, contactDetected: true },
-                } as Parameters<typeof appDB.sessionData.add>[0]);
+                });
                 appDB.handleForces.put({
                     sessionId: testSessionId,
                     timeStamp: testSessionId + 1000,
@@ -919,98 +927,113 @@ describe("DataRecorderService", (): void => {
                 expect(shareData.files).toHaveLength(2);
             });
         });
+
+        describe("speed calculation", (): void => {
+            beforeEach(async (): Promise<void> => {
+                await setupSpeedCalculationThreeStrokes();
+            });
+
+            it("should calculate speed using strokeRate and distPerStroke", async (): Promise<void> => {
+                await service.exportSessionToCsv(testSessionId);
+
+                const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
+                const content = await blobArg.text();
+                const lines = content.split("\n").filter((line: string): boolean => line.length > 0);
+
+                const dataLines = lines.slice(1);
+
+                const stroke1 = dataLines[0].split(",");
+                expect(parseFloat(stroke1[4]), "stroke 1: (24/60) * 5 = 2.0 m/s = 7.2 km/h").toBeCloseTo(
+                    7.2,
+                    1,
+                );
+                expect(parseFloat(stroke1[3]), "stroke 1 pace (500m): 500/2.0 = 250s").toBeCloseTo(250, 0);
+
+                const stroke2 = dataLines[1].split(",");
+                expect(parseFloat(stroke2[4]), "stroke 2: (30/60) * 6 = 3.0 m/s = 10.8 km/h").toBeCloseTo(
+                    10.8,
+                    1,
+                );
+                expect(parseFloat(stroke2[3]), "stroke 2 pace (500m): 500/3.0 = 166.67s").toBeCloseTo(
+                    166.67,
+                    0,
+                );
+
+                const stroke3 = dataLines[2].split(",");
+                expect(parseFloat(stroke3[4]), "stroke 3: (25/60) * 7 = 2.917 m/s = 10.5 km/h").toBeCloseTo(
+                    10.5,
+                    1,
+                );
+                expect(parseFloat(stroke3[3]), "stroke 3 pace (500m): 500/2.917 = 171.4s").toBeCloseTo(
+                    171.4,
+                    0,
+                );
+            });
+
+            it("should filter out duplicate stroke entries with same strokeCount", async (): Promise<void> => {
+                await setupSpeedCalculationFilterDuplicates();
+
+                await service.exportSessionToCsv(testSessionId);
+
+                const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
+                const content = await blobArg.text();
+                const lines = content.split("\n").filter((line: string): boolean => line.length > 0);
+
+                expect(lines.length).toBe(5);
+
+                const stroke4 = lines[4].split(",");
+                expect(parseFloat(stroke4[4]), "stroke 4: (30/60) * 6 = 3.0 m/s = 10.8 km/h").toBeCloseTo(
+                    10.8,
+                    1,
+                );
+            });
+
+            it("should handle strokes with accumulated distance", async (): Promise<void> => {
+                await setupSpeedCalculationFirstStrokeStartTime();
+
+                await service.exportSessionToCsv(testSessionId);
+
+                const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
+                const content = await blobArg.text();
+                const lines = content.split("\n").filter((line: string): boolean => line.length > 0);
+                const stroke3 = lines[3].split(",");
+                expect(parseFloat(stroke3[4]), "stroke 3: 11.46 / 4.30 = 2.653 m/s = 9.55 km/h").toBeCloseTo(
+                    9.55,
+                    1,
+                );
+            });
+
+            it("should calculate speed independent of timestamp deltas", async (): Promise<void> => {
+                await setupSpeedCalculationZeroTimeDelta();
+
+                await service.exportSessionToCsv(testSessionId);
+
+                const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
+                const content = await blobArg.text();
+                const lines = content.split("\n").filter((line: string): boolean => line.length > 0);
+
+                const stroke1 = lines[1].split(",");
+                expect(parseFloat(stroke1[4]), "stroke 1: (24/60) * 5 = 2.0 m/s = 7.2 km/h").toBeCloseTo(
+                    7.2,
+                    1,
+                );
+            });
+
+            it("should handle edge case with zero distance", async (): Promise<void> => {
+                await setupSpeedCalculationZeroDistance();
+
+                await service.exportSessionToCsv(testSessionId);
+
+                const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
+                const content = await blobArg.text();
+                const lines = content.split("\n").filter((line: string): boolean => line.length > 0);
+                const stroke1 = lines[1].split(",");
+                expect(stroke1[4]).toBe("0.00");
+            });
+        });
     });
 
     describe("import method", (): void => {
-        const mockImportData = {
-            formatName: "dexie",
-            formatVersion: 1,
-            data: {
-                databaseName: "ESPRowingMonitorDB",
-                databaseVersion: 2,
-                tables: [
-                    { name: "deltaTimes", schema: "timeStamp,sessionId", rowCount: 1 },
-                    { name: "handleForces", schema: "timeStamp,sessionId,[sessionId+strokeId]", rowCount: 1 },
-                    { name: "sessionData", schema: "timeStamp,sessionId", rowCount: 2 },
-                    { name: "connectedDevice", schema: "sessionId", rowCount: 1 },
-                ],
-                data: [
-                    {
-                        tableName: "deltaTimes",
-                        inbound: true,
-                        rows: [
-                            {
-                                sessionId: 123456789,
-                                timeStamp: 1000000001,
-                                deltaTimes: [120, 130, 140],
-                                $types: { deltaTimes: "arrayNonindexKeys" },
-                            },
-                        ],
-                    },
-                    {
-                        tableName: "handleForces",
-                        inbound: true,
-                        rows: [
-                            {
-                                sessionId: 123456789,
-                                timeStamp: 1000000001,
-                                strokeId: 1,
-                                peakForce: 300,
-                                handleForces: [100, 200, 300, 200, 100],
-                                $types: { handleForces: "arrayNonindexKeys" },
-                            },
-                        ],
-                    },
-                    {
-                        tableName: "sessionData",
-                        inbound: true,
-                        rows: [
-                            {
-                                sessionId: 123456789,
-                                timeStamp: 1000000001,
-                                avgStrokePower: 100,
-                                distance: 500,
-                                distPerStroke: 5,
-                                dragFactor: 110,
-                                driveDuration: 700,
-                                recoveryDuration: 1100,
-                                speed: 4.5,
-                                strokeCount: 100,
-                                strokeRate: 22,
-                                heartRate: { heartRate: 140, contactDetected: true, rrIntervals: [700] },
-                                $types: { "heartRate.rrIntervals": "arrayNonindexKeys" },
-                            },
-                            {
-                                sessionId: 123456789,
-                                timeStamp: 1000000002,
-                                avgStrokePower: 110,
-                                distance: 510,
-                                distPerStroke: 5.1,
-                                dragFactor: 110,
-                                driveDuration: 710,
-                                recoveryDuration: 1110,
-                                speed: 4.6,
-                                strokeCount: 101,
-                                strokeRate: 23,
-                                heartRate: { heartRate: 142, contactDetected: true, rrIntervals: [710] },
-                                $types: { "heartRate.rrIntervals": "arrayNonindexKeys" },
-                            },
-                        ],
-                    },
-                    {
-                        tableName: "connectedDevice",
-                        inbound: true,
-                        rows: [
-                            {
-                                sessionId: 123456789,
-                                deviceName: "TestDevice",
-                            },
-                        ],
-                    },
-                ],
-            },
-        };
-
         const mockBlob = new Blob([JSON.stringify(mockImportData)]);
 
         beforeEach((): void => {
@@ -1104,7 +1127,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.2,
                     strokeCount: 50,
                     strokeRate: 24,
-                } as Parameters<typeof appDB.sessionData.add>[0]);
+                });
                 appDB.sessionData.add({
                     sessionId: testSessionId2,
                     timeStamp: testSessionId2 + 1000,
@@ -1117,7 +1140,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.5,
                     strokeCount: 60,
                     strokeRate: 26,
-                } as Parameters<typeof appDB.sessionData.add>[0]);
+                });
             });
 
             const summaries = await firstValueFrom(service.getSessionSummaries$());
@@ -1167,7 +1190,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.2,
                     strokeCount: 50,
                     strokeRate: 24,
-                } as Parameters<typeof appDB.sessionData.add>[0]);
+                });
                 appDB.sessionData.add({
                     sessionId: testSessionId2,
                     timeStamp: testSessionId2 + 1000,
@@ -1180,7 +1203,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.5,
                     strokeCount: 60,
                     strokeRate: 26,
-                } as Parameters<typeof appDB.sessionData.add>[0]);
+                });
             });
 
             const summariesPromise = firstValueFrom(service.getSessionSummaries$());
@@ -1203,7 +1226,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.8,
                     strokeCount: 102,
                     strokeRate: 28,
-                } as Parameters<typeof appDB.sessionData.add>[0]);
+                });
             });
 
             const summaries = await summariesPromise;
