@@ -865,19 +865,26 @@ describe("ErgMetricsService", (): void => {
 
             describe("when characteristic is available", (): void => {
                 let measurementTrigger: Promise<ListenerTrigger<DataView>>;
+                // stroke rate: 20 strokes/min (encoded as 40)
+                // Pace: 120 seconds per 500m
                 const deltaMetrics = [
-                    createBaseMetrics(),
                     {
-                        distance: 2400,
-                        strokeCount: 5,
-                        revTime: createBaseMetrics().revTime / 2,
-                        strokeTime: createBaseMetrics().strokeTime / 2,
+                        distance: 5000, // 50 meters
+                        strokeCount: 10,
+                        revTime: 12_000_000, // 12 seconds -> pace = 12 * (500/50) = 120
+                        strokeTime: 30_000_000, // 30 seconds -> rate = (10/30)*60*2 = 40
                     },
                     {
-                        distance: 2200,
+                        distance: 2500, // 25 meters
+                        strokeCount: 5,
+                        revTime: 6_000_000, // 6 seconds -> pace = 6 * (500/25) = 120
+                        strokeTime: 15_000_000, // 15 seconds -> rate = (5/15)*60*2 = 40
+                    },
+                    {
+                        distance: 2000, // 20 meters
                         strokeCount: 4,
-                        revTime: createBaseMetrics().revTime / 3,
-                        strokeTime: createBaseMetrics().strokeTime / 3,
+                        revTime: 4_800_000, // 4.8 seconds -> pace = 4.8 * (500/20) = 120
+                        strokeTime: 12_000_000, // 12 seconds -> rate = (4/12)*60*2 = 40
                     },
                 ];
 
@@ -887,48 +894,90 @@ describe("ErgMetricsService", (): void => {
                 });
 
                 describe("should emit base metrics", (): void => {
-                    it("when service is Fitness Machine", async (): Promise<void> => {
-                        const emittedValues: Array<IBaseMetrics> = [];
-                        const {
-                            expectedMetrics,
-                            metricsDataViews,
-                        }: {
-                            expectedMetrics: Array<IBaseMetrics>;
-                            metricsDataViews: Array<DataView>;
-                        } = createMeasurementDataViews(deltaMetrics, createFTMSMeasurementDataView);
-                        mockMeasurementUUID.mockReturnValue(
-                            BluetoothUUID.getCharacteristic(ROWER_DATA_CHARACTERISTIC),
-                        );
-                        service
-                            .streamMeasurement$()
-                            .pipe(takeUntil(destroySubject))
-                            .subscribe({
-                                next: (value: IBaseMetrics): void => {
-                                    emittedValues.push(value);
-                                },
-                            });
+                    describe("when service is Fitness Machine", (): void => {
+                        it("with zero stroke rate (rower at rest)", async (): Promise<void> => {
+                            const emittedValues: Array<IBaseMetrics> = [];
+                            mockMeasurementUUID.mockReturnValue(
+                                BluetoothUUID.getCharacteristic(ROWER_DATA_CHARACTERISTIC),
+                            );
+                            service
+                                .streamMeasurement$()
+                                .pipe(takeUntil(destroySubject))
+                                .subscribe({
+                                    next: (value: IBaseMetrics): void => {
+                                        emittedValues.push(value);
+                                    },
+                                });
 
-                        const measurementTriggerHandler = await measurementTrigger;
-                        metricsDataViews.forEach((dataView: DataView): void => {
+                            const measurementTriggerHandler = await measurementTrigger;
+
+                            // can't be generated through the normal test helper because the encoder would also divide by zero when deltaStrokeTime = 0
+                            const buffer = new ArrayBuffer(16);
+                            const dataView = new DataView(buffer);
+                            const flags = 0x0001 | 0x0004 | 0x0040 | 0x0200;
+                            dataView.setUint16(0, flags, true);
+                            dataView.setUint8(2, 0); // stroke rate = 0
+                            dataView.setUint16(3, 0, true); // stroke count = 0
+                            dataView.setUint8(5, 0); // distance = 0
+                            dataView.setUint8(6, 0);
+                            dataView.setUint8(7, 0);
+                            dataView.setUint16(8, 0, true); // pace = 0
+                            dataView.setUint8(12, 5); // resistance
+
                             measurementTriggerHandler.triggerChanged(dataView);
+
+                            expect(emittedValues).toHaveLength(1);
+                            expect(emittedValues[0].strokeTime).toBe(0);
+                            expect(emittedValues[0].revTime).toBe(0);
+                            expect(emittedValues[0].distance).toBe(0);
+                            expect(emittedValues[0].strokeCount).toBe(0);
+                            expect(Number.isFinite(emittedValues[0].strokeTime)).toBe(true);
+                            expect(Number.isFinite(emittedValues[0].revTime)).toBe(true);
                         });
 
-                        expect(emittedValues).toHaveLength(3);
-                        expectedMetrics.forEach((expectedMetric: IBaseMetrics, index: number): void => {
-                            expect(emittedValues[index]).toEqual(
-                                expect.objectContaining({
-                                    distance: expectedMetric.distance,
-                                    strokeCount: expectedMetric.strokeCount,
-                                }),
+                        it("with normal rowing data", async (): Promise<void> => {
+                            const emittedValues: Array<IBaseMetrics> = [];
+                            const {
+                                expectedMetrics,
+                                metricsDataViews,
+                            }: {
+                                expectedMetrics: Array<IBaseMetrics>;
+                                metricsDataViews: Array<DataView>;
+                            } = createMeasurementDataViews(deltaMetrics, createFTMSMeasurementDataView);
+                            mockMeasurementUUID.mockReturnValue(
+                                BluetoothUUID.getCharacteristic(ROWER_DATA_CHARACTERISTIC),
                             );
-                            expect(
-                                Math.abs(emittedValues[index].revTime - expectedMetric.revTime),
-                                `revTime[${index}]: ${emittedValues[index].revTime} -> ${expectedMetric.revTime}`,
-                            ).toBeLessThanOrEqual(20 * 1000); // so within 33 milliseconds which is due to rounding
-                            expect(
-                                Math.abs(emittedValues[index].strokeTime - expectedMetric.strokeTime),
-                                `strokeTime[${index}]: ${emittedValues[index].strokeTime} -> ${expectedMetric.strokeTime}`,
-                            ).toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
+                            service
+                                .streamMeasurement$()
+                                .pipe(takeUntil(destroySubject))
+                                .subscribe({
+                                    next: (value: IBaseMetrics): void => {
+                                        emittedValues.push(value);
+                                    },
+                                });
+
+                            const measurementTriggerHandler = await measurementTrigger;
+                            metricsDataViews.forEach((dataView: DataView): void => {
+                                measurementTriggerHandler.triggerChanged(dataView);
+                            });
+
+                            expect(emittedValues).toHaveLength(3);
+                            expectedMetrics.forEach((expectedMetric: IBaseMetrics, index: number): void => {
+                                expect(emittedValues[index]).toEqual(
+                                    expect.objectContaining({
+                                        distance: expectedMetric.distance,
+                                        strokeCount: expectedMetric.strokeCount,
+                                    }),
+                                );
+                                expect(
+                                    Math.abs(emittedValues[index].revTime - expectedMetric.revTime),
+                                    `revTime[${index}]: ${emittedValues[index].revTime} -> ${expectedMetric.revTime}`,
+                                ).toBeLessThanOrEqual(1);
+                                expect(
+                                    Math.abs(emittedValues[index].strokeTime - expectedMetric.strokeTime),
+                                    `strokeTime[${index}]: ${emittedValues[index].strokeTime} -> ${expectedMetric.strokeTime}`,
+                                ).toBeLessThanOrEqual(1);
+                            });
                         });
                     });
 
@@ -969,11 +1018,11 @@ describe("ErgMetricsService", (): void => {
                             expect(
                                 Math.abs(emittedValues[index].revTime - expectedMetric.revTime),
                                 `revTime[${index}]: ${emittedValues[index].revTime} -> ${expectedMetric.revTime}`,
-                            ).toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
+                            ).toBeLessThanOrEqual(1000); // cPS: ~488µs resolution (1/2048s)
                             expect(
                                 Math.abs(emittedValues[index].strokeTime - expectedMetric.strokeTime),
                                 `strokeTime[${index}]: ${emittedValues[index].strokeTime} -> ${expectedMetric.strokeTime}`,
-                            ).toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
+                            ).toBeLessThanOrEqual(1000); // cPS: ~977µs resolution (1/1024s)
                         });
                     });
 
@@ -1014,11 +1063,11 @@ describe("ErgMetricsService", (): void => {
                             expect(
                                 Math.abs(emittedValues[index].revTime - expectedMetric.revTime),
                                 `revTime[${index}]: ${emittedValues[index].revTime} -> ${expectedMetric.revTime}`,
-                            ).toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
+                            ).toBeLessThanOrEqual(1000); // cSC: ~977µs resolution (1/1024s)
                             expect(
                                 Math.abs(emittedValues[index].strokeTime - expectedMetric.strokeTime),
                                 `strokeTime[${index}]: ${emittedValues[index].strokeTime} -> ${expectedMetric.strokeTime}`,
-                            ).toBeLessThanOrEqual(20 * 1000); // so within 20 milliseconds which is due to rounding
+                            ).toBeLessThanOrEqual(1000); // cSC: ~977µs resolution (1/1024s)
                         });
                     });
                 });
@@ -1035,8 +1084,8 @@ describe("ErgMetricsService", (): void => {
                             {
                                 distance: 0,
                                 strokeCount: 0,
-                                revTime: createBaseMetrics().revTime / 3,
-                                strokeTime: createBaseMetrics().strokeTime / 3,
+                                revTime: 4_000_000,
+                                strokeTime: 10_000_000,
                             },
                         ],
                         createCPSMeasurementDataView,

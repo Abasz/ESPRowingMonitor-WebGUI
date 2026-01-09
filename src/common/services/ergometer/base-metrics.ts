@@ -82,8 +82,13 @@ export class BaseMetrics {
 
     private parseFtms(value: DataView): IBaseMetrics {
         const strokeCount = value.getUint16(2 + 1, true);
-        const deltaStrokeTime = (60 / (value.getUint8(2) / 2)) * 1e6 * (strokeCount - this.lastStrokeCount);
-        this.strokeTime += deltaStrokeTime;
+        const strokeRate = value.getUint8(2) / 2;
+        const deltaStrokeCount = strokeCount - this.lastStrokeCount;
+
+        const deltaStrokeTime =
+            strokeRate > 0 && deltaStrokeCount > 0 ? (60 / strokeRate) * 1e6 * deltaStrokeCount : 0;
+
+        this.strokeTime += Math.round(deltaStrokeTime);
         this.lastStrokeCount = strokeCount;
 
         const currentDistance =
