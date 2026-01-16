@@ -6,9 +6,59 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IDeviceInformation } from "../../ble.interfaces";
 import { FirmwareAsset } from "../../common.interfaces";
+import { versionInfo } from "../../data/version";
 
 import { ErgGenericDataService } from "./erg-generic-data.service";
 import { FirmwareUpdateManagerService } from "./firmware-update-manager.service";
+
+/**
+ * Helper function to format a Date as YYYYMMDD string (firmware version format)
+ */
+function formatDateAsFirmwareVersion(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}${month}${day}`;
+}
+
+/**
+ * Get test firmware dates based on the actual versionInfo release date.
+ * This ensures tests remain valid when version.ts is updated.
+ */
+function getTestFirmwareDates(): {
+    releaseDate: Date;
+    olderThanRelease: string;
+    sameAsRelease: string;
+    newerThanRelease: string;
+    muchOlderThanRelease: string;
+} {
+    const releaseDate = new Date(versionInfo.latestFirmwareRelease.updatedAt);
+    const releaseDateOnly = new Date(
+        releaseDate.getFullYear(),
+        releaseDate.getMonth(),
+        releaseDate.getDate(),
+    );
+
+    const olderDate = new Date(releaseDateOnly);
+    olderDate.setDate(olderDate.getDate() - 30);
+
+    const newerDate = new Date(releaseDateOnly);
+    newerDate.setDate(newerDate.getDate() + 1);
+
+    const muchOlderDate = new Date(releaseDateOnly);
+    muchOlderDate.setFullYear(muchOlderDate.getFullYear() - 1);
+
+    return {
+        releaseDate: releaseDateOnly,
+        olderThanRelease: formatDateAsFirmwareVersion(olderDate),
+        sameAsRelease: formatDateAsFirmwareVersion(releaseDateOnly),
+        newerThanRelease: formatDateAsFirmwareVersion(newerDate),
+        muchOlderThanRelease: formatDateAsFirmwareVersion(muchOlderDate),
+    };
+}
+
+const testDates = getTestFirmwareDates();
 
 describe("FirmwareUpdateManagerService", (): void => {
     let service: FirmwareUpdateManagerService;
@@ -18,9 +68,13 @@ describe("FirmwareUpdateManagerService", (): void => {
     let deviceInfoSignal: WritableSignal<IDeviceInformation>;
 
     beforeEach((): void => {
-        deviceInfoSubject = new BehaviorSubject<IDeviceInformation>({ firmwareNumber: "20240315" });
+        deviceInfoSubject = new BehaviorSubject<IDeviceInformation>({
+            firmwareNumber: testDates.olderThanRelease,
+        });
 
-        deviceInfoSignal = signal<IDeviceInformation>({ firmwareNumber: "20240315" });
+        deviceInfoSignal = signal<IDeviceInformation>({
+            firmwareNumber: testDates.olderThanRelease,
+        });
 
         mockErgGenericDataService = {
             deviceInfo: deviceInfoSignal,
@@ -50,7 +104,7 @@ describe("FirmwareUpdateManagerService", (): void => {
 
         it("should clear isUpdateAvailable to undefined when deviceInfo$ emits an empty object", (): void => {
             // start with a known state
-            deviceInfoSignal.set({ firmwareNumber: "20240315" });
+            deviceInfoSignal.set({ firmwareNumber: testDates.olderThanRelease });
             service.checkForFirmwareUpdate();
             expect(service.isUpdateAvailable()).not.toBeUndefined();
 
@@ -63,10 +117,10 @@ describe("FirmwareUpdateManagerService", (): void => {
             vi.spyOn(service, "checkForFirmwareUpdate");
 
             // ensure deviceInfo() will return a firmware number when called
-            deviceInfoSignal.set({ firmwareNumber: "20240315" });
+            deviceInfoSignal.set({ firmwareNumber: testDates.olderThanRelease });
 
             // emit non-empty device info
-            deviceInfoSubject.next({ firmwareNumber: "20240315" } as IDeviceInformation);
+            deviceInfoSubject.next({ firmwareNumber: testDates.olderThanRelease } as IDeviceInformation);
 
             expect(service.checkForFirmwareUpdate).toHaveBeenCalled();
             expect(typeof service.isUpdateAvailable()).toBe("boolean");
@@ -131,11 +185,11 @@ describe("FirmwareUpdateManagerService", (): void => {
         });
 
         it("should set isUpdateAvailable to undefined at start of check", (): void => {
-            deviceInfoSignal.set({ firmwareNumber: "20251013" });
+            deviceInfoSignal.set({ firmwareNumber: testDates.newerThanRelease });
             service.checkForFirmwareUpdate();
             expect(service.isUpdateAvailable()).toBe(false);
 
-            deviceInfoSignal.set({ firmwareNumber: "20240315" });
+            deviceInfoSignal.set({ firmwareNumber: testDates.olderThanRelease });
             expect(service.isUpdateAvailable()).toBe(false);
 
             service.checkForFirmwareUpdate();
@@ -146,7 +200,7 @@ describe("FirmwareUpdateManagerService", (): void => {
         describe("when firmware version is up to date", (): void => {
             it("should return false for same release date", (): void => {
                 deviceInfoSignal.set({
-                    firmwareNumber: "20251013",
+                    firmwareNumber: testDates.sameAsRelease,
                 });
 
                 const isUpdateAvailable = service.checkForFirmwareUpdate();
@@ -157,7 +211,7 @@ describe("FirmwareUpdateManagerService", (): void => {
 
             it("should return false for newer firmware than release", (): void => {
                 deviceInfoSignal.set({
-                    firmwareNumber: "20251014",
+                    firmwareNumber: testDates.newerThanRelease,
                 });
 
                 const isUpdateAvailable = service.checkForFirmwareUpdate();
@@ -170,7 +224,7 @@ describe("FirmwareUpdateManagerService", (): void => {
         describe("when firmware update is available", (): void => {
             it("should return true when firmware is older than release", (): void => {
                 deviceInfoSignal.set({
-                    firmwareNumber: "20240315",
+                    firmwareNumber: testDates.olderThanRelease,
                 });
 
                 const isUpdateAvailable = service.checkForFirmwareUpdate();
@@ -183,7 +237,7 @@ describe("FirmwareUpdateManagerService", (): void => {
         describe("as part of date comparison logic", (): void => {
             it("should compare dates without time component", (): void => {
                 deviceInfoSignal.set({
-                    firmwareNumber: "20251013",
+                    firmwareNumber: testDates.sameAsRelease,
                 });
 
                 const isUpdateAvailable = service.checkForFirmwareUpdate();
@@ -194,7 +248,7 @@ describe("FirmwareUpdateManagerService", (): void => {
 
             it("should correctly parse firmware version as date", (): void => {
                 deviceInfoSignal.set({
-                    firmwareNumber: "20240315",
+                    firmwareNumber: testDates.olderThanRelease,
                 });
 
                 const isUpdateAvailable = service.checkForFirmwareUpdate();
@@ -204,7 +258,7 @@ describe("FirmwareUpdateManagerService", (): void => {
 
             it("should handle year boundaries correctly", (): void => {
                 deviceInfoSignal.set({
-                    firmwareNumber: "20241231",
+                    firmwareNumber: testDates.muchOlderThanRelease,
                 });
 
                 const isUpdateAvailable = service.checkForFirmwareUpdate();
@@ -216,7 +270,7 @@ describe("FirmwareUpdateManagerService", (): void => {
         describe("as part of edge cases & robustness handling", (): void => {
             it("should handle multiple sequential calls correctly", (): void => {
                 deviceInfoSignal.set({
-                    firmwareNumber: "20240315",
+                    firmwareNumber: testDates.olderThanRelease,
                 });
 
                 const isUpdateAvailable1 = service.checkForFirmwareUpdate();
@@ -231,24 +285,24 @@ describe("FirmwareUpdateManagerService", (): void => {
 
             it("should handle changing firmware versions between calls", (): void => {
                 deviceInfoSignal.set({
-                    firmwareNumber: "20240315",
+                    firmwareNumber: testDates.olderThanRelease,
                 });
                 expect(service.checkForFirmwareUpdate()).toBe(true);
 
                 deviceInfoSignal.set({
-                    firmwareNumber: "20251013",
+                    firmwareNumber: testDates.sameAsRelease,
                 });
                 expect(service.checkForFirmwareUpdate()).toBe(false);
 
                 deviceInfoSignal.set({
-                    firmwareNumber: "20240101",
+                    firmwareNumber: testDates.muchOlderThanRelease,
                 });
                 expect(service.checkForFirmwareUpdate()).toBe(true);
             });
 
             it("should handle leap year dates correctly", (): void => {
                 deviceInfoSignal.set({
-                    firmwareNumber: "20240229",
+                    firmwareNumber: testDates.muchOlderThanRelease,
                 });
 
                 const isUpdateAvailable = service.checkForFirmwareUpdate();
