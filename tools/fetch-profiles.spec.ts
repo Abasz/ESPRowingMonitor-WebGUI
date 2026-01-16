@@ -436,8 +436,7 @@ describe("fetch-profiles", (): void => {
             expect(result.settings.strokeDetectionSettings.impulseDataArrayLength).toBe(180);
             expect(result.settings.strokeDetectionSettings.minimumPoweredTorque).toBe(0.05);
             expect(result.settings.strokeDetectionSettings.minimumDragTorque).toBe(0.15);
-            // suppressDeprecation: minRecoverySlopeMargin is deprecated
-            expect(result.settings.strokeDetectionSettings.minimumRecoverySlopeMargin).toBe(15);
+            expect(result.settings.strokeDetectionSettings.minimumRecoverySlopeMargin).not.toBeDefined();
             expect(result.settings.strokeDetectionSettings.minimumRecoverySlope).toBe(-35);
             expect(result.settings.strokeDetectionSettings.minimumRecoveryTime).toBe(900);
             expect(result.settings.strokeDetectionSettings.minimumDriveTime).toBe(300);

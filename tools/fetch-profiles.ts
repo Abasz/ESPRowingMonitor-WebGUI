@@ -149,7 +149,6 @@ export function parseProfileHeader(content: string, profileId: string): ProfileD
         impulseDataArrayLength: extractValue(content, "IMPULSE_DATA_ARRAY_LENGTH"),
         minimumPoweredTorque: extractValue(content, "MINIMUM_POWERED_TORQUE"),
         minimumDragTorque: extractValue(content, "MINIMUM_DRAG_TORQUE"),
-        minimumRecoverySlopeMargin: extractValue(content, "MINIMUM_RECOVERY_SLOPE_MARGIN"),
         minimumRecoverySlope: extractValue(content, "MINIMUM_RECOVERY_SLOPE"),
         minimumRecoveryTime: extractValue(content, "MINIMUM_RECOVERY_TIME"),
         minimumDriveTime: extractValue(content, "MINIMUM_DRIVE_TIME"),
