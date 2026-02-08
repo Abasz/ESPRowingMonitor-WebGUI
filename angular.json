@@ -62,6 +62,9 @@
                             "extractLicenses": false,
                             "sourceMap": true,
                             "namedChunks": true
+                        },
+                        "remote": {
+                            "baseHref": "/ESPRM/"
                         }
                     },
                     "defaultConfiguration": "production"
@@ -87,6 +90,9 @@
                 "test": {
                     "builder": "@angular/build:unit-test",
                     "options": {
+                        "setupFiles": [
+                            "src/common/services/ble.test.polyfills.ts"
+                        ],
                         "browsers": [
                             "chromium"
                         ]
@@ -120,5 +126,8 @@
         "@schematics/angular:resolver": {
             "typeSeparator": "."
         }
+    },
+    "cli": {
+        "analytics": false
     }
 }

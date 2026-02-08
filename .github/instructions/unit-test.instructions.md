@@ -7,6 +7,25 @@
 
 ---
 
+## Running Tests
+
+Tests are run via the Angular CLI, **not** `vitest run` directly (the Angular build pipeline is required):
+
+```bash
+# Default (opens a browser):
+npx ng test
+
+# Headless (CI / remote machines):
+npx ng test --browsers=ChromiumHeadless
+
+# Single or multiple spec files:
+npx ng test --browsers=ChromiumHeadless  --include=src/path/to/file1.spec.ts --include=src/path/to/file2.spec.ts
+```
+
+> **Important:** `npx vitest run` does not work with this Angular project. Always use `npx ng test`.
+
+---
+
 ## Goals for the Agent
 
 1. Produce **concise, behavior‑focused** specs that verify template ↔ class interaction and user‑visible outcomes.

@@ -1,12 +1,15 @@
 {
     "name": "esp-rowing-monitor-client",
-    "version": "6.2.1",
+    "version": "7.0.1",
     "scripts": {
         "ng": "ng",
         "start": "ng serve",
+        "remote": "ng serve --build-target esp-rowing-monitor-client:build:development,remote --serve-path /ESPRM/ --allowed-hosts --ssl",
         "build": "npm run build:prepare && ng build",
         "dev": "npm run build:prepare && ng build && npx http-server -p 4201 dist/esp-rowing-monitor-client/browser",
-        "serve": "ng build && npx http-server -p 4201 dist/esp-rowing-monitor-client/browser",
+        "dev-remote": "npm run build:prepare && ng build --base-href=/ESPRM-prod/ && npx http-server -p 4201 dist/esp-rowing-monitor-client/browser",
+        "serve": "ng build --base-href=/ESPRM-prod/ && npx http-server -p 4201 dist/esp-rowing-monitor-client/browser",
+        "serve-remote": "ng build --base-href=/ESPRM-prod/ && npx http-server -p 4201 dist/esp-rowing-monitor-client/browser",
         "build:prepare": "npm run build:tools && node out-tsc/tools/auto-version.js && node out-tsc/tools/fetch-profiles.js",
         "build:tools": "tsc -p tools/tsconfig.json",
         "watch": "ng build --watch --configuration development",
