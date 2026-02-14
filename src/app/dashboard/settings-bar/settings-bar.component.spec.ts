@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BleServiceFlag, LogLevel } from "../../../common/ble.interfaces";
 import {
-    HeartRateMonitorMode,
+    Config,
     IErgConnectionStatus,
     IHRConnectionStatus,
     IRowerSettings,
@@ -44,13 +44,13 @@ describe("SettingsBarComponent", (): void => {
     let mockErgSettingsService: Pick<ErgSettingsService, "rowerSettings">;
     let mockMatDialog: Pick<MatDialog, "open">;
     let mockUtilsService: Pick<UtilsService, "mainSpinner">;
-    let mockConfigManagerService: Pick<ConfigManagerService, "heartRateMonitorChanged$">;
+    let mockConfigManagerService: Pick<ConfigManagerService, "configChanged$">;
     let mockHeartRateService: Pick<HeartRateService, "discover">;
 
     let batteryLevelSubject: BehaviorSubject<number>;
     let ergConnectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
     let sessionsSubject: BehaviorSubject<Array<ISessionSummary>>;
-    let heartRateMonitorModeSubject: BehaviorSubject<HeartRateMonitorMode>;
+    let configSubject: BehaviorSubject<Config>;
     let hrConnectionStatusSubject: BehaviorSubject<IHRConnectionStatus>;
     let mockRowerSettingsSignal: ReturnType<typeof signal<IRowerSettings>>;
 
@@ -115,7 +115,7 @@ describe("SettingsBarComponent", (): void => {
         batteryLevelSubject = new BehaviorSubject<number>(0);
         ergConnectionStatusSubject = new BehaviorSubject<IErgConnectionStatus>(mockErgConnectionStatus);
         sessionsSubject = new BehaviorSubject<Array<ISessionSummary>>(mockSessionSummaries);
-        heartRateMonitorModeSubject = new BehaviorSubject<HeartRateMonitorMode>("off");
+        configSubject = new BehaviorSubject<Config>(new Config());
         hrConnectionStatusSubject = new BehaviorSubject<IHRConnectionStatus>({
             status: "disconnected",
             deviceName: undefined,
@@ -147,7 +147,7 @@ describe("SettingsBarComponent", (): void => {
             mainSpinner: vi.fn(),
         };
         mockConfigManagerService = {
-            heartRateMonitorChanged$: heartRateMonitorModeSubject.asObservable(),
+            configChanged$: configSubject.asObservable(),
         };
         mockHeartRateService = {
             discover: vi.fn(),

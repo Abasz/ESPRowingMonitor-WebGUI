@@ -3,9 +3,10 @@ import { toSignal } from "@angular/core/rxjs-interop";
 import { MatIconButton } from "@angular/material/button";
 import { MatIcon } from "@angular/material/icon";
 import { MatTooltip } from "@angular/material/tooltip";
+import { distinctUntilChanged, map } from "rxjs";
 
 import { BleServiceNames } from "../../common/ble.interfaces";
-import { HeartRateMonitorMode, IHRConnectionStatus } from "../../common/common.interfaces";
+import { Config, HeartRateMonitorMode, IHRConnectionStatus } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { HeartRateService } from "../../common/services/heart-rate/heart-rate.service";
 import { MetricsService } from "../../common/services/metrics.service";
@@ -24,7 +25,10 @@ export class ConnectHeartRateButtonComponent {
     readonly BleServiceNames: typeof BleServiceNames = BleServiceNames;
 
     readonly heartRateMonitorMode: Signal<HeartRateMonitorMode> = toSignal(
-        this.configManager.heartRateMonitorChanged$,
+        this.configManager.configChanged$.pipe(
+            map((config: Config): HeartRateMonitorMode => config.heartRateMonitor),
+            distinctUntilChanged(),
+        ),
         { requireSync: true },
     );
     readonly hrConnectionStatus: Signal<IHRConnectionStatus> = toSignal(

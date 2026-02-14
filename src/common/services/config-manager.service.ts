@@ -1,13 +1,13 @@
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, filter, map, Observable, pairwise, shareReplay, startWith } from "rxjs";
+import { BehaviorSubject, Observable, shareReplay } from "rxjs";
 
-import { Config, HeartRateMonitorMode, IConfig } from "../common.interfaces";
+import { Config, IConfig } from "../common.interfaces";
 
 @Injectable({
     providedIn: "root",
 })
 export class ConfigManagerService {
-    readonly heartRateMonitorChanged$: Observable<HeartRateMonitorMode>;
+    readonly configChanged$: Observable<Config>;
 
     private configSubject: BehaviorSubject<Config>;
 
@@ -36,27 +36,18 @@ export class ConfigManagerService {
 
         this.configSubject = new BehaviorSubject(config);
 
-        this.heartRateMonitorChanged$ = this.configSubject.pipe(
-            pairwise(),
-            filter(
-                ([previous, current]: [Config, Config]): boolean =>
-                    previous.heartRateMonitor !== current.heartRateMonitor,
-            ),
-            map(([_, current]: [Config, Config]): HeartRateMonitorMode => current.heartRateMonitor),
-            startWith(this.configSubject.value.heartRateMonitor),
-            shareReplay(1),
-        );
+        this.configChanged$ = this.configSubject.asObservable().pipe(shareReplay(1));
     }
 
     getConfig(): IConfig {
         return { ...this.configSubject.value };
     }
 
-    getItem(name: keyof Config): Config[keyof Config] {
+    getItem<K extends keyof Config>(name: K): Config[K] {
         return this.configSubject.value[name];
     }
 
-    setItem(name: keyof Config, value: Config[keyof Config]): void {
+    setItem<K extends keyof Config>(name: K, value: Config[K]): void {
         localStorage.setItem(name, value);
         this.configSubject.next({ ...this.configSubject.value, [name]: value });
     }

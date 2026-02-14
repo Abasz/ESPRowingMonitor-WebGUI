@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BleServiceFlag } from "../../common/ble.interfaces";
 import {
-    HeartRateMonitorMode,
+    Config,
     ICalculatedMetrics,
     IErgConnectionStatus,
     IHeartRate,
@@ -73,7 +73,7 @@ describe("DashboardComponent", (): void => {
         };
         ergGenericDataServiceSpy.streamMonitorBatteryLevel$.mockReturnValue(of(50));
         const configManagerServiceSpy = {
-            heartRateMonitorChanged$: of("off" as HeartRateMonitorMode),
+            configChanged$: of(new Config()),
         };
         const heartRateServiceSpy = {
             discover: vi.fn(),

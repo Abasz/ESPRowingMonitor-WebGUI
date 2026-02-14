@@ -4,7 +4,13 @@ import { BehaviorSubject, firstValueFrom, Observable, of, throwError, toArray } 
 import { take } from "rxjs/operators";
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
-import { HeartRateMonitorMode, IConfig, IHeartRate, IHRConnectionStatus } from "../../common.interfaces";
+import {
+    Config,
+    HeartRateMonitorMode,
+    IConfig,
+    IHeartRate,
+    IHRConnectionStatus,
+} from "../../common.interfaces";
 import { ConfigManagerService } from "../config-manager.service";
 
 import { AntHeartRateService } from "./ant-heart-rate.service";
@@ -13,7 +19,7 @@ import { HeartRateService } from "./heart-rate.service";
 
 describe("HeartRateService", (): void => {
     let service: HeartRateService;
-    let mockConfigManager: Pick<ConfigManagerService, "getConfig" | "heartRateMonitorChanged$">;
+    let mockConfigManager: Pick<ConfigManagerService, "getConfig" | "configChanged$">;
     let mockBleHeartRateService: Pick<
         BLEHeartRateService,
         "discover" | "disconnectDevice" | "reconnect" | "connectionStatus$" | "streamHeartRate$"
@@ -23,7 +29,7 @@ describe("HeartRateService", (): void => {
         "discover" | "disconnectDevice" | "reconnect" | "connectionStatus$" | "streamHeartRate$"
     >;
     let mockSnackBar: Pick<MatSnackBar, "open">;
-    let heartRateMonitorSubject: BehaviorSubject<HeartRateMonitorMode>;
+    let configSubject: BehaviorSubject<Config>;
     let isSecureContextSpy: Mock;
     let navigatorBluetoothSpy: Mock;
 
@@ -44,11 +50,11 @@ describe("HeartRateService", (): void => {
     });
 
     beforeEach((): void => {
-        heartRateMonitorSubject = new BehaviorSubject<HeartRateMonitorMode>("off");
+        configSubject = new BehaviorSubject<Config>(new Config());
 
         mockConfigManager = {
             getConfig: vi.fn(),
-            heartRateMonitorChanged$: heartRateMonitorSubject.asObservable(),
+            configChanged$: configSubject.asObservable(),
         };
         vi.mocked(mockConfigManager.getConfig).mockReturnValue({
             ergoMonitorBleId: "",
@@ -180,7 +186,7 @@ describe("HeartRateService", (): void => {
 
             describe("when heart rate monitor mode is ble", (): void => {
                 it("should delegate to BLE heart rate service", (): void => {
-                    heartRateMonitorSubject.next("ble");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
 
                     service.connectionStatus$().pipe(take(2)).subscribe();
 
@@ -199,7 +205,7 @@ describe("HeartRateService", (): void => {
                             results.push(status);
                         });
 
-                    heartRateMonitorSubject.next("ble");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(2);
@@ -228,7 +234,7 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should share replay the observable", (): void => {
-                    heartRateMonitorSubject.next("ble");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
 
                     vi.mocked(mockBleHeartRateService.connectionStatus$).mockClear();
                     const observable$ = service.connectionStatus$();
@@ -243,7 +249,7 @@ describe("HeartRateService", (): void => {
 
             describe("when heart rate monitor mode is ant", (): void => {
                 it("should delegate to ANT heart rate service", (): void => {
-                    heartRateMonitorSubject.next("ant");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
 
                     service.connectionStatus$().pipe(take(2)).subscribe();
 
@@ -262,7 +268,7 @@ describe("HeartRateService", (): void => {
                             results.push(status);
                         });
 
-                    heartRateMonitorSubject.next("ant");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(2);
@@ -283,7 +289,7 @@ describe("HeartRateService", (): void => {
                             results.push(status);
                         });
 
-                    heartRateMonitorSubject.next("off");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "off" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(2);
@@ -305,8 +311,8 @@ describe("HeartRateService", (): void => {
                             results.push(status);
                         });
 
-                    heartRateMonitorSubject.next("off");
-                    heartRateMonitorSubject.next("ble");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "off" });
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(3);
@@ -329,8 +335,8 @@ describe("HeartRateService", (): void => {
                             results.push(status);
                         });
 
-                    heartRateMonitorSubject.next("off");
-                    heartRateMonitorSubject.next("ant");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "off" });
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(3);
@@ -353,8 +359,8 @@ describe("HeartRateService", (): void => {
                             results.push(status);
                         });
 
-                    heartRateMonitorSubject.next("ble");
-                    heartRateMonitorSubject.next("off");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
+                    configSubject.next({ ...new Config(), heartRateMonitor: "off" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(3);
@@ -502,7 +508,7 @@ describe("HeartRateService", (): void => {
                         .fn()
                         .mockReturnValue(of(createMockHeartRate(120)));
 
-                    heartRateMonitorSubject.next("ble");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
                     expect(mockAntHeartRateService.disconnectDevice).toHaveBeenCalled();
@@ -513,7 +519,7 @@ describe("HeartRateService", (): void => {
                         .fn()
                         .mockReturnValue(of(createMockHeartRate(120)));
 
-                    heartRateMonitorSubject.next("ble");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
                     expect(mockBleHeartRateService.reconnect).toHaveBeenCalled();
@@ -524,7 +530,7 @@ describe("HeartRateService", (): void => {
                         .fn()
                         .mockReturnValue(of(createMockHeartRate(120)));
 
-                    heartRateMonitorSubject.next("ble");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
                     expect(mockBleHeartRateService.streamHeartRate$).toHaveBeenCalled();
@@ -542,7 +548,7 @@ describe("HeartRateService", (): void => {
                             results.push(heartRate);
                         });
 
-                    heartRateMonitorSubject.next("ble");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(2);
@@ -572,7 +578,7 @@ describe("HeartRateService", (): void => {
                                 results.push(heartRate);
                             });
 
-                        heartRateMonitorSubject.next("ble");
+                        configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
 
                         expect(results).toHaveLength(1);
                         expect(results[0]).toBeUndefined();
@@ -586,7 +592,7 @@ describe("HeartRateService", (): void => {
                         .fn()
                         .mockReturnValue(of(createMockHeartRate(130)));
 
-                    heartRateMonitorSubject.next("ant");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
                     expect(mockBleHeartRateService.disconnectDevice).toHaveBeenCalled();
@@ -597,7 +603,7 @@ describe("HeartRateService", (): void => {
                         .fn()
                         .mockReturnValue(of(createMockHeartRate(130)));
 
-                    heartRateMonitorSubject.next("ant");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
                     expect(mockAntHeartRateService.reconnect).toHaveBeenCalled();
@@ -608,7 +614,7 @@ describe("HeartRateService", (): void => {
                         .fn()
                         .mockReturnValue(of(createMockHeartRate(130)));
 
-                    heartRateMonitorSubject.next("ant");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
                     expect(mockAntHeartRateService.streamHeartRate$).toHaveBeenCalled();
@@ -626,7 +632,7 @@ describe("HeartRateService", (): void => {
                             results.push(heartRate);
                         });
 
-                    heartRateMonitorSubject.next("ant");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(2);
@@ -637,14 +643,14 @@ describe("HeartRateService", (): void => {
 
             describe("when heart rate monitor mode is off", (): void => {
                 it("should disconnect ANT device", (): void => {
-                    heartRateMonitorSubject.next("off");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "off" });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
                     expect(mockAntHeartRateService.disconnectDevice).toHaveBeenCalled();
                 });
 
                 it("should disconnect BLE device", (): void => {
-                    heartRateMonitorSubject.next("off");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "off" });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
                     expect(mockBleHeartRateService.disconnectDevice).toHaveBeenCalled();
@@ -658,7 +664,7 @@ describe("HeartRateService", (): void => {
                             results.push(heartRate);
                         });
 
-                    heartRateMonitorSubject.next("off");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "off" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(2);
@@ -683,8 +689,8 @@ describe("HeartRateService", (): void => {
                             results.push(heartRate);
                         });
 
-                    heartRateMonitorSubject.next("ble");
-                    heartRateMonitorSubject.next("ant");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(3);
@@ -711,8 +717,8 @@ describe("HeartRateService", (): void => {
                             results.push(heartRate);
                         });
 
-                    heartRateMonitorSubject.next("ant");
-                    heartRateMonitorSubject.next("ble");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(3);
@@ -738,8 +744,8 @@ describe("HeartRateService", (): void => {
                             results.push(heartRate);
                         });
 
-                    heartRateMonitorSubject.next("ble");
-                    heartRateMonitorSubject.next("off");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
+                    configSubject.next({ ...new Config(), heartRateMonitor: "off" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(3);
@@ -762,8 +768,8 @@ describe("HeartRateService", (): void => {
                             results.push(heartRate);
                         });
 
-                    heartRateMonitorSubject.next("off");
-                    heartRateMonitorSubject.next("ble");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "off" });
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(3);
@@ -785,8 +791,8 @@ describe("HeartRateService", (): void => {
                             results.push(heartRate);
                         });
 
-                    heartRateMonitorSubject.next("off");
-                    heartRateMonitorSubject.next("ant");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "off" });
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(3);
@@ -811,7 +817,7 @@ describe("HeartRateService", (): void => {
                 });
 
                 it("should share replay the observable", (): void => {
-                    heartRateMonitorSubject.next("ble");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
 
                     vi.mocked(mockBleHeartRateService.streamHeartRate$).mockClear();
                     const observable$ = service.streamHeartRate$();
@@ -838,8 +844,8 @@ describe("HeartRateService", (): void => {
                             results.push(heartRate);
                         });
 
-                    heartRateMonitorSubject.next("ble");
-                    heartRateMonitorSubject.next("ant");
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
+                    configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
                     subscription.unsubscribe();
 
                     expect(results.length).toBeGreaterThanOrEqual(3);
@@ -860,12 +866,12 @@ describe("HeartRateService", (): void => {
                 await expect(service.discover()).rejects.toEqual(error);
             });
 
-            it("should handle heartRateMonitorChanged$ error gracefully", async (): Promise<void> => {
-                const errorSubject = new BehaviorSubject<HeartRateMonitorMode>("off");
+            it("should handle configChanged$ error gracefully", async (): Promise<void> => {
+                const errorSubject = new BehaviorSubject<Config>(new Config());
 
                 const errorMockConfigManager = {
                     getConfig: vi.fn().mockName("ConfigManagerService.getConfig"),
-                    heartRateMonitorChanged$: errorSubject.asObservable(),
+                    configChanged$: errorSubject.asObservable(),
                 } as unknown as ConfigManagerService;
 
                 const errorService = new HeartRateService(
@@ -913,7 +919,7 @@ describe("HeartRateService", (): void => {
                     .fn()
                     .mockReturnValue(throwError((): Error => new Error("BLE connection error")));
 
-                heartRateMonitorSubject.next("ble");
+                configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
 
                 await expect(firstValueFrom(service.connectionStatus$().pipe(toArray()))).rejects.toThrow(
                     "BLE connection error",
@@ -925,7 +931,7 @@ describe("HeartRateService", (): void => {
                     .fn()
                     .mockReturnValue(throwError((): Error => new Error("ANT connection error")));
 
-                heartRateMonitorSubject.next("ant");
+                configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
 
                 await expect(firstValueFrom(service.connectionStatus$().pipe(toArray()))).rejects.toThrow(
                     "ANT connection error",
@@ -937,7 +943,7 @@ describe("HeartRateService", (): void => {
                     .fn()
                     .mockReturnValue(throwError((): Error => new Error("BLE stream error")));
 
-                heartRateMonitorSubject.next("ble");
+                configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
 
                 await expect(firstValueFrom(service.streamHeartRate$().pipe(toArray()))).rejects.toThrow(
                     "BLE stream error",
@@ -949,7 +955,7 @@ describe("HeartRateService", (): void => {
                     .fn()
                     .mockReturnValue(throwError((): Error => new Error("ANT stream error")));
 
-                heartRateMonitorSubject.next("ant");
+                configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
 
                 await expect(firstValueFrom(service.streamHeartRate$().pipe(toArray()))).rejects.toThrow(
                     "ANT stream error",
@@ -1001,9 +1007,9 @@ describe("HeartRateService", (): void => {
                         results.push(heartRate);
                     });
 
-                heartRateMonitorSubject.next("ble");
-                heartRateMonitorSubject.next("ant");
-                heartRateMonitorSubject.next("off");
+                configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
+                configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
+                configSubject.next({ ...new Config(), heartRateMonitor: "off" });
                 subscription.unsubscribe();
 
                 expect(results.length).toBeGreaterThanOrEqual(4);
@@ -1033,8 +1039,8 @@ describe("HeartRateService", (): void => {
 
                 const subscription = service.streamHeartRate$().subscribe();
 
-                heartRateMonitorSubject.next("ble");
-                heartRateMonitorSubject.next("ant");
+                configSubject.next({ ...new Config(), heartRateMonitor: "ble" });
+                configSubject.next({ ...new Config(), heartRateMonitor: "ant" });
                 subscription.unsubscribe();
 
                 expect(bleSubscriptionCount).toBe(1);

@@ -2,7 +2,7 @@ import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { HeartRateMonitorMode } from "../common.interfaces";
+import { Config, HeartRateMonitorMode } from "../common.interfaces";
 
 import { ConfigManagerService } from "./config-manager.service";
 
@@ -159,30 +159,47 @@ describe("ConfigManagerService", (): void => {
         });
     });
 
-    describe("heartRateMonitorChanged$ observable", (): void => {
-        it("should emit initial value and next values only when heartRateMonitor changes", (): void => {
+    describe("configChanged$ observable", (): void => {
+        it("should emit initial config and updated values", (): void => {
             withSecureContextAndBluetooth();
-
-            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
-                return key === "heartRateMonitor" ? "off" : null;
-            });
+            vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
-            const events: Array<HeartRateMonitorMode> = [];
-            configManagerService.heartRateMonitorChanged$.subscribe((mode: HeartRateMonitorMode): void => {
-                events.push(mode);
+            const events: Array<Config> = [];
+            configManagerService.configChanged$.subscribe((config: Config): void => {
+                events.push(config);
             });
 
             expect(events).toHaveLength(1);
-            expect(events[0]).toBe("off");
+            expect(events[0].ergoMonitorBleId).toBe("");
 
             configManagerService.setItem("ergoMonitorBleId", "foo");
-            expect(events).toHaveLength(1);
 
-            configManagerService.setItem("heartRateMonitor", "ble");
-            expect(events[events.length - 1]).toBe("ble");
             expect(events).toHaveLength(2);
+            expect(events[1].ergoMonitorBleId).toBe("foo");
+        });
+    });
+
+    describe("configChanged$ observable", (): void => {
+        it("should emit initial config and updated values", (): void => {
+            withSecureContextAndBluetooth();
+            vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            const events: Array<Config> = [];
+            configManagerService.configChanged$.subscribe((config: Config): void => {
+                events.push(config);
+            });
+
+            expect(events).toHaveLength(1);
+            expect(events[0].ergoMonitorBleId).toBe("");
+
+            configManagerService.setItem("ergoMonitorBleId", "foo");
+
+            expect(events).toHaveLength(2);
+            expect(events[1].ergoMonitorBleId).toBe("foo");
         });
     });
 });
