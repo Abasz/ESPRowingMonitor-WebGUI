@@ -15,6 +15,11 @@
             </app-general-settings>
         </mat-tab>
 
+        <mat-tab label="Display">
+            <app-display-settings (isFormValidChange)="onDisplayFormValidityChange($event)">
+            </app-display-settings>
+        </mat-tab>
+
         <mat-tab
             label="Rowing"
             [disabled]="data.rowerSettings.generalSettings.isRuntimeSettingsEnabled === undefined"

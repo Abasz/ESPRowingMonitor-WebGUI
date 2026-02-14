@@ -31,6 +31,7 @@ import { ErgSettingsService } from "../../common/services/ergometer/erg-settings
 import { UtilsService } from "../../common/services/utils.service";
 import { SnackBarConfirmComponent } from "../../common/snack-bar-confirm/snack-bar-confirm.component";
 
+import { DisplaySettingsComponent } from "./display-settings.component";
 import { GeneralSettingsComponent } from "./general-settings.component";
 import { RowingSettingsComponent, RowingSettingsFormGroup } from "./rowing-settings.component";
 
@@ -48,6 +49,7 @@ import { RowingSettingsComponent, RowingSettingsFormGroup } from "./rowing-setti
         MatTab,
         MatTabGroup,
         GeneralSettingsComponent,
+        DisplaySettingsComponent,
         RowingSettingsComponent,
         AsyncPipe,
     ],
@@ -55,13 +57,19 @@ import { RowingSettingsComponent, RowingSettingsFormGroup } from "./rowing-setti
 export class SettingsDialogComponent {
     readonly rowingSettings: Signal<RowingSettingsComponent> = viewChild.required(RowingSettingsComponent);
     readonly generalSettings: Signal<GeneralSettingsComponent> = viewChild.required(GeneralSettingsComponent);
+    readonly displaySettings: Signal<DisplaySettingsComponent> = viewChild.required(DisplaySettingsComponent);
 
     readonly isSaveButtonEnabled: Signal<boolean> = computed((): boolean => {
         const currentTab = this.currentTabIndex();
         const isGeneralFormSaveable = this.isGeneralFormSaveable();
+        const isDisplayFormSaveable = this.isDisplayFormSaveable();
         const isRowingFormSaveable = this.isRowingFormSaveable();
 
-        return (currentTab === 0 && isGeneralFormSaveable) || (currentTab === 1 && isRowingFormSaveable);
+        return (
+            (currentTab === 0 && isGeneralFormSaveable) ||
+            (currentTab === 1 && isDisplayFormSaveable) ||
+            (currentTab === 2 && isRowingFormSaveable)
+        );
     });
 
     readonly breakPoints$: Observable<boolean> = this.utils
@@ -71,6 +79,7 @@ export class SettingsDialogComponent {
     readonly currentTabIndex: WritableSignal<number> = signal<number>(0);
 
     private readonly isGeneralFormSaveable: WritableSignal<boolean> = signal<boolean>(true);
+    private readonly isDisplayFormSaveable: WritableSignal<boolean> = signal<boolean>(true);
     private readonly isRowingFormSaveable: WritableSignal<boolean> = signal<boolean>(true);
 
     private isSaving: boolean = false;
@@ -118,6 +127,10 @@ export class SettingsDialogComponent {
         this.isGeneralFormSaveable.set(isValid && this.generalSettings().getForm().dirty);
     }
 
+    onDisplayFormValidityChange(isValid: boolean): void {
+        this.isDisplayFormSaveable.set(isValid && this.displaySettings().getForm().dirty);
+    }
+
     onRowingFormValidityChange(isValid: boolean): void {
         this.isRowingFormSaveable.set(
             isValid && (this.rowingSettings().getForm().dirty || this.rowingSettings().isProfileLoaded),
@@ -132,17 +145,15 @@ export class SettingsDialogComponent {
         this.isSaving = true;
 
         try {
-            if (
-                ((this.currentTabIndex() === 0 && this.isRowingFormSaveable()) ||
-                    (this.currentTabIndex() === 1 && this.isGeneralFormSaveable())) &&
-                (await this.showSaveConfirmation())
-            ) {
+            const currentTabIndex = this.currentTabIndex();
+            const tabsWithChanges = this.getSaveableTabLabels(currentTabIndex);
+
+            if (tabsWithChanges.length > 0 && (await this.showSaveConfirmation(tabsWithChanges))) {
                 await this.saveGeneralSettings();
+                this.saveDisplaySettings();
                 await this.saveRowingSettings();
             } else {
-                this.currentTabIndex() === 0
-                    ? await this.saveGeneralSettings()
-                    : await this.saveRowingSettings();
+                await this.saveCurrentTabSettings(currentTabIndex);
             }
 
             this.dialogRef.close();
@@ -157,7 +168,9 @@ export class SettingsDialogComponent {
 
     async handleDialogClose(): Promise<void> {
         if (
-            (!this.rowingSettings().getForm().dirty && !this.generalSettings().getForm().dirty) ||
+            (!this.rowingSettings().getForm().dirty &&
+                !this.generalSettings().getForm().dirty &&
+                !this.displaySettings().getForm().dirty) ||
             (await firstValueFrom(
                 this.snackBar
                     .openFromComponent(SnackBarConfirmComponent, {
@@ -233,6 +246,33 @@ export class SettingsDialogComponent {
         }
     }
 
+    private saveDisplaySettings(): void {
+        const displaySettingsForm = this.displaySettings().getForm();
+
+        if (displaySettingsForm.controls.showPeakForceInTitle.dirty) {
+            this.configManager.setItem(
+                "displayShowPeakForceInTitle",
+                displaySettingsForm.controls.showPeakForceInTitle.value,
+            );
+        }
+    }
+
+    private async saveCurrentTabSettings(currentTabIndex: number): Promise<void> {
+        switch (currentTabIndex) {
+            case 0:
+                await this.saveGeneralSettings();
+                break;
+            case 1:
+                this.saveDisplaySettings();
+                break;
+            case 2:
+                await this.saveRowingSettings();
+                break;
+            default:
+                throw new Error(`Invalid tab index: ${currentTabIndex}`);
+        }
+    }
+
     private async handleSensorAndDragSettings(
         form: RowingSettingsFormGroup,
         isLoaded: boolean,
@@ -273,13 +313,15 @@ export class SettingsDialogComponent {
         }
     }
 
-    private showSaveConfirmation(): Promise<boolean> {
+    private showSaveConfirmation(tabsWithChanges: Array<string>): Promise<boolean> {
+        const changedTabsText = this.buildChangedTabsText(tabsWithChanges);
+
         return firstValueFrom(
             this.snackBar
                 .openFromComponent(SnackBarConfirmComponent, {
                     duration: undefined,
                     data: {
-                        text: `${this.currentTabIndex() === 1 ? "General" : "Rowing"} tab has changes, save those too?`,
+                        text: changedTabsText,
                         cancel: "No",
                     },
                 })
@@ -287,5 +329,38 @@ export class SettingsDialogComponent {
                 .pipe(map((): boolean => true)),
             { defaultValue: false },
         );
+    }
+
+    private getSaveableTabLabels(currentTabIndex: number): Array<string> {
+        const tabsWithChanges: Array<string> = [];
+
+        if (currentTabIndex !== 0 && this.isGeneralFormSaveable()) {
+            tabsWithChanges.push("General");
+        }
+
+        if (currentTabIndex !== 1 && this.isDisplayFormSaveable()) {
+            tabsWithChanges.push("Display");
+        }
+
+        if (currentTabIndex !== 2 && this.isRowingFormSaveable()) {
+            tabsWithChanges.push("Rowing");
+        }
+
+        return tabsWithChanges;
+    }
+
+    private buildChangedTabsText(tabsWithChanges: Array<string>): string {
+        if (tabsWithChanges.length === 1) {
+            return `${tabsWithChanges[0]} tab has changes, save those too?`;
+        }
+
+        if (tabsWithChanges.length === 2) {
+            return `${tabsWithChanges[0]} and ${tabsWithChanges[1]} tabs have changes, save those too?`;
+        }
+
+        const leadingTabs = tabsWithChanges.slice(0, -1).join(", ");
+        const lastTab = tabsWithChanges[tabsWithChanges.length - 1];
+
+        return `${leadingTabs}, and ${lastTab} tabs have changes, save those too?`;
     }
 }

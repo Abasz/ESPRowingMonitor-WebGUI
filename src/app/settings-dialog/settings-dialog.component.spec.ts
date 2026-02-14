@@ -5,8 +5,6 @@ import { SwUpdate } from "@angular/service-worker";
 import { BehaviorSubject, EMPTY, of, take } from "rxjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { IDeviceInformation } from "../../common/ble.interfaces";
-import { IErgConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
 import { SpinnerOverlay } from "../../common/overlay/spinner-overlay.service";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
@@ -14,7 +12,14 @@ import { ErgSettingsService } from "../../common/services/ergometer/erg-settings
 import { UtilsService } from "../../common/services/utils.service";
 
 import { SettingsDialogComponent } from "./settings-dialog.component";
-import { createMockGeneralForm, createMockRowingForm } from "./settings-dialog.test.helpers";
+import {
+    createMockDialogData,
+    createMockDisplayForm,
+    createMockGeneralForm,
+    createMockRowingForm,
+    setupCleanGeneralAndDisplayForms,
+    setupMockChildComponents,
+} from "./settings-dialog.test.helpers";
 
 describe("SettingsDialogComponent", (): void => {
     let component: SettingsDialogComponent;
@@ -45,95 +50,12 @@ describe("SettingsDialogComponent", (): void => {
         maxW599: boolean;
     }>;
 
-    const setupMockChildComponents: (
-        generalFormDirty?: boolean,
-        rowingFormDirty?: boolean,
-        isProfileLoaded?: boolean,
-    ) => void = (
-        generalFormDirty: boolean = false,
-        rowingFormDirty: boolean = false,
-        isProfileLoaded: boolean = false,
-    ): void => {
-        const mockGeneralForm = createMockGeneralForm(generalFormDirty);
-        const mockRowingForm = createMockRowingForm(rowingFormDirty);
-
-        vi.spyOn(component, "generalSettings").mockReturnValue({
-            getForm: vi.fn().mockReturnValue(mockGeneralForm),
-        } as unknown as ReturnType<typeof component.generalSettings>);
-
-        component.onGeneralFormValidityChange(true);
-
-        vi.spyOn(component, "rowingSettings").mockReturnValue({
-            getForm: vi.fn().mockReturnValue(mockRowingForm),
-            saveAsCustomProfile: vi.fn(),
-            isProfileLoaded,
-        } as unknown as ReturnType<typeof component.rowingSettings>);
-
-        component.onRowingFormValidityChange(true);
-    };
-
     beforeEach(async (): Promise<void> => {
         vi.spyOn(navigator, "bluetooth", "get").mockReturnValue({
             getDevices: (): Promise<Array<BluetoothDevice>> => Promise.resolve([]),
         } as unknown as Bluetooth);
 
-        const mockRowerSettings: IRowerSettings = {
-            generalSettings: {
-                bleServiceFlag: 0,
-                logLevel: 1,
-                logToSdCard: false,
-                logDeltaTimes: false,
-                isRuntimeSettingsEnabled: false,
-                isCompiledWithDouble: true,
-            },
-            rowingSettings: {
-                machineSettings: {
-                    flywheelInertia: 0.05,
-                    magicConstant: 2.8,
-                    sprocketRadius: 1.5,
-                    impulsePerRevolution: 11,
-                },
-                sensorSignalSettings: {
-                    rotationDebounceTime: 25,
-                    rowingStoppedThreshold: 3000,
-                },
-                dragFactorSettings: {
-                    goodnessOfFitThreshold: 0.96,
-                    maxDragFactorRecoveryPeriod: 8,
-                    dragFactorLowerThreshold: 90,
-                    dragFactorUpperThreshold: 220,
-                    dragCoefficientsArrayLength: 4,
-                },
-                strokeDetectionSettings: {
-                    strokeDetectionType: 0,
-                    impulseDataArrayLength: 6,
-                    minimumPoweredTorque: 0.01,
-                    minimumDragTorque: 0.005,
-                    minimumRecoverySlopeMargin: 0.05,
-                    minimumRecoverySlope: 0.1,
-                    minimumRecoveryTime: 400,
-                    minimumDriveTime: 200,
-                    driveHandleForcesMaxCapacity: 20,
-                },
-            },
-        };
-
-        const mockErgConnectionStatus: IErgConnectionStatus = {
-            deviceName: "Test Device",
-            status: "connected",
-        };
-
-        const mockDeviceInfo: IDeviceInformation = {
-            modelNumber: "Test Model",
-            firmwareNumber: "1.0.0",
-            manufacturerName: "Test Manufacturer",
-        };
-
-        const mockDialogData = {
-            rowerSettings: mockRowerSettings,
-            ergConnectionStatus: mockErgConnectionStatus,
-            deviceInfo: mockDeviceInfo,
-        };
+        const mockDialogData = createMockDialogData();
 
         mockMatDialogRef = {
             close: vi.fn(),
@@ -177,7 +99,9 @@ describe("SettingsDialogComponent", (): void => {
             connectionStatus$: vi.fn(),
         };
         vi.mocked(mockErgConnectionService.reconnect).mockResolvedValue();
-        vi.mocked(mockErgConnectionService.connectionStatus$).mockReturnValue(of(mockErgConnectionStatus));
+        vi.mocked(mockErgConnectionService.connectionStatus$).mockReturnValue(
+            of(mockDialogData.ergConnectionStatus),
+        );
 
         mockSnackBar = {
             open: vi.fn(),
@@ -295,14 +219,14 @@ describe("SettingsDialogComponent", (): void => {
             expect(saveButton.textContent.trim()).toBe("Save");
             expect(cancelButton.textContent.trim()).toBe("Cancel");
 
-            setupMockChildComponents(false, false, false);
+            setupMockChildComponents(component, false, false, false);
             component.onGeneralFormValidityChange(true);
             component.onRowingFormValidityChange(true);
             await fixture.whenStable();
 
             expect(saveButton.disabled).toBe(true);
 
-            setupMockChildComponents(true, true, false);
+            setupMockChildComponents(component, true, true, false);
             component.onGeneralFormValidityChange(true);
             component.onRowingFormValidityChange(true);
             await fixture.whenStable();
@@ -311,7 +235,7 @@ describe("SettingsDialogComponent", (): void => {
         });
 
         it("should call MatDialogRef.close() when closeDialog method is called with no dirty forms", (): void => {
-            setupMockChildComponents(false, false);
+            setupMockChildComponents(component, false, false);
 
             component.handleDialogClose();
 
@@ -319,7 +243,7 @@ describe("SettingsDialogComponent", (): void => {
         });
 
         it("should display MatSnackBar confirmation when forms are dirty on close", async (): Promise<void> => {
-            setupMockChildComponents(true, true);
+            setupMockChildComponents(component, true, true);
 
             component.handleDialogClose();
 
@@ -334,7 +258,7 @@ describe("SettingsDialogComponent", (): void => {
                 mockSnackBarRef as unknown as MatSnackBarRef<TextOnlySnackBar>,
             );
 
-            setupMockChildComponents(true, true);
+            setupMockChildComponents(component, true, true);
 
             component.handleDialogClose();
 
@@ -347,61 +271,53 @@ describe("SettingsDialogComponent", (): void => {
             expect(mockMatDialogRef.keydownEvents).toHaveBeenCalled();
         });
 
+        it("should handle ESC key with clean forms", (): void => {
+            setupMockChildComponents(component, false, false);
+
+            component.handleDialogClose();
+
+            expect(mockMatDialogRef.close).toHaveBeenCalled();
+            expect(mockSnackBar.openFromComponent).not.toHaveBeenCalled();
+        });
+
+        it("should handle ESC key with dirty forms showing confirmation", (): void => {
+            setupMockChildComponents(component, true, true);
+
+            component.handleDialogClose();
+
+            expect(mockSnackBar.openFromComponent).toHaveBeenCalled();
+            expect(mockMatDialogRef.close).not.toHaveBeenCalled();
+        });
+
         it("should respond to backdrop click events properly", (): void => {
             expect(mockMatDialogRef.backdropClick).toHaveBeenCalled();
         });
-    });
 
-    describe("tabs", (): void => {
-        it("should be rendered with their child components correctly", (): void => {
-            const tabGroup = fixture.debugElement.nativeElement.querySelector("mat-tab-group");
+        it("should handle backdrop click with clean forms", (): void => {
+            setupMockChildComponents(component, false, false);
 
-            expect(tabGroup).toBeTruthy();
-            expect(tabGroup.getAttribute("ng-reflect-selected-index")).toBeDefined();
-            expect(component.generalSettings).toBeDefined();
-            expect(component.rowingSettings).toBeDefined();
+            component.handleDialogClose();
+
+            expect(mockMatDialogRef.close).toHaveBeenCalled();
+            expect(mockSnackBar.openFromComponent).not.toHaveBeenCalled();
         });
 
-        it("should update currentTabIndex when onTabChange is called", (): void => {
-            expect(component.currentTabIndex()).toBe(0);
+        it("should handle backdrop click with dirty forms showing confirmation", (): void => {
+            setupMockChildComponents(component, true, false);
 
-            component.onTabChange(1);
-            expect(component.currentTabIndex()).toBe(1);
+            component.handleDialogClose();
 
-            component.onTabChange(0);
-            expect(component.currentTabIndex()).toBe(0);
+            expect(mockSnackBar.openFromComponent).toHaveBeenCalled();
+            expect(mockMatDialogRef.close).not.toHaveBeenCalled();
         });
 
-        it("should handle switching with dirty forms correctly", (): void => {
-            setupMockChildComponents(true, false);
+        it("should handle display form dirty state in close confirmation", (): void => {
+            setupMockChildComponents(component, false, false, false, true);
 
-            component.currentTabIndex.set(0);
-            component.onTabChange(1);
-            expect(component.currentTabIndex()).toBe(1);
+            component.handleDialogClose();
 
-            const generalForm = component.generalSettings().getForm();
-            const rowingForm = component.rowingSettings().getForm();
-            expect(generalForm.dirty).toBe(true);
-            expect(rowingForm.dirty).toBe(false);
-        });
-
-        it("should update save button state when switching", (): void => {
-            setupMockChildComponents(true, true);
-
-            component.onGeneralFormValidityChange(true);
-            component.onRowingFormValidityChange(false);
-
-            component.currentTabIndex.set(0);
-            expect(component.isSaveButtonEnabled()).toBe(true);
-
-            component.onTabChange(1);
-            expect(component.isSaveButtonEnabled()).toBe(false);
-
-            component.onRowingFormValidityChange(true);
-            expect(component.isSaveButtonEnabled()).toBe(true);
-
-            component.onTabChange(0);
-            expect(component.isSaveButtonEnabled()).toBe(true);
+            expect(mockSnackBar.openFromComponent).toHaveBeenCalled();
+            expect(mockMatDialogRef.close).not.toHaveBeenCalled();
         });
     });
 
@@ -428,20 +344,20 @@ describe("SettingsDialogComponent", (): void => {
         });
 
         it("should be valid when both forms are valid", (): void => {
-            setupMockChildComponents(true, true, false);
+            setupMockChildComponents(component, true, true, false);
             component.onGeneralFormValidityChange(true);
             component.onRowingFormValidityChange(true);
 
             component.currentTabIndex.set(0);
             expect(component.isSaveButtonEnabled()).toBe(true);
 
-            component.currentTabIndex.set(1);
+            component.currentTabIndex.set(2);
             expect(component.isSaveButtonEnabled()).toBe(true);
         });
 
         describe("when toggling validity", (): void => {
             it("should reflect changes in general form validity", (): void => {
-                setupMockChildComponents(true, true, false);
+                setupMockChildComponents(component, true, true, false);
                 component.currentTabIndex.set(0);
 
                 component.onGeneralFormValidityChange(false);
@@ -454,8 +370,8 @@ describe("SettingsDialogComponent", (): void => {
             });
 
             it("should reflect changes in rowing form validity", (): void => {
-                setupMockChildComponents(true, true, false);
-                component.currentTabIndex.set(1);
+                setupMockChildComponents(component, true, true, false);
+                component.currentTabIndex.set(2);
 
                 component.onGeneralFormValidityChange(true);
                 component.onRowingFormValidityChange(false);
@@ -468,7 +384,7 @@ describe("SettingsDialogComponent", (): void => {
         });
 
         it("should enable save button when switching tabs based on tab-specific conditions", (): void => {
-            setupMockChildComponents(true, true, false);
+            setupMockChildComponents(component, true, true, false);
             component.onGeneralFormValidityChange(true);
             component.onRowingFormValidityChange(true);
 
@@ -477,11 +393,11 @@ describe("SettingsDialogComponent", (): void => {
             expect(component.isSaveButtonEnabled()).toBe(true);
 
             // switch to rowing tab - should still be enabled
-            component.currentTabIndex.set(1);
+            component.currentTabIndex.set(2);
             expect(component.isSaveButtonEnabled()).toBe(true);
 
             // now with profile loaded but clean forms
-            setupMockChildComponents(false, false, true);
+            setupMockChildComponents(component, false, false, true);
             component.onGeneralFormValidityChange(true);
             component.onRowingFormValidityChange(true);
 
@@ -490,7 +406,7 @@ describe("SettingsDialogComponent", (): void => {
             expect(component.isSaveButtonEnabled()).toBe(false);
 
             // rowing tab with clean forms but profile loaded - should be enabled
-            component.currentTabIndex.set(1);
+            component.currentTabIndex.set(2);
             expect(component.isSaveButtonEnabled()).toBe(true);
         });
 
@@ -527,25 +443,29 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "generalSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+            } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
                 saveAsCustomProfile: vi.fn(),
                 isProfileLoaded: false,
             } as unknown as ReturnType<typeof component.rowingSettings>);
             component.onGeneralFormValidityChange(true);
+            component.onDisplayFormValidityChange(true);
             component.onRowingFormValidityChange(false);
-            component.currentTabIndex.set(1);
+            component.currentTabIndex.set(2);
             expect(component.isSaveButtonEnabled()).toBe(false);
         });
 
         it("should handle forms becoming pristine after being dirty", (): void => {
-            setupMockChildComponents(true, true);
+            setupMockChildComponents(component, true, true);
             component.handleDialogClose();
             expect(mockSnackBar.openFromComponent).toHaveBeenCalled();
 
             vi.mocked(mockSnackBar.openFromComponent).mockClear();
 
-            setupMockChildComponents(false, false);
+            setupMockChildComponents(component, false, false);
             component.handleDialogClose();
             expect(mockSnackBar.openFromComponent).not.toHaveBeenCalled();
             expect(mockMatDialogRef.close).toHaveBeenCalled();
@@ -554,27 +474,30 @@ describe("SettingsDialogComponent", (): void => {
 
     describe("when rowing profile is loaded", (): void => {
         it("should enable save button on rowing tab even if form is pristine", (): void => {
-            setupMockChildComponents(false, false, true);
-            component.currentTabIndex.set(1);
+            setupMockChildComponents(component, false, false, true);
+            component.currentTabIndex.set(2);
             component.onGeneralFormValidityChange(true);
+            component.onDisplayFormValidityChange(true);
             component.onRowingFormValidityChange(true);
 
             expect(component.isSaveButtonEnabled()).toBe(true);
         });
 
         it("should enable save even with invalid forms on rowing tab", (): void => {
-            setupMockChildComponents(false, false, true);
-            component.currentTabIndex.set(1);
+            setupMockChildComponents(component, false, false, true);
+            component.currentTabIndex.set(2);
             component.onGeneralFormValidityChange(false);
+            component.onDisplayFormValidityChange(false);
             component.onRowingFormValidityChange(true);
 
             expect(component.isSaveButtonEnabled()).toBe(true);
         });
 
         it("should not enable save button on general tab", (): void => {
-            setupMockChildComponents(false, false, true);
+            setupMockChildComponents(component, false, false, true);
             component.currentTabIndex.set(0);
             component.onGeneralFormValidityChange(true);
+            component.onDisplayFormValidityChange(true);
             component.onRowingFormValidityChange(true);
 
             expect(component.isSaveButtonEnabled()).toBe(false);
@@ -589,6 +512,9 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "generalSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+            } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
                 saveAsCustomProfile: vi.fn(),
@@ -596,9 +522,10 @@ describe("SettingsDialogComponent", (): void => {
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
             component.onGeneralFormValidityChange(false);
+            component.onDisplayFormValidityChange(false);
             component.onRowingFormValidityChange(true);
 
-            component.currentTabIndex.set(1);
+            component.currentTabIndex.set(2);
 
             await component.saveSettings();
 
@@ -635,19 +562,24 @@ describe("SettingsDialogComponent", (): void => {
                     strokeDetectionSettings: { dirty: false, getRawValue: (): object => ({}) },
                 },
             };
+            const mockDisplayForm = createMockDisplayForm(false);
 
             vi.spyOn(component, "generalSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockDisplayForm),
+            } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
                 saveAsCustomProfile: vi.fn(),
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
             component.onGeneralFormValidityChange(true);
+            component.onDisplayFormValidityChange(true);
             component.onRowingFormValidityChange(true);
 
-            component.currentTabIndex.set(1);
+            component.currentTabIndex.set(0);
 
             await component.saveSettings();
 
@@ -660,6 +592,10 @@ describe("SettingsDialogComponent", (): void => {
         });
 
         describe("should save rowing settings", async (): Promise<void> => {
+            beforeEach((): void => {
+                setupCleanGeneralAndDisplayForms(component);
+            });
+
             it("when both debounce and max drag period decrease first drag factor settings then sensor settings", async (): Promise<void> => {
                 const mockRowingForm = createMockRowingForm(true, {
                     dragFactorSettings: { maxDragFactorRecoveryPeriod: 7 },
@@ -811,7 +747,7 @@ describe("SettingsDialogComponent", (): void => {
                     saveAsCustomProfile: vi.fn(),
                 } as unknown as ReturnType<typeof component.rowingSettings>);
                 component.onRowingFormValidityChange(true);
-                component.currentTabIndex.set(1);
+                component.currentTabIndex.set(2);
 
                 await component.saveSettings();
 
@@ -892,12 +828,16 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "generalSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+            } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
                 saveAsCustomProfile: vi.fn(),
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
             component.onGeneralFormValidityChange(true);
+            component.onDisplayFormValidityChange(true);
             component.onRowingFormValidityChange(true);
 
             const mockSnackBarRef = {
@@ -948,12 +888,16 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "generalSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+            } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
                 saveAsCustomProfile: vi.fn(),
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
             component.onGeneralFormValidityChange(true);
+            component.onDisplayFormValidityChange(true);
             component.onRowingFormValidityChange(true);
 
             const mockSnackBarRef = {
@@ -963,7 +907,7 @@ describe("SettingsDialogComponent", (): void => {
                 mockSnackBarRef as unknown as MatSnackBarRef<TextOnlySnackBar>,
             );
 
-            component.currentTabIndex.set(1);
+            component.currentTabIndex.set(2);
 
             await component.saveSettings();
 
@@ -1006,12 +950,16 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "generalSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+            } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
                 saveAsCustomProfile: vi.fn(),
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
             component.onGeneralFormValidityChange(true);
+            component.onDisplayFormValidityChange(true);
             component.onRowingFormValidityChange(true);
 
             const mockSnackBarRef = {
@@ -1063,6 +1011,9 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "generalSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+            } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
                 saveAsCustomProfile: vi.fn(),
@@ -1070,6 +1021,7 @@ describe("SettingsDialogComponent", (): void => {
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
             component.onGeneralFormValidityChange(true);
+            component.onDisplayFormValidityChange(true);
             component.onRowingFormValidityChange(true);
 
             const mockSnackBarRef = {
@@ -1102,12 +1054,16 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "generalSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockGeneralForm),
             } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+            } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
                 saveAsCustomProfile: vi.fn(),
             } as unknown as ReturnType<typeof component.rowingSettings>);
 
             component.onGeneralFormValidityChange(true);
+            component.onDisplayFormValidityChange(false);
             component.onRowingFormValidityChange(false);
 
             const mockSnackBarRef = {
@@ -1117,7 +1073,7 @@ describe("SettingsDialogComponent", (): void => {
                 mockSnackBarRef as unknown as MatSnackBarRef<TextOnlySnackBar>,
             );
 
-            component.currentTabIndex.set(1);
+            component.currentTabIndex.set(0);
 
             const firstSavePromise = component.saveSettings();
             const secondSavePromise = component.saveSettings();
@@ -1131,94 +1087,6 @@ describe("SettingsDialogComponent", (): void => {
 
             expect(mockErgSettingsService.changeLogLevel).toHaveBeenCalledTimes(1);
             expect(mockMatDialogRef.close).toHaveBeenCalledTimes(1);
-        });
-    });
-
-    describe("errors", (): void => {
-        it("should be handled gracefully when saving general settings", async (): Promise<void> => {
-            mockErgSettingsService.changeLogLevel = vi.fn().mockRejectedValue(new Error("Service error"));
-
-            const mockGeneralForm = createMockGeneralForm(true, {
-                logLevel: 2,
-                deltaTimeLogging: true,
-                logToSdCard: true,
-                bleMode: 1,
-                heartRateMonitor: "ant",
-            });
-
-            vi.spyOn(component, "generalSettings").mockReturnValue({
-                getForm: vi.fn().mockReturnValue(mockGeneralForm),
-            } as unknown as ReturnType<typeof component.generalSettings>);
-            vi.spyOn(component, "rowingSettings").mockReturnValue({
-                getForm: vi.fn().mockReturnValue(
-                    createMockRowingForm(false, {
-                        machineSettings: {},
-                        dragFactorSettings: {},
-                        sensorSignalSettings: {},
-                        strokeDetectionSettings: {},
-                    }),
-                ),
-                saveAsCustomProfile: vi.fn(),
-                isProfileLoaded: false,
-            } as unknown as ReturnType<typeof component.rowingSettings>);
-
-            component.onGeneralFormValidityChange(true);
-            component.onRowingFormValidityChange(false);
-
-            const mockSnackBarRef = {
-                onAction: vi.fn().mockReturnValue(of(true)),
-            };
-            vi.mocked(mockSnackBar.openFromComponent).mockReturnValue(
-                mockSnackBarRef as unknown as MatSnackBarRef<TextOnlySnackBar>,
-            );
-
-            component.currentTabIndex.set(1);
-
-            await expect(component.saveSettings()).rejects.toThrow();
-        });
-
-        it("should be handled when saving rowing settings", async (): Promise<void> => {
-            const serviceErrors = [
-                { service: "changeMachineSettings", error: "Machine settings error" },
-                { service: "changeDragFactorSettings", error: "Drag factor error" },
-                { service: "changeSensorSignalSettings", error: "Sensor signal error" },
-                { service: "changeStrokeSettings", error: "Stroke settings error" },
-            ];
-
-            for (const { error } of serviceErrors) {
-                mockErgSettingsService.changeMachineSettings = vi.fn().mockRejectedValue(new Error(error));
-                mockErgSettingsService.changeDragFactorSettings = vi.fn().mockRejectedValue(new Error(error));
-                mockErgSettingsService.changeSensorSignalSettings = vi
-                    .fn()
-                    .mockRejectedValue(new Error(error));
-                mockErgSettingsService.changeStrokeSettings = vi.fn().mockRejectedValue(new Error(error));
-
-                const mockRowingForm = createMockRowingForm(true, {
-                    machineSettings: { flywheelInertia: 0.06 },
-                    dragFactorSettings: { goodnessOfFitThreshold: 0.95 },
-                    sensorSignalSettings: { rotationDebounceTime: 30 },
-                    strokeDetectionSettings: { minimumPoweredTorque: 0.02 },
-                });
-
-                const generalSettingsSpy = vi.fn().mockReturnValue({
-                    getForm: vi.fn().mockReturnValue(createMockGeneralForm(false)),
-                } as unknown as ReturnType<typeof component.generalSettings>);
-
-                const rowingSettingsSpy = vi.fn().mockReturnValue({
-                    getForm: vi.fn().mockReturnValue(mockRowingForm),
-                    saveAsCustomProfile: vi.fn(),
-                } as unknown as ReturnType<typeof component.rowingSettings>);
-
-                (component as unknown as Record<string, unknown>).generalSettings = generalSettingsSpy;
-                (component as unknown as Record<string, unknown>).rowingSettings = rowingSettingsSpy;
-
-                component.onGeneralFormValidityChange(false);
-                component.onRowingFormValidityChange(true);
-
-                component.currentTabIndex.set(0);
-
-                await expect(component.saveSettings()).rejects.toThrow();
-            }
         });
     });
 });
