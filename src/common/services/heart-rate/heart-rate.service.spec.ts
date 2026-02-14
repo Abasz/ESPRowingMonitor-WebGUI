@@ -60,6 +60,7 @@ describe("HeartRateService", (): void => {
             ergoMonitorBleId: "",
             heartRateBleId: "",
             heartRateMonitor: "off",
+            displayShowPeakForceInTitle: true,
         });
 
         mockBleHeartRateService = {
@@ -378,6 +379,7 @@ describe("HeartRateService", (): void => {
                     ergoMonitorBleId: "",
                     heartRateBleId: "",
                     heartRateMonitor: "ble",
+                    displayShowPeakForceInTitle: true,
                 });
                 vi.mocked(mockBleHeartRateService.discover).mockResolvedValue();
             });
@@ -406,6 +408,7 @@ describe("HeartRateService", (): void => {
                     ergoMonitorBleId: "",
                     heartRateBleId: "",
                     heartRateMonitor: "ant",
+                    displayShowPeakForceInTitle: true,
                 });
                 vi.mocked(mockAntHeartRateService.discover).mockResolvedValue();
             });
@@ -434,6 +437,7 @@ describe("HeartRateService", (): void => {
                     ergoMonitorBleId: "",
                     heartRateBleId: "",
                     heartRateMonitor: "off",
+                    displayShowPeakForceInTitle: true,
                 });
             });
 
@@ -451,6 +455,7 @@ describe("HeartRateService", (): void => {
                     ergoMonitorBleId: "",
                     heartRateBleId: "",
                     heartRateMonitor: "invalid" as HeartRateMonitorMode,
+                    displayShowPeakForceInTitle: true,
                 });
             });
 
@@ -896,6 +901,7 @@ describe("HeartRateService", (): void => {
                     ergoMonitorBleId: "",
                     heartRateBleId: "",
                     heartRateMonitor: "ble",
+                    displayShowPeakForceInTitle: true,
                 });
                 vi.mocked(mockBleHeartRateService.discover).mockRejectedValue(error);
 
@@ -908,6 +914,7 @@ describe("HeartRateService", (): void => {
                     ergoMonitorBleId: "",
                     heartRateBleId: "",
                     heartRateMonitor: "ant",
+                    displayShowPeakForceInTitle: true,
                 });
                 vi.mocked(mockAntHeartRateService.discover).mockRejectedValue(error);
 

@@ -114,6 +114,53 @@ describe("ConfigManagerService", (): void => {
         });
     });
 
+    describe("displayShowPeakForceInTitle config", (): void => {
+        it("should default to true when no value is stored", (): void => {
+            withSecureContextAndBluetooth();
+            vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            expect(configManagerService.getItem("displayShowPeakForceInTitle")).toBe(true);
+        });
+
+        it("should convert stored string 'false' to boolean false", (): void => {
+            withSecureContextAndBluetooth();
+            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
+                return key === "displayShowPeakForceInTitle" ? JSON.stringify(false) : null;
+            });
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            expect(configManagerService.getItem("displayShowPeakForceInTitle")).toBe(false);
+            expect(typeof configManagerService.getItem("displayShowPeakForceInTitle")).toBe("boolean");
+        });
+
+        it("should convert stored string 'true' to boolean true", (): void => {
+            withSecureContextAndBluetooth();
+            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
+                return key === "displayShowPeakForceInTitle" ? JSON.stringify(true) : null;
+            });
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            expect(configManagerService.getItem("displayShowPeakForceInTitle")).toBe(true);
+            expect(typeof configManagerService.getItem("displayShowPeakForceInTitle")).toBe("boolean");
+        });
+
+        it("should fallback to default value when stored value cannot be parsed", (): void => {
+            withSecureContextAndBluetooth();
+            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
+                return key === "displayShowPeakForceInTitle" ? "invalid-json-{" : null;
+            });
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            expect(configManagerService.getItem("displayShowPeakForceInTitle")).toBe(true);
+            expect(typeof configManagerService.getItem("displayShowPeakForceInTitle")).toBe("boolean");
+        });
+    });
+
     describe("getConfig method", (): void => {
         it("should return a copy of the current config", (): void => {
             withSecureContextAndBluetooth();

@@ -14,10 +14,24 @@ export class ConfigManagerService {
     constructor() {
         let config = Object.fromEntries(
             (Object.keys(new Config()) as Array<keyof Config>).map(
-                (key: keyof Config): [keyof Config, string] => [
-                    key,
-                    localStorage.getItem(key) ?? new Config()[key],
-                ],
+                (key: keyof Config): [keyof Config, Config[keyof Config]] => {
+                    const value = localStorage.getItem(key);
+                    const defaultConfig = new Config();
+
+                    if (value === null) {
+                        return [key, defaultConfig[key]];
+                    }
+
+                    if (key === "displayShowPeakForceInTitle") {
+                        try {
+                            return [key, JSON.parse(value)];
+                        } catch {
+                            return [key, defaultConfig[key]];
+                        }
+                    }
+
+                    return [key, value];
+                },
             ),
         ) as unknown as Config;
 
@@ -48,7 +62,7 @@ export class ConfigManagerService {
     }
 
     setItem<K extends keyof Config>(name: K, value: Config[K]): void {
-        localStorage.setItem(name, value);
+        localStorage.setItem(name, value.toString());
         this.configSubject.next({ ...this.configSubject.value, [name]: value });
     }
 }

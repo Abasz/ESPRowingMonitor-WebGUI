@@ -33,6 +33,8 @@ describe("DashboardComponent", (): void => {
     let allMetricsSubject: BehaviorSubject<ICalculatedMetrics>;
     let heartRateDataSubject: BehaviorSubject<IHeartRate | undefined>;
     let connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
+    let configManagerServiceSpy: Pick<ConfigManagerService, "configChanged$" | "getItem">;
+    let configSubject: BehaviorSubject<Config>;
 
     // test data constants
     const mockInitialMetrics: ICalculatedMetrics = {
@@ -72,8 +74,10 @@ describe("DashboardComponent", (): void => {
             batteryLevel$: of(50),
         };
         ergGenericDataServiceSpy.streamMonitorBatteryLevel$.mockReturnValue(of(50));
-        const configManagerServiceSpy = {
-            configChanged$: of(new Config()),
+        configSubject = new BehaviorSubject<Config>(new Config());
+        configManagerServiceSpy = {
+            configChanged$: configSubject.asObservable(),
+            getItem: vi.fn().mockReturnValue(true),
         };
         const heartRateServiceSpy = {
             discover: vi.fn(),
@@ -141,6 +145,20 @@ describe("DashboardComponent", (): void => {
             expect(component.elapseTime()).toBe(0);
             expect(component.heartRateData()).toBeUndefined();
             expect(component.rowingData()).toEqual(mockInitialMetrics);
+            expect(component.showPeakForceInTitle()).toBe(true);
+        });
+    });
+
+    describe("showPeakForceInTitle signal", (): void => {
+        it("should reflect config updates", (): void => {
+            expect(component.showPeakForceInTitle()).toBe(true);
+
+            configSubject.next({
+                ...configSubject.value,
+                displayShowPeakForceInTitle: false,
+            });
+
+            expect(component.showPeakForceInTitle()).toBe(false);
         });
     });
 

@@ -25,7 +25,10 @@
         unit="stk/min"
     ></app-metric>
     <app-metric title="Timer" icon="timer" [value]="elapseTime() | secondsToTime: 'pace'"></app-metric>
-    <app-force-curve [handleForces]="rowingData().handleForces"></app-force-curve>
+    <app-force-curve
+        [handleForces]="rowingData().handleForces"
+        [showPeakInTitle]="showPeakForceInTitle()"
+    ></app-force-curve>
     <app-metric
         title="Distance per stroke"
         icon="route"

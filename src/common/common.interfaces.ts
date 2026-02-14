@@ -49,6 +49,7 @@ export class Config {
     ergoMonitorBleId: string = "";
     heartRateBleId: string = "";
     heartRateMonitor: HeartRateMonitorMode = "off";
+    displayShowPeakForceInTitle: boolean = true;
 }
 
 // metrics and connection
