@@ -169,7 +169,7 @@ describe("ErgGenericDataService", (): void => {
                         },
                     );
 
-                    await expect(ergGenericDataService.getOtaCharacteristics()).rejects.toThrowError(
+                    await expect(ergGenericDataService.getOtaCharacteristics()).rejects.toThrow(
                         "Not able to connect to OTA service",
                     );
                 });
@@ -188,7 +188,7 @@ describe("ErgGenericDataService", (): void => {
                         },
                     );
 
-                    await expect(ergGenericDataService.getOtaCharacteristics()).rejects.toThrowError(
+                    await expect(ergGenericDataService.getOtaCharacteristics()).rejects.toThrow(
                         "Not able to connect to OTA service",
                     );
                 });
@@ -208,7 +208,7 @@ describe("ErgGenericDataService", (): void => {
                         },
                     );
 
-                    await expect(ergGenericDataService.getOtaCharacteristics()).rejects.toThrowError(
+                    await expect(ergGenericDataService.getOtaCharacteristics()).rejects.toThrow(
                         "Not able to connect to OTA service",
                     );
                 });

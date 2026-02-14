@@ -216,7 +216,7 @@ describe("OtaService", (): void => {
                 );
                 await valueChangedListenerReady(malformedResponse);
 
-                await expect(performOtaPromise).rejects.toThrowError(OtaError);
+                await expect(performOtaPromise).rejects.toThrow(OtaError);
             });
 
             it("should return IncorrectFirmwareSize when firmware is too large", async (): Promise<void> => {
@@ -227,7 +227,7 @@ describe("OtaService", (): void => {
                     createSingleByteResponse(OtaResponseOpCodes.IncorrectFirmwareSize),
                 );
 
-                await expect(performOtaPromise).rejects.toThrowError(OtaError);
+                await expect(performOtaPromise).rejects.toThrow(OtaError);
             });
 
             it("should handle rejection when ErgGenericDataService.getOtaCharacteristics() rejects", async (): Promise<void> => {
@@ -236,7 +236,7 @@ describe("OtaService", (): void => {
                 );
                 const testFile = createTestFile(100);
 
-                await expect(service.performOta(testFile)).rejects.toThrowError(Error);
+                await expect(service.performOta(testFile)).rejects.toThrow(Error);
             });
         });
 

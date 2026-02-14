@@ -141,7 +141,7 @@ describe("auto-version", (): void => {
 
             fetchSpy.mockResolvedValue(response);
 
-            await expect(autoVersion.fetchLatestRelease()).rejects.toThrowError(
+            await expect(autoVersion.fetchLatestRelease()).rejects.toThrow(
                 "Failed to fetch release: 500 Internal Server Error",
             );
         });
@@ -184,7 +184,7 @@ describe("auto-version", (): void => {
 
             await expect(
                 autoVersion.downloadAsset("https://example.com/missing.zip", "./missing.zip"),
-            ).rejects.toThrowError("Failed to download https://example.com/missing.zip: 404 Not Found");
+            ).rejects.toThrow("Failed to download https://example.com/missing.zip: 404 Not Found");
         });
     });
 
@@ -237,9 +237,9 @@ describe("auto-version", (): void => {
                     throw new Error(`exit-${code}`);
                 });
 
-            await expect(
-                autoVersion.main({ fetchLatestRelease: fetchLatestReleaseSpy }),
-            ).rejects.toThrowError("exit-1");
+            await expect(autoVersion.main({ fetchLatestRelease: fetchLatestReleaseSpy })).rejects.toThrow(
+                "exit-1",
+            );
 
             expect(exitSpy).toHaveBeenCalledWith(1);
         });

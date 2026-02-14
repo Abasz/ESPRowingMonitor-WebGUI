@@ -596,10 +596,10 @@ const testDates = getTestDates();
 
 ```ts
 // Synchronous errors
-expect(() => throwingFunction()).toThrowError("error message");
+expect(() => throwingFunction()).toThrow("error message");
 
 // Async errors with rejects
-await expect(asyncFunction()).rejects.toThrowError("error message");
+await expect(asyncFunction()).rejects.toThrow("error message");
 
 // Test both error paths and success paths
 // Mock console.error when testing error logging

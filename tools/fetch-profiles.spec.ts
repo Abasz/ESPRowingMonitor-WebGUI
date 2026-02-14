@@ -189,7 +189,7 @@ describe("fetch-profiles", (): void => {
 
             const failingRequest = fetchProfiles.fetchRepositoryFiles("missing");
 
-            await expect(failingRequest).rejects.toThrowError("GitHub API request failed: 404 Not Found");
+            await expect(failingRequest).rejects.toThrow("GitHub API request failed: 404 Not Found");
         });
     });
 
@@ -236,7 +236,7 @@ describe("fetch-profiles", (): void => {
 
             const failingDownload = fetchProfiles.fetchFileContent("https://example.com/file");
 
-            await expect(failingDownload).rejects.toThrowError("Failed to fetch file: 500 Server Error");
+            await expect(failingDownload).rejects.toThrow("Failed to fetch file: 500 Server Error");
         });
     });
 
@@ -263,14 +263,14 @@ describe("fetch-profiles", (): void => {
             const invalidContent = `#define MODEL_NUMBER "Test"`;
             expect((): void => {
                 fetchProfiles.extractDeviceInfo(invalidContent);
-            }).toThrowError(/Failed to parse device name or model number/);
+            }).toThrow(/Failed to parse device name or model number/);
         });
 
         it("should throw error when model number is missing", (): void => {
             const invalidContent = `#define DEVICE_NAME TestDevice`;
             expect((): void => {
                 fetchProfiles.extractDeviceInfo(invalidContent);
-            }).toThrowError(/Failed to parse device name or model number/);
+            }).toThrow(/Failed to parse device name or model number/);
         });
 
         it("should handle various whitespace patterns", (): void => {
@@ -355,7 +355,7 @@ describe("fetch-profiles", (): void => {
             const content = "#define OTHER_VALUE 123";
             expect((): void => {
                 fetchProfiles.extractValue(content, "MISSING_VALUE");
-            }).toThrowError(/Required #define MISSING_VALUE was not found/);
+            }).toThrow(/Required #define MISSING_VALUE was not found/);
         });
 
         it("should handle negative values", (): void => {
@@ -487,7 +487,7 @@ describe("fetch-profiles", (): void => {
 
             expect((): void => {
                 fetchProfiles.parseProfileHeader(invalidContent, "concept2ModelD");
-            }).toThrowError(/Required #define FLYWHEEL_INERTIA was not found/);
+            }).toThrow(/Required #define FLYWHEEL_INERTIA was not found/);
         });
 
         it("should throw error when required sensor setting is missing", (): void => {
@@ -498,7 +498,7 @@ describe("fetch-profiles", (): void => {
 
             expect((): void => {
                 fetchProfiles.parseProfileHeader(invalidContent, "concept2ModelD");
-            }).toThrowError(/Required #define ROTATION_DEBOUNCE_TIME_MIN was not found/);
+            }).toThrow(/Required #define ROTATION_DEBOUNCE_TIME_MIN was not found/);
         });
 
         it("should throw error when required drag factor setting is missing", (): void => {
@@ -509,7 +509,7 @@ describe("fetch-profiles", (): void => {
 
             expect((): void => {
                 fetchProfiles.parseProfileHeader(invalidContent, "concept2ModelD");
-            }).toThrowError(/Required #define GOODNESS_OF_FIT_THRESHOLD was not found/);
+            }).toThrow(/Required #define GOODNESS_OF_FIT_THRESHOLD was not found/);
         });
 
         it("should throw error when required stroke detection setting is missing", (): void => {
@@ -520,7 +520,7 @@ describe("fetch-profiles", (): void => {
 
             expect((): void => {
                 fetchProfiles.parseProfileHeader(invalidContent, "concept2ModelD");
-            }).toThrowError(/Required #define IMPULSE_DATA_ARRAY_LENGTH was not found/);
+            }).toThrow(/Required #define IMPULSE_DATA_ARRAY_LENGTH was not found/);
         });
     });
 
@@ -671,7 +671,7 @@ describe("fetch-profiles", (): void => {
                     mkdir: mkdirSpy,
                     writeFile: writeFileSpy,
                 }),
-            ).rejects.toThrowError("exit-1");
+            ).rejects.toThrow("exit-1");
 
             expect(fetchRepositoryFilesSpy).toHaveBeenCalledWith("src/profiles");
             expect(mkdirSpy).not.toHaveBeenCalled();

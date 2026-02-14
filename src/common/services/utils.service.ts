@@ -2,7 +2,7 @@ import { BreakpointObserver, Breakpoints, BreakpointState, MediaMatcher } from "
 import { DestroyRef, Injectable } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import NoSleep, { INoSleep } from "@zakj/no-sleep";
+import NoSleep from "@zakj/no-sleep";
 import { fromEvent, Observable } from "rxjs";
 import { filter, map, startWith, take, tap } from "rxjs/operators";
 
@@ -19,7 +19,7 @@ export class UtilsService {
         .pipe(map((result: BreakpointState): boolean => result.matches));
 
     private mainSpinnerRef: SpinnerOverlayRef | undefined;
-    private wakeLock: INoSleep = new NoSleep();
+    private wakeLock: InstanceType<typeof NoSleep> = new NoSleep();
 
     constructor(
         private snack: MatSnackBar,
