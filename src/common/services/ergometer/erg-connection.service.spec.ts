@@ -430,6 +430,7 @@ describe("ErgConnectionService", (): void => {
                 await ergConnectionService.discover();
 
                 expect(configManagerServiceSpy.setItem).toHaveBeenCalledWith(
+                    "general",
                     "ergoMonitorBleId",
                     mockBluetoothDevice.id,
                 );

@@ -709,7 +709,7 @@ describe("GeneralSettingsComponent", (): void => {
 
             component.ngOnInit();
 
-            expect(mockConfigManagerService.getItem).toHaveBeenCalledWith("heartRateMonitor");
+            expect(mockConfigManagerService.getItem).toHaveBeenCalledWith("general", "heartRateMonitor");
             expect(component.settingsForm.value.heartRateMonitor).toBe("ble");
         });
     });

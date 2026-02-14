@@ -32,7 +32,7 @@ export class DisplaySettingsComponent {
         private configManager: ConfigManagerService,
     ) {
         this.settingsForm = this.formBuilder.group({
-            showPeakForceInTitle: [this.configManager.getItem("displayShowPeakForceInTitle")],
+            showPeakForceInTitle: [this.configManager.getItem("display", "showPeakForceInTitle")],
         });
 
         this.formValueChanged = toSignal(

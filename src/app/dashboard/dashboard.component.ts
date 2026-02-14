@@ -98,7 +98,7 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
 
         this.showPeakForceInTitle = toSignal(
             this.configManager.configChanged$.pipe(
-                map((config: Config): boolean => config.displayShowPeakForceInTitle),
+                map((config: Config): boolean => config.display.showPeakForceInTitle),
             ),
             {
                 requireSync: true,

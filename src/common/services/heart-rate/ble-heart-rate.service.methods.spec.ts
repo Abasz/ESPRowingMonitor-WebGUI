@@ -408,7 +408,7 @@ describe("BLEHeartRateService", (): void => {
             it("should get stored device ID from config", async (): Promise<void> => {
                 await service.reconnect();
 
-                expect(mockConfigManager.getItem).toHaveBeenCalledWith("heartRateBleId");
+                expect(mockConfigManager.getItem).toHaveBeenCalledWith("general", "heartRateBleId");
             });
 
             it("should get device by stored ID", async (): Promise<void> => {

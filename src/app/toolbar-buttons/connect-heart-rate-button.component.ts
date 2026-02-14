@@ -26,7 +26,7 @@ export class ConnectHeartRateButtonComponent {
 
     readonly heartRateMonitorMode: Signal<HeartRateMonitorMode> = toSignal(
         this.configManager.configChanged$.pipe(
-            map((config: Config): HeartRateMonitorMode => config.heartRateMonitor),
+            map((config: Config): HeartRateMonitorMode => config.general.heartRateMonitor),
             distinctUntilChanged(),
         ),
         { requireSync: true },

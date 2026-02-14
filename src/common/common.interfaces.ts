@@ -43,13 +43,27 @@ export interface IMediaQuery {
 // configuration
 
 export type HeartRateMonitorMode = "ant" | "ble" | "off";
-export type IConfig = Config;
+
+export interface IGeneralConfig {
+    ergoMonitorBleId: string;
+    heartRateBleId: string;
+    heartRateMonitor: HeartRateMonitorMode;
+}
+
+export interface IDisplayConfig {
+    showPeakForceInTitle: boolean;
+}
 
 export class Config {
-    ergoMonitorBleId: string = "";
-    heartRateBleId: string = "";
-    heartRateMonitor: HeartRateMonitorMode = "off";
-    displayShowPeakForceInTitle: boolean = true;
+    general: IGeneralConfig = {
+        ergoMonitorBleId: "",
+        heartRateBleId: "",
+        heartRateMonitor: "off",
+    };
+
+    display: IDisplayConfig = {
+        showPeakForceInTitle: true,
+    };
 }
 
 // metrics and connection

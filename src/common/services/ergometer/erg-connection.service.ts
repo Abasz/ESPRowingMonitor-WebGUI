@@ -258,7 +258,7 @@ export class ErgConnectionService extends ErgConnections {
 
         const device = (await navigator.bluetooth.getDevices()).filter(
             (device: BluetoothDevice): boolean =>
-                device.id === this.configManager.getItem("ergoMonitorBleId"),
+                device.id === this.configManager.getItem("general", "ergoMonitorBleId"),
         )?.[0];
 
         if (device === undefined) {
@@ -326,7 +326,7 @@ export class ErgConnectionService extends ErgConnections {
                 status: gatt.connected ? "connected" : "disconnected",
             });
 
-            this.configManager.setItem("ergoMonitorBleId", device.id);
+            this.configManager.setItem("general", "ergoMonitorBleId", device.id);
             fromEvent(device, "gattserverdisconnected").pipe(take(1)).subscribe(this.disconnectHandler);
             this.snackBar.open("Ergo monitor connected", "Dismiss");
         } catch (error) {

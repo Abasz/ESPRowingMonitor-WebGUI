@@ -212,6 +212,7 @@ export class SettingsDialogComponent {
 
         if (settingsForm.controls.heartRateMonitor.dirty) {
             this.configManager.setItem(
+                "general",
                 "heartRateMonitor",
                 settingsForm.value.heartRateMonitor as HeartRateMonitorMode,
             );
@@ -251,7 +252,8 @@ export class SettingsDialogComponent {
 
         if (displaySettingsForm.controls.showPeakForceInTitle.dirty) {
             this.configManager.setItem(
-                "displayShowPeakForceInTitle",
+                "display",
+                "showPeakForceInTitle",
                 displaySettingsForm.controls.showPeakForceInTitle.value,
             );
         }

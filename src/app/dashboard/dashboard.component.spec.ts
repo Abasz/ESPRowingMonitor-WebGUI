@@ -155,7 +155,10 @@ describe("DashboardComponent", (): void => {
 
             configSubject.next({
                 ...configSubject.value,
-                displayShowPeakForceInTitle: false,
+                display: {
+                    ...configSubject.value.display,
+                    showPeakForceInTitle: false,
+                },
             });
 
             expect(component.showPeakForceInTitle()).toBe(false);

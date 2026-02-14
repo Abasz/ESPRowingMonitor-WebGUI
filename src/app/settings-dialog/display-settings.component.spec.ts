@@ -38,7 +38,7 @@ describe("DisplaySettingsComponent", (): void => {
     describe("as part of form initialization", (): void => {
         it("should initialize from config", (): void => {
             expect(component.settingsForm.controls.showPeakForceInTitle.value).toBe(true);
-            expect(mockConfigManager.getItem).toHaveBeenCalledWith("displayShowPeakForceInTitle");
+            expect(mockConfigManager.getItem).toHaveBeenCalledWith("display", "showPeakForceInTitle");
         });
 
         it("should initialize unchecked when config is false", (): void => {

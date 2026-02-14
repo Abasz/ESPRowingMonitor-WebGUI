@@ -587,7 +587,11 @@ describe("SettingsDialogComponent", (): void => {
             expect(mockErgSettingsService.changeDeltaTimeLogging).toHaveBeenCalledWith(true);
             expect(mockErgSettingsService.changeLogToSdCard).toHaveBeenCalledWith(true);
             expect(mockErgSettingsService.changeBleServiceType).toHaveBeenCalledWith(1);
-            expect(mockConfigManagerService.setItem).toHaveBeenCalledWith("heartRateMonitor", "ant");
+            expect(mockConfigManagerService.setItem).toHaveBeenCalledWith(
+                "general",
+                "heartRateMonitor",
+                "ant",
+            );
             expect(mockMatDialogRef.close).toHaveBeenCalled();
         });
 

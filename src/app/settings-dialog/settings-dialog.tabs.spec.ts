@@ -209,7 +209,11 @@ describe("SettingsDialogComponent tabs", (): void => {
 
         await component.saveSettings();
 
-        expect(mockConfigManagerService.setItem).toHaveBeenCalledWith("displayShowPeakForceInTitle", false);
+        expect(mockConfigManagerService.setItem).toHaveBeenCalledWith(
+            "display",
+            "showPeakForceInTitle",
+            false,
+        );
     });
 
     it("should not prompt for confirmation when switching tabs with clean forms", (): void => {

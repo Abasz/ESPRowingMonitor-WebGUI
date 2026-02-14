@@ -193,6 +193,7 @@ describe("BLEHeartRateService", (): void => {
                 await vi.advanceTimersByTimeAsync(4000);
 
                 expect(mockConfigManager.setItem).toHaveBeenCalledWith(
+                    "general",
                     "heartRateBleId",
                     mockBluetoothDevice.id,
                 );
@@ -250,6 +251,7 @@ describe("BLEHeartRateService", (): void => {
                         await vi.advanceTimersByTimeAsync(4000);
 
                         expect(mockConfigManager.setItem).toHaveBeenCalledWith(
+                            "general",
                             "heartRateBleId",
                             mockBluetoothDevice.id,
                         );
@@ -349,6 +351,7 @@ describe("BLEHeartRateService", (): void => {
                         await vi.advanceTimersByTimeAsync(4000);
 
                         expect(mockConfigManager.setItem).toHaveBeenCalledWith(
+                            "general",
                             "heartRateBleId",
                             mockBluetoothDevice.id,
                         );
@@ -471,6 +474,7 @@ describe("BLEHeartRateService", (): void => {
                 await vi.advanceTimersByTimeAsync(4000);
 
                 expect(mockConfigManager.setItem).toHaveBeenCalledWith(
+                    "general",
                     "heartRateBleId",
                     mockBluetoothDevice.id,
                 );
