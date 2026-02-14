@@ -39,13 +39,20 @@ import { BaseChartDirective, provideCharts } from "ng2-charts";
     ],
 })
 export class ForceCurveComponent {
-    readonly forceChartOptions: ChartOptions<"line"> = {
+    readonly handleForces: InputSignal<Array<number>> = input.required<Array<number>>();
+    readonly showPeakInTitle: InputSignal<boolean> = input(true);
+
+    readonly forceChartOptions: Signal<ChartOptions<"line">>;
+    readonly handleForcesChart: Signal<ChartConfiguration<"line">["data"]>;
+
+    private _forceChartOptions: ChartOptions<"line"> = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
             datalabels: {
                 anchor: "center",
                 align: "top",
+                offset: -2,
                 formatter: (value: Point): string => `Peak: ${Math.round(value.y ?? 0)}`,
                 display: (ctx: Context): boolean =>
                     Math.max(
@@ -101,20 +108,6 @@ export class ForceCurveComponent {
         },
     };
 
-    readonly handleForces: InputSignal<Array<number>> = input.required<Array<number>>();
-    readonly handleForcesChart: Signal<ChartConfiguration<"line">["data"]> = computed(
-        (): ChartConfiguration<"line">["data"] => {
-            this._handleForcesChart.datasets[0].data = this.handleForces().map(
-                (currentForce: number, index: number): Point => ({
-                    y: currentForce,
-                    x: index,
-                }),
-            );
-
-            return { ...this._handleForcesChart };
-        },
-    );
-
     private _handleForcesChart: ChartConfiguration<"line">["data"] = {
         datasets: [
             {
@@ -127,4 +120,48 @@ export class ForceCurveComponent {
             },
         ],
     };
+
+    constructor() {
+        this.forceChartOptions = computed((): ChartOptions<"line"> => {
+            const shouldShowPeakInTitle = this.showPeakInTitle();
+            const handleForcesData = this.handleForces();
+
+            if (
+                this._forceChartOptions.plugins?.legend?.title === undefined ||
+                this._forceChartOptions.plugins?.datalabels === undefined
+            ) {
+                return { ...this._forceChartOptions };
+            }
+
+            if (handleForcesData.length === 0) {
+                this._forceChartOptions.plugins.legend.title.display = true;
+                this._forceChartOptions.plugins.legend.title.text = "Force Curve";
+                this._forceChartOptions.plugins.datalabels.display = false;
+
+                return { ...this._forceChartOptions };
+            }
+
+            this._forceChartOptions.plugins.legend.title.display = shouldShowPeakInTitle;
+            this._forceChartOptions.plugins.legend.title.text = `Peak: ${Math.round(Math.max(...handleForcesData))}N`;
+            this._forceChartOptions.plugins.datalabels.display = shouldShowPeakInTitle
+                ? false
+                : (ctx: Context): boolean =>
+                      Math.max(
+                          ...(ctx.dataset.data as Array<Point>).map((point: Point): number => point.y ?? 0),
+                      ) === (ctx.dataset.data[ctx.dataIndex] as Point).y;
+
+            return { ...this._forceChartOptions };
+        });
+
+        this.handleForcesChart = computed((): ChartConfiguration<"line">["data"] => {
+            this._handleForcesChart.datasets[0].data = this.handleForces().map(
+                (currentForce: number, index: number): Point => ({
+                    y: currentForce,
+                    x: index,
+                }),
+            );
+
+            return { ...this._handleForcesChart };
+        });
+    }
 }
