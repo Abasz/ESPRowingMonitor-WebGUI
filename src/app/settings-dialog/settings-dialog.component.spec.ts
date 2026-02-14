@@ -3,7 +3,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { MatSnackBar, MatSnackBarRef, TextOnlySnackBar } from "@angular/material/snack-bar";
 import { SwUpdate } from "@angular/service-worker";
 import { BehaviorSubject, EMPTY, of, take } from "rxjs";
-import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IDeviceInformation } from "../../common/ble.interfaces";
 import { IErgConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
@@ -14,30 +14,7 @@ import { ErgSettingsService } from "../../common/services/ergometer/erg-settings
 import { UtilsService } from "../../common/services/utils.service";
 
 import { SettingsDialogComponent } from "./settings-dialog.component";
-
-interface IMockGeneralForm {
-    dirty: boolean;
-    controls: Record<
-        string,
-        {
-            dirty: boolean;
-            value: unknown;
-        }
-    >;
-    value: Record<string, unknown>;
-}
-
-interface IMockRowingForm {
-    dirty: boolean;
-    controls: Record<
-        string,
-        {
-            dirty: boolean;
-            getRawValue: () => unknown;
-        }
-    >;
-    value: Record<string, unknown>;
-}
+import { createMockGeneralForm, createMockRowingForm } from "./settings-dialog.test.helpers";
 
 describe("SettingsDialogComponent", (): void => {
     let component: SettingsDialogComponent;
@@ -68,124 +45,6 @@ describe("SettingsDialogComponent", (): void => {
         maxW599: boolean;
     }>;
 
-    // helper functions to reduce duplication
-    const createMockGeneralForm: (
-        dirty?: boolean,
-        controlValues?: Record<string, unknown>,
-    ) => IMockGeneralForm = (
-        dirty: boolean = false,
-        controlValues: Record<string, unknown> = {},
-    ): IMockGeneralForm => {
-        const defaultControlValues: Record<string, unknown> = {
-            logLevel: 1,
-            deltaTimeLogging: false,
-            logToSdCard: false,
-            bleMode: 0,
-            heartRateMonitor: "none",
-            ...controlValues,
-        };
-
-        return {
-            dirty,
-            controls: Object.keys(defaultControlValues).reduce(
-                (
-                    acc: Record<
-                        string,
-                        {
-                            dirty: boolean;
-                            value: unknown;
-                        }
-                    >,
-                    key: string,
-                ): Record<
-                    string,
-                    {
-                        dirty: boolean;
-                        value: unknown;
-                    }
-                > => {
-                    acc[key] = {
-                        dirty:
-                            (
-                                defaultControlValues[key] as {
-                                    dirty: boolean;
-                                }
-                            ).dirty ?? dirty,
-                        value: defaultControlValues[key],
-                    };
-
-                    return acc;
-                },
-                {} as Record<
-                    string,
-                    {
-                        dirty: boolean;
-                        value: unknown;
-                    }
-                >,
-            ),
-            value: defaultControlValues,
-        };
-    };
-
-    const createMockRowingForm: (
-        dirty?: boolean,
-        controlValues?: Record<string, unknown>,
-    ) => IMockRowingForm = (
-        dirty: boolean = false,
-        controlValues: Record<string, unknown> = {},
-    ): IMockRowingForm => {
-        const defaultControlValues: Record<string, unknown> = {
-            machineSettings: {},
-            dragFactorSettings: {},
-            sensorSignalSettings: {},
-            strokeDetectionSettings: {},
-            ...controlValues,
-        };
-
-        return {
-            dirty,
-            controls: Object.keys(defaultControlValues).reduce(
-                (
-                    acc: Record<
-                        string,
-                        {
-                            dirty: boolean;
-                            getRawValue: () => unknown;
-                        }
-                    >,
-                    key: string,
-                ): Record<
-                    string,
-                    {
-                        dirty: boolean;
-                        getRawValue: () => unknown;
-                    }
-                > => {
-                    acc[key] = {
-                        dirty:
-                            (
-                                defaultControlValues[key] as {
-                                    dirty: boolean;
-                                }
-                            ).dirty ?? dirty,
-                        getRawValue: (): unknown => defaultControlValues[key],
-                    };
-
-                    return acc;
-                },
-                {} as Record<
-                    string,
-                    {
-                        dirty: boolean;
-                        getRawValue: () => unknown;
-                    }
-                >,
-            ),
-            value: defaultControlValues,
-        };
-    };
-
     const setupMockChildComponents: (
         generalFormDirty?: boolean,
         rowingFormDirty?: boolean,
@@ -198,35 +57,17 @@ describe("SettingsDialogComponent", (): void => {
         const mockGeneralForm = createMockGeneralForm(generalFormDirty);
         const mockRowingForm = createMockRowingForm(rowingFormDirty);
 
-        // check if generalSettings is already spied upon
-        try {
-            vi.spyOn(component, "generalSettings").mockReturnValue({
-                getForm: vi.fn().mockReturnValue(mockGeneralForm),
-            } as unknown as ReturnType<typeof component.generalSettings>);
-        } catch {
-            // already spied, just update the return value
-            ((component as unknown as Record<string, Mock>).generalSettings as Mock).mockReturnValue({
-                getForm: vi.fn().mockReturnValue(mockGeneralForm),
-            } as unknown as ReturnType<typeof component.generalSettings>);
-        }
+        vi.spyOn(component, "generalSettings").mockReturnValue({
+            getForm: vi.fn().mockReturnValue(mockGeneralForm),
+        } as unknown as ReturnType<typeof component.generalSettings>);
 
         component.onGeneralFormValidityChange(true);
 
-        // check if rowingSettings is already spied upon
-        try {
-            vi.spyOn(component, "rowingSettings").mockReturnValue({
-                getForm: vi.fn().mockReturnValue(mockRowingForm),
-                saveAsCustomProfile: vi.fn(),
-                isProfileLoaded,
-            } as unknown as ReturnType<typeof component.rowingSettings>);
-        } catch {
-            // already spied, just update the return value
-            ((component as unknown as Record<string, Mock>).rowingSettings as Mock).mockReturnValue({
-                getForm: vi.fn().mockReturnValue(mockRowingForm),
-                saveAsCustomProfile: vi.fn(),
-                isProfileLoaded,
-            } as unknown as ReturnType<typeof component.rowingSettings>);
-        }
+        vi.spyOn(component, "rowingSettings").mockReturnValue({
+            getForm: vi.fn().mockReturnValue(mockRowingForm),
+            saveAsCustomProfile: vi.fn(),
+            isProfileLoaded,
+        } as unknown as ReturnType<typeof component.rowingSettings>);
 
         component.onRowingFormValidityChange(true);
     };
