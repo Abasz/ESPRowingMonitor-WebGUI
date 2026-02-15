@@ -43,6 +43,24 @@ describe("HeartRateService", (): void => {
         batteryLevel: 85,
     });
 
+    const createMockHeartRateConfig = (heartRateMonitor: HeartRateMonitorMode = "off"): Config => ({
+        general: {
+            ergoMonitorBleId: "",
+            heartRateBleId: "",
+            heartRateMonitor,
+        },
+        display: {
+            general: {
+                unitSystem: "metric",
+            },
+            forceCurve: {
+                showPeakForceInTitle: true,
+                showGridLines: true,
+                showAxisLabels: true,
+            },
+        },
+    });
+
     beforeEach((): void => {
         configSubject = new BehaviorSubject<Config>(new Config());
 
@@ -50,21 +68,7 @@ describe("HeartRateService", (): void => {
             getConfig: vi.fn(),
             configChanged$: configSubject.asObservable(),
         };
-        vi.mocked(mockConfigManager.getConfig).mockReturnValue({
-            general: {
-                ergoMonitorBleId: "",
-                heartRateBleId: "",
-                heartRateMonitor: "off",
-            },
-            display: {
-                general: {
-                    unitSystem: "metric",
-                },
-                forceCurve: {
-                    showPeakForceInTitle: true,
-                },
-            },
-        });
+        vi.mocked(mockConfigManager.getConfig).mockReturnValue(createMockHeartRateConfig("off"));
 
         mockBleHeartRateService = {
             discover: vi.fn(),
@@ -414,21 +418,7 @@ describe("HeartRateService", (): void => {
     describe("discover method", (): void => {
         describe("when heart rate monitor mode is ble", (): void => {
             beforeEach((): void => {
-                vi.mocked(mockConfigManager.getConfig).mockReturnValue({
-                    general: {
-                        ergoMonitorBleId: "",
-                        heartRateBleId: "",
-                        heartRateMonitor: "ble",
-                    },
-                    display: {
-                        general: {
-                            unitSystem: "metric",
-                        },
-                        forceCurve: {
-                            showPeakForceInTitle: true,
-                        },
-                    },
-                });
+                vi.mocked(mockConfigManager.getConfig).mockReturnValue(createMockHeartRateConfig("ble"));
                 vi.mocked(mockBleHeartRateService.discover).mockResolvedValue();
             });
 
@@ -452,21 +442,7 @@ describe("HeartRateService", (): void => {
 
         describe("when heart rate monitor mode is ant", (): void => {
             beforeEach((): void => {
-                vi.mocked(mockConfigManager.getConfig).mockReturnValue({
-                    general: {
-                        ergoMonitorBleId: "",
-                        heartRateBleId: "",
-                        heartRateMonitor: "ant",
-                    },
-                    display: {
-                        general: {
-                            unitSystem: "metric",
-                        },
-                        forceCurve: {
-                            showPeakForceInTitle: true,
-                        },
-                    },
-                });
+                vi.mocked(mockConfigManager.getConfig).mockReturnValue(createMockHeartRateConfig("ant"));
                 vi.mocked(mockAntHeartRateService.discover).mockResolvedValue();
             });
 
@@ -490,21 +466,7 @@ describe("HeartRateService", (): void => {
 
         describe("when heart rate monitor mode is off", (): void => {
             beforeEach((): void => {
-                vi.mocked(mockConfigManager.getConfig).mockReturnValue({
-                    general: {
-                        ergoMonitorBleId: "",
-                        heartRateBleId: "",
-                        heartRateMonitor: "off",
-                    },
-                    display: {
-                        general: {
-                            unitSystem: "metric",
-                        },
-                        forceCurve: {
-                            showPeakForceInTitle: true,
-                        },
-                    },
-                });
+                vi.mocked(mockConfigManager.getConfig).mockReturnValue(createMockHeartRateConfig("off"));
             });
 
             it("should resolve immediately without calling any service", async (): Promise<void> => {
@@ -517,21 +479,9 @@ describe("HeartRateService", (): void => {
 
         describe("when heart rate monitor mode is invalid", (): void => {
             beforeEach((): void => {
-                vi.mocked(mockConfigManager.getConfig).mockReturnValue({
-                    general: {
-                        ergoMonitorBleId: "",
-                        heartRateBleId: "",
-                        heartRateMonitor: "invalid" as HeartRateMonitorMode,
-                    },
-                    display: {
-                        general: {
-                            unitSystem: "metric",
-                        },
-                        forceCurve: {
-                            showPeakForceInTitle: true,
-                        },
-                    },
-                });
+                vi.mocked(mockConfigManager.getConfig).mockReturnValue(
+                    createMockHeartRateConfig("invalid" as HeartRateMonitorMode),
+                );
             });
 
             it("should resolve immediately for unknown modes", async (): Promise<void> => {
@@ -1047,21 +997,7 @@ describe("HeartRateService", (): void => {
         describe("when heart rate services throw errors", (): void => {
             it("should handle BLE service discover error", async (): Promise<void> => {
                 const error = new Error("BLE discover failed");
-                vi.mocked(mockConfigManager.getConfig).mockReturnValue({
-                    general: {
-                        ergoMonitorBleId: "",
-                        heartRateBleId: "",
-                        heartRateMonitor: "ble",
-                    },
-                    display: {
-                        general: {
-                            unitSystem: "metric",
-                        },
-                        forceCurve: {
-                            showPeakForceInTitle: true,
-                        },
-                    },
-                });
+                vi.mocked(mockConfigManager.getConfig).mockReturnValue(createMockHeartRateConfig("ble"));
                 vi.mocked(mockBleHeartRateService.discover).mockRejectedValue(error);
 
                 await expect(service.discover()).rejects.toEqual(error);
@@ -1069,21 +1005,7 @@ describe("HeartRateService", (): void => {
 
             it("should handle ANT service discover error", async (): Promise<void> => {
                 const error = new Error("ANT discover failed");
-                vi.mocked(mockConfigManager.getConfig).mockReturnValue({
-                    general: {
-                        ergoMonitorBleId: "",
-                        heartRateBleId: "",
-                        heartRateMonitor: "ant",
-                    },
-                    display: {
-                        general: {
-                            unitSystem: "metric",
-                        },
-                        forceCurve: {
-                            showPeakForceInTitle: true,
-                        },
-                    },
-                });
+                vi.mocked(mockConfigManager.getConfig).mockReturnValue(createMockHeartRateConfig("ant"));
                 vi.mocked(mockAntHeartRateService.discover).mockRejectedValue(error);
 
                 await expect(service.discover()).rejects.toEqual(error);

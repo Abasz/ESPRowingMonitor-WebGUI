@@ -68,6 +68,18 @@ describe("ForceCurveComponent", (): void => {
             expect(component.showPeakInTitle()).toBe(true);
         });
 
+        it("should initialize showGridLines input signal with default value true", (): void => {
+            expect(component.showGridLines).toBeDefined();
+            expect(typeof component.showGridLines).toBe("function");
+            expect(component.showGridLines()).toBe(true);
+        });
+
+        it("should initialize showAxisLabels input signal with default value true", (): void => {
+            expect(component.showAxisLabels).toBeDefined();
+            expect(typeof component.showAxisLabels).toBe("function");
+            expect(component.showAxisLabels()).toBe(true);
+        });
+
         it("should configure chart as responsive with animations", (): void => {
             expect(component.forceChartOptions().responsive).toBe(true);
             expect(component.forceChartOptions().maintainAspectRatio).toBe(false);
@@ -165,6 +177,138 @@ describe("ForceCurveComponent", (): void => {
             await fixture.whenStable();
             expect(component.forceChartOptions().plugins?.legend?.title?.display).toBe(false);
             expect(typeof component.forceChartOptions().plugins?.datalabels?.display).toBe("function");
+        });
+    });
+
+    describe("showGridLines input signal behavior", (): void => {
+        it("should show grid lines by default", async (): Promise<void> => {
+            fixture.componentRef.setInput("handleForces", [10, 20, 15]);
+            await fixture.whenStable();
+
+            const scales = component.forceChartOptions().scales as {
+                y: { grid: { display: boolean } };
+            };
+            expect(scales.y.grid.display).toBe(true);
+        });
+
+        it("should hide grid lines when showGridLines is false", async (): Promise<void> => {
+            fixture.componentRef.setInput("handleForces", [10, 20, 15]);
+            fixture.componentRef.setInput("showGridLines", false);
+            await fixture.whenStable();
+
+            const scales = component.forceChartOptions().scales as {
+                y: { grid: { display: boolean } };
+            };
+            expect(scales.y.grid.display).toBe(false);
+        });
+
+        it("should update grid lines when showGridLines changes", async (): Promise<void> => {
+            fixture.componentRef.setInput("handleForces", [10, 20, 15]);
+            fixture.componentRef.setInput("showGridLines", true);
+            await fixture.whenStable();
+
+            let scales = component.forceChartOptions().scales as {
+                y: { grid: { display: boolean } };
+            };
+            expect(scales.y.grid.display).toBe(true);
+
+            fixture.componentRef.setInput("showGridLines", false);
+            await fixture.whenStable();
+
+            scales = component.forceChartOptions().scales as {
+                y: { grid: { display: boolean } };
+            };
+            expect(scales.y.grid.display).toBe(false);
+        });
+    });
+
+    describe("showAxisLabels input signal behavior", (): void => {
+        it("should show axis labels by default", async (): Promise<void> => {
+            fixture.componentRef.setInput("handleForces", [10, 20, 15]);
+            await fixture.whenStable();
+
+            const scales = component.forceChartOptions().scales as {
+                y: { ticks: { display: boolean } };
+            };
+            expect(scales.y.ticks.display).toBe(true);
+        });
+
+        it("should hide axis labels when showAxisLabels is false", async (): Promise<void> => {
+            fixture.componentRef.setInput("handleForces", [10, 20, 15]);
+            fixture.componentRef.setInput("showAxisLabels", false);
+            await fixture.whenStable();
+
+            const scales = component.forceChartOptions().scales as {
+                y: { ticks: { display: boolean } };
+            };
+            expect(scales.y.ticks.display).toBe(false);
+        });
+
+        it("should update axis labels when showAxisLabels changes", async (): Promise<void> => {
+            fixture.componentRef.setInput("handleForces", [10, 20, 15]);
+            fixture.componentRef.setInput("showAxisLabels", true);
+            await fixture.whenStable();
+
+            let scales = component.forceChartOptions().scales as {
+                y: { ticks: { display: boolean } };
+            };
+            expect(scales.y.ticks.display).toBe(true);
+
+            fixture.componentRef.setInput("showAxisLabels", false);
+            await fixture.whenStable();
+
+            scales = component.forceChartOptions().scales as {
+                y: { ticks: { display: boolean } };
+            };
+            expect(scales.y.ticks.display).toBe(false);
+        });
+    });
+
+    describe("y-axis border behavior", (): void => {
+        it("should show border by default when both grid and labels are true", async (): Promise<void> => {
+            fixture.componentRef.setInput("handleForces", [10, 20, 15]);
+            await fixture.whenStable();
+
+            const scales = component.forceChartOptions().scales as {
+                y: { border: { display: boolean } };
+            };
+            expect(scales.y.border.display).toBe(true);
+        });
+
+        it("should show border when showAxisLabels is true and showGridLines is false", async (): Promise<void> => {
+            fixture.componentRef.setInput("handleForces", [10, 20, 15]);
+            fixture.componentRef.setInput("showAxisLabels", true);
+            fixture.componentRef.setInput("showGridLines", false);
+            await fixture.whenStable();
+
+            const scales = component.forceChartOptions().scales as {
+                y: { border: { display: boolean } };
+            };
+            expect(scales.y.border.display).toBe(true);
+        });
+
+        it("should show border when showGridLines is true and showAxisLabels is false", async (): Promise<void> => {
+            fixture.componentRef.setInput("handleForces", [10, 20, 15]);
+            fixture.componentRef.setInput("showAxisLabels", false);
+            fixture.componentRef.setInput("showGridLines", true);
+            await fixture.whenStable();
+
+            const scales = component.forceChartOptions().scales as {
+                y: { border: { display: boolean } };
+            };
+            expect(scales.y.border.display).toBe(true);
+        });
+
+        it("should hide border when both showAxisLabels and showGridLines are false", async (): Promise<void> => {
+            fixture.componentRef.setInput("handleForces", [10, 20, 15]);
+            fixture.componentRef.setInput("showAxisLabels", false);
+            fixture.componentRef.setInput("showGridLines", false);
+            await fixture.whenStable();
+
+            const scales = component.forceChartOptions().scales as {
+                y: { border: { display: boolean } };
+            };
+            expect(scales.y.border.display).toBe(false);
         });
     });
 

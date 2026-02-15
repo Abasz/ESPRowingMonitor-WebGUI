@@ -24,7 +24,13 @@ import { MatTab, MatTabGroup } from "@angular/material/tabs";
 import { firstValueFrom, map, Observable } from "rxjs";
 
 import { IDeviceInformation } from "../../common/ble.interfaces";
-import { HeartRateMonitorMode, IErgConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
+import {
+    HeartRateMonitorMode,
+    IDisplayForceCurveConfig,
+    IErgConnectionStatus,
+    IRowerSettings,
+    UnitSystem,
+} from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
@@ -249,18 +255,15 @@ export class SettingsDialogComponent {
         const displaySettingsForm = this.displaySettings().getForm();
 
         if (displaySettingsForm.dirty) {
-            const displayConfig = this.configManager.getGroup("display");
+            const {
+                unitSystem,
+                ...forceCurveSettings
+            }: { unitSystem: UnitSystem } & IDisplayForceCurveConfig = displaySettingsForm.getRawValue();
 
-            if (displaySettingsForm.controls.showPeakForceInTitle.dirty) {
-                displayConfig.forceCurve.showPeakForceInTitle =
-                    displaySettingsForm.controls.showPeakForceInTitle.value;
-            }
-
-            if (displaySettingsForm.controls.unitSystem.dirty) {
-                displayConfig.general.unitSystem = displaySettingsForm.controls.unitSystem.value;
-            }
-
-            this.configManager.setGroup("display", displayConfig);
+            this.configManager.setGroup("display", {
+                general: { unitSystem },
+                forceCurve: forceCurveSettings,
+            });
         }
     }
 

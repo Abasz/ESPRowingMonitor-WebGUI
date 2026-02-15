@@ -146,6 +146,8 @@ describe("DashboardComponent", (): void => {
             expect(component.heartRateData()).toBeUndefined();
             expect(component.rowingData()).toEqual(mockInitialMetrics);
             expect(component.displayConfig().forceCurve.showPeakForceInTitle).toBe(true);
+            expect(component.displayConfig().forceCurve.showGridLines).toBe(true);
+            expect(component.displayConfig().forceCurve.showAxisLabels).toBe(true);
             expect(component.displayConfig().general.unitSystem).toBe("metric");
         });
     });
@@ -171,6 +173,48 @@ describe("DashboardComponent", (): void => {
 
             expect(component.displayConfig().forceCurve.showPeakForceInTitle).toBe(false);
             expect(component.displayConfig().general.unitSystem).toBe("imperial");
+        });
+    });
+
+    describe("showGridLines signal", (): void => {
+        it("should default to true", (): void => {
+            expect(component.displayConfig().forceCurve.showGridLines).toBe(true);
+        });
+
+        it("should reflect config updates", (): void => {
+            configSubject.next({
+                ...configSubject.value,
+                display: {
+                    ...configSubject.value.display,
+                    forceCurve: {
+                        ...configSubject.value.display.forceCurve,
+                        showGridLines: false,
+                    },
+                },
+            });
+
+            expect(component.displayConfig().forceCurve.showGridLines).toBe(false);
+        });
+    });
+
+    describe("showAxisLabels signal", (): void => {
+        it("should default to true", (): void => {
+            expect(component.displayConfig().forceCurve.showAxisLabels).toBe(true);
+        });
+
+        it("should reflect config updates", (): void => {
+            configSubject.next({
+                ...configSubject.value,
+                display: {
+                    ...configSubject.value.display,
+                    forceCurve: {
+                        ...configSubject.value.display.forceCurve,
+                        showAxisLabels: false,
+                    },
+                },
+            });
+
+            expect(component.displayConfig().forceCurve.showAxisLabels).toBe(false);
         });
     });
 

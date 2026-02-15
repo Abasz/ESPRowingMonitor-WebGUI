@@ -41,6 +41,8 @@ import { BaseChartDirective, provideCharts } from "ng2-charts";
 export class ForceCurveComponent {
     readonly handleForces: InputSignal<Array<number>> = input.required<Array<number>>();
     readonly showPeakInTitle: InputSignal<boolean> = input(true);
+    readonly showGridLines: InputSignal<boolean> = input(true);
+    readonly showAxisLabels: InputSignal<boolean> = input(true);
 
     readonly forceChartOptions: Signal<ChartOptions<"line">>;
     readonly handleForcesChart: Signal<ChartConfiguration<"line">["data"]>;
@@ -125,13 +127,27 @@ export class ForceCurveComponent {
         this.forceChartOptions = computed((): ChartOptions<"line"> => {
             const shouldShowPeakInTitle = this.showPeakInTitle();
             const handleForcesData = this.handleForces();
+            const shouldShowGridLines = this.showGridLines();
+            const shouldShowAxisLabels = this.showAxisLabels();
 
             if (
                 this._forceChartOptions.plugins?.legend?.title === undefined ||
-                this._forceChartOptions.plugins?.datalabels === undefined
+                this._forceChartOptions.plugins?.datalabels === undefined ||
+                this._forceChartOptions.scales?.y === undefined
             ) {
                 return { ...this._forceChartOptions };
             }
+
+            this._forceChartOptions.scales.y.grid = {
+                display: shouldShowGridLines,
+            };
+            this._forceChartOptions.scales.y.border = {
+                display: shouldShowAxisLabels || shouldShowGridLines,
+            };
+            this._forceChartOptions.scales.y.ticks = {
+                display: shouldShowAxisLabels,
+                color: "rgba(0,0,0)",
+            };
 
             if (handleForcesData.length === 0) {
                 this._forceChartOptions.plugins.legend.title.display = true;

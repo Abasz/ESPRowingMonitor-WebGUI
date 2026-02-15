@@ -11,6 +11,8 @@ import { ConfigManagerService } from "../../common/services/config-manager.servi
 
 type DisplaySettingsFormGroup = FormGroup<{
     showPeakForceInTitle: FormControl<boolean>;
+    showGridLines: FormControl<boolean>;
+    showAxisLabels: FormControl<boolean>;
     unitSystem: FormControl<UnitSystem>;
 }>;
 
@@ -28,6 +30,8 @@ export class DisplaySettingsComponent {
     private readonly formValueChanged: Signal<
         Partial<{
             showPeakForceInTitle: boolean;
+            showGridLines: boolean;
+            showAxisLabels: boolean;
             unitSystem: UnitSystem;
         }>
     >;
@@ -40,6 +44,8 @@ export class DisplaySettingsComponent {
 
         this.settingsForm = this.formBuilder.group({
             showPeakForceInTitle: [config.display.forceCurve.showPeakForceInTitle],
+            showGridLines: [config.display.forceCurve.showGridLines],
+            showAxisLabels: [config.display.forceCurve.showAxisLabels],
             unitSystem: [config.display.general.unitSystem],
         });
 

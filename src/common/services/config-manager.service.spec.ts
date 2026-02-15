@@ -2,12 +2,48 @@ import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Config, HeartRateMonitorMode } from "../common.interfaces";
+import { Config, HeartRateMonitorMode, UnitSystem } from "../common.interfaces";
 
 import { ConfigManagerService } from "./config-manager.service";
 
 describe("ConfigManagerService", (): void => {
     let configManagerService: ConfigManagerService;
+
+    const createMockConfig = (overrides?: {
+        heartRateMonitor?: HeartRateMonitorMode;
+        heartRateBleId?: string;
+        ergoMonitorBleId?: string;
+        showPeakForceInTitle?: boolean;
+        unitSystem?: UnitSystem;
+    }): Config => {
+        const defaults = {
+            heartRateMonitor: "off" as HeartRateMonitorMode,
+            heartRateBleId: "",
+            ergoMonitorBleId: "",
+            showPeakForceInTitle: true,
+            unitSystem: "metric" as UnitSystem,
+        };
+
+        const merged = { ...defaults, ...overrides };
+
+        return {
+            general: {
+                heartRateMonitor: merged.heartRateMonitor,
+                heartRateBleId: merged.heartRateBleId,
+                ergoMonitorBleId: merged.ergoMonitorBleId,
+            },
+            display: {
+                general: {
+                    unitSystem: merged.unitSystem,
+                },
+                forceCurve: {
+                    showPeakForceInTitle: merged.showPeakForceInTitle,
+                    showGridLines: true,
+                    showAxisLabels: true,
+                },
+            },
+        };
+    };
 
     const withSecureContextAndBluetooth = (): void => {
         vi.spyOn(globalThis, "isSecureContext", "get").mockReturnValue(true);
@@ -52,21 +88,12 @@ describe("ConfigManagerService", (): void => {
         it("should initialize config from localStorage when secure and bluetooth is available", (): void => {
             withSecureContextAndBluetooth();
 
-            const storedConfig: Config = {
-                general: {
-                    heartRateMonitor: "ble",
-                    heartRateBleId: "hr-123",
-                    ergoMonitorBleId: "erg-456",
-                },
-                display: {
-                    general: {
-                        unitSystem: "metric",
-                    },
-                    forceCurve: {
-                        showPeakForceInTitle: false,
-                    },
-                },
-            };
+            const storedConfig: Config = createMockConfig({
+                heartRateMonitor: "ble",
+                heartRateBleId: "hr-123",
+                ergoMonitorBleId: "erg-456",
+                showPeakForceInTitle: false,
+            });
 
             const getItemSpy = vi
                 .spyOn(Storage.prototype, "getItem")
@@ -237,21 +264,7 @@ describe("ConfigManagerService", (): void => {
 
         it("should preserve stored unitSystem value via deep merge", (): void => {
             withSecureContextAndBluetooth();
-            const storedConfig = {
-                general: {
-                    ergoMonitorBleId: "",
-                    heartRateBleId: "",
-                    heartRateMonitor: "off",
-                },
-                display: {
-                    general: {
-                        unitSystem: "imperial",
-                    },
-                    forceCurve: {
-                        showPeakForceInTitle: true,
-                    },
-                },
-            };
+            const storedConfig = createMockConfig({ unitSystem: "imperial" });
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
                 return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
             });
@@ -263,21 +276,7 @@ describe("ConfigManagerService", (): void => {
 
         it("should return stored boolean false value", (): void => {
             withSecureContextAndBluetooth();
-            const storedConfig: Config = {
-                general: {
-                    heartRateMonitor: "off",
-                    heartRateBleId: "",
-                    ergoMonitorBleId: "",
-                },
-                display: {
-                    general: {
-                        unitSystem: "metric",
-                    },
-                    forceCurve: {
-                        showPeakForceInTitle: false,
-                    },
-                },
-            };
+            const storedConfig: Config = createMockConfig({ showPeakForceInTitle: false });
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
                 return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
             });
@@ -292,21 +291,7 @@ describe("ConfigManagerService", (): void => {
 
         it("should return stored boolean true value", (): void => {
             withSecureContextAndBluetooth();
-            const storedConfig: Config = {
-                general: {
-                    heartRateMonitor: "off",
-                    heartRateBleId: "",
-                    ergoMonitorBleId: "",
-                },
-                display: {
-                    general: {
-                        unitSystem: "metric",
-                    },
-                    forceCurve: {
-                        showPeakForceInTitle: true,
-                    },
-                },
-            };
+            const storedConfig: Config = createMockConfig();
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
                 return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
             });
@@ -351,21 +336,7 @@ describe("ConfigManagerService", (): void => {
     describe("getGroup method", (): void => {
         it("should return the value for a given group", (): void => {
             withSecureContextAndBluetooth();
-            const storedConfig: Config = {
-                general: {
-                    heartRateMonitor: "ant",
-                    heartRateBleId: "",
-                    ergoMonitorBleId: "",
-                },
-                display: {
-                    general: {
-                        unitSystem: "metric",
-                    },
-                    forceCurve: {
-                        showPeakForceInTitle: true,
-                    },
-                },
-            };
+            const storedConfig: Config = createMockConfig({ heartRateMonitor: "ant" });
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
                 return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
             });

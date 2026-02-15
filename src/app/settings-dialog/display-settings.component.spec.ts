@@ -48,6 +48,16 @@ describe("DisplaySettingsComponent", (): void => {
             expect(mockConfigManager.getConfig).toHaveBeenCalled();
         });
 
+        it("should initialize showGridLines from config", (): void => {
+            expect(component.settingsForm.controls.showGridLines.value).toBe(true);
+            expect(mockConfigManager.getConfig).toHaveBeenCalled();
+        });
+
+        it("should initialize showAxisLabels from config", (): void => {
+            expect(component.settingsForm.controls.showAxisLabels.value).toBe(true);
+            expect(mockConfigManager.getConfig).toHaveBeenCalled();
+        });
+
         it("should initialize showPeakForceInTitle unchecked when config is false", (): void => {
             vi.mocked(mockConfigManager.getConfig).mockReturnValue(
                 createMockConfig({

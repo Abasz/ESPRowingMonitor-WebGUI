@@ -57,6 +57,8 @@ export interface IDisplayGeneralConfig {
 
 export interface IDisplayForceCurveConfig {
     showPeakForceInTitle: boolean;
+    showGridLines: boolean;
+    showAxisLabels: boolean;
 }
 
 export interface IDisplayConfig {
@@ -77,6 +79,8 @@ export class Config {
         },
         forceCurve: {
             showPeakForceInTitle: true,
+            showGridLines: true,
+            showAxisLabels: true,
         },
     };
 }

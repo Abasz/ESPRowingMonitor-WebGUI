@@ -46,6 +46,14 @@ export interface IMockDisplayForm {
             dirty: boolean;
             value: boolean;
         };
+        showGridLines: {
+            dirty: boolean;
+            value: boolean;
+        };
+        showAxisLabels: {
+            dirty: boolean;
+            value: boolean;
+        };
         unitSystem: {
             dirty: boolean;
             value: string;
@@ -53,6 +61,14 @@ export interface IMockDisplayForm {
     };
     value: {
         showPeakForceInTitle: boolean;
+        showGridLines: boolean;
+        showAxisLabels: boolean;
+        unitSystem: string;
+    };
+    getRawValue: () => {
+        showPeakForceInTitle: boolean;
+        showGridLines: boolean;
+        showAxisLabels: boolean;
         unitSystem: string;
     };
 }
@@ -79,6 +95,8 @@ export const createMockConfig: (overrides?: DeepPartial<Config>) => Config = (
             },
             forceCurve: {
                 showPeakForceInTitle: true,
+                showGridLines: true,
+                showAxisLabels: true,
             },
         },
     };
@@ -255,6 +273,14 @@ export const createMockDisplayForm: (dirty?: boolean, value?: boolean) => IMockD
                 dirty,
                 value,
             },
+            showGridLines: {
+                dirty,
+                value: true,
+            },
+            showAxisLabels: {
+                dirty,
+                value: true,
+            },
             unitSystem: {
                 dirty,
                 value: "metric",
@@ -262,7 +288,17 @@ export const createMockDisplayForm: (dirty?: boolean, value?: boolean) => IMockD
         },
         value: {
             showPeakForceInTitle: value,
+            showGridLines: true,
+            showAxisLabels: true,
             unitSystem: "metric",
+        },
+        getRawValue(): {
+            showPeakForceInTitle: boolean;
+            showGridLines: boolean;
+            showAxisLabels: boolean;
+            unitSystem: string;
+        } {
+            return this.value;
         },
     };
 };
