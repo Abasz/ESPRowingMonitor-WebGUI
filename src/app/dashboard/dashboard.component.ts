@@ -17,6 +17,8 @@ import { ErgConnectionService } from "../../common/services/ergometer/erg-connec
 import { MetricsService } from "../../common/services/metrics.service";
 import { UtilsService } from "../../common/services/utils.service";
 import { BatteryLevelPipe } from "../../common/utils/battery-level.pipe";
+import { MetersToFeetPipe } from "../../common/utils/meters-to-feet.pipe";
+import { MetersToMilesPipe } from "../../common/utils/meters-to-miles.pipe";
 import { RoundNumberPipe } from "../../common/utils/round-number.pipe";
 import { SecondsToTimePipe } from "../../common/utils/seconds-to-time.pipe";
 
@@ -38,6 +40,8 @@ import { SettingsBarComponent } from "./settings-bar/settings-bar.component";
         SecondsToTimePipe,
         RoundNumberPipe,
         BatteryLevelPipe,
+        MetersToMilesPipe,
+        MetersToFeetPipe,
     ],
 })
 export class DashboardComponent implements AfterViewInit, OnDestroy {

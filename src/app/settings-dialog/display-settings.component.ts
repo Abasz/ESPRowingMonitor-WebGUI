@@ -2,12 +2,16 @@ import { ChangeDetectionStrategy, Component, effect, output, OutputEmitterRef, S
 import { toSignal } from "@angular/core/rxjs-interop";
 import { FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule } from "@angular/forms";
 import { MatCheckbox } from "@angular/material/checkbox";
+import { MatDivider } from "@angular/material/divider";
+import { MatRadioButton, MatRadioGroup } from "@angular/material/radio";
 import { startWith } from "rxjs";
 
+import { UnitSystem } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 
 type DisplaySettingsFormGroup = FormGroup<{
     showPeakForceInTitle: FormControl<boolean>;
+    unitSystem: FormControl<UnitSystem>;
 }>;
 
 @Component({
@@ -15,7 +19,7 @@ type DisplaySettingsFormGroup = FormGroup<{
     templateUrl: "./display-settings.component.html",
     styleUrls: ["./display-settings.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [ReactiveFormsModule, MatCheckbox],
+    imports: [ReactiveFormsModule, MatCheckbox, MatDivider, MatRadioGroup, MatRadioButton],
 })
 export class DisplaySettingsComponent {
     readonly isFormValidChange: OutputEmitterRef<boolean> = output<boolean>();
@@ -24,6 +28,7 @@ export class DisplaySettingsComponent {
     private readonly formValueChanged: Signal<
         Partial<{
             showPeakForceInTitle: boolean;
+            unitSystem: UnitSystem;
         }>
     >;
 
@@ -33,6 +38,7 @@ export class DisplaySettingsComponent {
     ) {
         this.settingsForm = this.formBuilder.group({
             showPeakForceInTitle: [this.configManager.getItem("display", "showPeakForceInTitle")],
+            unitSystem: [this.configManager.getItem("display", "unitSystem")],
         });
 
         this.formValueChanged = toSignal(

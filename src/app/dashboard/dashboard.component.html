@@ -3,8 +3,12 @@
     <app-metric
         title="Distance"
         icon="distance"
-        [value]="(rowingData().distance / 100 | number: '0.0-0') ?? '--'"
-        unit="m"
+        [value]="
+            displayConfig().unitSystem === 'imperial'
+                ? ((rowingData().distance / 100 | metersToMiles | number: '0.0-2') ?? '--')
+                : ((rowingData().distance / 100 | number: '0.0-0') ?? '--')
+        "
+        [unit]="displayConfig().unitSystem === 'imperial' ? 'mi' : 'm'"
     ></app-metric>
     <app-metric
         title="Pace"
@@ -32,8 +36,12 @@
     <app-metric
         title="Distance per stroke"
         icon="route"
-        [value]="(rowingData().distPerStroke | number: '0.0-1') ?? '--'"
-        unit="m/stk"
+        [value]="
+            displayConfig().unitSystem === 'imperial'
+                ? ((rowingData().distPerStroke | metersToFeet | number: '0.0-1') ?? '--')
+                : ((rowingData().distPerStroke | number: '0.0-1') ?? '--')
+        "
+        [unit]="displayConfig().unitSystem === 'imperial' ? 'ft/stk' : 'm/stk'"
     ></app-metric>
     <app-metric title="Total Strokes" unit="stk" [value]="rowingData().strokeCount"></app-metric>
     <app-metric title="Drag Factor" [value]="rowingData().dragFactor | roundNumber"></app-metric>

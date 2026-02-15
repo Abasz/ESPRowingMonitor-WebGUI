@@ -60,6 +60,7 @@ describe("ConfigManagerService", (): void => {
                 },
                 display: {
                     showPeakForceInTitle: false,
+                    unitSystem: "metric",
                 },
             };
 
@@ -211,6 +212,37 @@ describe("ConfigManagerService", (): void => {
             expect(configManagerService.getItem("display", "showPeakForceInTitle")).toBe(true);
         });
 
+        it("should default unitSystem to metric when no value is stored", (): void => {
+            withSecureContextAndBluetooth();
+            vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            expect(configManagerService.getItem("display", "unitSystem")).toBe("metric");
+        });
+
+        it("should preserve stored unitSystem value via deep merge", (): void => {
+            withSecureContextAndBluetooth();
+            const storedConfig = {
+                general: {
+                    ergoMonitorBleId: "",
+                    heartRateBleId: "",
+                    heartRateMonitor: "off",
+                },
+                display: {
+                    showPeakForceInTitle: true,
+                    unitSystem: "imperial",
+                },
+            };
+            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
+                return key === "config" ? JSON.stringify(storedConfig) : null;
+            });
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            expect(configManagerService.getItem("display", "unitSystem")).toBe("imperial");
+        });
+
         it("should return stored boolean false value", (): void => {
             withSecureContextAndBluetooth();
             const storedConfig: Config = {
@@ -221,6 +253,7 @@ describe("ConfigManagerService", (): void => {
                 },
                 display: {
                     showPeakForceInTitle: false,
+                    unitSystem: "metric",
                 },
             };
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
@@ -243,6 +276,7 @@ describe("ConfigManagerService", (): void => {
                 },
                 display: {
                     showPeakForceInTitle: true,
+                    unitSystem: "metric",
                 },
             };
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
@@ -293,6 +327,7 @@ describe("ConfigManagerService", (): void => {
                 },
                 display: {
                     showPeakForceInTitle: true,
+                    unitSystem: "metric",
                 },
             };
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {

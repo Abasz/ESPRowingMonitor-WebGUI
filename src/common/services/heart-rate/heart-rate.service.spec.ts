@@ -58,6 +58,7 @@ describe("HeartRateService", (): void => {
             },
             display: {
                 showPeakForceInTitle: true,
+                unitSystem: "metric",
             },
         });
 
@@ -417,6 +418,7 @@ describe("HeartRateService", (): void => {
                     },
                     display: {
                         showPeakForceInTitle: true,
+                        unitSystem: "metric",
                     },
                 });
                 vi.mocked(mockBleHeartRateService.discover).mockResolvedValue();
@@ -450,6 +452,7 @@ describe("HeartRateService", (): void => {
                     },
                     display: {
                         showPeakForceInTitle: true,
+                        unitSystem: "metric",
                     },
                 });
                 vi.mocked(mockAntHeartRateService.discover).mockResolvedValue();
@@ -483,6 +486,7 @@ describe("HeartRateService", (): void => {
                     },
                     display: {
                         showPeakForceInTitle: true,
+                        unitSystem: "metric",
                     },
                 });
             });
@@ -505,6 +509,7 @@ describe("HeartRateService", (): void => {
                     },
                     display: {
                         showPeakForceInTitle: true,
+                        unitSystem: "metric",
                     },
                 });
             });
@@ -1030,6 +1035,7 @@ describe("HeartRateService", (): void => {
                     },
                     display: {
                         showPeakForceInTitle: true,
+                        unitSystem: "metric",
                     },
                 });
                 vi.mocked(mockBleHeartRateService.discover).mockRejectedValue(error);
@@ -1047,6 +1053,7 @@ describe("HeartRateService", (): void => {
                     },
                     display: {
                         showPeakForceInTitle: true,
+                        unitSystem: "metric",
                     },
                 });
                 vi.mocked(mockAntHeartRateService.discover).mockRejectedValue(error);

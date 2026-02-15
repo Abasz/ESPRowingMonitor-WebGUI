@@ -1,5 +1,14 @@
 <div class="tab-content">
     <form [formGroup]="settingsForm" novalidate class="flex-col">
+        <h4>General</h4>
+        <div class="units-container">
+            <label>Units:</label>
+            <mat-radio-group formControlName="unitSystem">
+                <mat-radio-button value="metric">Metric</mat-radio-button>
+                <mat-radio-button value="imperial">Imperial</mat-radio-button>
+            </mat-radio-group>
+        </div>
+        <mat-divider></mat-divider>
         <h4>Force Curve</h4>
         <mat-checkbox formControlName="showPeakForceInTitle">Show peak force in title</mat-checkbox>
     </form>

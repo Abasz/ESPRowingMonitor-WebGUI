@@ -2,6 +2,7 @@ import { HarnessLoader } from "@angular/cdk/testing";
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatCheckboxHarness } from "@angular/material/checkbox/testing";
+import { MatRadioGroupHarness } from "@angular/material/radio/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConfigManagerService } from "../../common/services/config-manager.service";
@@ -16,7 +17,13 @@ describe("DisplaySettingsComponent", (): void => {
 
     beforeEach(async (): Promise<void> => {
         mockConfigManager = {
-            getItem: vi.fn().mockReturnValue(true),
+            getItem: vi.fn().mockImplementation((_group: string, key: string): boolean | string => {
+                if (key === "unitSystem") {
+                    return "metric";
+                }
+
+                return true;
+            }),
         };
 
         await TestBed.configureTestingModule({
@@ -36,13 +43,26 @@ describe("DisplaySettingsComponent", (): void => {
     });
 
     describe("as part of form initialization", (): void => {
-        it("should initialize from config", (): void => {
+        it("should initialize showPeakForceInTitle from config", (): void => {
             expect(component.settingsForm.controls.showPeakForceInTitle.value).toBe(true);
             expect(mockConfigManager.getItem).toHaveBeenCalledWith("display", "showPeakForceInTitle");
         });
 
-        it("should initialize unchecked when config is false", (): void => {
-            vi.mocked(mockConfigManager.getItem).mockReturnValue(false);
+        it("should initialize unitSystem from config", (): void => {
+            expect(component.settingsForm.controls.unitSystem.value).toBe("metric");
+            expect(mockConfigManager.getItem).toHaveBeenCalledWith("display", "unitSystem");
+        });
+
+        it("should initialize showPeakForceInTitle unchecked when config is false", (): void => {
+            vi.mocked(mockConfigManager.getItem).mockImplementation(
+                (_group: string, key: string): boolean | string => {
+                    if (key === "unitSystem") {
+                        return "metric";
+                    }
+
+                    return false;
+                },
+            );
 
             const localFixture = TestBed.createComponent(DisplaySettingsComponent);
             const localComponent = localFixture.componentInstance;
@@ -50,13 +70,21 @@ describe("DisplaySettingsComponent", (): void => {
             expect(localComponent.settingsForm.controls.showPeakForceInTitle.value).toBe(false);
         });
 
-        it("should initialize unchecked when config is true", (): void => {
-            vi.mocked(mockConfigManager.getItem).mockReturnValue(true);
+        it("should initialize unitSystem to imperial when config is imperial", (): void => {
+            vi.mocked(mockConfigManager.getItem).mockImplementation(
+                (_group: string, key: string): boolean | string => {
+                    if (key === "unitSystem") {
+                        return "imperial";
+                    }
+
+                    return true;
+                },
+            );
 
             const localFixture = TestBed.createComponent(DisplaySettingsComponent);
             const localComponent = localFixture.componentInstance;
 
-            expect(localComponent.settingsForm.controls.showPeakForceInTitle.value).toBe(true);
+            expect(localComponent.settingsForm.controls.unitSystem.value).toBe("imperial");
         });
     });
 
@@ -66,15 +94,33 @@ describe("DisplaySettingsComponent", (): void => {
 
             expect(checkbox).toBeTruthy();
         });
+
+        it("should render the unit system radio group", async (): Promise<void> => {
+            const radioGroup = await loader.getHarness(MatRadioGroupHarness);
+
+            expect(await radioGroup.getRadioButtons()).toHaveLength(2);
+        });
     });
 
     describe("form validation and state", (): void => {
-        it("should mark the form as dirty when toggled", async (): Promise<void> => {
+        it("should mark the form as dirty when checkbox is toggled", async (): Promise<void> => {
             const checkbox = await loader.getHarness(MatCheckboxHarness);
 
             expect(component.settingsForm.dirty).toBe(false);
 
             await checkbox.toggle();
+
+            expect(component.settingsForm.dirty).toBe(true);
+        });
+
+        it("should mark the form as dirty when unit system is changed", async (): Promise<void> => {
+            const radioGroup = await loader.getHarness(MatRadioGroupHarness);
+
+            expect(component.settingsForm.dirty).toBe(false);
+
+            const radioButtons = await radioGroup.getRadioButtons();
+            await radioButtons[1].check();
+            fixture.detectChanges();
 
             expect(component.settingsForm.dirty).toBe(true);
         });

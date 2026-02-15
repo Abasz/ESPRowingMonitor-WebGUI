@@ -257,6 +257,14 @@ export class SettingsDialogComponent {
                 displaySettingsForm.controls.showPeakForceInTitle.value,
             );
         }
+
+        if (displaySettingsForm.controls.unitSystem.dirty) {
+            this.configManager.setItem(
+                "display",
+                "unitSystem",
+                displaySettingsForm.controls.unitSystem.value,
+            );
+        }
     }
 
     private async saveCurrentTabSettings(currentTabIndex: number): Promise<void> {

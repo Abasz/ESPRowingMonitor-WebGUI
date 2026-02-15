@@ -4,4 +4,30 @@
 
 h4 {
     margin: 0px 0px 8px;
+
+    &:not(:first-child) {
+        margin-top: 8px;
+    }
+}
+
+mat-divider {
+    margin: 16px 0px;
+}
+
+.units-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+
+    label {
+        font-weight: 500;
+        color: rgba(0, 0, 0, 0.87);
+    }
+
+    mat-radio-group {
+        display: flex;
+        gap: 16px;
+        flex-wrap: nowrap;
+    }
 }

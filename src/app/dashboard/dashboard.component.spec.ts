@@ -146,6 +146,7 @@ describe("DashboardComponent", (): void => {
             expect(component.heartRateData()).toBeUndefined();
             expect(component.rowingData()).toEqual(mockInitialMetrics);
             expect(component.displayConfig().showPeakForceInTitle).toBe(true);
+            expect(component.displayConfig().unitSystem).toBe("metric");
         });
     });
 
@@ -158,10 +159,12 @@ describe("DashboardComponent", (): void => {
                 display: {
                     ...configSubject.value.display,
                     showPeakForceInTitle: false,
+                    unitSystem: "imperial",
                 },
             });
 
             expect(component.displayConfig().showPeakForceInTitle).toBe(false);
+            expect(component.displayConfig().unitSystem).toBe("imperial");
         });
     });
 

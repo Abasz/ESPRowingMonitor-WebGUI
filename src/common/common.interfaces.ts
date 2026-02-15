@@ -43,6 +43,7 @@ export interface IMediaQuery {
 // configuration
 
 export type HeartRateMonitorMode = "ant" | "ble" | "off";
+export type UnitSystem = "metric" | "imperial";
 
 export interface IGeneralConfig {
     ergoMonitorBleId: string;
@@ -52,6 +53,7 @@ export interface IGeneralConfig {
 
 export interface IDisplayConfig {
     showPeakForceInTitle: boolean;
+    unitSystem: UnitSystem;
 }
 
 export class Config {
@@ -63,6 +65,7 @@ export class Config {
 
     display: IDisplayConfig = {
         showPeakForceInTitle: true,
+        unitSystem: "metric",
     };
 }
 

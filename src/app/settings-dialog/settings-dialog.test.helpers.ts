@@ -41,9 +41,14 @@ export interface IMockDisplayForm {
             dirty: boolean;
             value: boolean;
         };
+        unitSystem: {
+            dirty: boolean;
+            value: string;
+        };
     };
     value: {
         showPeakForceInTitle: boolean;
+        unitSystem: string;
     };
 }
 
@@ -175,9 +180,14 @@ export const createMockDisplayForm: (dirty?: boolean, value?: boolean) => IMockD
                 dirty,
                 value,
             },
+            unitSystem: {
+                dirty,
+                value: "metric",
+            },
         },
         value: {
             showPeakForceInTitle: value,
+            unitSystem: "metric",
         },
     };
 };
