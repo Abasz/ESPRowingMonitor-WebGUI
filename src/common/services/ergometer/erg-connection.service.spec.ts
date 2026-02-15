@@ -34,7 +34,7 @@ import { ErgConnectionService } from "./erg-connection.service";
 describe("ErgConnectionService", (): void => {
     let ergConnectionService: ErgConnectionService;
     let matSnackBarSpy: Pick<MatSnackBar, "open">;
-    let configManagerServiceSpy: Pick<ConfigManagerService, "getItem" | "setItem">;
+    let configManagerServiceSpy: Pick<ConfigManagerService, "getGroup" | "setGroup">;
     let mockBluetoothDevice: BluetoothDevice;
     let mockBluetooth: Bluetooth | undefined;
     let createDisconnectChangedListenerReady: () => Promise<ListenerTrigger<void>>;
@@ -84,11 +84,15 @@ describe("ErgConnectionService", (): void => {
             open: vi.fn(),
         };
         configManagerServiceSpy = {
-            getItem: vi.fn(),
-            setItem: vi.fn(),
+            getGroup: vi.fn(),
+            setGroup: vi.fn(),
         };
 
-        vi.mocked(configManagerServiceSpy.getItem).mockReturnValue("mock-device-id");
+        vi.mocked(configManagerServiceSpy.getGroup).mockReturnValue({
+            ergoMonitorBleId: "mock-device-id",
+            heartRateBleId: "",
+            heartRateMonitor: "off",
+        });
 
         vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
 
@@ -429,10 +433,11 @@ describe("ErgConnectionService", (): void => {
             it("should save device id in config", async (): Promise<void> => {
                 await ergConnectionService.discover();
 
-                expect(configManagerServiceSpy.setItem).toHaveBeenCalledWith(
+                expect(configManagerServiceSpy.setGroup).toHaveBeenCalledWith(
                     "general",
-                    "ergoMonitorBleId",
-                    mockBluetoothDevice.id,
+                    expect.objectContaining({
+                        ergoMonitorBleId: mockBluetoothDevice.id,
+                    }),
                 );
             });
 

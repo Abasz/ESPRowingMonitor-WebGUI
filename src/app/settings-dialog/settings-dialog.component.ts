@@ -211,11 +211,9 @@ export class SettingsDialogComponent {
         }
 
         if (settingsForm.controls.heartRateMonitor.dirty) {
-            this.configManager.setItem(
-                "general",
-                "heartRateMonitor",
-                settingsForm.value.heartRateMonitor as HeartRateMonitorMode,
-            );
+            const generalConfig = this.configManager.getGroup("general");
+            generalConfig.heartRateMonitor = settingsForm.value.heartRateMonitor as HeartRateMonitorMode;
+            this.configManager.setGroup("general", generalConfig);
         }
     }
 
@@ -250,20 +248,19 @@ export class SettingsDialogComponent {
     private saveDisplaySettings(): void {
         const displaySettingsForm = this.displaySettings().getForm();
 
-        if (displaySettingsForm.controls.showPeakForceInTitle.dirty) {
-            this.configManager.setItem(
-                "display",
-                "showPeakForceInTitle",
-                displaySettingsForm.controls.showPeakForceInTitle.value,
-            );
-        }
+        if (displaySettingsForm.dirty) {
+            const displayConfig = this.configManager.getGroup("display");
 
-        if (displaySettingsForm.controls.unitSystem.dirty) {
-            this.configManager.setItem(
-                "display",
-                "unitSystem",
-                displaySettingsForm.controls.unitSystem.value,
-            );
+            if (displaySettingsForm.controls.showPeakForceInTitle.dirty) {
+                displayConfig.forceCurve.showPeakForceInTitle =
+                    displaySettingsForm.controls.showPeakForceInTitle.value;
+            }
+
+            if (displaySettingsForm.controls.unitSystem.dirty) {
+                displayConfig.general.unitSystem = displaySettingsForm.controls.unitSystem.value;
+            }
+
+            this.configManager.setGroup("display", displayConfig);
         }
     }
 

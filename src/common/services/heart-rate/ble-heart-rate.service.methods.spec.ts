@@ -22,7 +22,7 @@ describe("BLEHeartRateService", (): void => {
     const destroySubject: Subject<void> = new Subject<void>();
 
     let service: BLEHeartRateService;
-    let mockConfigManager: Pick<ConfigManagerService, "getItem" | "setItem">;
+    let mockConfigManager: Pick<ConfigManagerService, "getGroup" | "setGroup">;
     let mockSnackBar: Pick<MatSnackBar, "open">;
     let mockBluetooth: Mock;
     let mockBluetoothDevice: BluetoothDevice;
@@ -40,8 +40,8 @@ describe("BLEHeartRateService", (): void => {
 
     beforeEach((): void => {
         mockConfigManager = {
-            getItem: vi.fn(),
-            setItem: vi.fn(),
+            getGroup: vi.fn(),
+            setGroup: vi.fn(),
         };
         mockSnackBar = {
             open: vi.fn(),
@@ -69,7 +69,11 @@ describe("BLEHeartRateService", (): void => {
         );
 
         // setup default mock returns
-        vi.mocked(mockConfigManager.getItem).mockReturnValue("test-device-id");
+        vi.mocked(mockConfigManager.getGroup).mockReturnValue({
+            heartRateBleId: "test-device-id",
+            ergoMonitorBleId: "",
+            heartRateMonitor: "off",
+        });
         vi.mocked(mockBluetoothDevice.gatt!.connect).mockResolvedValue(
             mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
         );
@@ -394,7 +398,11 @@ describe("BLEHeartRateService", (): void => {
     describe("reconnect method", (): void => {
         describe("when paired device exists", (): void => {
             beforeEach((): void => {
-                vi.mocked(mockConfigManager.getItem).mockReturnValue("test-device-id");
+                vi.mocked(mockConfigManager.getGroup).mockReturnValue({
+                    ergoMonitorBleId: "",
+                    heartRateBleId: "test-device-id",
+                    heartRateMonitor: "ble",
+                });
             });
 
             it("should call disconnectDevice first", async (): Promise<void> => {
@@ -408,7 +416,7 @@ describe("BLEHeartRateService", (): void => {
             it("should get stored device ID from config", async (): Promise<void> => {
                 await service.reconnect();
 
-                expect(mockConfigManager.getItem).toHaveBeenCalledWith("general", "heartRateBleId");
+                expect(mockConfigManager.getGroup).toHaveBeenCalledWith("general");
             });
 
             it("should get device by stored ID", async (): Promise<void> => {
@@ -455,7 +463,11 @@ describe("BLEHeartRateService", (): void => {
 
         describe("when no paired device exists", (): void => {
             beforeEach((): void => {
-                vi.mocked(mockConfigManager.getItem).mockReturnValue("");
+                vi.mocked(mockConfigManager.getGroup).mockReturnValue({
+                    ergoMonitorBleId: "",
+                    heartRateBleId: "",
+                    heartRateMonitor: "ble",
+                });
             });
 
             it("should return early without further action", async (): Promise<void> => {
@@ -494,7 +506,11 @@ describe("BLEHeartRateService", (): void => {
 
         describe("when watchAdvertisements fails", (): void => {
             beforeEach((): void => {
-                vi.mocked(mockConfigManager.getItem).mockReturnValue("test-device-id");
+                vi.mocked(mockConfigManager.getGroup).mockReturnValue({
+                    ergoMonitorBleId: "",
+                    heartRateBleId: "test-device-id",
+                    heartRateMonitor: "ble",
+                });
                 vi.mocked(navigator.bluetooth.getDevices).mockResolvedValue([mockBluetoothDevice]);
                 vi.mocked(mockBluetoothDevice.watchAdvertisements).mockRejectedValueOnce(
                     new Error("Advertisement failed"),
@@ -516,7 +532,11 @@ describe("BLEHeartRateService", (): void => {
 
         describe("when document visibility changes", (): void => {
             beforeEach((): void => {
-                vi.mocked(mockConfigManager.getItem).mockReturnValue("test-device-id");
+                vi.mocked(mockConfigManager.getGroup).mockReturnValue({
+                    ergoMonitorBleId: "",
+                    heartRateBleId: "test-device-id",
+                    heartRateMonitor: "ble",
+                });
                 vi.mocked(navigator.bluetooth.getDevices).mockResolvedValue([mockBluetoothDevice]);
                 vi.mocked(mockBluetoothDevice.watchAdvertisements).mockResolvedValue(undefined);
             });

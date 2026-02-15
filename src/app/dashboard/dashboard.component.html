@@ -4,11 +4,11 @@
         title="Distance"
         icon="distance"
         [value]="
-            displayConfig().unitSystem === 'imperial'
+            displayConfig().general.unitSystem === 'imperial'
                 ? ((rowingData().distance / 100 | metersToMiles | number: '0.0-2') ?? '--')
                 : ((rowingData().distance / 100 | number: '0.0-0') ?? '--')
         "
-        [unit]="displayConfig().unitSystem === 'imperial' ? 'mi' : 'm'"
+        [unit]="displayConfig().general.unitSystem === 'imperial' ? 'mi' : 'm'"
     ></app-metric>
     <app-metric
         title="Pace"
@@ -31,17 +31,17 @@
     <app-metric title="Timer" icon="timer" [value]="elapseTime() | secondsToTime: 'pace'"></app-metric>
     <app-force-curve
         [handleForces]="rowingData().handleForces"
-        [showPeakInTitle]="displayConfig().showPeakForceInTitle"
+        [showPeakInTitle]="displayConfig().forceCurve.showPeakForceInTitle"
     ></app-force-curve>
     <app-metric
         title="Distance per stroke"
         icon="route"
         [value]="
-            displayConfig().unitSystem === 'imperial'
+            displayConfig().general.unitSystem === 'imperial'
                 ? ((rowingData().distPerStroke | metersToFeet | number: '0.0-1') ?? '--')
                 : ((rowingData().distPerStroke | number: '0.0-1') ?? '--')
         "
-        [unit]="displayConfig().unitSystem === 'imperial' ? 'ft/stk' : 'm/stk'"
+        [unit]="displayConfig().general.unitSystem === 'imperial' ? 'ft/stk' : 'm/stk'"
     ></app-metric>
     <app-metric title="Total Strokes" unit="stk" [value]="rowingData().strokeCount"></app-metric>
     <app-metric title="Drag Factor" [value]="rowingData().dragFactor | roundNumber"></app-metric>

@@ -22,7 +22,7 @@ import { GeneralSettingsComponent } from "./general-settings.component";
 describe("GeneralSettingsComponent", (): void => {
     let component: GeneralSettingsComponent;
     let fixture: ComponentFixture<GeneralSettingsComponent>;
-    let mockConfigManagerService: Pick<ConfigManagerService, "getItem">;
+    let mockConfigManagerService: Pick<ConfigManagerService, "getGroup">;
     let mockSwUpdate: Pick<SwUpdate, "checkForUpdate" | "isEnabled">;
     let mockMatDialog: Pick<MatDialog, "open">;
     let mockFirmwareUpdateManagerService: Pick<
@@ -82,9 +82,13 @@ describe("GeneralSettingsComponent", (): void => {
 
     beforeEach(async (): Promise<void> => {
         mockConfigManagerService = {
-            getItem: vi.fn(),
+            getGroup: vi.fn(),
         };
-        vi.mocked(mockConfigManagerService.getItem).mockReturnValue("off");
+        vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
+            heartRateMonitor: "off",
+            ergoMonitorBleId: "",
+            heartRateBleId: "",
+        });
 
         mockSwUpdate = {
             checkForUpdate: vi.fn(),
@@ -705,11 +709,15 @@ describe("GeneralSettingsComponent", (): void => {
         });
 
         it("should retrieve heart rate monitor setting from ConfigManager", (): void => {
-            vi.mocked(mockConfigManagerService.getItem).mockReturnValue("ble");
+            vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
+                ergoMonitorBleId: "",
+                heartRateBleId: "",
+                heartRateMonitor: "ble",
+            });
 
             component.ngOnInit();
 
-            expect(mockConfigManagerService.getItem).toHaveBeenCalledWith("general", "heartRateMonitor");
+            expect(mockConfigManagerService.getGroup).toHaveBeenCalledWith("general");
             expect(component.settingsForm.value.heartRateMonitor).toBe("ble");
         });
     });

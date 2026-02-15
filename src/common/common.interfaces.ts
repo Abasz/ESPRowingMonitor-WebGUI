@@ -51,9 +51,17 @@ export interface IGeneralConfig {
     heartRateMonitor: HeartRateMonitorMode;
 }
 
-export interface IDisplayConfig {
-    showPeakForceInTitle: boolean;
+export interface IDisplayGeneralConfig {
     unitSystem: UnitSystem;
+}
+
+export interface IDisplayForceCurveConfig {
+    showPeakForceInTitle: boolean;
+}
+
+export interface IDisplayConfig {
+    general: IDisplayGeneralConfig;
+    forceCurve: IDisplayForceCurveConfig;
 }
 
 export class Config {
@@ -64,8 +72,12 @@ export class Config {
     };
 
     display: IDisplayConfig = {
-        showPeakForceInTitle: true,
-        unitSystem: "metric",
+        general: {
+            unitSystem: "metric",
+        },
+        forceCurve: {
+            showPeakForceInTitle: true,
+        },
     };
 }
 

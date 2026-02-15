@@ -13,6 +13,7 @@ import { UtilsService } from "../../common/services/utils.service";
 
 import { SettingsDialogComponent } from "./settings-dialog.component";
 import {
+    createMockConfigManagerService,
     createMockDialogData,
     createMockDisplayForm,
     createMockGeneralForm,
@@ -27,7 +28,7 @@ describe("SettingsDialogComponent tabs", (): void => {
         MatDialogRef<SettingsDialogComponent>,
         "close" | "updateSize" | "backdropClick" | "keydownEvents" | "disableClose"
     >;
-    let mockConfigManagerService: Pick<ConfigManagerService, "getItem" | "setItem">;
+    let mockConfigManagerService: Pick<ConfigManagerService, "getConfig" | "getGroup" | "setGroup">;
     let mockErgSettingsService: Pick<ErgSettingsService, "restartDevice">;
     let mockErgConnectionService: Pick<ErgConnectionService, "reconnect" | "connectionStatus$">;
     let mockSnackBar: Pick<MatSnackBar, "open" | "openFromComponent">;
@@ -53,11 +54,7 @@ describe("SettingsDialogComponent tabs", (): void => {
         vi.mocked(mockMatDialogRef.backdropClick).mockReturnValue(EMPTY);
         vi.mocked(mockMatDialogRef.keydownEvents).mockReturnValue(EMPTY);
 
-        mockConfigManagerService = {
-            getItem: vi.fn(),
-            setItem: vi.fn(),
-        };
-        vi.mocked(mockConfigManagerService.getItem).mockReturnValue("ble");
+        mockConfigManagerService = createMockConfigManagerService();
 
         mockErgSettingsService = {
             restartDevice: vi.fn(),
@@ -209,10 +206,13 @@ describe("SettingsDialogComponent tabs", (): void => {
 
         await component.saveSettings();
 
-        expect(mockConfigManagerService.setItem).toHaveBeenCalledWith(
+        expect(mockConfigManagerService.setGroup).toHaveBeenCalledWith(
             "display",
-            "showPeakForceInTitle",
-            false,
+            expect.objectContaining({
+                forceCurve: expect.objectContaining({
+                    showPeakForceInTitle: false,
+                }),
+            }),
         );
     });
 

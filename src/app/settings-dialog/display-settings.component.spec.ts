@@ -8,22 +8,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 
 import { DisplaySettingsComponent } from "./display-settings.component";
+import { createMockConfig } from "./settings-dialog.test.helpers";
 
 describe("DisplaySettingsComponent", (): void => {
     let component: DisplaySettingsComponent;
     let fixture: ComponentFixture<DisplaySettingsComponent>;
     let loader: HarnessLoader;
-    let mockConfigManager: Pick<ConfigManagerService, "getItem">;
+    let mockConfigManager: Pick<ConfigManagerService, "getConfig">;
 
     beforeEach(async (): Promise<void> => {
         mockConfigManager = {
-            getItem: vi.fn().mockImplementation((_group: string, key: string): boolean | string => {
-                if (key === "unitSystem") {
-                    return "metric";
-                }
-
-                return true;
-            }),
+            getConfig: vi.fn().mockReturnValue(createMockConfig()),
         };
 
         await TestBed.configureTestingModule({
@@ -45,23 +40,23 @@ describe("DisplaySettingsComponent", (): void => {
     describe("as part of form initialization", (): void => {
         it("should initialize showPeakForceInTitle from config", (): void => {
             expect(component.settingsForm.controls.showPeakForceInTitle.value).toBe(true);
-            expect(mockConfigManager.getItem).toHaveBeenCalledWith("display", "showPeakForceInTitle");
+            expect(mockConfigManager.getConfig).toHaveBeenCalled();
         });
 
         it("should initialize unitSystem from config", (): void => {
             expect(component.settingsForm.controls.unitSystem.value).toBe("metric");
-            expect(mockConfigManager.getItem).toHaveBeenCalledWith("display", "unitSystem");
+            expect(mockConfigManager.getConfig).toHaveBeenCalled();
         });
 
         it("should initialize showPeakForceInTitle unchecked when config is false", (): void => {
-            vi.mocked(mockConfigManager.getItem).mockImplementation(
-                (_group: string, key: string): boolean | string => {
-                    if (key === "unitSystem") {
-                        return "metric";
-                    }
-
-                    return false;
-                },
+            vi.mocked(mockConfigManager.getConfig).mockReturnValue(
+                createMockConfig({
+                    display: {
+                        forceCurve: {
+                            showPeakForceInTitle: false,
+                        },
+                    },
+                }),
             );
 
             const localFixture = TestBed.createComponent(DisplaySettingsComponent);
@@ -71,14 +66,14 @@ describe("DisplaySettingsComponent", (): void => {
         });
 
         it("should initialize unitSystem to imperial when config is imperial", (): void => {
-            vi.mocked(mockConfigManager.getItem).mockImplementation(
-                (_group: string, key: string): boolean | string => {
-                    if (key === "unitSystem") {
-                        return "imperial";
-                    }
-
-                    return true;
-                },
+            vi.mocked(mockConfigManager.getConfig).mockReturnValue(
+                createMockConfig({
+                    display: {
+                        general: {
+                            unitSystem: "imperial",
+                        },
+                    },
+                }),
             );
 
             const localFixture = TestBed.createComponent(DisplaySettingsComponent);

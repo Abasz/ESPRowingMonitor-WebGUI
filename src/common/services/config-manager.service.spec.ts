@@ -59,15 +59,21 @@ describe("ConfigManagerService", (): void => {
                     ergoMonitorBleId: "erg-456",
                 },
                 display: {
-                    showPeakForceInTitle: false,
-                    unitSystem: "metric",
+                    general: {
+                        unitSystem: "metric",
+                    },
+                    forceCurve: {
+                        showPeakForceInTitle: false,
+                    },
                 },
             };
 
             const getItemSpy = vi
                 .spyOn(Storage.prototype, "getItem")
                 .mockImplementation((key: string): string | null => {
-                    return key === "config" ? JSON.stringify(storedConfig) : null;
+                    return key === ConfigManagerService.CONFIG_STORAGE_KEY
+                        ? JSON.stringify(storedConfig)
+                        : null;
                 });
             const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
 
@@ -80,7 +86,7 @@ describe("ConfigManagerService", (): void => {
             expect(cfg.general.heartRateMonitor).toBe("ble" as HeartRateMonitorMode);
             expect(cfg.general.heartRateBleId).toBe("hr-123");
             expect(cfg.general.ergoMonitorBleId).toBe("erg-456");
-            expect(cfg.display.showPeakForceInTitle).toBe(false);
+            expect(cfg.display.forceCurve.showPeakForceInTitle).toBe(false);
         });
 
         it("should force HR off and clear BLE ids on insecure context and persist them", (): void => {
@@ -96,7 +102,7 @@ describe("ConfigManagerService", (): void => {
             expect(cfg.general.heartRateBleId).toBe("");
             expect(cfg.general.ergoMonitorBleId).toBe("");
             expect(setItemSpy).toHaveBeenCalledWith(
-                "config",
+                ConfigManagerService.CONFIG_STORAGE_KEY,
                 expect.stringContaining('"heartRateMonitor":"off"'),
             );
         });
@@ -115,7 +121,7 @@ describe("ConfigManagerService", (): void => {
             expect(cfg.general.heartRateBleId).toBe("");
             expect(cfg.general.ergoMonitorBleId).toBe("");
             expect(setItemSpy).toHaveBeenCalledWith(
-                "config",
+                ConfigManagerService.CONFIG_STORAGE_KEY,
                 expect.stringContaining('"heartRateMonitor":"off"'),
             );
         });
@@ -149,22 +155,28 @@ describe("ConfigManagerService", (): void => {
             expect(getItemSpy).toHaveBeenCalledWith("heartRateMonitor");
             expect(getItemSpy).toHaveBeenCalledWith("displayShowPeakForceInTitle");
 
-            expect(setItemSpy).toHaveBeenCalledWith("config", expect.stringContaining('"general"'));
-            expect(setItemSpy).toHaveBeenCalledWith("config", expect.stringContaining('"display"'));
             expect(setItemSpy).toHaveBeenCalledWith(
-                "config",
+                ConfigManagerService.CONFIG_STORAGE_KEY,
+                expect.stringContaining('"general"'),
+            );
+            expect(setItemSpy).toHaveBeenCalledWith(
+                ConfigManagerService.CONFIG_STORAGE_KEY,
+                expect.stringContaining('"display"'),
+            );
+            expect(setItemSpy).toHaveBeenCalledWith(
+                ConfigManagerService.CONFIG_STORAGE_KEY,
                 expect.stringContaining('"heartRateMonitor":"ant"'),
             );
             expect(setItemSpy).toHaveBeenCalledWith(
-                "config",
+                ConfigManagerService.CONFIG_STORAGE_KEY,
                 expect.stringContaining('"heartRateBleId":"hr-999"'),
             );
             expect(setItemSpy).toHaveBeenCalledWith(
-                "config",
+                ConfigManagerService.CONFIG_STORAGE_KEY,
                 expect.stringContaining('"ergoMonitorBleId":"erg-888"'),
             );
             expect(setItemSpy).toHaveBeenCalledWith(
-                "config",
+                ConfigManagerService.CONFIG_STORAGE_KEY,
                 expect.stringContaining('"showPeakForceInTitle":true'),
             );
 
@@ -182,12 +194,14 @@ describe("ConfigManagerService", (): void => {
                     ergoMonitorBleId: "erg-123",
                 },
                 display: {
-                    showPeakForceInTitle: false,
+                    forceCurve: {
+                        showPeakForceInTitle: false,
+                    },
                 },
             };
 
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
-                return key === "config" ? JSON.stringify(storedConfig) : null;
+                return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
             });
 
             configManagerService = TestBed.inject(ConfigManagerService);
@@ -198,18 +212,18 @@ describe("ConfigManagerService", (): void => {
             expect(cfg.general.ergoMonitorBleId).toBe("erg-123");
             expect(cfg.general.heartRateMonitor).toBe(defaultConfig.general.heartRateMonitor);
             expect(cfg.general.heartRateBleId).toBe(defaultConfig.general.heartRateBleId);
-            expect(cfg.display.showPeakForceInTitle).toBe(false);
+            expect(cfg.display.forceCurve.showPeakForceInTitle).toBe(false);
         });
     });
 
-    describe("display.showPeakForceInTitle config", (): void => {
+    describe("display.forceCurve.showPeakForceInTitle config", (): void => {
         it("should default to true when no value is stored", (): void => {
             withSecureContextAndBluetooth();
             vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
-            expect(configManagerService.getItem("display", "showPeakForceInTitle")).toBe(true);
+            expect(configManagerService.getConfig().display.forceCurve.showPeakForceInTitle).toBe(true);
         });
 
         it("should default unitSystem to metric when no value is stored", (): void => {
@@ -218,7 +232,7 @@ describe("ConfigManagerService", (): void => {
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
-            expect(configManagerService.getItem("display", "unitSystem")).toBe("metric");
+            expect(configManagerService.getConfig().display.general.unitSystem).toBe("metric");
         });
 
         it("should preserve stored unitSystem value via deep merge", (): void => {
@@ -230,17 +244,21 @@ describe("ConfigManagerService", (): void => {
                     heartRateMonitor: "off",
                 },
                 display: {
-                    showPeakForceInTitle: true,
-                    unitSystem: "imperial",
+                    general: {
+                        unitSystem: "imperial",
+                    },
+                    forceCurve: {
+                        showPeakForceInTitle: true,
+                    },
                 },
             };
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
-                return key === "config" ? JSON.stringify(storedConfig) : null;
+                return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
             });
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
-            expect(configManagerService.getItem("display", "unitSystem")).toBe("imperial");
+            expect(configManagerService.getConfig().display.general.unitSystem).toBe("imperial");
         });
 
         it("should return stored boolean false value", (): void => {
@@ -252,18 +270,24 @@ describe("ConfigManagerService", (): void => {
                     ergoMonitorBleId: "",
                 },
                 display: {
-                    showPeakForceInTitle: false,
-                    unitSystem: "metric",
+                    general: {
+                        unitSystem: "metric",
+                    },
+                    forceCurve: {
+                        showPeakForceInTitle: false,
+                    },
                 },
             };
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
-                return key === "config" ? JSON.stringify(storedConfig) : null;
+                return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
             });
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
-            expect(configManagerService.getItem("display", "showPeakForceInTitle")).toBe(false);
-            expect(typeof configManagerService.getItem("display", "showPeakForceInTitle")).toBe("boolean");
+            expect(configManagerService.getConfig().display.forceCurve.showPeakForceInTitle).toBe(false);
+            expect(typeof configManagerService.getConfig().display.forceCurve.showPeakForceInTitle).toBe(
+                "boolean",
+            );
         });
 
         it("should return stored boolean true value", (): void => {
@@ -275,30 +299,38 @@ describe("ConfigManagerService", (): void => {
                     ergoMonitorBleId: "",
                 },
                 display: {
-                    showPeakForceInTitle: true,
-                    unitSystem: "metric",
+                    general: {
+                        unitSystem: "metric",
+                    },
+                    forceCurve: {
+                        showPeakForceInTitle: true,
+                    },
                 },
             };
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
-                return key === "config" ? JSON.stringify(storedConfig) : null;
+                return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
             });
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
-            expect(configManagerService.getItem("display", "showPeakForceInTitle")).toBe(true);
-            expect(typeof configManagerService.getItem("display", "showPeakForceInTitle")).toBe("boolean");
+            expect(configManagerService.getConfig().display.forceCurve.showPeakForceInTitle).toBe(true);
+            expect(typeof configManagerService.getConfig().display.forceCurve.showPeakForceInTitle).toBe(
+                "boolean",
+            );
         });
 
         it("should fallback to default value when stored value cannot be parsed", (): void => {
             withSecureContextAndBluetooth();
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
-                return key === "config" ? "invalid-json-{" : null;
+                return key === ConfigManagerService.CONFIG_STORAGE_KEY ? "invalid-json-{" : null;
             });
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
-            expect(configManagerService.getItem("display", "showPeakForceInTitle")).toBe(true);
-            expect(typeof configManagerService.getItem("display", "showPeakForceInTitle")).toBe("boolean");
+            expect(configManagerService.getConfig().display.forceCurve.showPeakForceInTitle).toBe(true);
+            expect(typeof configManagerService.getConfig().display.forceCurve.showPeakForceInTitle).toBe(
+                "boolean",
+            );
         });
     });
 
@@ -312,12 +344,12 @@ describe("ConfigManagerService", (): void => {
             const cfg = configManagerService.getConfig();
             cfg.general.heartRateMonitor = "ble";
 
-            expect(configManagerService.getItem("general", "heartRateMonitor")).toBe("off");
+            expect(configManagerService.getGroup("general").heartRateMonitor).toBe("off");
         });
     });
 
-    describe("getItem method", (): void => {
-        it("should return the value for a given group and key", (): void => {
+    describe("getGroup method", (): void => {
+        it("should return the value for a given group", (): void => {
             withSecureContextAndBluetooth();
             const storedConfig: Config = {
                 general: {
@@ -326,22 +358,26 @@ describe("ConfigManagerService", (): void => {
                     ergoMonitorBleId: "",
                 },
                 display: {
-                    showPeakForceInTitle: true,
-                    unitSystem: "metric",
+                    general: {
+                        unitSystem: "metric",
+                    },
+                    forceCurve: {
+                        showPeakForceInTitle: true,
+                    },
                 },
             };
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
-                return key === "config" ? JSON.stringify(storedConfig) : null;
+                return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
             });
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
-            expect(configManagerService.getItem("general", "heartRateMonitor")).toBe("ant");
-            expect(configManagerService.getItem("display", "showPeakForceInTitle")).toBe(true);
+            expect(configManagerService.getGroup("general").heartRateMonitor).toBe("ant");
+            expect(configManagerService.getGroup("display").forceCurve.showPeakForceInTitle).toBe(true);
         });
     });
 
-    describe("setItem method", (): void => {
+    describe("setGroup method", (): void => {
         it("should persist to localStorage and update the in-memory value", (): void => {
             withSecureContextAndBluetooth();
             vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
@@ -349,16 +385,20 @@ describe("ConfigManagerService", (): void => {
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
-            configManagerService.setItem("general", "heartRateMonitor", "ble");
+            const generalConfig = configManagerService.getGroup("general");
+            generalConfig.heartRateMonitor = "ble";
+            configManagerService.setGroup("general", generalConfig);
 
             expect(setItemSpy).toHaveBeenCalledWith(
-                "config",
+                ConfigManagerService.CONFIG_STORAGE_KEY,
                 expect.stringContaining('"heartRateMonitor":"ble"'),
             );
-            expect(configManagerService.getItem("general", "heartRateMonitor")).toBe("ble");
+            expect(configManagerService.getGroup("general").heartRateMonitor).toBe("ble");
 
-            configManagerService.setItem("general", "heartRateMonitor", "ant");
-            expect(configManagerService.getItem("general", "heartRateMonitor")).toBe("ant");
+            const generalConfig2 = configManagerService.getGroup("general");
+            generalConfig2.heartRateMonitor = "ant";
+            configManagerService.setGroup("general", generalConfig2);
+            expect(configManagerService.getGroup("general").heartRateMonitor).toBe("ant");
         });
 
         it("should update display settings correctly", (): void => {
@@ -368,16 +408,56 @@ describe("ConfigManagerService", (): void => {
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
-            configManagerService.setItem("display", "showPeakForceInTitle", false);
+            const displayConfig = configManagerService.getGroup("display");
+            displayConfig.forceCurve.showPeakForceInTitle = false;
+            configManagerService.setGroup("display", displayConfig);
 
             expect(setItemSpy).toHaveBeenCalledWith(
-                "config",
+                ConfigManagerService.CONFIG_STORAGE_KEY,
                 expect.stringContaining('"showPeakForceInTitle":false'),
             );
-            expect(configManagerService.getItem("display", "showPeakForceInTitle")).toBe(false);
+            expect(configManagerService.getConfig().display.forceCurve.showPeakForceInTitle).toBe(false);
 
-            configManagerService.setItem("display", "showPeakForceInTitle", true);
-            expect(configManagerService.getItem("display", "showPeakForceInTitle")).toBe(true);
+            const displayConfig2 = configManagerService.getGroup("display");
+            displayConfig2.forceCurve.showPeakForceInTitle = true;
+            configManagerService.setGroup("display", displayConfig2);
+            expect(configManagerService.getConfig().display.forceCurve.showPeakForceInTitle).toBe(true);
+        });
+
+        it("should update nested display settings", (): void => {
+            withSecureContextAndBluetooth();
+            vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
+            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            const displayConfig = configManagerService.getGroup("display");
+            displayConfig.general.unitSystem = "imperial";
+            configManagerService.setGroup("display", displayConfig);
+
+            expect(setItemSpy).toHaveBeenCalledWith(
+                ConfigManagerService.CONFIG_STORAGE_KEY,
+                expect.stringContaining('"unitSystem":"imperial"'),
+            );
+            expect(configManagerService.getConfig().display.general.unitSystem).toBe("imperial");
+        });
+
+        it("should handle partial settings", (): void => {
+            withSecureContextAndBluetooth();
+            vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
+            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            const displayConfig = configManagerService.getGroup("display");
+            displayConfig.general.unitSystem = "imperial";
+            configManagerService.setGroup("display", { general: { unitSystem: "imperial" } });
+
+            expect(setItemSpy).toHaveBeenCalledWith(
+                ConfigManagerService.CONFIG_STORAGE_KEY,
+                expect.stringContaining('"unitSystem":"imperial"'),
+            );
+            expect(configManagerService.getConfig().display.general.unitSystem).toBe("imperial");
         });
     });
 
@@ -396,29 +476,9 @@ describe("ConfigManagerService", (): void => {
             expect(events).toHaveLength(1);
             expect(events[0].general.ergoMonitorBleId).toBe("");
 
-            configManagerService.setItem("general", "ergoMonitorBleId", "foo");
-
-            expect(events).toHaveLength(2);
-            expect(events[1].general.ergoMonitorBleId).toBe("foo");
-        });
-    });
-
-    describe("configChanged$ observable", (): void => {
-        it("should emit initial config and updated values", (): void => {
-            withSecureContextAndBluetooth();
-            vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
-
-            configManagerService = TestBed.inject(ConfigManagerService);
-
-            const events: Array<Config> = [];
-            configManagerService.configChanged$.subscribe((config: Config): void => {
-                events.push(config);
-            });
-
-            expect(events).toHaveLength(1);
-            expect(events[0].general.ergoMonitorBleId).toBe("");
-
-            configManagerService.setItem("general", "ergoMonitorBleId", "foo");
+            const generalConfig = configManagerService.getGroup("general");
+            generalConfig.ergoMonitorBleId = "foo";
+            configManagerService.setGroup("general", generalConfig);
 
             expect(events).toHaveLength(2);
             expect(events[1].general.ergoMonitorBleId).toBe("foo");

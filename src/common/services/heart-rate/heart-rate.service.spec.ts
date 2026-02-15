@@ -57,8 +57,12 @@ describe("HeartRateService", (): void => {
                 heartRateMonitor: "off",
             },
             display: {
-                showPeakForceInTitle: true,
-                unitSystem: "metric",
+                general: {
+                    unitSystem: "metric",
+                },
+                forceCurve: {
+                    showPeakForceInTitle: true,
+                },
             },
         });
 
@@ -417,8 +421,12 @@ describe("HeartRateService", (): void => {
                         heartRateMonitor: "ble",
                     },
                     display: {
-                        showPeakForceInTitle: true,
-                        unitSystem: "metric",
+                        general: {
+                            unitSystem: "metric",
+                        },
+                        forceCurve: {
+                            showPeakForceInTitle: true,
+                        },
                     },
                 });
                 vi.mocked(mockBleHeartRateService.discover).mockResolvedValue();
@@ -451,8 +459,12 @@ describe("HeartRateService", (): void => {
                         heartRateMonitor: "ant",
                     },
                     display: {
-                        showPeakForceInTitle: true,
-                        unitSystem: "metric",
+                        general: {
+                            unitSystem: "metric",
+                        },
+                        forceCurve: {
+                            showPeakForceInTitle: true,
+                        },
                     },
                 });
                 vi.mocked(mockAntHeartRateService.discover).mockResolvedValue();
@@ -485,8 +497,12 @@ describe("HeartRateService", (): void => {
                         heartRateMonitor: "off",
                     },
                     display: {
-                        showPeakForceInTitle: true,
-                        unitSystem: "metric",
+                        general: {
+                            unitSystem: "metric",
+                        },
+                        forceCurve: {
+                            showPeakForceInTitle: true,
+                        },
                     },
                 });
             });
@@ -508,8 +524,12 @@ describe("HeartRateService", (): void => {
                         heartRateMonitor: "invalid" as HeartRateMonitorMode,
                     },
                     display: {
-                        showPeakForceInTitle: true,
-                        unitSystem: "metric",
+                        general: {
+                            unitSystem: "metric",
+                        },
+                        forceCurve: {
+                            showPeakForceInTitle: true,
+                        },
                     },
                 });
             });
@@ -1034,8 +1054,12 @@ describe("HeartRateService", (): void => {
                         heartRateMonitor: "ble",
                     },
                     display: {
-                        showPeakForceInTitle: true,
-                        unitSystem: "metric",
+                        general: {
+                            unitSystem: "metric",
+                        },
+                        forceCurve: {
+                            showPeakForceInTitle: true,
+                        },
                     },
                 });
                 vi.mocked(mockBleHeartRateService.discover).mockRejectedValue(error);
@@ -1052,8 +1076,12 @@ describe("HeartRateService", (): void => {
                         heartRateMonitor: "ant",
                     },
                     display: {
-                        showPeakForceInTitle: true,
-                        unitSystem: "metric",
+                        general: {
+                            unitSystem: "metric",
+                        },
+                        forceCurve: {
+                            showPeakForceInTitle: true,
+                        },
                     },
                 });
                 vi.mocked(mockAntHeartRateService.discover).mockRejectedValue(error);

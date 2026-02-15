@@ -7,7 +7,7 @@ import { Config, HeartRateMonitorMode } from "../common.interfaces";
     providedIn: "root",
 })
 export class ConfigManagerService {
-    private static readonly CONFIG_STORAGE_KEY: string = "config";
+    static readonly CONFIG_STORAGE_KEY: string = "rowingMonitorConfig";
 
     readonly configChanged$: Observable<Config>;
 
@@ -36,22 +36,19 @@ export class ConfigManagerService {
     }
 
     getConfig(): Config {
-        return {
-            general: { ...this.configSubject.value.general },
-            display: { ...this.configSubject.value.display },
-        };
+        return structuredClone(this.configSubject.value);
     }
 
-    getItem<G extends keyof Config, K extends keyof Config[G]>(group: G, key: K): Config[G][K] {
-        return this.configSubject.value[group][key];
+    getGroup<G extends keyof Config>(group: G): Config[G] {
+        return structuredClone(this.configSubject.value[group]);
     }
 
-    setItem<G extends keyof Config, K extends keyof Config[G]>(group: G, key: K, value: Config[G][K]): void {
+    setGroup<G extends keyof Config>(group: G, value: Partial<Config[G]>): void {
         const updatedConfig = {
             ...this.configSubject.value,
             [group]: {
                 ...this.configSubject.value[group],
-                [key]: value,
+                ...structuredClone(value),
             },
         };
         this.saveConfig(updatedConfig);
@@ -69,7 +66,13 @@ export class ConfigManagerService {
 
                 return {
                     general: { ...defaultConfig.general, ...parsedConfig.general },
-                    display: { ...defaultConfig.display, ...parsedConfig.display },
+                    display: {
+                        general: { ...defaultConfig.display.general, ...parsedConfig.display?.general },
+                        forceCurve: {
+                            ...defaultConfig.display.forceCurve,
+                            ...parsedConfig.display?.forceCurve,
+                        },
+                    },
                 };
             } catch {
                 console.warn(`Failed to parse localStorage config. Using default value.`, { storedConfig });
@@ -128,7 +131,8 @@ export class ConfigManagerService {
 
         if (displayShowPeakForceInTitle !== null) {
             try {
-                migratedConfig.display.showPeakForceInTitle = JSON.parse(displayShowPeakForceInTitle);
+                migratedConfig.display.forceCurve.showPeakForceInTitle =
+                    JSON.parse(displayShowPeakForceInTitle);
             } catch {
                 console.warn(`Failed to parse old displayShowPeakForceInTitle value`);
             }

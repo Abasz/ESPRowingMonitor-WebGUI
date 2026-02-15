@@ -36,9 +36,11 @@ export class DisplaySettingsComponent {
         private formBuilder: NonNullableFormBuilder,
         private configManager: ConfigManagerService,
     ) {
+        const config = this.configManager.getConfig();
+
         this.settingsForm = this.formBuilder.group({
-            showPeakForceInTitle: [this.configManager.getItem("display", "showPeakForceInTitle")],
-            unitSystem: [this.configManager.getItem("display", "unitSystem")],
+            showPeakForceInTitle: [config.display.forceCurve.showPeakForceInTitle],
+            unitSystem: [config.display.general.unitSystem],
         });
 
         this.formValueChanged = toSignal(

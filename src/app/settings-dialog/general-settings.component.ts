@@ -117,7 +117,7 @@ export class GeneralSettingsComponent implements OnInit {
             bleMode: [{ value: BleServiceFlag.CpsService, disabled: true }],
             logLevel: [{ value: LogLevel.Silent, disabled: true }, [Validators.min(0), Validators.max(6)]],
             heartRateMonitor: [
-                this.configManager.getItem("general", "heartRateMonitor") as HeartRateMonitorMode,
+                this.configManager.getGroup("general").heartRateMonitor,
                 Validators.pattern(/^(off|ble|ant)$/),
             ],
             deltaTimeLogging: [
@@ -162,10 +162,7 @@ export class GeneralSettingsComponent implements OnInit {
         this.settingsForm.patchValue({
             bleMode: rowerSettings.generalSettings.bleServiceFlag,
             logLevel: rowerSettings.generalSettings.logLevel,
-            heartRateMonitor: this.configManager.getItem(
-                "general",
-                "heartRateMonitor",
-            ) as HeartRateMonitorMode,
+            heartRateMonitor: this.configManager.getGroup("general").heartRateMonitor,
             deltaTimeLogging: rowerSettings.generalSettings.logDeltaTimes,
             logToSdCard: rowerSettings.generalSettings.logToSdCard,
         });

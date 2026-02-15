@@ -33,7 +33,7 @@ describe("DashboardComponent", (): void => {
     let allMetricsSubject: BehaviorSubject<ICalculatedMetrics>;
     let heartRateDataSubject: BehaviorSubject<IHeartRate | undefined>;
     let connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
-    let configManagerServiceSpy: Pick<ConfigManagerService, "configChanged$" | "getItem">;
+    let configManagerServiceSpy: Pick<ConfigManagerService, "configChanged$" | "getGroup">;
     let configSubject: BehaviorSubject<Config>;
 
     // test data constants
@@ -77,7 +77,7 @@ describe("DashboardComponent", (): void => {
         configSubject = new BehaviorSubject<Config>(new Config());
         configManagerServiceSpy = {
             configChanged$: configSubject.asObservable(),
-            getItem: vi.fn().mockReturnValue(true),
+            getGroup: vi.fn().mockReturnValue(true),
         };
         const heartRateServiceSpy = {
             discover: vi.fn(),
@@ -145,26 +145,32 @@ describe("DashboardComponent", (): void => {
             expect(component.elapseTime()).toBe(0);
             expect(component.heartRateData()).toBeUndefined();
             expect(component.rowingData()).toEqual(mockInitialMetrics);
-            expect(component.displayConfig().showPeakForceInTitle).toBe(true);
-            expect(component.displayConfig().unitSystem).toBe("metric");
+            expect(component.displayConfig().forceCurve.showPeakForceInTitle).toBe(true);
+            expect(component.displayConfig().general.unitSystem).toBe("metric");
         });
     });
 
     describe("display signal", (): void => {
         it("should reflect config updates", (): void => {
-            expect(component.displayConfig().showPeakForceInTitle).toBe(true);
+            expect(component.displayConfig().forceCurve.showPeakForceInTitle).toBe(true);
 
             configSubject.next({
                 ...configSubject.value,
                 display: {
                     ...configSubject.value.display,
-                    showPeakForceInTitle: false,
-                    unitSystem: "imperial",
+                    general: {
+                        ...configSubject.value.display.general,
+                        unitSystem: "imperial",
+                    },
+                    forceCurve: {
+                        ...configSubject.value.display.forceCurve,
+                        showPeakForceInTitle: false,
+                    },
                 },
             });
 
-            expect(component.displayConfig().showPeakForceInTitle).toBe(false);
-            expect(component.displayConfig().unitSystem).toBe("imperial");
+            expect(component.displayConfig().forceCurve.showPeakForceInTitle).toBe(false);
+            expect(component.displayConfig().general.unitSystem).toBe("imperial");
         });
     });
 

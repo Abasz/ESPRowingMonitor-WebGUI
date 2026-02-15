@@ -6,9 +6,14 @@
 import { vi } from "vitest";
 
 import { IDeviceInformation } from "../../common/ble.interfaces";
-import { IErgConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
+import { Config, IErgConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
+import { ConfigManagerService } from "../../common/services/config-manager.service";
 
 import type { SettingsDialogComponent } from "./settings-dialog.component";
+
+type DeepPartial<T> = {
+    [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
 
 export interface IMockGeneralForm {
     dirty: boolean;
@@ -51,6 +56,76 @@ export interface IMockDisplayForm {
         unitSystem: string;
     };
 }
+
+/**
+ * Creates a default mock Config object for testing
+ * Provides defaults that match the application's default configuration
+ *
+ * @param overrides - Partial config to override defaults (supports deep merge for nested properties)
+ * @returns A complete Config object suitable for testing
+ */
+export const createMockConfig: (overrides?: DeepPartial<Config>) => Config = (
+    overrides: DeepPartial<Config> = {},
+): Config => {
+    const defaultConfig: Config = {
+        general: {
+            ergoMonitorBleId: "",
+            heartRateBleId: "",
+            heartRateMonitor: "off",
+        },
+        display: {
+            general: {
+                unitSystem: "metric",
+            },
+            forceCurve: {
+                showPeakForceInTitle: true,
+            },
+        },
+    };
+
+    return {
+        general: {
+            ...defaultConfig.general,
+            ...(overrides.general ?? {}),
+        },
+        display: {
+            general: {
+                ...defaultConfig.display.general,
+                ...(overrides.display?.general ?? {}),
+            },
+            forceCurve: {
+                ...defaultConfig.display.forceCurve,
+                ...(overrides.display?.forceCurve ?? {}),
+            },
+        },
+    };
+};
+
+/**
+ * Creates a mock ConfigManagerService with getConfig, getGroup, and setGroup methods
+ * The mock is properly configured to return appropriate values based on which group is requested
+ *
+ * @param config - Optional config to use (defaults to createMockConfig())
+ * @returns A mocked ConfigManagerService suitable for dependency injection in tests
+ */
+export const createMockConfigManagerService: (
+    config?: Config,
+) => Pick<ConfigManagerService, "getConfig" | "getGroup" | "setGroup"> = (
+    config: Config = createMockConfig(),
+): Pick<ConfigManagerService, "getConfig" | "getGroup" | "setGroup"> => {
+    const mockService = {
+        getConfig: vi.fn(),
+        getGroup: vi.fn(),
+        setGroup: vi.fn(),
+    };
+
+    vi.mocked(mockService.getConfig).mockReturnValue(config);
+    vi.mocked(mockService.getGroup).mockImplementation(
+        (group: keyof Config): Config[keyof Config] => config[group],
+    );
+
+    return mockService;
+};
 
 export const createMockGeneralForm: (
     dirty?: boolean,

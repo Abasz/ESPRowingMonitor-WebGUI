@@ -25,7 +25,7 @@ describe("BLEHeartRateService", (): void => {
     const destroySubject: Subject<void> = new Subject<void>();
 
     let service: BLEHeartRateService;
-    let mockConfigManager: Pick<ConfigManagerService, "getItem" | "setItem">;
+    let mockConfigManager: Pick<ConfigManagerService, "getGroup" | "setGroup">;
     let mockSnackBar: Pick<MatSnackBar, "open">;
     let mockBluetoothDevice: BluetoothDevice;
     let mockHeartRateCharacteristic: BluetoothRemoteGATTCharacteristic;
@@ -36,8 +36,8 @@ describe("BLEHeartRateService", (): void => {
 
     beforeEach((): void => {
         mockConfigManager = {
-            getItem: vi.fn(),
-            setItem: vi.fn(),
+            getGroup: vi.fn(),
+            setGroup: vi.fn(),
         };
         mockSnackBar = {
             open: vi.fn(),
@@ -57,7 +57,11 @@ describe("BLEHeartRateService", (): void => {
         );
 
         // setup default mock returns
-        vi.mocked(mockConfigManager.getItem).mockReturnValue("test-device-id");
+        vi.mocked(mockConfigManager.getGroup).mockReturnValue({
+            heartRateBleId: "test-device-id",
+            ergoMonitorBleId: "",
+            heartRateMonitor: "off",
+        });
         vi.mocked(mockBluetoothDevice.gatt!.connect).mockResolvedValue(
             mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
         );
@@ -192,10 +196,11 @@ describe("BLEHeartRateService", (): void => {
 
                 await vi.advanceTimersByTimeAsync(4000);
 
-                expect(mockConfigManager.setItem).toHaveBeenCalledWith(
+                expect(mockConfigManager.setGroup).toHaveBeenCalledWith(
                     "general",
-                    "heartRateBleId",
-                    mockBluetoothDevice.id,
+                    expect.objectContaining({
+                        heartRateBleId: mockBluetoothDevice.id,
+                    }),
                 );
             });
 
@@ -250,10 +255,11 @@ describe("BLEHeartRateService", (): void => {
 
                         await vi.advanceTimersByTimeAsync(4000);
 
-                        expect(mockConfigManager.setItem).toHaveBeenCalledWith(
+                        expect(mockConfigManager.setGroup).toHaveBeenCalledWith(
                             "general",
-                            "heartRateBleId",
-                            mockBluetoothDevice.id,
+                            expect.objectContaining({
+                                heartRateBleId: mockBluetoothDevice.id,
+                            }),
                         );
                     });
                 });
@@ -350,10 +356,11 @@ describe("BLEHeartRateService", (): void => {
 
                         await vi.advanceTimersByTimeAsync(4000);
 
-                        expect(mockConfigManager.setItem).toHaveBeenCalledWith(
+                        expect(mockConfigManager.setGroup).toHaveBeenCalledWith(
                             "general",
-                            "heartRateBleId",
-                            mockBluetoothDevice.id,
+                            expect.objectContaining({
+                                heartRateBleId: mockBluetoothDevice.id,
+                            }),
                         );
                     });
                 });
@@ -473,10 +480,11 @@ describe("BLEHeartRateService", (): void => {
 
                 await vi.advanceTimersByTimeAsync(4000);
 
-                expect(mockConfigManager.setItem).toHaveBeenCalledWith(
+                expect(mockConfigManager.setGroup).toHaveBeenCalledWith(
                     "general",
-                    "heartRateBleId",
-                    mockBluetoothDevice.id,
+                    expect.objectContaining({
+                        heartRateBleId: mockBluetoothDevice.id,
+                    }),
                 );
 
                 expect(mockBluetoothDevice.addEventListener).toHaveBeenCalledWith(
