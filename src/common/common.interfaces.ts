@@ -1,5 +1,8 @@
 import { Observable } from "rxjs";
 
+import { DEFAULT_DASHBOARD_LAYOUT } from "../app/dashboard/dashboard-tile-definitions";
+import { PlacedDashboardTile } from "../app/dashboard/dashboard.interfaces";
+
 import { BleServiceFlag, LogLevel } from "./ble.interfaces";
 
 // general
@@ -55,6 +58,13 @@ export interface IDisplayGeneralConfig {
     unitSystem: UnitSystem;
 }
 
+/**
+ * The full layout config passed to / emitted from the tile layout editor.
+ */
+export interface IDashboardLayoutConfig {
+    tiles: Array<PlacedDashboardTile>;
+}
+
 export interface IDisplayForceCurveConfig {
     showPeakForceInTitle: boolean;
     showGridLines: boolean;
@@ -64,6 +74,7 @@ export interface IDisplayForceCurveConfig {
 export interface IDisplayConfig {
     general: IDisplayGeneralConfig;
     forceCurve: IDisplayForceCurveConfig;
+    layout: IDashboardLayoutConfig;
 }
 
 export class Config {
@@ -82,6 +93,7 @@ export class Config {
             showGridLines: true,
             showAxisLabels: true,
         },
+        layout: DEFAULT_DASHBOARD_LAYOUT,
     };
 }
 

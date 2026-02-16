@@ -1,6 +1,7 @@
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable, shareReplay } from "rxjs";
 
+import { DEFAULT_DASHBOARD_LAYOUT } from "../../app/dashboard/dashboard-tile-definitions";
 import { Config, HeartRateMonitorMode } from "../common.interfaces";
 
 @Injectable({
@@ -72,6 +73,7 @@ export class ConfigManagerService {
                             ...defaultConfig.display.forceCurve,
                             ...parsedConfig.display?.forceCurve,
                         },
+                        layout: parsedConfig.display?.layout ?? DEFAULT_DASHBOARD_LAYOUT,
                     },
                 };
             } catch {

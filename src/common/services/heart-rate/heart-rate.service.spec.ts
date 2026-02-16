@@ -5,6 +5,7 @@ import { take } from "rxjs/operators";
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import { Config, HeartRateMonitorMode, IHeartRate, IHRConnectionStatus } from "../../common.interfaces";
+import { DEFAULT_DASHBOARD_LAYOUT } from "../../../app/dashboard/dashboard-tile-definitions";
 import { ConfigManagerService } from "../config-manager.service";
 
 import { AntHeartRateService } from "./ant-heart-rate.service";
@@ -58,6 +59,7 @@ describe("HeartRateService", (): void => {
                 showGridLines: true,
                 showAxisLabels: true,
             },
+            layout: DEFAULT_DASHBOARD_LAYOUT,
         },
     });
 
