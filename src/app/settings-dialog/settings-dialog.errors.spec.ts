@@ -1,3 +1,4 @@
+import { signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { MatSnackBar, MatSnackBarRef, TextOnlySnackBar } from "@angular/material/snack-bar";
@@ -10,6 +11,7 @@ import { ConfigManagerService } from "../../common/services/config-manager.servi
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
 import { UtilsService } from "../../common/services/utils.service";
+import { DEFAULT_DASHBOARD_LAYOUT } from "../dashboard/dashboard-tile-definitions";
 
 import { SettingsDialogComponent } from "./settings-dialog.component";
 import {
@@ -156,6 +158,8 @@ describe("SettingsDialogComponent error handling", (): void => {
             } as unknown as ReturnType<typeof component.generalSettings>);
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(
@@ -215,6 +219,8 @@ describe("SettingsDialogComponent error handling", (): void => {
 
                 const displaySettingsSpy = vi.fn().mockReturnValue({
                     getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+                    isLayoutDirty: signal(false),
+                    getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
                 } as unknown as ReturnType<typeof component.displaySettings>);
 
                 const rowingSettingsSpy = vi.fn().mockReturnValue({
@@ -248,6 +254,8 @@ describe("SettingsDialogComponent error handling", (): void => {
             } as unknown as ReturnType<typeof component.generalSettings>);
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockDisplayForm),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockRowingForm(false)),
@@ -281,6 +289,8 @@ describe("SettingsDialogComponent error handling", (): void => {
             } as unknown as ReturnType<typeof component.generalSettings>);
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -318,6 +328,8 @@ describe("SettingsDialogComponent error handling", (): void => {
             } as unknown as ReturnType<typeof component.generalSettings>);
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockRowingForm(false)),

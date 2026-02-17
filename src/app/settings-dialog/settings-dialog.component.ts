@@ -134,7 +134,8 @@ export class SettingsDialogComponent {
     }
 
     onDisplayFormValidityChange(isValid: boolean): void {
-        this.isDisplayFormSaveable.set(isValid && this.displaySettings().getForm().dirty);
+        const display = this.displaySettings();
+        this.isDisplayFormSaveable.set(isValid && (display.getForm().dirty || display.isLayoutDirty()));
     }
 
     onRowingFormValidityChange(isValid: boolean): void {
@@ -176,7 +177,8 @@ export class SettingsDialogComponent {
         if (
             (!this.rowingSettings().getForm().dirty &&
                 !this.generalSettings().getForm().dirty &&
-                !this.displaySettings().getForm().dirty) ||
+                !this.displaySettings().getForm().dirty &&
+                !this.displaySettings().isLayoutDirty()) ||
             (await firstValueFrom(
                 this.snackBar
                     .openFromComponent(SnackBarConfirmComponent, {
@@ -252,9 +254,10 @@ export class SettingsDialogComponent {
     }
 
     private saveDisplaySettings(): void {
-        const displaySettingsForm = this.displaySettings().getForm();
+        const display = this.displaySettings();
+        const displaySettingsForm = display.getForm();
 
-        if (displaySettingsForm.dirty) {
+        if (displaySettingsForm.dirty || display.isLayoutDirty()) {
             const {
                 unitSystem,
                 ...forceCurveSettings
@@ -263,6 +266,7 @@ export class SettingsDialogComponent {
             this.configManager.setGroup("display", {
                 general: { unitSystem },
                 forceCurve: forceCurveSettings,
+                layout: display.getLayout(),
             });
         }
     }

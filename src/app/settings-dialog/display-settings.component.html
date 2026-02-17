@@ -9,6 +9,22 @@
             </mat-radio-group>
         </div>
         <mat-divider></mat-divider>
+        <h4>Dashboard Layout</h4>
+        <app-tile-layout-editor
+            [layout]="layout()"
+            (layoutChange)="onLayoutChange($event)"
+        ></app-tile-layout-editor>
+        <div class="layout-actions">
+            <button mat-stroked-button (click)="onResetLayout()">
+                <mat-icon>restart_alt</mat-icon>
+                Reset
+            </button>
+            <button mat-stroked-button (click)="onClearLayout()">
+                <mat-icon>delete_sweep</mat-icon>
+                Clear
+            </button>
+        </div>
+        <mat-divider></mat-divider>
         <h4>Force Curve</h4>
         <mat-checkbox formControlName="showPeakForceInTitle">Show peak force in title</mat-checkbox>
         <mat-checkbox formControlName="showGridLines">Show grid lines</mat-checkbox>

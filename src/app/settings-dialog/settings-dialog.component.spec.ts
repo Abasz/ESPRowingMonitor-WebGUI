@@ -1,3 +1,4 @@
+import { signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { MatSnackBar, MatSnackBarRef, TextOnlySnackBar } from "@angular/material/snack-bar";
@@ -5,11 +6,13 @@ import { SwUpdate } from "@angular/service-worker";
 import { BehaviorSubject, EMPTY, of, take } from "rxjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { IDashboardLayoutConfig } from "../../common/common.interfaces";
 import { SpinnerOverlay } from "../../common/overlay/spinner-overlay.service";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
 import { UtilsService } from "../../common/services/utils.service";
+import { DEFAULT_DASHBOARD_LAYOUT } from "../dashboard/dashboard-tile-definitions";
 
 import { SettingsDialogComponent } from "./settings-dialog.component";
 import {
@@ -316,6 +319,31 @@ describe("SettingsDialogComponent", (): void => {
             expect(mockSnackBar.openFromComponent).toHaveBeenCalled();
             expect(mockMatDialogRef.close).not.toHaveBeenCalled();
         });
+
+        it("should show confirmation when layout is dirty but all forms are clean", (): void => {
+            const mockGeneralForm = createMockGeneralForm(false);
+            const mockRowingForm = createMockRowingForm(false);
+            const mockDisplayForm = createMockDisplayForm(false);
+
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockDisplayForm),
+                isLayoutDirty: signal(true),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+            } as unknown as ReturnType<typeof component.displaySettings>);
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
+                isProfileLoaded: false,
+            } as unknown as ReturnType<typeof component.rowingSettings>);
+
+            component.handleDialogClose();
+
+            expect(mockSnackBar.openFromComponent).toHaveBeenCalled();
+            expect(mockMatDialogRef.close).not.toHaveBeenCalled();
+        });
     });
 
     describe("form validation state", (): void => {
@@ -442,6 +470,8 @@ describe("SettingsDialogComponent", (): void => {
             } as unknown as ReturnType<typeof component.generalSettings>);
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -500,6 +530,34 @@ describe("SettingsDialogComponent", (): void => {
             expect(component.isSaveButtonEnabled()).toBe(false);
         });
 
+        it("should enable save button on display tab when layout is dirty but form is clean", (): void => {
+            const mockGeneralForm = createMockGeneralForm(false);
+            const mockRowingForm = createMockRowingForm(false);
+            const mockDisplayForm = createMockDisplayForm(false);
+
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockDisplayForm),
+                isLayoutDirty: signal(true),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+            } as unknown as ReturnType<typeof component.displaySettings>);
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
+                isProfileLoaded: false,
+            } as unknown as ReturnType<typeof component.rowingSettings>);
+
+            component.onGeneralFormValidityChange(true);
+            component.onDisplayFormValidityChange(true);
+            component.onRowingFormValidityChange(true);
+
+            component.currentTabIndex.set(1);
+
+            expect(component.isSaveButtonEnabled()).toBe(true);
+        });
+
         it("should save rowing settings even if not dirty", async (): Promise<void> => {
             const mockGeneralForm = createMockGeneralForm(false);
             const mockRowingForm = createMockRowingForm(false, {
@@ -511,6 +569,8 @@ describe("SettingsDialogComponent", (): void => {
             } as unknown as ReturnType<typeof component.generalSettings>);
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -566,6 +626,8 @@ describe("SettingsDialogComponent", (): void => {
             } as unknown as ReturnType<typeof component.generalSettings>);
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockDisplayForm),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -591,6 +653,122 @@ describe("SettingsDialogComponent", (): void => {
                 }),
             );
             expect(mockMatDialogRef.close).toHaveBeenCalled();
+        });
+
+        it("should save display settings when form is dirty", async (): Promise<void> => {
+            const mockGeneralForm = createMockGeneralForm(false);
+            const mockRowingForm = createMockRowingForm(false);
+            const mockDisplayForm = createMockDisplayForm(true);
+
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockDisplayForm),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+            } as unknown as ReturnType<typeof component.displaySettings>);
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
+                isProfileLoaded: false,
+            } as unknown as ReturnType<typeof component.rowingSettings>);
+
+            component.onGeneralFormValidityChange(false);
+            component.onDisplayFormValidityChange(true);
+            component.onRowingFormValidityChange(false);
+
+            component.currentTabIndex.set(1);
+
+            await component.saveSettings();
+
+            expect(mockConfigManagerService.setGroup).toHaveBeenCalledWith("display", {
+                general: { unitSystem: "metric" },
+                forceCurve: {
+                    showPeakForceInTitle: true,
+                    showGridLines: true,
+                    showAxisLabels: true,
+                },
+                layout: DEFAULT_DASHBOARD_LAYOUT,
+            });
+            expect(mockMatDialogRef.close).toHaveBeenCalled();
+        });
+
+        it("should save display settings when only layout is dirty", async (): Promise<void> => {
+            const mockGeneralForm = createMockGeneralForm(false);
+            const mockRowingForm = createMockRowingForm(false);
+            const mockDisplayForm = createMockDisplayForm(false);
+            const customLayout: IDashboardLayoutConfig = {
+                tiles: [
+                    {
+                        id: "distance",
+                        position: { rowStart: 1, columnStart: 1, rowSpan: 1, columnSpan: 2 },
+                    },
+                ],
+            };
+
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockDisplayForm),
+                isLayoutDirty: signal(true),
+                getLayout: vi.fn().mockReturnValue(customLayout),
+            } as unknown as ReturnType<typeof component.displaySettings>);
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
+                isProfileLoaded: false,
+            } as unknown as ReturnType<typeof component.rowingSettings>);
+
+            component.onGeneralFormValidityChange(false);
+            component.onDisplayFormValidityChange(true);
+            component.onRowingFormValidityChange(false);
+
+            component.currentTabIndex.set(1);
+
+            await component.saveSettings();
+
+            expect(mockConfigManagerService.setGroup).toHaveBeenCalledWith("display", {
+                general: { unitSystem: "metric" },
+                forceCurve: {
+                    showPeakForceInTitle: true,
+                    showGridLines: true,
+                    showAxisLabels: true,
+                },
+                layout: customLayout,
+            });
+            expect(mockMatDialogRef.close).toHaveBeenCalled();
+        });
+
+        it("should not save display settings when form and layout are both clean", async (): Promise<void> => {
+            const mockGeneralForm = createMockGeneralForm(true, { logLevel: 2 });
+            const mockRowingForm = createMockRowingForm(false);
+            const mockDisplayForm = createMockDisplayForm(false);
+
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockDisplayForm),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+            } as unknown as ReturnType<typeof component.displaySettings>);
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
+                isProfileLoaded: false,
+            } as unknown as ReturnType<typeof component.rowingSettings>);
+
+            component.onGeneralFormValidityChange(true);
+            component.onDisplayFormValidityChange(false);
+            component.onRowingFormValidityChange(false);
+
+            component.currentTabIndex.set(0);
+
+            await component.saveSettings();
+
+            expect(mockConfigManagerService.setGroup).not.toHaveBeenCalledWith("display", expect.anything());
         });
 
         describe("should save rowing settings", async (): Promise<void> => {
@@ -832,6 +1010,8 @@ describe("SettingsDialogComponent", (): void => {
             } as unknown as ReturnType<typeof component.generalSettings>);
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -892,6 +1072,8 @@ describe("SettingsDialogComponent", (): void => {
             } as unknown as ReturnType<typeof component.generalSettings>);
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -954,6 +1136,8 @@ describe("SettingsDialogComponent", (): void => {
             } as unknown as ReturnType<typeof component.generalSettings>);
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -1015,6 +1199,8 @@ describe("SettingsDialogComponent", (): void => {
             } as unknown as ReturnType<typeof component.generalSettings>);
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -1040,6 +1226,67 @@ describe("SettingsDialogComponent", (): void => {
             expect(mockSnackBar.openFromComponent).toHaveBeenCalled();
         });
 
+        it("should include display tab in cross-tab save when layout is dirty", async (): Promise<void> => {
+            const mockGeneralForm = createMockGeneralForm(false);
+            const mockRowingForm = createMockRowingForm(false);
+            const mockDisplayForm = createMockDisplayForm(false);
+            const customLayout: IDashboardLayoutConfig = {
+                tiles: [
+                    {
+                        id: "distance",
+                        position: { rowStart: 1, columnStart: 1, rowSpan: 1, columnSpan: 2 },
+                    },
+                ],
+            };
+
+            vi.spyOn(component, "generalSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            } as unknown as ReturnType<typeof component.generalSettings>);
+            vi.spyOn(component, "displaySettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockDisplayForm),
+                isLayoutDirty: signal(true),
+                getLayout: vi.fn().mockReturnValue(customLayout),
+            } as unknown as ReturnType<typeof component.displaySettings>);
+            vi.spyOn(component, "rowingSettings").mockReturnValue({
+                getForm: vi.fn().mockReturnValue(mockRowingForm),
+                saveAsCustomProfile: vi.fn(),
+                isProfileLoaded: false,
+            } as unknown as ReturnType<typeof component.rowingSettings>);
+
+            component.onGeneralFormValidityChange(true);
+            component.onDisplayFormValidityChange(true);
+            component.onRowingFormValidityChange(true);
+
+            const mockSnackBarRef = {
+                onAction: vi.fn().mockReturnValue(of(true)),
+            };
+            vi.mocked(mockSnackBar.openFromComponent).mockReturnValue(
+                mockSnackBarRef as unknown as MatSnackBarRef<TextOnlySnackBar>,
+            );
+
+            component.currentTabIndex.set(0);
+
+            await component.saveSettings();
+
+            expect(mockSnackBar.openFromComponent).toHaveBeenCalledWith(
+                expect.any(Function),
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        text: "Display tab has changes, save those too?",
+                    }),
+                }),
+            );
+            expect(mockConfigManagerService.setGroup).toHaveBeenCalledWith("display", {
+                general: { unitSystem: "metric" },
+                forceCurve: {
+                    showPeakForceInTitle: true,
+                    showGridLines: true,
+                    showAxisLabels: true,
+                },
+                layout: customLayout,
+            });
+        });
+
         it("should prevent multiple simultaneous save operations", async (): Promise<void> => {
             let resolvePromise: () => void;
             const pendingPromise = new Promise<void>((resolve: () => void): void => {
@@ -1058,6 +1305,8 @@ describe("SettingsDialogComponent", (): void => {
             } as unknown as ReturnType<typeof component.generalSettings>);
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+                isLayoutDirty: signal(false),
+                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),

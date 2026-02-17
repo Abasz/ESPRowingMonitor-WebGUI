@@ -3,6 +3,7 @@
  * Provides mock form creation utilities and mock data shared across test files
  */
 
+import { signal } from "@angular/core";
 import { vi } from "vitest";
 
 import { IDeviceInformation } from "../../common/ble.interfaces";
@@ -413,6 +414,8 @@ export const setupMockChildComponents: (
 
     vi.spyOn(component, "displaySettings").mockReturnValue({
         getForm: vi.fn().mockReturnValue(mockDisplayForm),
+        isLayoutDirty: signal(false),
+        getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
     } as unknown as ReturnType<typeof component.displaySettings>);
 
     component.onDisplayFormValidityChange(true);
@@ -438,6 +441,8 @@ export const setupCleanGeneralAndDisplayForms: (component: SettingsDialogCompone
 
     vi.spyOn(component, "displaySettings").mockReturnValue({
         getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
+        isLayoutDirty: signal(false),
+        getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
     } as unknown as ReturnType<typeof component.displaySettings>);
 
     component.onGeneralFormValidityChange(false);
