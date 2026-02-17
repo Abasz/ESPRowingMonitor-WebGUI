@@ -7,9 +7,9 @@ import {
     IStrokeDetectionSettings,
     ProfileData,
     StrokeDetectionType,
-} from "../../common/common.interfaces";
-import { CUSTOM_PROFILE_KEY } from "../../common/data/standard-profiles";
-import { RowingProfileService } from "../../common/services/rowing-profile.service";
+} from "../../../common/common.interfaces";
+import { CUSTOM_PROFILE_KEY } from "../../../common/data/standard-profiles";
+import { RowingProfileService } from "../../../common/services/rowing-profile.service";
 
 import { RowingSettingsComponent } from "./rowing-settings.component";
 
@@ -331,9 +331,8 @@ describe("RowingSettingsComponent", (): void => {
             const minimumRecoverySlopeMargin =
                 component.settingsForm.controls.strokeDetectionSettings.controls.minimumRecoverySlopeMargin;
 
-            // eslint-disable-next-line @typescript-eslint/naming-convention
             const initialRecoverySlopeState = minimumRecoverySlope.disabled;
-            // eslint-disable-next-line @typescript-eslint/naming-convention
+
             const initialRecoverySlopeMarginState = minimumRecoverySlopeMargin.disabled;
 
             component.settingsForm.controls.strokeDetectionSettings.controls.strokeDetectionType.setValue(

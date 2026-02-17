@@ -17,10 +17,9 @@ import { MatIcon } from "@angular/material/icon";
 import { MatRadioButton, MatRadioGroup } from "@angular/material/radio";
 import { startWith } from "rxjs";
 
-import { IDashboardLayoutConfig, UnitSystem } from "../../common/common.interfaces";
-import { ConfigManagerService } from "../../common/services/config-manager.service";
-
-import { TileLayoutEditorComponent } from "./tile-layout-editor/tile-layout-editor.component";
+import { IDashboardLayoutConfig, UnitSystem } from "../../../common/common.interfaces";
+import { ConfigManagerService } from "../../../common/services/config-manager.service";
+import { TileLayoutEditorComponent } from "../tile-layout-editor/tile-layout-editor.component";
 
 type DisplaySettingsFormGroup = FormGroup<{
     showPeakForceInTitle: FormControl<boolean>;

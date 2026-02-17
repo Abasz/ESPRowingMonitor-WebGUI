@@ -5,12 +5,12 @@ import { MatCheckboxHarness } from "@angular/material/checkbox/testing";
 import { MatRadioGroupHarness } from "@angular/material/radio/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { IDashboardLayoutConfig } from "../../common/common.interfaces";
-import { ConfigManagerService } from "../../common/services/config-manager.service";
-import { DEFAULT_DASHBOARD_LAYOUT } from "../dashboard/dashboard-tile-definitions";
+import { IDashboardLayoutConfig } from "../../../common/common.interfaces";
+import { ConfigManagerService } from "../../../common/services/config-manager.service";
+import { DEFAULT_DASHBOARD_LAYOUT } from "../../dashboard/dashboard-tile-definitions";
+import { createMockConfig } from "../settings-dialog.test.helpers";
 
 import { DisplaySettingsComponent } from "./display-settings.component";
-import { createMockConfig } from "./settings-dialog.test.helpers";
 
 describe("DisplaySettingsComponent", (): void => {
     let component: DisplaySettingsComponent;

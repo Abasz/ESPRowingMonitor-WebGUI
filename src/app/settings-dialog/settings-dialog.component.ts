@@ -37,9 +37,9 @@ import { ErgSettingsService } from "../../common/services/ergometer/erg-settings
 import { UtilsService } from "../../common/services/utils.service";
 import { SnackBarConfirmComponent } from "../../common/snack-bar-confirm/snack-bar-confirm.component";
 
-import { DisplaySettingsComponent } from "./display-settings.component";
-import { GeneralSettingsComponent } from "./general-settings.component";
-import { RowingSettingsComponent, RowingSettingsFormGroup } from "./rowing-settings.component";
+import { DisplaySettingsComponent } from "./display-settings/display-settings.component";
+import { GeneralSettingsComponent } from "./general-settings/general-settings.component";
+import { RowingSettingsComponent, RowingSettingsFormGroup } from "./rower-settings/rowing-settings.component";
 
 @Component({
     selector: "app-settings-dialog",

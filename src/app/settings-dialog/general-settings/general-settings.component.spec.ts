@@ -11,11 +11,11 @@ import { SwUpdate } from "@angular/service-worker";
 import { of } from "rxjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { BleServiceFlag, IDeviceInformation, LogLevel } from "../../common/ble.interfaces";
-import { IRowerSettings } from "../../common/common.interfaces";
-import { ConfigManagerService } from "../../common/services/config-manager.service";
-import { FirmwareUpdateManagerService } from "../../common/services/ergometer/firmware-update-manager.service";
-import { OtaDialogComponent } from "../ota-settings-dialog/ota-dialog.component";
+import { BleServiceFlag, IDeviceInformation, LogLevel } from "../../../common/ble.interfaces";
+import { IRowerSettings } from "../../../common/common.interfaces";
+import { ConfigManagerService } from "../../../common/services/config-manager.service";
+import { FirmwareUpdateManagerService } from "../../../common/services/ergometer/firmware-update-manager.service";
+import { OtaDialogComponent } from "../../ota-settings-dialog/ota-dialog.component";
 
 import { GeneralSettingsComponent } from "./general-settings.component";
 
