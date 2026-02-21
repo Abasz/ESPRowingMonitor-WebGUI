@@ -446,13 +446,15 @@ describe("SettingsDialogComponent", (): void => {
         it("should have proper buttons with correct state", async (): Promise<void> => {
             const dialogActions = fixture.debugElement.nativeElement.querySelector("[mat-dialog-actions]");
             const buttons = dialogActions.querySelectorAll("button");
-            expect(buttons).toHaveLength(2);
+            expect(buttons).toHaveLength(3);
 
-            const saveButton = dialogActions.querySelector("button[ng-reflect-disabled]") || buttons[0];
-            const cancelButton = buttons[1];
+            const exportButton = buttons[0];
+            const saveButton = dialogActions.querySelector("button[ng-reflect-disabled]") || buttons[1];
+            const cancelButton = buttons[2];
 
             expect(saveButton.textContent.trim()).toBe("Save");
             expect(cancelButton.textContent.trim()).toBe("Cancel");
+            expect(exportButton.textContent.trim()).toBe("Export");
 
             setupMockChildComponents(false, false, false);
             component.onGeneralFormValidityChange(true);

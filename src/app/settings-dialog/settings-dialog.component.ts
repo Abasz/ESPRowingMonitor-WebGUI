@@ -11,6 +11,7 @@ import {
     WritableSignal,
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { FormControl, ReactiveFormsModule, Validators } from "@angular/forms";
 import { MatButton } from "@angular/material/button";
 import {
     MAT_DIALOG_DATA,
@@ -19,12 +20,15 @@ import {
     MatDialogRef,
     MatDialogTitle,
 } from "@angular/material/dialog";
+import { MatFormField, MatHint, MatLabel } from "@angular/material/form-field";
+import { MatInput } from "@angular/material/input";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { MatTab, MatTabGroup } from "@angular/material/tabs";
 import { firstValueFrom, map, Observable } from "rxjs";
 
 import { IDeviceInformation } from "../../common/ble.interfaces";
 import { HeartRateMonitorMode, IErgConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
+import { versionInfo } from "../../common/data/version";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
@@ -33,6 +37,22 @@ import { SnackBarConfirmComponent } from "../../common/snack-bar-confirm/snack-b
 
 import { GeneralSettingsComponent } from "./general-settings.component";
 import { RowingSettingsComponent, RowingSettingsFormGroup } from "./rowing-settings.component";
+
+interface ISettingsExport {
+    schemaVersion: 1;
+    exportedAt: string;
+    appBuildTimestamp: string;
+    profileName: string;
+    deviceInfo: IDeviceInformation;
+    generalSettings: {
+        bleMode: number;
+        logLevel: number;
+        heartRateMonitor: HeartRateMonitorMode;
+        deltaTimeLogging: boolean | undefined;
+        logToSdCard: boolean | undefined;
+    };
+    rowingSettings: Record<string, unknown>;
+}
 
 @Component({
     selector: "app-settings-dialog",
@@ -50,11 +70,17 @@ import { RowingSettingsComponent, RowingSettingsFormGroup } from "./rowing-setti
         GeneralSettingsComponent,
         RowingSettingsComponent,
         AsyncPipe,
+        MatFormField,
+        MatHint,
+        MatLabel,
+        MatInput,
+        ReactiveFormsModule,
     ],
 })
 export class SettingsDialogComponent {
     readonly rowingSettings: Signal<RowingSettingsComponent> = viewChild.required(RowingSettingsComponent);
     readonly generalSettings: Signal<GeneralSettingsComponent> = viewChild.required(GeneralSettingsComponent);
+    readonly exportProfileNameControl: FormControl<string>;
 
     readonly isSaveButtonEnabled: Signal<boolean> = computed((): boolean => {
         const currentTab = this.currentTabIndex();
@@ -89,6 +115,11 @@ export class SettingsDialogComponent {
             deviceInfo: IDeviceInformation;
         },
     ) {
+        this.exportProfileNameControl = new FormControl<string>("", {
+            nonNullable: true,
+            validators: [Validators.required, Validators.maxLength(60)],
+        });
+
         this.breakPoints$.pipe(takeUntilDestroyed()).subscribe((isSmallScreen: boolean): void => {
             if (isSmallScreen) {
                 this.dialogRef.updateSize("90%");
@@ -173,6 +204,48 @@ export class SettingsDialogComponent {
             ))
         ) {
             this.dialogRef.close();
+        }
+    }
+
+    async exportSettings(): Promise<void> {
+        try {
+            const profileName = this.getExportProfileName();
+            if (!profileName) {
+                this.snackBar.open("Please provide a profile name for export", "Dismiss", {
+                    duration: 3000,
+                });
+                return;
+            }
+
+            const generalForm = this.generalSettings().getForm();
+            const rowingForm = this.rowingSettings().getForm();
+
+            const payload: ISettingsExport = {
+                schemaVersion: 1,
+                exportedAt: new Date().toISOString(),
+                appBuildTimestamp: versionInfo.timeStamp,
+                profileName,
+                deviceInfo: this.data.deviceInfo,
+                generalSettings: {
+                    bleMode: generalForm.controls.bleMode.value,
+                    logLevel: generalForm.controls.logLevel.value,
+                    heartRateMonitor: generalForm.controls.heartRateMonitor.value,
+                    deltaTimeLogging: generalForm.controls.deltaTimeLogging.value,
+                    logToSdCard: generalForm.controls.logToSdCard.value,
+                },
+                rowingSettings: rowingForm.getRawValue(),
+            };
+
+            const fileName = this.buildExportFilename(payload.profileName, payload.exportedAt);
+            const blob = new Blob([JSON.stringify(payload, null, 2)], {
+                type: "application/json",
+            });
+
+            await this.shareOrDownload(blob, fileName);
+            this.snackBar.open("Settings exported", "Dismiss", { duration: 3000 });
+        } catch (error) {
+            console.error("exportSettings:", error);
+            this.snackBar.open("Failed to export settings", "Dismiss", { duration: 3000 });
         }
     }
 
@@ -287,5 +360,60 @@ export class SettingsDialogComponent {
                 .pipe(map((): boolean => true)),
             { defaultValue: false },
         );
+    }
+
+    private buildExportFilename(profileName: string, exportedAt: string): string {
+        const safeTimestamp = this.formatExportTimestamp(exportedAt);
+        const safeName = profileName
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "")
+            .slice(0, 40);
+
+        const namePart = safeName.length > 0 ? `-${safeName}` : "";
+
+        return `esprm-settings${namePart}-${safeTimestamp}.json`;
+    }
+
+    private formatExportTimestamp(isoTimestamp: string): string {
+        const date = new Date(isoTimestamp);
+
+        const pad = (value: number): string => value.toString().padStart(2, "0");
+
+        const year = date.getFullYear();
+        const month = pad(date.getMonth() + 1);
+        const day = pad(date.getDate());
+        const hours = pad(date.getHours());
+        const minutes = pad(date.getMinutes());
+
+        return `${year}-${month}-${day}_${hours}-${minutes}`;
+    }
+
+    private getExportProfileName(): string | undefined {
+        const trimmed = this.exportProfileNameControl.value.trim();
+
+        return trimmed.length > 0 ? trimmed : undefined;
+    }
+
+    private async shareOrDownload(blob: Blob, fileName: string): Promise<void> {
+        const file = new File([blob], fileName, { type: "application/json" });
+        const shareData: ShareData = {
+            files: [file],
+            title: "ESP Rowing Monitor Settings",
+        };
+
+        if (navigator.canShare && navigator.canShare(shareData)) {
+            await navigator.share(shareData);
+
+            return;
+        }
+
+        const url = window.URL.createObjectURL(blob);
+        const downloadTag = document.createElement("a");
+        downloadTag.href = url;
+        downloadTag.download = fileName;
+        downloadTag.click();
+        window.URL.revokeObjectURL(url);
     }
 }

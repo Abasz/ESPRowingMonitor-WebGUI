@@ -28,8 +28,32 @@
             </app-rowing-settings>
         </mat-tab>
     </mat-tab-group>
+
+    @if (currentTabIndex() === 0) {
+        <div class="export-name-row">
+            <mat-form-field subscriptSizing="dynamic">
+                <mat-label>Export Profile Name</mat-label>
+                <input
+                    matInput
+                    [formControl]="exportProfileNameControl"
+                    maxlength="60"
+                    placeholder="e.g. My Home Rower"
+                />
+                <mat-hint align="start">Required for export</mat-hint>
+                <mat-hint align="end">Max 60</mat-hint>
+            </mat-form-field>
+        </div>
+    }
 </div>
 <div mat-dialog-actions align="end">
+    <button
+        (click)="exportSettings()"
+        mat-stroked-button
+        type="button"
+        [disabled]="exportProfileNameControl.invalid"
+    >
+        Export
+    </button>
     <button (click)="saveSettings()" mat-raised-button [disabled]="!isSaveButtonEnabled()">Save</button>
     <button (click)="handleDialogClose()" mat-raised-button>Cancel</button>
 </div>
