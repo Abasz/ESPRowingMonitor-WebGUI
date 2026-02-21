@@ -33,10 +33,9 @@ import {
     MatExpansionPanelHeader,
     MatExpansionPanelTitle,
 } from "@angular/material/expansion";
-import { MatError, MatFormField, MatLabel } from "@angular/material/form-field";
+import { MatError, MatFormField, MatHint, MatLabel } from "@angular/material/form-field";
 import { MatInput } from "@angular/material/input";
 import { MatSelect } from "@angular/material/select";
-import { MatSliderModule } from "@angular/material/slider";
 import { MatTooltip } from "@angular/material/tooltip";
 import { map, startWith } from "rxjs";
 
@@ -98,11 +97,11 @@ export type RowingSettingsFormGroup = FormGroup<{
         KeyValuePipe,
         MatError,
         MatFormField,
+        MatHint,
         MatLabel,
         MatSelect,
         MatOption,
         MatInput,
-        MatSliderModule,
         MatButton,
         MatAccordion,
         MatExpansionPanel,
