@@ -119,6 +119,9 @@ export class SettingsDialogComponent {
             nonNullable: true,
             validators: [Validators.required, Validators.maxLength(60)],
         });
+        if (this.data.ergConnectionStatus.status !== "connected") {
+            this.exportProfileNameControl.disable({ emitEvent: false });
+        }
 
         this.breakPoints$.pipe(takeUntilDestroyed()).subscribe((isSmallScreen: boolean): void => {
             if (isSmallScreen) {
@@ -209,6 +212,14 @@ export class SettingsDialogComponent {
 
     async exportSettings(): Promise<void> {
         try {
+            if (this.data.ergConnectionStatus.status !== "connected") {
+                this.snackBar.open("Connect to a device before exporting settings", "Dismiss", {
+                    duration: 3000,
+                });
+
+                return;
+            }
+
             const profileName = this.getExportProfileName();
             if (!profileName) {
                 this.snackBar.open("Please provide a profile name for export", "Dismiss", {
@@ -219,10 +230,11 @@ export class SettingsDialogComponent {
 
             const generalForm = this.generalSettings().getForm();
             const rowingForm = this.rowingSettings().getForm();
+            const exportedAtIso = new Date().toISOString();
 
             const payload: ISettingsExport = {
                 schemaVersion: 1,
-                exportedAt: new Date().toISOString(),
+                exportedAt: exportedAtIso,
                 appBuildTimestamp: versionInfo.timeStamp,
                 profileName,
                 deviceInfo: this.data.deviceInfo,
@@ -236,7 +248,7 @@ export class SettingsDialogComponent {
                 rowingSettings: rowingForm.getRawValue(),
             };
 
-            const fileName = this.buildExportFilename(payload.profileName, payload.exportedAt);
+            const fileName = this.buildExportFilename(payload.profileName, exportedAtIso);
             const blob = new Blob([JSON.stringify(payload, null, 2)], {
                 type: "application/json",
             });
@@ -377,17 +389,7 @@ export class SettingsDialogComponent {
     }
 
     private formatExportTimestamp(isoTimestamp: string): string {
-        const date = new Date(isoTimestamp);
-
-        const pad = (value: number): string => value.toString().padStart(2, "0");
-
-        const year = date.getFullYear();
-        const month = pad(date.getMonth() + 1);
-        const day = pad(date.getDate());
-        const hours = pad(date.getHours());
-        const minutes = pad(date.getMinutes());
-
-        return `${year}-${month}-${day}_${hours}-${minutes}`;
+        return isoTimestamp.replace(/[:.]/g, "-");
     }
 
     private getExportProfileName(): string | undefined {

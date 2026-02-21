@@ -50,7 +50,7 @@
         (click)="exportSettings()"
         mat-stroked-button
         type="button"
-        [disabled]="exportProfileNameControl.invalid"
+        [disabled]="exportProfileNameControl.invalid || data.ergConnectionStatus.status !== 'connected'"
     >
         Export
     </button>
