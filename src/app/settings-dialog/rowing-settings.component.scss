@@ -44,7 +44,34 @@
     }
 
     .mat-mdc-slider {
-        margin: 0px 4px;
+        margin: 0 0 0 4px;
+    }
+
+    .slider-row {
+        display: flex;
+        align-items: center;
+        gap: 0;
+    }
+
+    .slider-row .mat-mdc-slider {
+        flex: 1 1 auto;
+        min-width: 0;
+        filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.22));
+    }
+
+    .slider-value {
+        min-width: 0;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        font-size: 0.9rem;
+        margin-left: 14px;
+    }
+
+    .slider-range {
+        margin-left: 4px;
+        font-size: 0.75rem;
+        color: rgba(0, 0, 0, 0.6);
+        font-variant-numeric: tabular-nums;
     }
 }
 
