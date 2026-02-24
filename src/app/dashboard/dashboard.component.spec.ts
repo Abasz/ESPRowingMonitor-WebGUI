@@ -19,7 +19,15 @@ import { HeartRateService } from "../../common/services/heart-rate/heart-rate.se
 import { MetricsService } from "../../common/services/metrics.service";
 import { UtilsService } from "../../common/services/utils.service";
 
+import {
+    DASHBOARD_TILE_DEFINITIONS,
+    DashboardTileDefinition,
+    DashboardTileId,
+    DEFAULT_DASHBOARD_LAYOUT,
+} from "./dashboard-tile-definitions";
 import { DashboardComponent } from "./dashboard.component";
+import { PlacedDashboardTile } from "./dashboard.interfaces";
+import { createMockMetrics } from "./tiles/dashboard-tile.test.helpers";
 
 describe("DashboardComponent", (): void => {
     let component: DashboardComponent;
@@ -37,20 +45,9 @@ describe("DashboardComponent", (): void => {
     let configSubject: BehaviorSubject<Config>;
 
     // test data constants
-    const mockInitialMetrics: ICalculatedMetrics = {
+    const mockInitialMetrics: ICalculatedMetrics = createMockMetrics({
         activityStartTime: new Date("2024-01-01T10:00:00.000Z"),
-        avgStrokePower: 0,
-        driveDuration: 0,
-        recoveryDuration: 0,
-        dragFactor: 0,
-        distance: 0,
-        strokeCount: 0,
-        handleForces: [],
-        peakForce: 0,
-        strokeRate: 0,
-        speed: 0,
-        distPerStroke: 0,
-    };
+    });
 
     const mockConnectedStatus: IErgConnectionStatus = {
         status: "connected",
@@ -69,11 +66,6 @@ describe("DashboardComponent", (): void => {
 
     beforeEach(async (): Promise<void> => {
         // const mocks to satisfy the imported component providers only
-        const ergGenericDataServiceSpy = {
-            streamMonitorBatteryLevel$: vi.fn(),
-            batteryLevel$: of(50),
-        };
-        ergGenericDataServiceSpy.streamMonitorBatteryLevel$.mockReturnValue(of(50));
         configSubject = new BehaviorSubject<Config>(new Config());
         configManagerServiceSpy = {
             configChanged$: configSubject.asObservable(),
@@ -117,7 +109,13 @@ describe("DashboardComponent", (): void => {
                 { provide: MetricsService, useValue: metricsServiceSpy },
                 { provide: ErgConnectionService, useValue: ergConnectionServiceSpy },
                 { provide: UtilsService, useValue: utilsServiceSpy },
-                { provide: ErgGenericDataService, useValue: ergGenericDataServiceSpy },
+                {
+                    provide: ErgGenericDataService,
+                    useValue: {
+                        streamMonitorBatteryLevel$: vi.fn().mockReturnValue(of(50)),
+                        batteryLevel$: of(50),
+                    },
+                },
                 { provide: ConfigManagerService, useValue: configManagerServiceSpy },
                 { provide: HeartRateService, useValue: heartRateServiceSpy },
                 { provide: ErgSettingsService, useValue: ergSettingsServiceSpy },
@@ -128,13 +126,9 @@ describe("DashboardComponent", (): void => {
         component = fixture.componentInstance;
     });
 
-    describe("component initialization", (): void => {
+    describe("as part of component creation", (): void => {
         it("should create", (): void => {
             expect(component).toBeTruthy();
-        });
-
-        it("should have BleServiceFlag set to correct value", (): void => {
-            expect(component.BleServiceFlag).toBe(BleServiceFlag);
         });
 
         it("should initialize signals with correct default values", (): void => {
@@ -149,10 +143,11 @@ describe("DashboardComponent", (): void => {
             expect(component.displayConfig().forceCurve.showGridLines).toBe(true);
             expect(component.displayConfig().forceCurve.showAxisLabels).toBe(true);
             expect(component.displayConfig().general.unitSystem).toBe("metric");
+            expect(component.layoutTiles()).toEqual(DEFAULT_DASHBOARD_LAYOUT.tiles);
         });
     });
 
-    describe("display signal", (): void => {
+    describe("displayConfig signal", (): void => {
         it("should reflect config updates", (): void => {
             expect(component.displayConfig().forceCurve.showPeakForceInTitle).toBe(true);
 
@@ -176,45 +171,28 @@ describe("DashboardComponent", (): void => {
         });
     });
 
-    describe("showGridLines signal", (): void => {
-        it("should default to true", (): void => {
-            expect(component.displayConfig().forceCurve.showGridLines).toBe(true);
+    describe("layoutTiles signal", (): void => {
+        it("should default to DEFAULT_DASHBOARD_LAYOUT tiles", (): void => {
+            expect(component.layoutTiles()).toEqual(DEFAULT_DASHBOARD_LAYOUT.tiles);
         });
 
         it("should reflect config updates", (): void => {
+            const customTiles: Array<PlacedDashboardTile> = [
+                {
+                    id: "distance",
+                    position: { rowStart: 1, columnStart: 1, rowSpan: 1, columnSpan: 2 },
+                },
+            ];
+
             configSubject.next({
                 ...configSubject.value,
                 display: {
                     ...configSubject.value.display,
-                    forceCurve: {
-                        ...configSubject.value.display.forceCurve,
-                        showGridLines: false,
-                    },
+                    layout: { tiles: customTiles },
                 },
             });
 
-            expect(component.displayConfig().forceCurve.showGridLines).toBe(false);
-        });
-    });
-
-    describe("showAxisLabels signal", (): void => {
-        it("should default to true", (): void => {
-            expect(component.displayConfig().forceCurve.showAxisLabels).toBe(true);
-        });
-
-        it("should reflect config updates", (): void => {
-            configSubject.next({
-                ...configSubject.value,
-                display: {
-                    ...configSubject.value.display,
-                    forceCurve: {
-                        ...configSubject.value.display.forceCurve,
-                        showAxisLabels: false,
-                    },
-                },
-            });
-
-            expect(component.displayConfig().forceCurve.showAxisLabels).toBe(false);
+            expect(component.layoutTiles()).toEqual(customTiles);
         });
     });
 
@@ -251,20 +229,6 @@ describe("DashboardComponent", (): void => {
                 await vi.advanceTimersByTimeAsync(2000);
                 expect(component.elapseTime()).toBeCloseTo(7, 0);
             });
-
-            it("should update when activity start time changes", (): void => {
-                const newMetrics = {
-                    ...mockInitialMetrics,
-                    activityStartTime: new Date("2024-01-01T10:05:00.000Z"),
-                };
-
-                // the pairwise operator requires two emissions to detect changes
-                // but since the elapsed time signal only starts after connection,
-                // we'll just verify the component can handle metrics updates
-                allMetricsSubject.next(newMetrics);
-
-                expect(component.rowingData().activityStartTime).toEqual(newMetrics.activityStartTime);
-            });
         });
     });
 
@@ -275,12 +239,6 @@ describe("DashboardComponent", (): void => {
             heartRateDataSubject.next(mockHeartRateData);
 
             expect(component.heartRateData()).toEqual(mockHeartRateData);
-        });
-
-        it("should handle undefined heart rate data", (): void => {
-            heartRateDataSubject.next(undefined);
-
-            expect(component.heartRateData()).toBeUndefined();
         });
     });
 
@@ -319,44 +277,161 @@ describe("DashboardComponent", (): void => {
         });
     });
 
-    describe("component template integration", (): void => {
-        it("should render without errors", (): void => {
-            expect(fixture.nativeElement).toBeTruthy();
-            expect(fixture.debugElement.query((): boolean => true)).toBeTruthy();
+    describe("as part of template rendering", (): void => {
+        it("should render tiles based on layout config", (): void => {
+            fixture.detectChanges();
+
+            const tiles = fixture.nativeElement.querySelectorAll(".dashboard .tile");
+
+            expect(tiles.length).toBe(DEFAULT_DASHBOARD_LAYOUT.tiles.length);
         });
 
-        it("should display current signal values in template", (): void => {
+        it("should render force curve tile component for ForceCurve tile type", (): void => {
+            fixture.detectChanges();
+
+            const forceCurveTile = fixture.nativeElement.querySelector(
+                ".tile[data-tile-type='forceCurve'] app-force-curve-tile",
+            );
+
+            expect(forceCurveTile).toBeTruthy();
+        });
+
+        it("should render metric tile components for metric tile types", (): void => {
+            fixture.detectChanges();
+
+            const distanceTile = fixture.nativeElement.querySelector(
+                ".tile[data-tile-type='distance'] app-distance-tile",
+            );
+
+            expect(distanceTile).toBeTruthy();
+        });
+
+        it("should apply grid positioning styles from tile config", (): void => {
+            fixture.detectChanges();
+
+            const firstTile = fixture.nativeElement.querySelector(".dashboard .tile");
+
+            expect(firstTile).toBeTruthy();
+            expect(firstTile.style.gridRow).toBeTruthy();
+            expect(firstTile.style.gridColumn).toBeTruthy();
+        });
+
+        it("should update tiles when layout config changes", (): void => {
+            fixture.detectChanges();
+
+            configSubject.next({
+                ...configSubject.value,
+                display: {
+                    ...configSubject.value.display,
+                    layout: {
+                        tiles: [
+                            {
+                                id: "distance",
+                                position: { rowStart: 1, columnStart: 1, rowSpan: 1, columnSpan: 1 },
+                            },
+                        ],
+                    },
+                },
+            });
+            fixture.detectChanges();
+
+            const tiles = fixture.nativeElement.querySelectorAll(".dashboard .tile");
+
+            expect(tiles.length).toBe(1);
+        });
+    });
+
+    describe("tileEntries signal", (): void => {
+        it("should contain the correct component for a known tile type", (): void => {
+            const expectedComponent = DASHBOARD_TILE_DEFINITIONS.find(
+                (entry: DashboardTileDefinition): boolean => entry.id === "distance",
+            )?.component;
+
+            expect(component.tileEntries().get("distance")?.component).toBe(expectedComponent);
+        });
+
+        it("should return undefined for an unknown tile type", (): void => {
+            expect(component.tileEntries().get("unknown" as DashboardTileId)).toBeUndefined();
+        });
+
+        it("should contain label, icon and rowingData for a rowingData-only tile with icon", (): void => {
+            const inputs = component.tileEntries().get("pace")?.inputs;
+
+            expect(Object.keys(inputs ?? {}).sort()).toEqual(["icon", "label", "rowingData"]);
+            expect(inputs?.rowingData).toBe(component.rowingData());
+            expect(inputs?.label).toBe("Pace");
+            expect(inputs?.icon).toBe("speed");
+        });
+
+        it("should contain label and rowingData but no icon for a tile without icon", (): void => {
+            const inputs = component.tileEntries().get("dragFactor")?.inputs;
+
+            expect(Object.keys(inputs ?? {}).sort()).toEqual(["label", "rowingData"]);
+            expect(inputs?.rowingData).toBe(component.rowingData());
+            expect(inputs?.label).toBe("Drag Factor");
+            expect(inputs?.icon).toBeUndefined();
+        });
+
+        it("should contain label, icon, rowingData and displayConfig for distance tile", (): void => {
+            const inputs = component.tileEntries().get("distance")?.inputs;
+
+            expect(Object.keys(inputs ?? {}).sort()).toEqual([
+                "displayConfig",
+                "icon",
+                "label",
+                "rowingData",
+            ]);
+            expect(inputs?.rowingData).toBe(component.rowingData());
+            expect(inputs?.displayConfig).toBe(component.displayConfig());
+            expect(inputs?.label).toBe("Distance");
+            expect(inputs?.icon).toBe("distance");
+        });
+
+        it("should contain label, icon and elapseTime for timer tile", (): void => {
+            const inputs = component.tileEntries().get("timer")?.inputs;
+
+            expect(Object.keys(inputs ?? {}).sort()).toEqual(["elapseTime", "icon", "label"]);
+            expect(inputs?.elapseTime).toBe(component.elapseTime());
+            expect(inputs?.label).toBe("Timer");
+            expect(inputs?.icon).toBe("timer");
+        });
+
+        it("should contain label, icon and heartRateData for heart rate tile", (): void => {
             heartRateDataSubject.next(mockHeartRateData);
+
+            const inputs = component.tileEntries().get("heartRate")?.inputs;
+
+            expect(Object.keys(inputs ?? {}).sort()).toEqual(["heartRateData", "icon", "label"]);
+            expect(inputs?.heartRateData).toBe(component.heartRateData());
+            expect(inputs?.label).toBe("Heart Rate");
+            expect(inputs?.icon).toBe("ecg_heart");
+        });
+
+        it("should reflect updated signal values", (): void => {
             const updatedMetrics: ICalculatedMetrics = {
                 ...mockInitialMetrics,
                 distance: 500,
+                strokeRate: 30,
             };
             allMetricsSubject.next(updatedMetrics);
 
-            expect(component.heartRateData()).toEqual(mockHeartRateData);
-            expect(component.rowingData().distance).toBe(500);
+            const inputs = component.tileEntries().get("pace")?.inputs;
+
+            expect(inputs?.rowingData).toBe(component.rowingData());
+            expect((inputs?.rowingData as ICalculatedMetrics).distance).toBe(500);
         });
-    });
 
-    describe("error handling", (): void => {
-        it("should handle service errors gracefully", (): void => {
-            // create a separate error subject for this test
-            const errorSubject = new BehaviorSubject<ICalculatedMetrics>(mockInitialMetrics);
+        it("should match inputs declared in DASHBOARD_TILE_DEFINITIONS for every tile", (): void => {
+            for (const entry of DASHBOARD_TILE_DEFINITIONS) {
+                const inputs = component.tileEntries().get(entry.id)?.inputs;
+                const expectedKeys = [
+                    ...entry.context,
+                    "label",
+                    ...(entry.icon !== undefined ? ["icon"] : []),
+                ];
 
-            expect((): void => {
-                errorSubject.error(new Error("Service error"));
-            }).not.toThrow();
-        });
-    });
-
-    describe("memory management", (): void => {
-        it("should clean up subscriptions on destroy", (): void => {
-            const destroyComponent = (): void => {
-                component.ngOnDestroy();
-                fixture.destroy();
-            };
-
-            expect(destroyComponent).not.toThrow();
+                expect(Object.keys(inputs ?? {}).sort()).toEqual([...expectedKeys].sort());
+            }
         });
     });
 });

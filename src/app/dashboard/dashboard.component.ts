@@ -1,10 +1,16 @@
-import { DecimalPipe } from "@angular/common";
-import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy, Signal } from "@angular/core";
+import { NgComponentOutlet } from "@angular/common";
+import {
+    AfterViewInit,
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    OnDestroy,
+    Signal,
+    Type,
+} from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
-import { MatIcon } from "@angular/material/icon";
 import { filter, interval, map, merge, Observable, pairwise, startWith, switchMap, take } from "rxjs";
 
-import { BleServiceFlag } from "../../common/ble.interfaces";
 import {
     Config,
     ICalculatedMetrics,
@@ -16,14 +22,16 @@ import { ConfigManagerService } from "../../common/services/config-manager.servi
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { MetricsService } from "../../common/services/metrics.service";
 import { UtilsService } from "../../common/services/utils.service";
-import { BatteryLevelPipe } from "../../common/utils/battery-level.pipe";
-import { MetersToFeetPipe } from "../../common/utils/meters-to-feet.pipe";
-import { MetersToMilesPipe } from "../../common/utils/meters-to-miles.pipe";
-import { RoundNumberPipe } from "../../common/utils/round-number.pipe";
-import { SecondsToTimePipe } from "../../common/utils/seconds-to-time.pipe";
 
-import { ForceCurveComponent } from "./force-curve/force-curve.component";
-import { MetricComponent } from "./metric/metric.component";
+import {
+    DASHBOARD_TILE_DEFINITIONS,
+    DashboardContext,
+    DashboardContextKey,
+    DashboardTileComponent,
+    DashboardTileId,
+    TileComponentInputs,
+} from "./dashboard-tile-definitions";
+import { DashboardTileDefinition, PlacedDashboardTile } from "./dashboard.interfaces";
 import { SettingsBarComponent } from "./settings-bar/settings-bar.component";
 
 @Component({
@@ -31,25 +39,13 @@ import { SettingsBarComponent } from "./settings-bar/settings-bar.component";
     templateUrl: "./dashboard.component.html",
     styleUrls: ["./dashboard.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [
-        SettingsBarComponent,
-        MetricComponent,
-        ForceCurveComponent,
-        MatIcon,
-        DecimalPipe,
-        SecondsToTimePipe,
-        RoundNumberPipe,
-        BatteryLevelPipe,
-        MetersToMilesPipe,
-        MetersToFeetPipe,
-    ],
+    imports: [SettingsBarComponent, NgComponentOutlet],
 })
 export class DashboardComponent implements AfterViewInit, OnDestroy {
-    readonly BleServiceFlag: typeof BleServiceFlag = BleServiceFlag;
-
     readonly elapseTime: Signal<number>;
     readonly heartRateData: Signal<IHeartRate | undefined> = toSignal(this.metricsService.heartRateData$);
     readonly displayConfig: Signal<IDisplayConfig>;
+    readonly layoutTiles: Signal<Array<PlacedDashboardTile>>;
     readonly rowingData: Signal<ICalculatedMetrics> = toSignal(this.metricsService.allMetrics$, {
         initialValue: {
             activityStartTime: new Date(),
@@ -66,6 +62,77 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
             distPerStroke: 0,
         },
     });
+
+    readonly tileEntries: Signal<
+        ReadonlyMap<DashboardTileId, { component: Type<DashboardTileComponent>; inputs: TileComponentInputs }>
+    > = computed(
+        (): ReadonlyMap<
+            DashboardTileId,
+            { component: Type<DashboardTileComponent>; inputs: TileComponentInputs }
+        > =>
+            new Map(
+                [...this.tileRegistry.entries()].map(
+                    ([id, entry]: [
+                        DashboardTileId,
+                        {
+                            component: Type<DashboardTileComponent>;
+                            inputs: Signal<TileComponentInputs>;
+                        },
+                    ]): [
+                        DashboardTileId,
+                        { component: Type<DashboardTileComponent>; inputs: TileComponentInputs },
+                    ] => [id, { component: entry.component, inputs: entry.inputs() }],
+                ),
+            ),
+    );
+
+    private readonly tileRegistry: ReadonlyMap<
+        DashboardTileId,
+        { component: Type<DashboardTileComponent>; inputs: Signal<TileComponentInputs> }
+    > = new Map(
+        DASHBOARD_TILE_DEFINITIONS.map(
+            (
+                entry: DashboardTileDefinition,
+            ): [
+                DashboardTileId,
+                {
+                    component: Type<DashboardTileComponent>;
+                    inputs: Signal<TileComponentInputs>;
+                },
+            ] => [
+                entry.id,
+                {
+                    component: entry.component as Type<DashboardTileComponent>,
+                    inputs: computed(
+                        (): TileComponentInputs => ({
+                            ...Object.fromEntries(
+                                entry.context.map(
+                                    (
+                                        name: DashboardContextKey,
+                                    ): [DashboardContextKey, DashboardContext[DashboardContextKey]] => [
+                                        name,
+                                        this.contextReaders[name](),
+                                    ],
+                                ),
+                            ),
+                            label: entry.label,
+                            ...(entry.icon !== undefined ? { icon: entry.icon } : {}),
+                        }),
+                    ),
+                },
+            ],
+        ),
+    );
+
+    private readonly contextReaders: Record<
+        DashboardContextKey,
+        () => DashboardContext[DashboardContextKey]
+    > = {
+        rowingData: (): ICalculatedMetrics => this.rowingData(),
+        heartRateData: (): IHeartRate | undefined => this.heartRateData(),
+        elapseTime: (): number => this.elapseTime(),
+        displayConfig: (): IDisplayConfig => this.displayConfig(),
+    };
 
     constructor(
         private metricsService: MetricsService,
@@ -108,6 +175,15 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
 
         this.displayConfig = toSignal(
             this.configManager.configChanged$.pipe(map((config: Config): IDisplayConfig => config.display)),
+            {
+                requireSync: true,
+            },
+        );
+
+        this.layoutTiles = toSignal(
+            this.configManager.configChanged$.pipe(
+                map((config: Config): Array<PlacedDashboardTile> => config.display.layout.tiles),
+            ),
             {
                 requireSync: true,
             },

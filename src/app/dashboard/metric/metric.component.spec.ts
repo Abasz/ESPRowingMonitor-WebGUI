@@ -129,7 +129,7 @@ describe("MetricComponent", (): void => {
             });
         });
 
-        describe("when icon is undefined", async (): Promise<void> => {
+        describe("when icon is undefined", (): void => {
             beforeEach(async (): Promise<void> => {
                 fixture.componentRef.setInput("icon", undefined);
                 fixture.componentRef.setInput("value", "123");
