@@ -1,0 +1,60 @@
+@use "../../../theme" as app-theme;
+@use "./directives/dnd-theme" as dnd-theme;
+
+:host {
+    @include dnd-theme.theme-m2(app-theme.$light-theme);
+
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+mat-icon.tile-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+mat-icon.palette-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    line-height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 500px) {
+    mat-icon.tile-icon,
+    mat-icon.palette-icon {
+        display: none;
+    }
+}
+
+dnd-tile-grid,
+dnd-tile-palette {
+    span {
+        text-align: center;
+    }
+}
+
+.empty {
+    font-size: 12px;
+    font-style: italic;
+    color: var(--dnd-palette-empty-color, rgba(27, 27, 31, 0.4));
+}
+
+.spacer {
+    grid-column: 1 / -1;
+    opacity: 0;
+    cursor: unset;
+
+    &::after {
+        content: "empty";
+    }
+}

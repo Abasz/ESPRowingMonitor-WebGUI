@@ -1,0 +1,29 @@
+<dnd-tile-grid
+    [tiles]="placedTiles()"
+    [tileDefinitions]="TILE_DEFINITIONS"
+    [dndRows]="dndRows()"
+    [dndColumns]="dndColumns()"
+    (tileDrop)="onTileDrop($event)"
+>
+    <ng-template dndTileDef let-tile let-definition="definition">
+        @if (definition.icon) {
+            <mat-icon class="tile-icon">{{ definition.icon }}</mat-icon>
+        }
+        <span>{{ definition.label }}</span>
+    </ng-template>
+</dnd-tile-grid>
+
+@let tiles = availableTiles();
+<dnd-tile-palette [availableTiles]="tiles">
+    <ng-template dndPaletteTileDef let-tileDef>
+        @if (tileDef.icon) {
+            <mat-icon class="palette-icon">{{ tileDef.icon }}</mat-icon>
+        }
+        <span>{{ tileDef.label }}</span>
+    </ng-template>
+    @if (tiles.length === 0) {
+        <span class="empty">All tiles placed</span>
+    } @else {
+        <div class="spacer"></div>
+    }
+</dnd-tile-palette>
