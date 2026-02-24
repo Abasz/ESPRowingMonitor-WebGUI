@@ -1,0 +1,10 @@
+:host {
+    display: grid;
+    grid-template-columns: repeat(var(--dnd-grid-cols, 4), minmax(0, 1fr));
+    grid-template-rows: max-content;
+    gap: var(--dnd-grid-gap, 8px);
+    padding: var(--dnd-grid-gap, 8px);
+    border: 1px solid var(--dnd-palette-border, rgba(116, 119, 127, 0.25));
+    border-radius: 8px;
+    min-height: 28px;
+}

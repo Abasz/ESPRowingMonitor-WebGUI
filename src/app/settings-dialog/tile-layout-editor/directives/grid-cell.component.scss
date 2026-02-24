@@ -1,0 +1,10 @@
+:host {
+    border: 1px dashed var(--dnd-cell-border-color, rgba(116, 119, 127, 0.2));
+    border-radius: 4px;
+    transition: border-color 0.15s ease;
+}
+
+:host(.highlighted) {
+    background-color: var(--dnd-cell-highlight-bg, rgba(0, 99, 155, 0.15));
+    border-color: var(--dnd-cell-highlight-border, rgba(0, 99, 155, 0.4));
+}

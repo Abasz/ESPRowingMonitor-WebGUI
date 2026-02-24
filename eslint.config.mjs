@@ -80,7 +80,7 @@ export default [
                 "error",
                 {
                     type: "element",
-                    prefix: ["ngx", "test", "app"],
+                    prefix: ["ngx", "test", "app", "dnd"],
                     style: "kebab-case",
                 },
             ],
@@ -94,7 +94,7 @@ export default [
                 "error",
                 {
                     type: "attribute",
-                    prefix: ["ngx", "test"],
+                    prefix: ["ngx", "test", "app", "dnd"],
                     style: "camelCase",
                 },
             ],

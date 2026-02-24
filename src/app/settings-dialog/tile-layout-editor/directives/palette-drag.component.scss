@@ -1,0 +1,25 @@
+:host {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background-color: var(--dnd-palette-tile-bg, #dfe3eb);
+    color: var(--dnd-palette-tile-color, #43474e);
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+:host(.dragging) {
+    opacity: 0.5;
+    outline: 2px dashed var(--dnd-palette-drag-outline, rgba(223, 227, 235, 0.6));
+    outline-offset: -2px;
+}
+
+:host(:active) {
+    cursor: grabbing;
+}

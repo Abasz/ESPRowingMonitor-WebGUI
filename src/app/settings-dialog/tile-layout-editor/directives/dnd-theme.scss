@@ -1,0 +1,96 @@
+@use "@angular/material" as mat;
+
+/// Apply this mixin on the tile-layout-editor host element (or any ancestor)
+/// so the tokens cascade into child wrapper components
+///
+/// Consumers can also override individual tokens without using this mixin by
+/// setting `--dnd-*` custom properties on any ancestor element:
+///
+/// @param {Map} $theme - An Angular Material theme created via
+///   `mat.define-theme(...)`.
+@mixin theme-m2($theme) {
+    // ── Tile (grid) ────────────────────────────────────────────────
+    --dnd-tile-bg: #{mat.get-theme-color($theme, primary-container)};
+    --dnd-tile-color: #{mat.get-theme-color($theme, on-primary-container)};
+
+    // ── Palette tile ───────────────────────────────────────────────
+    --dnd-palette-tile-bg: #{mat.get-theme-color($theme, surface-variant)};
+    --dnd-palette-tile-color: #{mat.get-theme-color($theme, on-surface-variant)};
+
+    // ── Grid container ─────────────────────────────────────────────
+    --dnd-grid-border-color: color-mix(in srgb, #{mat.get-theme-color($theme, outline)} 40%, transparent);
+    --dnd-grid-bg: color-mix(in srgb, #{mat.get-theme-color($theme, surface-variant)} 15%, transparent);
+
+    // ── Grid cells ─────────────────────────────────────────────────
+    --dnd-cell-border-color: color-mix(in srgb, #{mat.get-theme-color($theme, outline)} 20%, transparent);
+    --dnd-cell-highlight-bg: color-mix(in srgb, #{mat.get-theme-color($theme, primary)} 15%, transparent);
+    --dnd-cell-highlight-border: color-mix(in srgb, #{mat.get-theme-color($theme, primary)} 40%, transparent);
+
+    // ── Drag outlines (derived from base tile colors) ──────────────
+    --dnd-tile-drag-outline: color-mix(in srgb, var(--dnd-tile-color) 50%, transparent);
+    --dnd-palette-drag-outline: color-mix(in srgb, var(--dnd-palette-tile-color) 50%, transparent);
+
+    // ── Invalid drop state ─────────────────────────────────────────
+    --dnd-invalid-border: #{mat.get-theme-color($theme, error)};
+    --dnd-invalid-bg: color-mix(in srgb, #{mat.get-theme-color($theme, error)} 4%, transparent);
+
+    // ── Layout dimensions ──────────────────────────────────────────
+    --dnd-grid-gap: 8px;
+    --dnd-cell-height: 48px;
+
+    // ── Misc ───────────────────────────────────────────────────────
+    --dnd-tile-shadow: color-mix(in srgb, #{mat.get-theme-color($theme, shadow)} 15%, transparent);
+    --dnd-resize-hover-bg: color-mix(in srgb, #{mat.get-theme-color($theme, on-surface)} 8%, transparent);
+    --dnd-palette-border: color-mix(in srgb, #{mat.get-theme-color($theme, outline)} 25%, transparent);
+    --dnd-palette-empty-color: color-mix(
+        in srgb,
+        #{mat.get-theme-color($theme, on-surface)} 40%,
+        transparent
+    );
+}
+
+/// Apply this mixin on a DnD container element (or any ancestor) so the
+/// tokens cascade into child wrapper components.
+///
+/// Consumers can also override individual tokens without using this mixin by
+/// setting `--dnd-*` custom properties on any ancestor element.
+///
+/// Each `var(--mat-sys-*)` reference carries a hardcoded fallback so the
+/// DnD components render with sensible light-theme defaults even when
+/// Angular Material is not loaded.
+@mixin theme() {
+    // ── Tile (grid) ────────────────────────────────────────────────
+    --dnd-tile-bg: var(--mat-sys-primary-container, #d2e4ff);
+    --dnd-tile-color: var(--mat-sys-on-primary-container, #001d33);
+
+    // ── Palette tile ───────────────────────────────────────────────
+    --dnd-palette-tile-bg: var(--mat-sys-surface-variant, #dfe3eb);
+    --dnd-palette-tile-color: var(--mat-sys-on-surface-variant, #43474e);
+
+    // ── Grid container ─────────────────────────────────────────────
+    --dnd-grid-border-color: color-mix(in srgb, var(--mat-sys-outline, #74777f) 40%, transparent);
+    --dnd-grid-bg: color-mix(in srgb, var(--mat-sys-surface-variant, #dfe3eb) 15%, transparent);
+
+    // ── Grid cells ─────────────────────────────────────────────────
+    --dnd-cell-border-color: color-mix(in srgb, var(--mat-sys-outline, #74777f) 20%, transparent);
+    --dnd-cell-highlight-bg: color-mix(in srgb, var(--mat-sys-primary, #00639b) 15%, transparent);
+    --dnd-cell-highlight-border: color-mix(in srgb, var(--mat-sys-primary, #00639b) 40%, transparent);
+
+    // ── Drag outlines (derived from base tile colors) ──────────────
+    --dnd-tile-drag-outline: color-mix(in srgb, var(--dnd-tile-color) 50%, transparent);
+    --dnd-palette-drag-outline: color-mix(in srgb, var(--dnd-palette-tile-color) 50%, transparent);
+
+    // ── Invalid drop state ─────────────────────────────────────────
+    --dnd-invalid-border: var(--mat-sys-error, #b3261e);
+    --dnd-invalid-bg: color-mix(in srgb, var(--mat-sys-error, #b3261e) 4%, transparent);
+
+    // ── Layout dimensions ──────────────────────────────────────────
+    --dnd-grid-gap: 8px;
+    --dnd-cell-height: 48px;
+
+    // ── Misc ───────────────────────────────────────────────────────
+    --dnd-tile-shadow: color-mix(in srgb, var(--mat-sys-shadow, #000000) 15%, transparent);
+    --dnd-resize-hover-bg: color-mix(in srgb, var(--mat-sys-on-surface, #1b1b1f) 8%, transparent);
+    --dnd-palette-border: color-mix(in srgb, var(--mat-sys-outline, #74777f) 25%, transparent);
+    --dnd-palette-empty-color: color-mix(in srgb, var(--mat-sys-on-surface, #1b1b1f) 40%, transparent);
+}

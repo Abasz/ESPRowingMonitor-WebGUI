@@ -1,0 +1,69 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--dnd-tile-bg, #d2e4ff);
+    color: var(--dnd-tile-color, #001d33);
+    border-radius: 6px;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+}
+
+:host(.dragging),
+:host(.resizing) {
+    opacity: 0.5;
+    outline: 2px dashed var(--dnd-tile-drag-outline, rgba(210, 228, 255, 0.6));
+    outline-offset: -2px;
+}
+
+// We hide the rendered dragged tile at the drop-target position so its DOM element stays alive (prevents mobile-browser touchcancel). So make invisible for visualization
+:host(.dragging.swap-preview) {
+    opacity: 0;
+    outline: none;
+    pointer-events: none;
+}
+
+:host(:hover:not(.dragging):not(.resize-drag-active)) {
+    box-shadow: 0 2px 6px var(--dnd-tile-shadow, rgba(0, 0, 0, 0.15));
+
+    .resize-controls {
+        opacity: 1;
+    }
+}
+
+:host(.resize-drag-active) .resize-controls {
+    opacity: 1;
+}
+
+:host(:active) {
+    cursor: grabbing;
+}
+
+.content {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    pointer-events: none;
+}
+
+.resize-controls {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+
+    > div {
+        &:hover {
+            opacity: 1;
+            background-color: var(--dnd-resize-hover-bg, rgba(27, 27, 31, 0.08));
+        }
+    }
+}

@@ -1,0 +1,16 @@
+:host {
+    display: grid;
+    grid-template-columns: repeat(var(--dnd-grid-cols, 4), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--dnd-grid-rows, 3), var(--dnd-cell-height, 48px));
+    gap: var(--dnd-grid-gap, 8px);
+    position: relative;
+    padding: var(--dnd-grid-gap, 8px);
+    border: 2px dashed var(--dnd-grid-border-color, rgba(116, 119, 127, 0.4));
+    border-radius: 8px;
+    background-color: var(--dnd-grid-bg, rgba(223, 227, 235, 0.15));
+}
+
+:host(.invalid-dropzone) {
+    border-color: var(--dnd-invalid-border, #b3261e);
+    background-color: var(--dnd-invalid-bg, rgba(179, 38, 30, 0.04));
+}
