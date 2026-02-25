@@ -5,7 +5,13 @@ import { MatIcon } from "@angular/material/icon";
 import { filter, interval, map, merge, Observable, pairwise, startWith, switchMap, take } from "rxjs";
 
 import { BleServiceFlag } from "../../common/ble.interfaces";
-import { Config, ICalculatedMetrics, IErgConnectionStatus, IHeartRate } from "../../common/common.interfaces";
+import {
+    Config,
+    ICalculatedMetrics,
+    IDisplayConfig,
+    IErgConnectionStatus,
+    IHeartRate,
+} from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { MetricsService } from "../../common/services/metrics.service";
@@ -39,7 +45,7 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
 
     readonly elapseTime: Signal<number>;
     readonly heartRateData: Signal<IHeartRate | undefined> = toSignal(this.metricsService.heartRateData$);
-    readonly showPeakForceInTitle: Signal<boolean>;
+    readonly displayConfig: Signal<IDisplayConfig>;
     readonly rowingData: Signal<ICalculatedMetrics> = toSignal(this.metricsService.allMetrics$, {
         initialValue: {
             activityStartTime: new Date(),
@@ -96,10 +102,8 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
             { initialValue: 0 },
         );
 
-        this.showPeakForceInTitle = toSignal(
-            this.configManager.configChanged$.pipe(
-                map((config: Config): boolean => config.display.showPeakForceInTitle),
-            ),
+        this.displayConfig = toSignal(
+            this.configManager.configChanged$.pipe(map((config: Config): IDisplayConfig => config.display)),
             {
                 requireSync: true,
             },

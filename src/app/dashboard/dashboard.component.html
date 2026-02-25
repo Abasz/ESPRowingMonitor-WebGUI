@@ -27,7 +27,7 @@
     <app-metric title="Timer" icon="timer" [value]="elapseTime() | secondsToTime: 'pace'"></app-metric>
     <app-force-curve
         [handleForces]="rowingData().handleForces"
-        [showPeakInTitle]="showPeakForceInTitle()"
+        [showPeakInTitle]="displayConfig().showPeakForceInTitle"
     ></app-force-curve>
     <app-metric
         title="Distance per stroke"

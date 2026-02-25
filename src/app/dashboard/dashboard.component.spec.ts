@@ -145,13 +145,13 @@ describe("DashboardComponent", (): void => {
             expect(component.elapseTime()).toBe(0);
             expect(component.heartRateData()).toBeUndefined();
             expect(component.rowingData()).toEqual(mockInitialMetrics);
-            expect(component.showPeakForceInTitle()).toBe(true);
+            expect(component.displayConfig().showPeakForceInTitle).toBe(true);
         });
     });
 
-    describe("showPeakForceInTitle signal", (): void => {
+    describe("display signal", (): void => {
         it("should reflect config updates", (): void => {
-            expect(component.showPeakForceInTitle()).toBe(true);
+            expect(component.displayConfig().showPeakForceInTitle).toBe(true);
 
             configSubject.next({
                 ...configSubject.value,
@@ -161,7 +161,7 @@ describe("DashboardComponent", (): void => {
                 },
             });
 
-            expect(component.showPeakForceInTitle()).toBe(false);
+            expect(component.displayConfig().showPeakForceInTitle).toBe(false);
         });
     });
 
