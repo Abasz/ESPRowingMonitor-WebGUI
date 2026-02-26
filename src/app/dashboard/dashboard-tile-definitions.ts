@@ -15,6 +15,7 @@ import { DriveTileComponent } from "./tiles/drive-tile.component";
 import { ForceCurveTileComponent } from "./tiles/force-curve-tile.component";
 import { HeartRateTileComponent } from "./tiles/heart-rate-tile.component";
 import { PaceTileComponent } from "./tiles/pace-tile.component";
+import { PeakForceTileComponent } from "./tiles/peak-force-tile.component";
 import { PowerTileComponent } from "./tiles/power-tile.component";
 import { RecoveryTileComponent } from "./tiles/recovery-tile.component";
 import { StrokeRateTileComponent } from "./tiles/stroke-rate-tile.component";
@@ -200,6 +201,17 @@ const TILE_REGISTRY = {
         minColumnSpan: 1,
         component: HeartRateTileComponent,
         context: ["heartRateData"],
+    },
+    PeakForce: {
+        id: "peakForce" as const,
+        label: "Peak Force",
+        icon: "show_chart",
+        defaultRowSpan: 1,
+        defaultColumnSpan: 1,
+        minRowSpan: 1,
+        minColumnSpan: 1,
+        component: PeakForceTileComponent,
+        context: ["rowingData"],
     },
 } satisfies Record<string, TileRegistryEntry>;
 
