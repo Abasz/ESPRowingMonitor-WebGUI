@@ -1,31 +1,51 @@
 mat-card {
+    container-type: size;
     height: 100%;
 }
 
 .metric {
-    padding: 0.5em 0.5em 0 0.5em;
+    padding: 0.1em;
+    font-size: min(clamp(1.2rem, 70cqmin, 30rem), clamp(1.2rem, 25cqmax, 30rem), clamp(1.2rem, 25cqi, 30rem));
+    align-items: center;
+    gap: min(16px, 0.15em);
+
+    @container (min-aspect-ratio: 2/1) {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-evenly;
+        gap: 0.2em;
+
+        font-size: min(clamp(2rem, 70cqmin, 30rem), clamp(1.2rem, 21cqmax, 30rem));
+    }
 }
 
 mat-icon {
-    font-size: 150%;
     height: 100%;
     width: 100%;
     text-align: center;
+
+    font-size: 0.6em;
+
+    @container (min-aspect-ratio: 2/1) {
+        height: auto;
+        width: auto;
+    }
 }
 
 .title {
     text-align: center;
+
+    font-size: 0.4em;
 }
 
 .value {
-    font-size: 150%;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: nowrap;
     text-align: center;
 
-    @media (min-height: 420px) {
-        padding-top: 24px;
-    }
-
     .unit {
+        padding-left: 0.2em;
         font-size: 50%;
     }
 }

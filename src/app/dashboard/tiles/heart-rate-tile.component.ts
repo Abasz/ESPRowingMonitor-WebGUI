@@ -24,7 +24,7 @@ import { MetricComponent } from "../metric/metric.component";
                 height: 1.1em;
                 font-size: 1.1em;
                 position: absolute;
-                bottom: 0.3em;
+                top: 0.3em;
                 right: 0.2em;
             }
         `,

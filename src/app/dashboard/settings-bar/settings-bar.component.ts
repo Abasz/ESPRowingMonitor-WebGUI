@@ -85,6 +85,7 @@ export class SettingsBarComponent {
                         autoFocus: false,
                         data: sessions,
                         maxWidth: "95vw",
+                        maxHeight: "95vh",
                     });
                 },
                 error: (error: unknown): void => {

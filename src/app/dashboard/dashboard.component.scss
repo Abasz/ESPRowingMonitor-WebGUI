@@ -1,7 +1,11 @@
 .dashboard {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-template-rows: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    height: calc(100% - 80px);
-    margin: 10px;
+    gap: 0.25em;
+    height: calc(100% - 64px - 0.35em);
+    margin: 0.15em;
+
+    @media (max-width: 599px), (max-height: 399px) {
+        height: calc(100% - 56px - 0.35em);
+    }
 }

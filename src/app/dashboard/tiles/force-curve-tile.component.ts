@@ -52,7 +52,7 @@ import { ICalculatedMetrics, IDisplayConfig } from "../../../common/common.inter
             }
 
             canvas {
-                padding: 24px;
+                padding: 0.4em;
             }
         `,
     ],

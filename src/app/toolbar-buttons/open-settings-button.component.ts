@@ -54,6 +54,8 @@ export class OpenSettingsButtonComponent {
         }
         this.dialog.open(SettingsDialogComponent, {
             autoFocus: false,
+            maxWidth: "560px",
+            maxHeight: "95vh",
             data: {
                 rowerSettings: this.rowerSettings(),
                 ergConnectionStatus: this.ergConnectionStatus(),

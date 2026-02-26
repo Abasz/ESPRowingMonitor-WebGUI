@@ -106,12 +106,12 @@ export class SettingsDialogComponent {
     ) {
         this.breakPoints$.pipe(takeUntilDestroyed()).subscribe((isSmallScreen: boolean): void => {
             if (isSmallScreen) {
-                this.dialogRef.updateSize("90%");
+                this.dialogRef.updateSize("95vw");
 
                 return;
             }
 
-            this.dialogRef.updateSize("560px");
+            this.dialogRef.updateSize("100%");
         });
 
         this.dialogRef.disableClose = true;
