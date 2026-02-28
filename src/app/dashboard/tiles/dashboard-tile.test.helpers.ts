@@ -34,7 +34,9 @@ export const createMockDisplayConfig = (overrides?: Partial<IDisplayConfig>): ID
         showAxisLabels: true,
     },
     layout: {
-        tiles: [],
+        landscape: { tiles: [] },
+        portrait: { tiles: [] },
+        orientationLock: "auto",
     },
     ...overrides,
 });

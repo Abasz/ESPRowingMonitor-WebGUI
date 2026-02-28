@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     effect,
     output,
     OutputEmitterRef,
@@ -11,15 +12,28 @@ import {
 import { toSignal } from "@angular/core/rxjs-interop";
 import { FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule } from "@angular/forms";
 import { MatButton } from "@angular/material/button";
+import { MatButtonToggle, MatButtonToggleGroup } from "@angular/material/button-toggle";
 import { MatCheckbox } from "@angular/material/checkbox";
 import { MatDivider } from "@angular/material/divider";
 import { MatIcon } from "@angular/material/icon";
-import { MatRadioButton, MatRadioGroup } from "@angular/material/radio";
 import { startWith } from "rxjs";
 
-import { IDashboardLayoutConfig, UnitSystem } from "../../../common/common.interfaces";
+import {
+    IDashboardLayoutConfig,
+    IDisplayLayoutConfig,
+    OrientationLock,
+    UnitSystem,
+} from "../../../common/common.interfaces";
 import { ConfigManagerService } from "../../../common/services/config-manager.service";
+import {
+    LANDSCAPE_GRID_COLUMNS,
+    LANDSCAPE_GRID_ROWS,
+    PORTRAIT_GRID_COLUMNS,
+    PORTRAIT_GRID_ROWS,
+} from "../../dashboard/dashboard-tile-definitions";
 import { TileLayoutEditorComponent } from "../tile-layout-editor/tile-layout-editor.component";
+
+type EditOrientation = Exclude<OrientationLock, "auto">;
 
 type DisplaySettingsFormGroup = FormGroup<{
     showPeakForceInTitle: FormControl<boolean>;
@@ -28,28 +42,58 @@ type DisplaySettingsFormGroup = FormGroup<{
     unitSystem: FormControl<UnitSystem>;
 }>;
 
+interface IEditorLayout {
+    tileLayout: IDashboardLayoutConfig;
+    rows: number;
+    columns: number;
+}
+
 @Component({
     selector: "app-display-settings",
     templateUrl: "./display-settings.component.html",
     styleUrls: ["./display-settings.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
-        MatIcon,
         ReactiveFormsModule,
+        MatButton,
+        MatButtonToggle,
+        MatButtonToggleGroup,
         MatCheckbox,
         MatDivider,
-        MatButton,
-        MatRadioGroup,
-        MatRadioButton,
+        MatIcon,
         TileLayoutEditorComponent,
     ],
 })
 export class DisplaySettingsComponent {
     readonly isFormValidChange: OutputEmitterRef<boolean> = output<boolean>();
     readonly settingsForm: DisplaySettingsFormGroup;
-
-    readonly layout: WritableSignal<IDashboardLayoutConfig>;
     readonly isLayoutDirty: WritableSignal<boolean> = signal<boolean>(false);
+
+    readonly landscapeLayout: WritableSignal<IDashboardLayoutConfig>;
+    readonly portraitLayout: WritableSignal<IDashboardLayoutConfig>;
+    readonly currentEditorLayout: Signal<IEditorLayout> = computed((): IEditorLayout => {
+        const isEditorPortrait = this.isEditorPortraitMode();
+        const currentLayout = this.isEditorPortraitMode() ? this.portraitLayout() : this.landscapeLayout();
+
+        return {
+            tileLayout: currentLayout,
+            rows: isEditorPortrait ? PORTRAIT_GRID_ROWS : LANDSCAPE_GRID_ROWS,
+            columns: isEditorPortrait ? PORTRAIT_GRID_COLUMNS : LANDSCAPE_GRID_COLUMNS,
+        };
+    });
+
+    readonly orientationLock: WritableSignal<OrientationLock>;
+    readonly editorOrientationSelection: WritableSignal<EditOrientation> =
+        signal<EditOrientation>("landscape");
+    readonly isEditorPortraitMode: Signal<boolean> = computed((): boolean => {
+        const lock = this.orientationLock();
+        const editorSelection = this.editorOrientationSelection();
+
+        return lock !== "auto" ? lock === "portrait" : editorSelection === "portrait";
+    });
+
+    private initialLandscapeLayout: IDashboardLayoutConfig;
+    private initialPortraitLayout: IDashboardLayoutConfig;
 
     private readonly formValueChanged: Signal<
         Partial<{
@@ -73,7 +117,12 @@ export class DisplaySettingsComponent {
             unitSystem: [config.display.general.unitSystem],
         });
 
-        this.layout = signal<IDashboardLayoutConfig>(config.display.layout);
+        this.landscapeLayout = signal<IDashboardLayoutConfig>(config.display.layout.landscape);
+        this.portraitLayout = signal<IDashboardLayoutConfig>(config.display.layout.portrait);
+        this.orientationLock = signal<OrientationLock>(config.display.layout.orientationLock);
+
+        this.initialLandscapeLayout = structuredClone(config.display.layout.landscape);
+        this.initialPortraitLayout = structuredClone(config.display.layout.portrait);
 
         this.formValueChanged = toSignal(
             this.settingsForm.valueChanges.pipe(startWith(this.settingsForm.value)),
@@ -90,24 +139,45 @@ export class DisplaySettingsComponent {
         return this.settingsForm;
     }
 
-    getLayout(): IDashboardLayoutConfig {
-        return this.layout();
+    getLayoutConfig(): IDisplayLayoutConfig {
+        return {
+            landscape: this.landscapeLayout(),
+            portrait: this.portraitLayout(),
+            orientationLock: this.orientationLock(),
+        };
+    }
+
+    onOrientationLockChange(lock: OrientationLock): void {
+        this.orientationLock.set(lock);
+        if (lock !== "auto") {
+            this.editorOrientationSelection.set(lock);
+        }
+        this.isLayoutDirty.set(true);
+        this.isFormValidChange.emit(this.settingsForm.valid);
+    }
+
+    onEditOrientationChange(showPortrait: EditOrientation): void {
+        this.editorOrientationSelection.set(showPortrait);
     }
 
     onResetLayout(): void {
-        this.layout.set(this.configManager.getConfig().display.layout);
-        this.isLayoutDirty.set(true);
-        this.isFormValidChange.emit(this.settingsForm.valid);
+        const initial = this.isEditorPortraitMode()
+            ? this.initialPortraitLayout
+            : this.initialLandscapeLayout;
+        this.setCurrentLayout(initial);
     }
 
     onClearLayout(): void {
-        this.layout.set({ tiles: [] });
-        this.isLayoutDirty.set(true);
-        this.isFormValidChange.emit(this.settingsForm.valid);
+        this.setCurrentLayout({ tiles: [] });
     }
 
     onLayoutChange(layout: IDashboardLayoutConfig): void {
-        this.layout.set(layout);
+        this.setCurrentLayout(layout);
+    }
+
+    private setCurrentLayout(layout: IDashboardLayoutConfig): void {
+        this.isEditorPortraitMode() ? this.portraitLayout.set(layout) : this.landscapeLayout.set(layout);
+
         this.isLayoutDirty.set(true);
         this.isFormValidChange.emit(this.settingsForm.valid);
     }

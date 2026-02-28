@@ -1,17 +1,29 @@
 <div class="tab-content">
     <form [formGroup]="settingsForm" novalidate class="flex-col">
         <h4>General</h4>
-        <div class="units-container">
+        <div class="general-container">
             <label>Units:</label>
-            <mat-radio-group formControlName="unitSystem">
-                <mat-radio-button value="metric">Metric</mat-radio-button>
-                <mat-radio-button value="imperial">Imperial</mat-radio-button>
-            </mat-radio-group>
+            <mat-button-toggle-group formControlName="unitSystem" hideSingleSelectionIndicator>
+                <mat-button-toggle value="metric">Metric</mat-button-toggle>
+                <mat-button-toggle value="imperial">Imperial</mat-button-toggle>
+            </mat-button-toggle-group>
+            <label>Orientation:</label>
+            <mat-button-toggle-group
+                [value]="orientationLock()"
+                (change)="onOrientationLockChange($event.value)"
+                hideSingleSelectionIndicator
+            >
+                <mat-button-toggle value="auto">Auto</mat-button-toggle>
+                <mat-button-toggle value="landscape">Landscape</mat-button-toggle>
+                <mat-button-toggle value="portrait">Portrait</mat-button-toggle>
+            </mat-button-toggle-group>
         </div>
         <mat-divider></mat-divider>
         <h4>Dashboard Layout</h4>
         <app-tile-layout-editor
-            [layout]="layout()"
+            [layout]="currentEditorLayout().tileLayout"
+            [dndColumns]="currentEditorLayout().columns"
+            [dndRows]="currentEditorLayout().rows"
             (layoutChange)="onLayoutChange($event)"
         ></app-tile-layout-editor>
         <div class="layout-actions">
@@ -23,6 +35,16 @@
                 <mat-icon>delete_sweep</mat-icon>
                 Clear
             </button>
+            @if (orientationLock() === "auto") {
+                <mat-button-toggle-group
+                    [value]="editorOrientationSelection()"
+                    (change)="onEditOrientationChange($event.value)"
+                    hideSingleSelectionIndicator
+                >
+                    <mat-button-toggle value="landscape">Landscape</mat-button-toggle>
+                    <mat-button-toggle value="portrait">Portrait</mat-button-toggle>
+                </mat-button-toggle-group>
+            }
         </div>
         <mat-divider></mat-divider>
         <h4>Force Curve</h4>

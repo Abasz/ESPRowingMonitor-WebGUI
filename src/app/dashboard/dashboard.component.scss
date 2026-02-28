@@ -1,6 +1,6 @@
 .dashboard {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--dashboard-cols, 4), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--dashboard-rows, 3), minmax(0, 1fr));
     gap: 0.25em;
     height: calc(100% - 64px - 0.35em);
     margin: 0.15em;

@@ -18,6 +18,12 @@ body {
             option-selected-state-layer-color: #{mat.get-theme-color(theme.$light-theme, primary, 90)},
         )
     );
+    @include mat.button-toggle-overrides(
+        (
+            selected-state-background-color: #{mat.get-theme-color(theme.$light-theme, primary, 90)},
+            selected-state-text-color: #{mat.get-theme-color(theme.$light-theme, primary, 40)},
+        )
+    );
     @include mat.toolbar-overrides(
         (
             container-background-color: #{mat.get-theme-color(theme.$light-theme, primary)},

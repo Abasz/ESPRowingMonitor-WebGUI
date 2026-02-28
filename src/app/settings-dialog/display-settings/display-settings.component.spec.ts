@@ -1,13 +1,20 @@
 import { HarnessLoader } from "@angular/cdk/testing";
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { MatButtonToggleGroupHarness } from "@angular/material/button-toggle/testing";
 import { MatCheckboxHarness } from "@angular/material/checkbox/testing";
-import { MatRadioGroupHarness } from "@angular/material/radio/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IDashboardLayoutConfig } from "../../../common/common.interfaces";
 import { ConfigManagerService } from "../../../common/services/config-manager.service";
-import { DEFAULT_DASHBOARD_LAYOUT } from "../../dashboard/dashboard-tile-definitions";
+import {
+    DEFAULT_LANDSCAPE_LAYOUT,
+    DEFAULT_PORTRAIT_LAYOUT,
+    LANDSCAPE_GRID_COLUMNS,
+    LANDSCAPE_GRID_ROWS,
+    PORTRAIT_GRID_COLUMNS,
+    PORTRAIT_GRID_ROWS,
+} from "../../dashboard/dashboard-tile-definitions";
 import { createMockConfig } from "../settings-dialog.test.helpers";
 
 import { DisplaySettingsComponent } from "./display-settings.component";
@@ -31,6 +38,10 @@ describe("DisplaySettingsComponent", (): void => {
         fixture = TestBed.createComponent(DisplaySettingsComponent);
         component = fixture.componentInstance;
         loader = TestbedHarnessEnvironment.loader(fixture);
+    });
+
+    afterEach((): void => {
+        vi.restoreAllMocks();
     });
 
     describe("as part of component creation", (): void => {
@@ -102,10 +113,29 @@ describe("DisplaySettingsComponent", (): void => {
             expect(checkbox).toBeTruthy();
         });
 
-        it("should render the unit system radio group", async (): Promise<void> => {
-            const radioGroup = await loader.getHarness(MatRadioGroupHarness);
+        it("should render the unit system toggle group", async (): Promise<void> => {
+            const toggleGroup = await loader.getHarness(
+                MatButtonToggleGroupHarness.with({ selector: '[formControlName="unitSystem"]' }),
+            );
 
-            expect(await radioGroup.getRadioButtons()).toHaveLength(2);
+            expect(await toggleGroup.getToggles()).toHaveLength(2);
+        });
+
+        it("should render the tile layout editor section", (): void => {
+            fixture.detectChanges();
+
+            const layoutEditor = fixture.nativeElement.querySelector("app-tile-layout-editor");
+
+            expect(layoutEditor).toBeTruthy();
+        });
+
+        it("should render the Dashboard Layout heading", (): void => {
+            const headings = fixture.nativeElement.querySelectorAll("h4");
+            const layoutHeading = Array.from(headings).find(
+                (h: unknown): boolean => (h as HTMLElement).textContent?.trim() === "Dashboard Layout",
+            );
+
+            expect(layoutHeading).toBeTruthy();
         });
     });
 
@@ -121,12 +151,14 @@ describe("DisplaySettingsComponent", (): void => {
         });
 
         it("should mark the form as dirty when unit system is changed", async (): Promise<void> => {
-            const radioGroup = await loader.getHarness(MatRadioGroupHarness);
+            const toggleGroup = await loader.getHarness(
+                MatButtonToggleGroupHarness.with({ selector: '[formControlName="unitSystem"]' }),
+            );
 
             expect(component.settingsForm.dirty).toBe(false);
 
-            const radioButtons = await radioGroup.getRadioButtons();
-            await radioButtons[1].check();
+            const toggles = await toggleGroup.getToggles();
+            await toggles[1].check();
             fixture.detectChanges();
 
             expect(component.settingsForm.dirty).toBe(true);
@@ -138,7 +170,7 @@ describe("DisplaySettingsComponent", (): void => {
 
             await checkbox.toggle();
 
-            expect(emitSpy).toHaveBeenCalled();
+            expect(emitSpy).toHaveBeenCalledWith(true);
         });
     });
 
@@ -149,19 +181,31 @@ describe("DisplaySettingsComponent", (): void => {
     });
 
     describe("layout management", (): void => {
-        it("should initialize layout from config", (): void => {
-            expect(component.layout()).toEqual(DEFAULT_DASHBOARD_LAYOUT);
+        it("should initialize landscape layout from config", (): void => {
+            expect(component.landscapeLayout()).toEqual(DEFAULT_LANDSCAPE_LAYOUT);
+        });
+
+        it("should initialize portrait layout from config", (): void => {
+            expect(component.portraitLayout()).toEqual(DEFAULT_PORTRAIT_LAYOUT);
+        });
+
+        it("should initialize orientationLock from config", (): void => {
+            expect(component.orientationLock()).toBe("auto");
         });
 
         it("should initialize isLayoutDirty as false", (): void => {
             expect(component.isLayoutDirty()).toBe(false);
         });
 
-        it("should return the current layout via getLayout", (): void => {
-            expect(component.getLayout()).toEqual(DEFAULT_DASHBOARD_LAYOUT);
+        it("should return the current layout config via getLayoutConfig", (): void => {
+            expect(component.getLayoutConfig()).toEqual({
+                landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                portrait: DEFAULT_PORTRAIT_LAYOUT,
+                orientationLock: "auto",
+            });
         });
 
-        it("should update layout on onLayoutChange", (): void => {
+        it("should update landscape layout on onLayoutChange when editing landscape", (): void => {
             const newLayout: IDashboardLayoutConfig = {
                 tiles: [
                     {
@@ -173,8 +217,33 @@ describe("DisplaySettingsComponent", (): void => {
 
             component.onLayoutChange(newLayout);
 
-            expect(component.layout()).toEqual(newLayout);
-            expect(component.getLayout()).toEqual(newLayout);
+            expect(component.landscapeLayout()).toEqual(newLayout);
+            expect(component.getLayoutConfig().landscape).toEqual(newLayout);
+        });
+
+        it("should update portrait layout on onLayoutChange when editing portrait", (): void => {
+            component.onEditOrientationChange("portrait");
+
+            const newLayout: IDashboardLayoutConfig = { tiles: [] };
+            component.onLayoutChange(newLayout);
+
+            expect(component.portraitLayout()).toEqual(newLayout);
+            expect(component.getLayoutConfig().portrait).toEqual(newLayout);
+        });
+
+        it("should not affect portrait layout when changing landscape layout", (): void => {
+            const newLayout: IDashboardLayoutConfig = {
+                tiles: [
+                    {
+                        id: "distance",
+                        position: { rowStart: 1, columnStart: 1, rowSpan: 1, columnSpan: 2 },
+                    },
+                ],
+            };
+
+            component.onLayoutChange(newLayout);
+
+            expect(component.portraitLayout()).toEqual(DEFAULT_PORTRAIT_LAYOUT);
         });
 
         it("should mark layout as dirty on onLayoutChange", (): void => {
@@ -193,25 +262,138 @@ describe("DisplaySettingsComponent", (): void => {
 
             expect(emitSpy).toHaveBeenCalledWith(true);
         });
+
+        it("should mark layout as dirty on onOrientationLockChange", (): void => {
+            component.onOrientationLockChange("portrait");
+
+            expect(component.orientationLock()).toBe("portrait");
+            expect(component.isLayoutDirty()).toBe(true);
+        });
+
+        it("should sync editorTabSelection when onOrientationLockChange is called with a non-auto value", (): void => {
+            component.onOrientationLockChange("portrait");
+
+            expect(component.editorOrientationSelection()).toBe("portrait");
+        });
+
+        it("should not change editorTabSelection when onOrientationLockChange is called with auto", (): void => {
+            component.onEditOrientationChange("portrait");
+            component.onOrientationLockChange("auto");
+
+            expect(component.editorOrientationSelection()).toBe("portrait");
+        });
+
+        it("should emit form validity on onOrientationLockChange", (): void => {
+            const emitSpy = vi.spyOn(component.isFormValidChange, "emit");
+
+            component.onOrientationLockChange("landscape");
+
+            expect(emitSpy).toHaveBeenCalledWith(true);
+        });
+
+        it("should default editorTabSelection to landscape", (): void => {
+            expect(component.editorOrientationSelection()).toBe("landscape");
+        });
+
+        it("should switch editorTabSelection via onEditOrientationChange", (): void => {
+            component.onEditOrientationChange("portrait");
+
+            expect(component.editorOrientationSelection()).toBe("portrait");
+        });
+
+        it("should switch editorTabSelection back to landscape via onEditOrientationChange", (): void => {
+            component.onEditOrientationChange("portrait");
+            component.onEditOrientationChange("landscape");
+
+            expect(component.editorOrientationSelection()).toBe("landscape");
+        });
+
+        describe("isEditorPortraitMode", (): void => {
+            it("should return false by default (auto lock + landscape editorOrientationSelection)", (): void => {
+                expect(component.isEditorPortraitMode()).toBe(false);
+            });
+
+            it("should return true when orientationLock is portrait regardless of editorOrientationSelection", (): void => {
+                component.onOrientationLockChange("portrait");
+
+                expect(component.isEditorPortraitMode()).toBe(true);
+            });
+
+            it("should return false when orientationLock is landscape regardless of editorOrientationSelection", (): void => {
+                component.onEditOrientationChange("portrait");
+                component.onOrientationLockChange("landscape");
+
+                expect(component.isEditorPortraitMode()).toBe(false);
+            });
+
+            it("should return true when auto lock and editorOrientationSelection is portrait", (): void => {
+                component.onEditOrientationChange("portrait");
+
+                expect(component.isEditorPortraitMode()).toBe(true);
+            });
+        });
+
+        describe("currentEditorLayout computed signal", (): void => {
+            it("should return landscapeLayout in tileLayout when isEditorPortraitMode is false", (): void => {
+                expect(component.currentEditorLayout().tileLayout).toBe(component.landscapeLayout());
+            });
+
+            it("should return portraitLayout in tileLayout when isEditorPortraitMode is true", (): void => {
+                component.onEditOrientationChange("portrait");
+
+                expect(component.currentEditorLayout().tileLayout).toBe(component.portraitLayout());
+            });
+
+            it("should return landscape grid dimensions when orientation is landscape", (): void => {
+                expect(component.currentEditorLayout()).toEqual({
+                    tileLayout: component.landscapeLayout(),
+                    rows: LANDSCAPE_GRID_ROWS,
+                    columns: LANDSCAPE_GRID_COLUMNS,
+                });
+            });
+
+            it("should return portrait grid dimensions when orientation is portrait", (): void => {
+                component.onEditOrientationChange("portrait");
+
+                expect(component.currentEditorLayout()).toEqual({
+                    tileLayout: component.portraitLayout(),
+                    rows: PORTRAIT_GRID_ROWS,
+                    columns: PORTRAIT_GRID_COLUMNS,
+                });
+            });
+        });
+
         describe("onResetLayout method", (): void => {
-            it("should reset layout to initial config", (): void => {
+            it("should reset landscape layout to initial config", (): void => {
                 const changed: IDashboardLayoutConfig = { tiles: [] };
                 component.onLayoutChange(changed);
-                expect(component.getLayout()).toEqual(changed);
+                expect(component.landscapeLayout()).toEqual(changed);
 
                 component.onResetLayout();
 
-                expect(component.getLayout()).toEqual(DEFAULT_DASHBOARD_LAYOUT);
+                expect(component.landscapeLayout()).toEqual(DEFAULT_LANDSCAPE_LAYOUT);
+            });
+
+            it("should reset portrait layout to initial config when in portrait mode", (): void => {
+                component.onOrientationLockChange("portrait");
+
+                const changed: IDashboardLayoutConfig = { tiles: [] };
+                component.onLayoutChange(changed);
+                expect(component.portraitLayout()).toEqual(changed);
+
+                component.onResetLayout();
+
+                expect(component.portraitLayout()).toEqual(DEFAULT_PORTRAIT_LAYOUT);
             });
 
             it("should return a new reference when resetting (not the original object)", (): void => {
-                component.onLayoutChange({ tiles: [] });
-                const originalRef = component.getLayout();
+                const originalRef = component.landscapeLayout();
 
+                component.onLayoutChange({ tiles: [] });
                 component.onResetLayout();
 
-                expect(component.getLayout()).not.toBe(originalRef);
-                expect(component.getLayout()).toEqual(DEFAULT_DASHBOARD_LAYOUT);
+                expect(component.landscapeLayout()).not.toBe(originalRef);
+                expect(component.landscapeLayout()).toEqual(DEFAULT_LANDSCAPE_LAYOUT);
             });
 
             it("should mark layout as dirty after reset", (): void => {
@@ -230,10 +412,24 @@ describe("DisplaySettingsComponent", (): void => {
         });
 
         describe("onClearLayout method", (): void => {
-            it("should clear the layout to empty tiles", (): void => {
+            it("should clear the landscape layout to empty tiles", (): void => {
                 component.onClearLayout();
 
-                expect(component.getLayout()).toEqual({ tiles: [] });
+                expect(component.landscapeLayout()).toEqual({ tiles: [] });
+            });
+
+            it("should clear the portrait layout when in portrait mode", (): void => {
+                component.onOrientationLockChange("portrait");
+
+                component.onClearLayout();
+
+                expect(component.portraitLayout()).toEqual({ tiles: [] });
+            });
+
+            it("should not affect the other orientation layout when clearing landscape", (): void => {
+                component.onClearLayout();
+
+                expect(component.portraitLayout()).toEqual(DEFAULT_PORTRAIT_LAYOUT);
             });
 
             it("should mark layout as dirty after clear", (): void => {
@@ -249,23 +445,6 @@ describe("DisplaySettingsComponent", (): void => {
 
                 expect(emitSpy).toHaveBeenCalledWith(true);
             });
-        });
-    });
-
-    describe("as part of template rendering", (): void => {
-        it("should render the tile layout editor section", (): void => {
-            const layoutEditor = fixture.nativeElement.querySelector("app-tile-layout-editor");
-
-            expect(layoutEditor).toBeTruthy();
-        });
-
-        it("should render the Dashboard Layout heading", (): void => {
-            const headings = fixture.nativeElement.querySelectorAll("h4");
-            const layoutHeading = Array.from(headings).find(
-                (h: unknown): boolean => (h as HTMLElement).textContent?.trim() === "Dashboard Layout",
-            );
-
-            expect(layoutHeading).toBeTruthy();
         });
     });
 });

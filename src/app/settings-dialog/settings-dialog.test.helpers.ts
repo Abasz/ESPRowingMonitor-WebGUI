@@ -9,12 +9,12 @@ import { vi } from "vitest";
 import { IDeviceInformation } from "../../common/ble.interfaces";
 import {
     Config,
-    IDashboardLayoutConfig,
+    IDisplayLayoutConfig,
     IErgConnectionStatus,
     IRowerSettings,
 } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
-import { DEFAULT_DASHBOARD_LAYOUT } from "../dashboard/dashboard-tile-definitions";
+import { DEFAULT_LANDSCAPE_LAYOUT, DEFAULT_PORTRAIT_LAYOUT } from "../dashboard/dashboard-tile-definitions";
 
 import type { SettingsDialogComponent } from "./settings-dialog.component";
 
@@ -105,7 +105,11 @@ export const createMockConfig: (overrides?: DeepPartial<Config>) => Config = (
                 showGridLines: true,
                 showAxisLabels: true,
             },
-            layout: DEFAULT_DASHBOARD_LAYOUT,
+            layout: {
+                landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                portrait: DEFAULT_PORTRAIT_LAYOUT,
+                orientationLock: "auto" as const,
+            },
         },
     };
 
@@ -123,7 +127,7 @@ export const createMockConfig: (overrides?: DeepPartial<Config>) => Config = (
                 ...defaultConfig.display.forceCurve,
                 ...(overrides.display?.forceCurve ?? {}),
             },
-            layout: (overrides.display?.layout as IDashboardLayoutConfig) ?? defaultConfig.display.layout,
+            layout: (overrides.display?.layout as IDisplayLayoutConfig) ?? defaultConfig.display.layout,
         },
     };
 };
@@ -415,7 +419,11 @@ export const setupMockChildComponents: (
     vi.spyOn(component, "displaySettings").mockReturnValue({
         getForm: vi.fn().mockReturnValue(mockDisplayForm),
         isLayoutDirty: signal(false),
-        getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+        getLayoutConfig: vi.fn().mockReturnValue({
+            landscape: DEFAULT_LANDSCAPE_LAYOUT,
+            portrait: DEFAULT_PORTRAIT_LAYOUT,
+            orientationLock: "auto",
+        }),
     } as unknown as ReturnType<typeof component.displaySettings>);
 
     component.onDisplayFormValidityChange(true);
@@ -442,7 +450,11 @@ export const setupCleanGeneralAndDisplayForms: (component: SettingsDialogCompone
     vi.spyOn(component, "displaySettings").mockReturnValue({
         getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
         isLayoutDirty: signal(false),
-        getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+        getLayoutConfig: vi.fn().mockReturnValue({
+            landscape: DEFAULT_LANDSCAPE_LAYOUT,
+            portrait: DEFAULT_PORTRAIT_LAYOUT,
+            orientationLock: "auto",
+        }),
     } as unknown as ReturnType<typeof component.displaySettings>);
 
     component.onGeneralFormValidityChange(false);

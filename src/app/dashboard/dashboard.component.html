@@ -1,6 +1,10 @@
 <app-settings-bar></app-settings-bar>
 @let entries = tileEntries();
-<div class="grid dashboard">
+<div
+    class="grid dashboard"
+    [style.--dashboard-cols]="gridColumns()"
+    [style.--dashboard-rows]="gridRows()"
+>
     @for (tile of layoutTiles(); track tile.id) {
         @let entry = entries.get(tile.id);
         <div

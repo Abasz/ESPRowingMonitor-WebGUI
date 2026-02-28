@@ -6,13 +6,13 @@ import { SwUpdate } from "@angular/service-worker";
 import { BehaviorSubject, EMPTY, of, take } from "rxjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { IDashboardLayoutConfig } from "../../common/common.interfaces";
+import { IDisplayLayoutConfig } from "../../common/common.interfaces";
 import { SpinnerOverlay } from "../../common/overlay/spinner-overlay.service";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
 import { UtilsService } from "../../common/services/utils.service";
-import { DEFAULT_DASHBOARD_LAYOUT } from "../dashboard/dashboard-tile-definitions";
+import { DEFAULT_LANDSCAPE_LAYOUT, DEFAULT_PORTRAIT_LAYOUT } from "../dashboard/dashboard-tile-definitions";
 
 import { SettingsDialogComponent } from "./settings-dialog.component";
 import {
@@ -331,7 +331,11 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockDisplayForm),
                 isLayoutDirty: signal(true),
-                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+                getLayoutConfig: vi.fn().mockReturnValue({
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto",
+                }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -471,7 +475,11 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
                 isLayoutDirty: signal(false),
-                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+                getLayoutConfig: vi.fn().mockReturnValue({
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto",
+                }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -541,7 +549,11 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockDisplayForm),
                 isLayoutDirty: signal(true),
-                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+                getLayoutConfig: vi.fn().mockReturnValue({
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto",
+                }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -570,7 +582,11 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
                 isLayoutDirty: signal(false),
-                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+                getLayoutConfig: vi.fn().mockReturnValue({
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto",
+                }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -627,7 +643,11 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockDisplayForm),
                 isLayoutDirty: signal(false),
-                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+                getLayoutConfig: vi.fn().mockReturnValue({
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto",
+                }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -666,7 +686,11 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockDisplayForm),
                 isLayoutDirty: signal(false),
-                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+                getLayoutConfig: vi.fn().mockReturnValue({
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto",
+                }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -689,7 +713,11 @@ describe("SettingsDialogComponent", (): void => {
                     showGridLines: true,
                     showAxisLabels: true,
                 },
-                layout: DEFAULT_DASHBOARD_LAYOUT,
+                layout: {
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto",
+                },
             });
             expect(mockMatDialogRef.close).toHaveBeenCalled();
         });
@@ -698,13 +726,17 @@ describe("SettingsDialogComponent", (): void => {
             const mockGeneralForm = createMockGeneralForm(false);
             const mockRowingForm = createMockRowingForm(false);
             const mockDisplayForm = createMockDisplayForm(false);
-            const customLayout: IDashboardLayoutConfig = {
-                tiles: [
-                    {
-                        id: "distance",
-                        position: { rowStart: 1, columnStart: 1, rowSpan: 1, columnSpan: 2 },
-                    },
-                ],
+            const customLayout: IDisplayLayoutConfig = {
+                landscape: {
+                    tiles: [
+                        {
+                            id: "distance",
+                            position: { rowStart: 1, columnStart: 1, rowSpan: 1, columnSpan: 2 },
+                        },
+                    ],
+                },
+                portrait: DEFAULT_PORTRAIT_LAYOUT,
+                orientationLock: "auto",
             };
 
             vi.spyOn(component, "generalSettings").mockReturnValue({
@@ -713,7 +745,7 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockDisplayForm),
                 isLayoutDirty: signal(true),
-                getLayout: vi.fn().mockReturnValue(customLayout),
+                getLayoutConfig: vi.fn().mockReturnValue(customLayout),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -752,7 +784,11 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockDisplayForm),
                 isLayoutDirty: signal(false),
-                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+                getLayoutConfig: vi.fn().mockReturnValue({
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto",
+                }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -1011,7 +1047,11 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
                 isLayoutDirty: signal(false),
-                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+                getLayoutConfig: vi.fn().mockReturnValue({
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto",
+                }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -1073,7 +1113,11 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
                 isLayoutDirty: signal(false),
-                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+                getLayoutConfig: vi.fn().mockReturnValue({
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto",
+                }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -1137,7 +1181,11 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
                 isLayoutDirty: signal(false),
-                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+                getLayoutConfig: vi.fn().mockReturnValue({
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto",
+                }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -1200,7 +1248,11 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
                 isLayoutDirty: signal(false),
-                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+                getLayoutConfig: vi.fn().mockReturnValue({
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto",
+                }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -1230,13 +1282,17 @@ describe("SettingsDialogComponent", (): void => {
             const mockGeneralForm = createMockGeneralForm(false);
             const mockRowingForm = createMockRowingForm(false);
             const mockDisplayForm = createMockDisplayForm(false);
-            const customLayout: IDashboardLayoutConfig = {
-                tiles: [
-                    {
-                        id: "distance",
-                        position: { rowStart: 1, columnStart: 1, rowSpan: 1, columnSpan: 2 },
-                    },
-                ],
+            const customLayout: IDisplayLayoutConfig = {
+                landscape: {
+                    tiles: [
+                        {
+                            id: "distance",
+                            position: { rowStart: 1, columnStart: 1, rowSpan: 1, columnSpan: 2 },
+                        },
+                    ],
+                },
+                portrait: DEFAULT_PORTRAIT_LAYOUT,
+                orientationLock: "auto",
             };
 
             vi.spyOn(component, "generalSettings").mockReturnValue({
@@ -1245,7 +1301,7 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockDisplayForm),
                 isLayoutDirty: signal(true),
-                getLayout: vi.fn().mockReturnValue(customLayout),
+                getLayoutConfig: vi.fn().mockReturnValue(customLayout),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -1306,7 +1362,11 @@ describe("SettingsDialogComponent", (): void => {
             vi.spyOn(component, "displaySettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
                 isLayoutDirty: signal(false),
-                getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+                getLayoutConfig: vi.fn().mockReturnValue({
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto",
+                }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),

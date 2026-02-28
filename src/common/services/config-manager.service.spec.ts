@@ -2,7 +2,10 @@ import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_DASHBOARD_LAYOUT } from "../../app/dashboard/dashboard-tile-definitions";
+import {
+    DEFAULT_LANDSCAPE_LAYOUT,
+    DEFAULT_PORTRAIT_LAYOUT,
+} from "../../app/dashboard/dashboard-tile-definitions";
 import { Config, HeartRateMonitorMode, UnitSystem } from "../common.interfaces";
 
 import { ConfigManagerService } from "./config-manager.service";
@@ -42,7 +45,11 @@ describe("ConfigManagerService", (): void => {
                     showGridLines: true,
                     showAxisLabels: true,
                 },
-                layout: DEFAULT_DASHBOARD_LAYOUT,
+                layout: {
+                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                    portrait: DEFAULT_PORTRAIT_LAYOUT,
+                    orientationLock: "auto" as const,
+                },
             },
         };
     };
@@ -242,7 +249,11 @@ describe("ConfigManagerService", (): void => {
             expect(cfg.general.heartRateMonitor).toBe(defaultConfig.general.heartRateMonitor);
             expect(cfg.general.heartRateBleId).toBe(defaultConfig.general.heartRateBleId);
             expect(cfg.display.forceCurve.showPeakForceInTitle).toBe(false);
-            expect(cfg.display.layout).toEqual(DEFAULT_DASHBOARD_LAYOUT);
+            expect(cfg.display.layout).toEqual({
+                landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                portrait: DEFAULT_PORTRAIT_LAYOUT,
+                orientationLock: "auto",
+            });
         });
     });
 

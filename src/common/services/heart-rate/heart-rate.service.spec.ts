@@ -4,8 +4,11 @@ import { BehaviorSubject, firstValueFrom, Observable, of, throwError, toArray } 
 import { take } from "rxjs/operators";
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
+import {
+    DEFAULT_LANDSCAPE_LAYOUT,
+    DEFAULT_PORTRAIT_LAYOUT,
+} from "../../../app/dashboard/dashboard-tile-definitions";
 import { Config, HeartRateMonitorMode, IHeartRate, IHRConnectionStatus } from "../../common.interfaces";
-import { DEFAULT_DASHBOARD_LAYOUT } from "../../../app/dashboard/dashboard-tile-definitions";
 import { ConfigManagerService } from "../config-manager.service";
 
 import { AntHeartRateService } from "./ant-heart-rate.service";
@@ -59,7 +62,11 @@ describe("HeartRateService", (): void => {
                 showGridLines: true,
                 showAxisLabels: true,
             },
-            layout: DEFAULT_DASHBOARD_LAYOUT,
+            layout: {
+                landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                portrait: DEFAULT_PORTRAIT_LAYOUT,
+                orientationLock: "auto" as const,
+            },
         },
     });
 

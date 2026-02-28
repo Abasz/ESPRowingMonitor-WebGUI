@@ -5,7 +5,7 @@ import { IDashboardLayoutConfig } from "../../../common/common.interfaces";
 import {
     DASHBOARD_TILE_DEFINITIONS,
     DashboardTileId,
-    DEFAULT_DASHBOARD_LAYOUT,
+    DEFAULT_LANDSCAPE_LAYOUT,
 } from "../../dashboard/dashboard-tile-definitions";
 import { DashboardTileDefinition, PlacedDashboardTile } from "../../dashboard/dashboard.interfaces";
 
@@ -48,10 +48,10 @@ describe("TileLayoutEditorComponent methods and properties", (): void => {
         });
 
         it("should populate placedTiles from default layout", (): void => {
-            fixture.componentRef.setInput("layout", DEFAULT_DASHBOARD_LAYOUT);
+            fixture.componentRef.setInput("layout", DEFAULT_LANDSCAPE_LAYOUT);
             fixture.detectChanges();
 
-            expect(component.placedTiles()).toHaveLength(DEFAULT_DASHBOARD_LAYOUT.tiles.length);
+            expect(component.placedTiles()).toHaveLength(DEFAULT_LANDSCAPE_LAYOUT.tiles.length);
         });
 
         it("should populate placedTiles from empty layout", (): void => {

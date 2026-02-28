@@ -14,26 +14,29 @@ mat-divider {
     margin: 16px 0px;
 }
 
-.units-container {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+.general-container {
+    display: grid;
     gap: 12px;
+    align-items: center;
+    margin-bottom: 12px;
+
+    @media (min-width: 400px) {
+        grid-template-columns: max-content auto;
+    }
+
+    mat-button-toggle-group {
+        max-width: fit-content;
+    }
 
     label {
         font-weight: 500;
         color: rgba(0, 0, 0, 0.87);
     }
-
-    mat-radio-group {
-        display: flex;
-        gap: 16px;
-        flex-wrap: nowrap;
-    }
 }
 
 .layout-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     align-items: center;
     margin-top: 12px;

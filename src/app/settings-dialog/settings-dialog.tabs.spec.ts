@@ -11,7 +11,7 @@ import { ConfigManagerService } from "../../common/services/config-manager.servi
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
 import { UtilsService } from "../../common/services/utils.service";
-import { DEFAULT_DASHBOARD_LAYOUT } from "../dashboard/dashboard-tile-definitions";
+import { DEFAULT_LANDSCAPE_LAYOUT, DEFAULT_PORTRAIT_LAYOUT } from "../dashboard/dashboard-tile-definitions";
 
 import { SettingsDialogComponent } from "./settings-dialog.component";
 import {
@@ -194,7 +194,11 @@ describe("SettingsDialogComponent tabs", (): void => {
         vi.spyOn(component, "displaySettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockDisplayForm),
             isLayoutDirty: signal(false),
-            getLayout: vi.fn().mockReturnValue(DEFAULT_DASHBOARD_LAYOUT),
+            getLayoutConfig: vi.fn().mockReturnValue({
+                landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                portrait: DEFAULT_PORTRAIT_LAYOUT,
+                orientationLock: "auto",
+            }),
         } as unknown as ReturnType<typeof component.displaySettings>);
         vi.spyOn(component, "rowingSettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(createMockRowingForm(false)),

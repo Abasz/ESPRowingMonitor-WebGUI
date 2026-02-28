@@ -266,7 +266,7 @@ export class SettingsDialogComponent {
             this.configManager.setGroup("display", {
                 general: { unitSystem },
                 forceCurve: forceCurveSettings,
-                layout: display.getLayout(),
+                layout: display.getLayoutConfig(),
             });
         }
     }

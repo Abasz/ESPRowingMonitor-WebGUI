@@ -1,6 +1,9 @@
 import { Observable } from "rxjs";
 
-import { DEFAULT_DASHBOARD_LAYOUT } from "../app/dashboard/dashboard-tile-definitions";
+import {
+    DEFAULT_LANDSCAPE_LAYOUT,
+    DEFAULT_PORTRAIT_LAYOUT,
+} from "../app/dashboard/dashboard-tile-definitions";
 import { PlacedDashboardTile } from "../app/dashboard/dashboard.interfaces";
 
 import { BleServiceFlag, LogLevel } from "./ble.interfaces";
@@ -65,6 +68,17 @@ export interface IDashboardLayoutConfig {
     tiles: Array<PlacedDashboardTile>;
 }
 
+export type OrientationLock = "landscape" | "portrait" | "auto";
+
+/**
+ * Contains per-orientation layouts and the user's orientation lock preference.
+ */
+export interface IDisplayLayoutConfig {
+    landscape: IDashboardLayoutConfig;
+    portrait: IDashboardLayoutConfig;
+    orientationLock: OrientationLock;
+}
+
 export interface IDisplayForceCurveConfig {
     showPeakForceInTitle: boolean;
     showGridLines: boolean;
@@ -74,7 +88,7 @@ export interface IDisplayForceCurveConfig {
 export interface IDisplayConfig {
     general: IDisplayGeneralConfig;
     forceCurve: IDisplayForceCurveConfig;
-    layout: IDashboardLayoutConfig;
+    layout: IDisplayLayoutConfig;
 }
 
 export class Config {
@@ -93,7 +107,11 @@ export class Config {
             showGridLines: true,
             showAxisLabels: true,
         },
-        layout: DEFAULT_DASHBOARD_LAYOUT,
+        layout: {
+            landscape: DEFAULT_LANDSCAPE_LAYOUT,
+            portrait: DEFAULT_PORTRAIT_LAYOUT,
+            orientationLock: "auto",
+        },
     };
 }
 

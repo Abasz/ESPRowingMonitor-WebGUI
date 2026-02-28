@@ -1,3 +1,4 @@
+import { BreakpointObserver } from "@angular/cdk/layout";
 import { signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { BehaviorSubject, Observable, of } from "rxjs";
@@ -23,7 +24,12 @@ import {
     DASHBOARD_TILE_DEFINITIONS,
     DashboardTileDefinition,
     DashboardTileId,
-    DEFAULT_DASHBOARD_LAYOUT,
+    DEFAULT_LANDSCAPE_LAYOUT,
+    DEFAULT_PORTRAIT_LAYOUT,
+    LANDSCAPE_GRID_COLUMNS,
+    LANDSCAPE_GRID_ROWS,
+    PORTRAIT_GRID_COLUMNS,
+    PORTRAIT_GRID_ROWS,
 } from "./dashboard-tile-definitions";
 import { DashboardComponent } from "./dashboard.component";
 import { PlacedDashboardTile } from "./dashboard.interfaces";
@@ -43,6 +49,7 @@ describe("DashboardComponent", (): void => {
     let connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
     let configManagerServiceSpy: Pick<ConfigManagerService, "configChanged$" | "getGroup">;
     let configSubject: BehaviorSubject<Config>;
+    let breakpointSubject: BehaviorSubject<{ matches: boolean }>;
 
     // test data constants
     const mockInitialMetrics: ICalculatedMetrics = createMockMetrics({
@@ -103,6 +110,8 @@ describe("DashboardComponent", (): void => {
             disableWakeLock: vi.fn(),
         };
 
+        breakpointSubject = new BehaviorSubject<{ matches: boolean }>({ matches: false });
+
         await TestBed.configureTestingModule({
             imports: [DashboardComponent],
             providers: [
@@ -119,6 +128,10 @@ describe("DashboardComponent", (): void => {
                 { provide: ConfigManagerService, useValue: configManagerServiceSpy },
                 { provide: HeartRateService, useValue: heartRateServiceSpy },
                 { provide: ErgSettingsService, useValue: ergSettingsServiceSpy },
+                {
+                    provide: BreakpointObserver,
+                    useValue: { observe: vi.fn().mockReturnValue(breakpointSubject.asObservable()) },
+                },
             ],
         }).compileComponents();
 
@@ -143,7 +156,7 @@ describe("DashboardComponent", (): void => {
             expect(component.displayConfig().forceCurve.showGridLines).toBe(true);
             expect(component.displayConfig().forceCurve.showAxisLabels).toBe(true);
             expect(component.displayConfig().general.unitSystem).toBe("metric");
-            expect(component.layoutTiles()).toEqual(DEFAULT_DASHBOARD_LAYOUT.tiles);
+            expect(component.layoutTiles()).toEqual(DEFAULT_LANDSCAPE_LAYOUT.tiles);
         });
     });
 
@@ -172,8 +185,8 @@ describe("DashboardComponent", (): void => {
     });
 
     describe("layoutTiles signal", (): void => {
-        it("should default to DEFAULT_DASHBOARD_LAYOUT tiles", (): void => {
-            expect(component.layoutTiles()).toEqual(DEFAULT_DASHBOARD_LAYOUT.tiles);
+        it("should default to DEFAULT_LANDSCAPE_LAYOUT tiles", (): void => {
+            expect(component.layoutTiles()).toEqual(DEFAULT_LANDSCAPE_LAYOUT.tiles);
         });
 
         it("should reflect config updates", (): void => {
@@ -188,11 +201,61 @@ describe("DashboardComponent", (): void => {
                 ...configSubject.value,
                 display: {
                     ...configSubject.value.display,
-                    layout: { tiles: customTiles },
+                    layout: {
+                        ...configSubject.value.display.layout,
+                        landscape: { tiles: customTiles },
+                    },
                 },
             });
 
             expect(component.layoutTiles()).toEqual(customTiles);
+        });
+
+        it("should return portrait tiles when portrait orientation is active", (): void => {
+            breakpointSubject.next({ matches: true });
+
+            expect(component.layoutTiles()).toEqual(DEFAULT_PORTRAIT_LAYOUT.tiles);
+        });
+    });
+
+    describe("gridColumns and gridRows signals", (): void => {
+        it("should default to landscape grid dimensions", (): void => {
+            expect(component.gridColumns()).toBe(LANDSCAPE_GRID_COLUMNS);
+            expect(component.gridRows()).toBe(LANDSCAPE_GRID_ROWS);
+        });
+
+        it("should switch to portrait grid dimensions when breakpoint matches portrait", (): void => {
+            breakpointSubject.next({ matches: true });
+
+            expect(component.gridColumns()).toBe(PORTRAIT_GRID_COLUMNS);
+            expect(component.gridRows()).toBe(PORTRAIT_GRID_ROWS);
+        });
+
+        it("should use portrait dimensions when orientationLock is portrait regardless of breakpoint", (): void => {
+            configSubject.next({
+                ...configSubject.value,
+                display: {
+                    ...configSubject.value.display,
+                    layout: { ...configSubject.value.display.layout, orientationLock: "portrait" },
+                },
+            });
+
+            expect(component.gridColumns()).toBe(PORTRAIT_GRID_COLUMNS);
+            expect(component.gridRows()).toBe(PORTRAIT_GRID_ROWS);
+        });
+
+        it("should use landscape dimensions when orientationLock is landscape regardless of breakpoint", (): void => {
+            breakpointSubject.next({ matches: true });
+            configSubject.next({
+                ...configSubject.value,
+                display: {
+                    ...configSubject.value.display,
+                    layout: { ...configSubject.value.display.layout, orientationLock: "landscape" },
+                },
+            });
+
+            expect(component.gridColumns()).toBe(LANDSCAPE_GRID_COLUMNS);
+            expect(component.gridRows()).toBe(LANDSCAPE_GRID_ROWS);
         });
     });
 
@@ -283,7 +346,7 @@ describe("DashboardComponent", (): void => {
 
             const tiles = fixture.nativeElement.querySelectorAll(".dashboard .tile");
 
-            expect(tiles.length).toBe(DEFAULT_DASHBOARD_LAYOUT.tiles.length);
+            expect(tiles.length).toBe(DEFAULT_LANDSCAPE_LAYOUT.tiles.length);
         });
 
         it("should render force curve tile component for ForceCurve tile type", (): void => {
@@ -324,12 +387,15 @@ describe("DashboardComponent", (): void => {
                 display: {
                     ...configSubject.value.display,
                     layout: {
-                        tiles: [
-                            {
-                                id: "distance",
-                                position: { rowStart: 1, columnStart: 1, rowSpan: 1, columnSpan: 1 },
-                            },
-                        ],
+                        ...configSubject.value.display.layout,
+                        landscape: {
+                            tiles: [
+                                {
+                                    id: "distance",
+                                    position: { rowStart: 1, columnStart: 1, rowSpan: 1, columnSpan: 1 },
+                                },
+                            ],
+                        },
                     },
                 },
             });
