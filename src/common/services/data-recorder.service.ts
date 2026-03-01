@@ -22,52 +22,62 @@ import { createSessionTcxObject } from "../utils/utility.functions";
 export class DataRecorderService {
     private currentSessionId: number = Date.now();
 
+    constructor() {
+        appDB.open();
+    }
+
     addConnectedDevice(deviceName: string): Promise<number> {
-        return appDB.connectedDevice.put({ deviceName, sessionId: this.currentSessionId });
+        const sessionId = this.currentSessionId;
+
+        return appDB.connectedDevice.put({ deviceName, sessionId });
     }
 
     addDeltaTimes(deltaTimes: Array<number>): Promise<number> {
+        const sessionId = this.currentSessionId;
+
         return appDB.deltaTimes.put({
-            sessionId: this.currentSessionId,
+            sessionId,
             timeStamp: Date.now(),
             deltaTimes,
         });
     }
 
     addSessionData(rowingData: ISessionData): Promise<void> {
+        const timeStamp: number = Date.now();
+        const sessionId: number = this.currentSessionId;
+
         return appDB.transaction("rw", appDB.sessionData, appDB.handleForces, async (): Promise<void> => {
-            const timeStamp: number = Date.now();
-
-            appDB.sessionData.add({
-                sessionId: this.currentSessionId,
-                timeStamp,
-                avgStrokePower: rowingData.avgStrokePower,
-                distance: rowingData.distance,
-                distPerStroke: rowingData.distPerStroke,
-                dragFactor: rowingData.dragFactor,
-                driveDuration: rowingData.driveDuration,
-                recoveryDuration: rowingData.recoveryDuration,
-                speed: rowingData.speed,
-                strokeCount: rowingData.strokeCount,
-                strokeRate: rowingData.strokeRate,
-                heartRate: rowingData.heartRate,
-            });
-
-            appDB.handleForces.put({
-                timeStamp:
-                    (
-                        await appDB.handleForces
-                            .where({
-                                sessionId: this.currentSessionId,
-                                strokeId: rowingData.strokeCount,
-                            })
-                            .last()
-                    )?.timeStamp ?? timeStamp,
-                sessionId: this.currentSessionId,
-                strokeId: rowingData.strokeCount,
-                peakForce: rowingData.peakForce,
-                handleForces: rowingData.handleForces,
-            });
+            await Promise.all([
+                appDB.sessionData.add({
+                    sessionId,
+                    timeStamp,
+                    avgStrokePower: rowingData.avgStrokePower,
+                    distance: rowingData.distance,
+                    distPerStroke: rowingData.distPerStroke,
+                    dragFactor: rowingData.dragFactor,
+                    driveDuration: rowingData.driveDuration,
+                    recoveryDuration: rowingData.recoveryDuration,
+                    speed: rowingData.speed,
+                    strokeCount: rowingData.strokeCount,
+                    strokeRate: rowingData.strokeRate,
+                    heartRate: rowingData.heartRate,
+                }),
+                appDB.handleForces.put({
+                    timeStamp:
+                        (
+                            await appDB.handleForces
+                                .where({
+                                    sessionId,
+                                    strokeId: rowingData.strokeCount,
+                                })
+                                .last()
+                        )?.timeStamp ?? timeStamp,
+                    sessionId,
+                    strokeId: rowingData.strokeCount,
+                    peakForce: rowingData.peakForce,
+                    handleForces: rowingData.handleForces,
+                }),
+            ]);
         });
     }
 
@@ -243,8 +253,12 @@ export class DataRecorderService {
         });
     }
 
-    reset(): void {
+    async reset(connectedDeviceName?: string): Promise<void> {
         this.currentSessionId = Date.now();
+
+        if (connectedDeviceName) {
+            await this.addConnectedDevice(connectedDeviceName);
+        }
     }
 
     private async createDownload(files: Array<{ blob: Blob; name: string }>): Promise<void> {

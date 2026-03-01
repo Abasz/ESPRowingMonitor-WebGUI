@@ -336,7 +336,7 @@ describe("DataRecorderService", (): void => {
     describe("reset method", (): void => {
         it("should update the session id to current timestamp", async (): Promise<void> => {
             vi.advanceTimersByTime(5000);
-            service.reset();
+            await service.reset();
 
             await service.addConnectedDevice("Test Device");
 
@@ -347,9 +347,9 @@ describe("DataRecorderService", (): void => {
         });
 
         it("should create new session id on consecutive resets", async (): Promise<void> => {
-            service.reset();
+            await service.reset();
             vi.advanceTimersByTime(1000);
-            service.reset();
+            await service.reset();
 
             await service.addConnectedDevice("Test Device");
 
@@ -357,6 +357,34 @@ describe("DataRecorderService", (): void => {
                 deviceName: "Test Device",
                 sessionId: mockTimeStamp + 1000,
             });
+        });
+
+        it("should call addConnectedDevice with device name and new session id when connectedDeviceName is provided", async (): Promise<void> => {
+            vi.advanceTimersByTime(5000);
+            const deviceName = "ESP Rowing Monitor";
+
+            await service.reset(deviceName);
+
+            expect(connectedDevicePutSpy).toHaveBeenCalledWith({
+                deviceName,
+                sessionId: mockTimeStamp + 5000,
+            });
+        });
+
+        it("should store the connected device with the new session id in the database after reset with device name", async (): Promise<void> => {
+            vi.advanceTimersByTime(3000);
+            const deviceName = "ESP Rowing Monitor";
+
+            await service.reset(deviceName);
+
+            const stored = await appDB.connectedDevice.where({ sessionId: mockTimeStamp + 3000 }).last();
+            expect(stored?.deviceName).toBe(deviceName);
+        });
+
+        it("should not call addConnectedDevice when no device name is provided", async (): Promise<void> => {
+            await service.reset();
+
+            expect(connectedDevicePutSpy).not.toHaveBeenCalled();
         });
     });
 

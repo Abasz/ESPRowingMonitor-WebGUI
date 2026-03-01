@@ -99,7 +99,7 @@ describe("MetricsService", (): void => {
             addDeltaTimes: vi.fn(),
             addSessionData: vi.fn(),
             addConnectedDevice: vi.fn(),
-            reset: vi.fn(),
+            reset: vi.fn().mockResolvedValue(undefined),
         };
 
         mockHeartRateService = {
@@ -193,7 +193,21 @@ describe("MetricsService", (): void => {
             const afterReset = service.getActivityStartTime();
 
             expect(afterReset.getTime()).toBeGreaterThanOrEqual(beforeReset.getTime());
-            expect(mockDataRecorderService.reset).toHaveBeenCalled();
+            expect(mockDataRecorderService.reset).toHaveBeenCalledWith(undefined);
+        });
+
+        it("should call dataRecorder.reset with the connected device name when reset() is called after a device has connected", (): void => {
+            connectionStatusSubject.next(mockConnectionStatus);
+
+            service.reset();
+
+            expect(mockDataRecorderService.reset).toHaveBeenCalledWith(mockConnectionStatus.deviceName);
+        });
+
+        it("should call dataRecorder.reset without a device name when no device was connected before reset()", (): void => {
+            service.reset();
+
+            expect(mockDataRecorderService.reset).toHaveBeenCalledWith(undefined);
         });
 
         it("should emit a reset event on resetSubject with the correct base metrics on reset()", async (): Promise<void> => {
@@ -424,7 +438,20 @@ describe("MetricsService", (): void => {
 
             await metricsPromise;
 
-            expect(mockDataRecorderService.reset).toHaveBeenCalled();
+            expect(mockDataRecorderService.reset).toHaveBeenCalledWith(undefined);
+        });
+
+        it("should call dataRecorder.reset with connected device name when distance decreases after a device has connected", async (): Promise<void> => {
+            const baseMetrics1 = { ...mockBaseMetrics, distance: baseMetrics2.distance + 100 };
+            const metricsPromise = firstValueFrom(service.allMetrics$);
+
+            connectionStatusSubject.next(mockConnectionStatus);
+            measurementSubject.next(baseMetrics1);
+            measurementSubject.next(baseMetrics2);
+
+            await metricsPromise;
+
+            expect(mockDataRecorderService.reset).toHaveBeenCalledWith(mockConnectionStatus.deviceName);
         });
 
         it("should not call dataRecorder.reset() if baseMetrics.distance does not decrease", async (): Promise<void> => {

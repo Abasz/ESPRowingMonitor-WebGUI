@@ -42,6 +42,8 @@ export class MetricsService {
     private activityStartStrokeCount: number = 0;
     private activityStartTime: Date = new Date();
 
+    private connectedDeviceName?: string;
+
     private baseMetrics: IBaseMetrics = {
         revTime: 0,
         distance: 0,
@@ -91,7 +93,7 @@ export class MetricsService {
         this.activityStartDistance = this.baseMetrics.distance;
         this.activityStartStrokeCount = this.baseMetrics.strokeCount;
         this.activityStartTime = new Date();
-        this.dataRecorder.reset();
+        this.dataRecorder.reset(this.connectedDeviceName);
 
         this.resetSubject.next({
             revTime: this.baseMetrics.revTime,
@@ -165,6 +167,7 @@ export class MetricsService {
             .subscribe((connectionStatus: IErgConnectionStatus): void => {
                 if (connectionStatus.deviceName && connectionStatus.deviceName.length > 0) {
                     this.dataRecorder.addConnectedDevice(connectionStatus.deviceName);
+                    this.connectedDeviceName = connectionStatus.deviceName;
                 }
             });
 
@@ -201,7 +204,7 @@ export class MetricsService {
             this.streamMeasurement$().pipe(
                 tap((baseMetrics: IBaseMetrics): void => {
                     if (baseMetrics.distance < this.baseMetrics.distance) {
-                        this.dataRecorder.reset();
+                        this.dataRecorder.reset(this.connectedDeviceName);
                     }
                     this.baseMetrics = baseMetrics;
                 }),
