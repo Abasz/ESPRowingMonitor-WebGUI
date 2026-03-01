@@ -5,7 +5,7 @@ export const mockImportData = {
     formatVersion: 1,
     data: {
         databaseName: "ESPRowingMonitorDB",
-        databaseVersion: 2,
+        databaseVersion: 3,
         tables: [
             { name: "deltaTimes", schema: "timeStamp,sessionId", rowCount: 1 },
             { name: "handleForces", schema: "timeStamp,sessionId,[sessionId+strokeId]", rowCount: 1 },
@@ -106,13 +106,14 @@ export const setupExportSessionToCsvData = async (): Promise<void> => {
             strokeCount: 50,
             strokeRate: 24,
             heartRate: { heartRate: 140, contactDetected: true },
-        } as Parameters<typeof appDB.sessionData.add>[0]);
+        });
         appDB.handleForces.put({
             sessionId: testSessionId,
             timeStamp: testSessionId + 1000,
             strokeId: 50,
             peakForce: 350,
             handleForces: [100.5, 200.25, 300.75],
+            driveLength: 1.5,
         });
     });
 };
@@ -142,6 +143,7 @@ export const setupSpeedCalculationThreeStrokes = async (): Promise<void> => {
             strokeId: 1,
             peakForce: 350,
             handleForces: [100, 200, 300],
+            driveLength: 1.5,
         });
 
         appDB.sessionData.add({
@@ -164,6 +166,7 @@ export const setupSpeedCalculationThreeStrokes = async (): Promise<void> => {
             strokeId: 2,
             peakForce: 380,
             handleForces: [120, 220, 320],
+            driveLength: 1.5,
         });
         appDB.sessionData.add({
             sessionId: testSessionId,
@@ -185,6 +188,7 @@ export const setupSpeedCalculationThreeStrokes = async (): Promise<void> => {
             strokeId: 3,
             peakForce: 360,
             handleForces: [110, 210, 310],
+            driveLength: 1.5,
         });
     });
 };
@@ -211,6 +215,7 @@ export const setupSpeedCalculationFilterDuplicates = async (): Promise<void> => 
             strokeId: 3,
             peakForce: 360,
             handleForces: [110, 210, 310],
+            driveLength: 1.5,
         });
 
         appDB.sessionData.add({
@@ -233,6 +238,7 @@ export const setupSpeedCalculationFilterDuplicates = async (): Promise<void> => 
             strokeId: 3,
             peakForce: 360,
             handleForces: [110, 210, 310],
+            driveLength: 1.5,
         });
 
         appDB.sessionData.add({
@@ -255,6 +261,7 @@ export const setupSpeedCalculationFilterDuplicates = async (): Promise<void> => 
             strokeId: 4,
             peakForce: 360,
             handleForces: [110, 210, 310],
+            driveLength: 1.5,
         });
     });
 };
@@ -284,6 +291,7 @@ export const setupSpeedCalculationFirstStrokeStartTime = async (): Promise<void>
             strokeId: 1,
             peakForce: 350,
             handleForces: [100, 200, 300],
+            driveLength: 1.5,
         });
 
         appDB.sessionData.add({
@@ -306,6 +314,7 @@ export const setupSpeedCalculationFirstStrokeStartTime = async (): Promise<void>
             strokeId: 2,
             peakForce: 380,
             handleForces: [120, 220, 320],
+            driveLength: 1.5,
         });
 
         appDB.sessionData.add({
@@ -328,6 +337,7 @@ export const setupSpeedCalculationFirstStrokeStartTime = async (): Promise<void>
             strokeId: 3,
             peakForce: 360,
             handleForces: [110, 210, 310],
+            driveLength: 1.5,
         });
     });
 };
@@ -357,6 +367,7 @@ export const setupSpeedCalculationZeroTimeDelta = async (): Promise<void> => {
             strokeId: 1,
             peakForce: 350,
             handleForces: [100, 200, 300],
+            driveLength: 0,
         });
     });
 };
@@ -386,6 +397,7 @@ export const setupSpeedCalculationZeroDistance = async (): Promise<void> => {
             strokeId: 1,
             peakForce: 0,
             handleForces: [0, 0, 0],
+            driveLength: 0,
         });
     });
 };

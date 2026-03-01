@@ -14,6 +14,7 @@ export interface IHandleForcesEntity {
     strokeId: number;
     peakForce: number;
     handleForces: Array<number>;
+    driveLength: number;
 }
 
 export interface IDeltaTimesEntity {
@@ -27,6 +28,6 @@ export interface IConnectedDeviceEntity {
     deviceName: string;
 }
 
-export type ExportSessionData = Omit<ISessionData, "activityStartTime" | "driveLength"> & {
+export type ExportSessionData = Omit<ISessionData, "activityStartTime"> & {
     timeStamp: Date;
 };

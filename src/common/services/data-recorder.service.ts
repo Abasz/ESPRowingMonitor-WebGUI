@@ -76,6 +76,7 @@ export class DataRecorderService {
                     strokeId: rowingData.strokeCount,
                     peakForce: rowingData.peakForce,
                     handleForces: rowingData.handleForces,
+                    driveLength: rowingData.driveLength,
                 }),
             ]);
         });
@@ -306,6 +307,7 @@ export class DataRecorderService {
             "Distance per Stroke (m)",
             "Drive Duration (s)",
             "Recovery Duration (s)",
+            "Drive Length (m)",
             "Heart Rate",
             "Drag Factor",
             "Peak Force (N)",
@@ -347,6 +349,7 @@ export class DataRecorderService {
                 data.distPerStroke.toString(),
                 data.driveDuration.toFixed(2),
                 data.recoveryDuration.toFixed(2),
+                data.driveLength.toFixed(2),
                 heartRateValue,
                 data.dragFactor.toString(),
                 data.peakForce.toFixed(2),
@@ -410,6 +413,7 @@ export class DataRecorderService {
                         distPerStroke: metric.distPerStroke,
                         dragFactor: metric.dragFactor,
                         driveDuration: metric.driveDuration,
+                        driveLength: handleForces[metric.strokeCount].driveLength,
                         heartRate: metric.heartRate,
                         recoveryDuration: metric.recoveryDuration,
                         speed: metric.speed,

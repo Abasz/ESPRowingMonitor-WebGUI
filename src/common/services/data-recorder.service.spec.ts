@@ -209,6 +209,7 @@ describe("DataRecorderService", (): void => {
                 strokeId: sessionData.strokeCount,
                 peakForce: sessionData.peakForce,
                 handleForces: sessionData.handleForces,
+                driveLength: sessionData.driveLength,
             });
         });
 
@@ -219,6 +220,7 @@ describe("DataRecorderService", (): void => {
                 sessionId: mockTimeStamp,
                 strokeId: 50,
                 peakForce: 300,
+                driveLength: 1.0,
                 handleForces: [80, 150, 200],
             });
 
@@ -265,6 +267,7 @@ describe("DataRecorderService", (): void => {
                 timeStamp: sessionId,
                 strokeId: 1,
                 peakForce: 200,
+                driveLength: 1.0,
                 handleForces: [100],
             });
 
@@ -448,6 +451,7 @@ describe("DataRecorderService", (): void => {
                         strokeId: 55,
                         peakForce: 320,
                         handleForces: [90, 180, 270],
+                        driveLength: 1.2,
                     });
                 },
             );
@@ -599,6 +603,7 @@ describe("DataRecorderService", (): void => {
                     strokeId: 50,
                     peakForce: 350,
                     handleForces: [100, 200, 300],
+                    driveLength: 1.5,
                 });
             });
         });
@@ -732,6 +737,7 @@ describe("DataRecorderService", (): void => {
                     strokeId: 50,
                     peakForce: 350,
                     handleForces: [100, 200, 300],
+                    driveLength: 1.5,
                 });
             });
         });
@@ -849,6 +855,7 @@ describe("DataRecorderService", (): void => {
                     strokeId: 50,
                     peakForce: 350,
                     handleForces: [100.5, 200.25, 300.75],
+                    driveLength: 1.5,
                 });
             });
         });
@@ -876,6 +883,7 @@ describe("DataRecorderService", (): void => {
             expect(content).toContain("Elapsed Time");
             expect(content).toContain("Distance (m)");
             expect(content).toContain("Heart Rate");
+            expect(content).toContain("Drive Length (m)");
             expect(content).toContain("Handle Forces (N)");
         });
 
@@ -886,6 +894,17 @@ describe("DataRecorderService", (): void => {
             const content = await blobArg.text();
             expect(content, "stroke count").toContain("50");
             expect(content, "heart rate").toContain("140");
+        });
+
+        it("should include drive length value in CSV row", async (): Promise<void> => {
+            await service.exportSessionToCsv(testSessionId);
+
+            const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
+            const content = await blobArg.text();
+            const rows = content.trim().split("\n");
+            const dataRow = rows[1].split(",");
+            const driveLengthHeader = rows[0].split(",").indexOf("Drive Length (m)");
+            expect(dataRow[driveLengthHeader]).toBe("1.50");
         });
 
         it("should format handle forces as quoted comma-separated values", async (): Promise<void> => {
