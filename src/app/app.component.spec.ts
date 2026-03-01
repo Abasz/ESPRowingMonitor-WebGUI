@@ -93,6 +93,7 @@ describe("AppComponent", (): void => {
                 strokeRate: 0,
                 speed: 0,
                 distPerStroke: 0,
+                driveLength: 0,
             } as ICalculatedMetrics),
             ergConnectionStatus$: of({ status: "connected" } as IErgConnectionStatus),
             getActivityStartTime: (): Date => new Date(),

@@ -28,7 +28,10 @@ import {
 import { DataRecorderService } from "./data-recorder.service";
 import { ErgConnectionService } from "./ergometer/erg-connection.service";
 import { ErgMetricsService } from "./ergometer/erg-metric-data.service";
+import { ErgSettingsService } from "./ergometer/erg-settings.service";
 import { HeartRateService } from "./heart-rate/heart-rate.service";
+
+const cmInM = 100;
 
 @Injectable({
     providedIn: "root",
@@ -56,6 +59,7 @@ export class MetricsService {
     constructor(
         private ergMetricService: ErgMetricsService,
         private ergConnectionService: ErgConnectionService,
+        private ergSettingsService: ErgSettingsService,
         private dataRecorder: DataRecorderService,
         private heartRateService: HeartRateService,
         private destroyRef: DestroyRef,
@@ -103,6 +107,20 @@ export class MetricsService {
         });
     }
 
+    private calculateDriveLength(handleForcesLength: number): number {
+        const {
+            sprocketRadius,
+            impulsePerRevolution,
+        }: { sprocketRadius: number; impulsePerRevolution: number } =
+            this.ergSettingsService.rowerSettings().rowingSettings.machineSettings;
+
+        if (impulsePerRevolution === 0 || sprocketRadius === 0 || handleForcesLength === 0) {
+            return 0;
+        }
+
+        return (((2 * Math.PI * sprocketRadius) / impulsePerRevolution) * handleForcesLength) / cmInM;
+    }
+
     private calculateSpeed(baseMetricsPrevious: IBaseMetrics, baseMetricsCurrent: IBaseMetrics): number {
         if (
             baseMetricsCurrent.distance === baseMetricsPrevious.distance ||
@@ -113,7 +131,7 @@ export class MetricsService {
 
         return (
             (baseMetricsCurrent.distance - baseMetricsPrevious.distance) /
-            100 /
+            cmInM /
             ((baseMetricsCurrent.revTime - baseMetricsPrevious.revTime) / 1e6)
         );
     }
@@ -130,7 +148,7 @@ export class MetricsService {
 
         return (
             (baseMetricsCurrent.distance - baseMetricsPrevious.distance) /
-            100 /
+            cmInM /
             (baseMetricsCurrent.strokeCount - baseMetricsPrevious.strokeCount)
         );
     }
@@ -236,6 +254,7 @@ export class MetricsService {
                         strokeRate: this.calculateStrokeRate(baseMetricsPrevious, baseMetricsCurrent),
                         speed: this.calculateSpeed(baseMetricsPrevious, baseMetricsCurrent),
                         distPerStroke: this.calculateStrokeDistance(baseMetricsPrevious, baseMetricsCurrent),
+                        driveLength: this.calculateDriveLength(handleForces.length),
                     };
                 },
             ),

@@ -1,3 +1,4 @@
+import { signal, WritableSignal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { BehaviorSubject, firstValueFrom, skip, Subject } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
@@ -9,11 +10,14 @@ import {
     IExtendedMetrics,
     IHeartRate,
     IHRConnectionStatus,
+    IRowerSettings,
 } from "../common.interfaces";
 
 import { DataRecorderService } from "./data-recorder.service";
 import { ErgConnectionService } from "./ergometer/erg-connection.service";
 import { ErgMetricsService } from "./ergometer/erg-metric-data.service";
+import { ErgSettingsService } from "./ergometer/erg-settings.service";
+import { createMockRowerSettings } from "./ergometer/erg-settings.test.helpers";
 import { HeartRateService } from "./heart-rate/heart-rate.service";
 import { MetricsService } from "./metrics.service";
 
@@ -29,6 +33,8 @@ describe("MetricsService", (): void => {
         "addDeltaTimes" | "addSessionData" | "addConnectedDevice" | "reset"
     >;
     let mockHeartRateService: Pick<HeartRateService, "streamHeartRate$" | "connectionStatus$">;
+    let mockErgSettingsService: Pick<ErgSettingsService, "rowerSettings">;
+    let mockRowerSettingsSignal: WritableSignal<IRowerSettings>;
 
     let connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
     let measurementSubject: Subject<IBaseMetrics>;
@@ -107,11 +113,18 @@ describe("MetricsService", (): void => {
             connectionStatus$: vi.fn().mockReturnValue(hrConnectionStatusSubject.asObservable()),
         };
 
+        mockRowerSettingsSignal = signal<IRowerSettings>(createMockRowerSettings());
+
+        mockErgSettingsService = {
+            rowerSettings: mockRowerSettingsSignal,
+        };
+
         TestBed.configureTestingModule({
             providers: [
                 MetricsService,
                 { provide: ErgConnectionService, useValue: mockErgConnectionService },
                 { provide: ErgMetricsService, useValue: mockErgMetricsService },
+                { provide: ErgSettingsService, useValue: mockErgSettingsService },
                 { provide: DataRecorderService, useValue: mockDataRecorderService },
                 { provide: HeartRateService, useValue: mockHeartRateService },
             ],
@@ -236,6 +249,7 @@ describe("MetricsService", (): void => {
             expect(metrics.dragFactor).toBe(0);
             expect(metrics.recoveryDuration).toBe(0);
             expect(metrics.driveDuration).toBe(0);
+            expect(metrics.driveLength).toBe(0);
         });
     });
 
@@ -509,6 +523,117 @@ describe("MetricsService", (): void => {
             expect(metrics.strokeRate).toBe(0);
             expect(metrics.distPerStroke).toBe(0);
             expect(metrics.peakForce).toBe(0);
+            expect(metrics.driveLength).toBe(0);
+        });
+    });
+
+    describe("driveLength Calculation", (): void => {
+        beforeEach((): void => {
+            service = TestBed.inject(MetricsService);
+        });
+
+        it("should calculate driveLength correctly", async (): Promise<void> => {
+            mockRowerSettingsSignal.set(
+                createMockRowerSettings({
+                    sprocketRadius: 150,
+                    impulsePerRevolution: 3,
+                }),
+            );
+
+            const metricsPromise = firstValueFrom(service.allMetrics$);
+
+            measurementSubject.next(mockBaseMetrics);
+            extendedSubject.next(mockExtendedMetrics);
+            handleForcesSubject.next([10, 20, 30, 40, 50]);
+            measurementSubject.next({
+                revTime: mockBaseMetrics.revTime + 1000,
+                distance: mockBaseMetrics.distance + 100,
+                strokeTime: mockBaseMetrics.strokeTime + 1000,
+                strokeCount: mockBaseMetrics.strokeCount + 1,
+            });
+
+            const metrics = await metricsPromise;
+
+            // driveLength = ((2 * PI * 150) / 3) * 5 / 100 = (942.4778 / 3) * 5 / 100 = 15.708
+            const expected = (((2 * Math.PI * 150) / 3) * 5) / 100;
+            expect(metrics.driveLength).toBeCloseTo(expected, 5);
+        });
+
+        describe("should return 0 for driveLength ", (): void => {
+            it("when impulsePerRevolution is 0", async (): Promise<void> => {
+                mockRowerSettingsSignal.set(
+                    createMockRowerSettings({
+                        sprocketRadius: 150,
+                        impulsePerRevolution: 0,
+                    }),
+                );
+
+                const metricsPromise = firstValueFrom(service.allMetrics$);
+
+                measurementSubject.next(mockBaseMetrics);
+                extendedSubject.next(mockExtendedMetrics);
+                handleForcesSubject.next([10, 20, 30]);
+                measurementSubject.next({
+                    revTime: mockBaseMetrics.revTime + 1000,
+                    distance: mockBaseMetrics.distance + 100,
+                    strokeTime: mockBaseMetrics.strokeTime + 1000,
+                    strokeCount: mockBaseMetrics.strokeCount + 1,
+                });
+
+                const metrics = await metricsPromise;
+
+                expect(metrics.driveLength).toBe(0);
+            });
+
+            it("when sprocketRadius is 0", async (): Promise<void> => {
+                mockRowerSettingsSignal.set(
+                    createMockRowerSettings({
+                        sprocketRadius: 0,
+                        impulsePerRevolution: 3,
+                    }),
+                );
+
+                const metricsPromise = firstValueFrom(service.allMetrics$);
+
+                measurementSubject.next(mockBaseMetrics);
+                extendedSubject.next(mockExtendedMetrics);
+                handleForcesSubject.next([10, 20, 30]);
+                measurementSubject.next({
+                    revTime: mockBaseMetrics.revTime + 1000,
+                    distance: mockBaseMetrics.distance + 100,
+                    strokeTime: mockBaseMetrics.strokeTime + 1000,
+                    strokeCount: mockBaseMetrics.strokeCount + 1,
+                });
+
+                const metrics = await metricsPromise;
+
+                expect(metrics.driveLength).toBe(0);
+            });
+
+            it("when handleForces is empty", async (): Promise<void> => {
+                mockRowerSettingsSignal.set(
+                    createMockRowerSettings({
+                        sprocketRadius: 150,
+                        impulsePerRevolution: 3,
+                    }),
+                );
+
+                const metricsPromise = firstValueFrom(service.allMetrics$);
+
+                measurementSubject.next(mockBaseMetrics);
+                extendedSubject.next(mockExtendedMetrics);
+                handleForcesSubject.next([]);
+                measurementSubject.next({
+                    revTime: mockBaseMetrics.revTime + 1000,
+                    distance: mockBaseMetrics.distance + 100,
+                    strokeTime: mockBaseMetrics.strokeTime + 1000,
+                    strokeCount: mockBaseMetrics.strokeCount + 1,
+                });
+
+                const metrics = await metricsPromise;
+
+                expect(metrics.driveLength).toBe(0);
+            });
         });
     });
 

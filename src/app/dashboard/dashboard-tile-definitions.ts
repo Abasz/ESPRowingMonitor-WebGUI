@@ -11,6 +11,7 @@ import { TileDefinition } from "../settings-dialog/tile-layout-editor/utils/tile
 import { DistPerStrokeTileComponent } from "./tiles/dist-per-stroke-tile.component";
 import { DistanceTileComponent } from "./tiles/distance-tile.component";
 import { DragFactorTileComponent } from "./tiles/drag-factor-tile.component";
+import { DriveLengthTileComponent } from "./tiles/drive-length-tile.component";
 import { DriveTileComponent } from "./tiles/drive-tile.component";
 import { ForceCurveTileComponent } from "./tiles/force-curve-tile.component";
 import { HeartRateTileComponent } from "./tiles/heart-rate-tile.component";
@@ -180,6 +181,17 @@ const TILE_REGISTRY = {
         minRowSpan: 1,
         minColumnSpan: 1,
         component: DriveTileComponent,
+        context: ["rowingData"],
+    },
+    DriveLength: {
+        id: "driveLength" as const,
+        label: "Drive Length",
+        icon: "straighten",
+        defaultRowSpan: 1,
+        defaultColumnSpan: 1,
+        minRowSpan: 1,
+        minColumnSpan: 1,
+        component: DriveLengthTileComponent,
         context: ["rowingData"],
     },
     Recovery: {

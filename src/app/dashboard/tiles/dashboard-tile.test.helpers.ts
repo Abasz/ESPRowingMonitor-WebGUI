@@ -17,6 +17,7 @@ export const createMockMetrics = (overrides?: Partial<ICalculatedMetrics>): ICal
     strokeRate: 0,
     speed: 0,
     distPerStroke: 0,
+    driveLength: 0,
     ...overrides,
 });
 
