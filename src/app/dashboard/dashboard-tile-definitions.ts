@@ -18,6 +18,7 @@ import { PaceTileComponent } from "./tiles/pace-tile.component";
 import { PeakForceTileComponent } from "./tiles/peak-force-tile.component";
 import { PowerTileComponent } from "./tiles/power-tile.component";
 import { RecoveryTileComponent } from "./tiles/recovery-tile.component";
+import { SpeedTileComponent } from "./tiles/speed-tile.component";
 import { StrokeRateTileComponent } from "./tiles/stroke-rate-tile.component";
 import { TimerTileComponent } from "./tiles/timer-tile.component";
 import { TotalStrokesTileComponent } from "./tiles/total-strokes-tile.component";
@@ -212,6 +213,17 @@ const TILE_REGISTRY = {
         minColumnSpan: 1,
         component: PeakForceTileComponent,
         context: ["rowingData"],
+    },
+    Speed: {
+        id: "speed" as const,
+        label: "Speed",
+        icon: "speed",
+        defaultRowSpan: 1,
+        defaultColumnSpan: 1,
+        minRowSpan: 1,
+        minColumnSpan: 1,
+        component: SpeedTileComponent,
+        context: ["rowingData", "displayConfig"],
     },
 } satisfies Record<string, TileRegistryEntry>;
 
