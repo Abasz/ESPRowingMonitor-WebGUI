@@ -41,6 +41,12 @@ import { DisplaySettingsComponent } from "./display-settings/display-settings.co
 import { GeneralSettingsComponent } from "./general-settings/general-settings.component";
 import { RowingSettingsComponent, RowingSettingsFormGroup } from "./rower-settings/rowing-settings.component";
 
+enum SettingsTab {
+    General = 0,
+    Display = 1,
+    Rowing = 2,
+}
+
 @Component({
     selector: "app-settings-dialog",
     templateUrl: "./settings-dialog.component.html",
@@ -72,9 +78,9 @@ export class SettingsDialogComponent {
         const isRowingFormSaveable = this.isRowingFormSaveable();
 
         return (
-            (currentTab === 0 && isGeneralFormSaveable) ||
-            (currentTab === 1 && isDisplayFormSaveable) ||
-            (currentTab === 2 && isRowingFormSaveable)
+            (currentTab === SettingsTab.General && isGeneralFormSaveable) ||
+            (currentTab === SettingsTab.Display && isDisplayFormSaveable) ||
+            (currentTab === SettingsTab.Rowing && isRowingFormSaveable)
         );
     });
 
@@ -169,7 +175,7 @@ export class SettingsDialogComponent {
         }
     }
 
-    onTabChange(newTabIndex: number): void {
+    onTabChange(newTabIndex: SettingsTab): void {
         this.currentTabIndex.set(newTabIndex);
     }
 
@@ -273,13 +279,13 @@ export class SettingsDialogComponent {
 
     private async saveCurrentTabSettings(currentTabIndex: number): Promise<void> {
         switch (currentTabIndex) {
-            case 0:
+            case SettingsTab.General:
                 await this.saveGeneralSettings();
                 break;
-            case 1:
+            case SettingsTab.Display:
                 this.saveDisplaySettings();
                 break;
-            case 2:
+            case SettingsTab.Rowing:
                 await this.saveRowingSettings();
                 break;
             default:
@@ -348,15 +354,15 @@ export class SettingsDialogComponent {
     private getSaveableTabLabels(currentTabIndex: number): Array<string> {
         const tabsWithChanges: Array<string> = [];
 
-        if (currentTabIndex !== 0 && this.isGeneralFormSaveable()) {
+        if (currentTabIndex !== SettingsTab.General && this.isGeneralFormSaveable()) {
             tabsWithChanges.push("General");
         }
 
-        if (currentTabIndex !== 1 && this.isDisplayFormSaveable()) {
+        if (currentTabIndex !== SettingsTab.Display && this.isDisplayFormSaveable()) {
             tabsWithChanges.push("Display");
         }
 
-        if (currentTabIndex !== 2 && this.isRowingFormSaveable()) {
+        if (currentTabIndex !== SettingsTab.Rowing && this.isRowingFormSaveable()) {
             tabsWithChanges.push("Rowing");
         }
 
