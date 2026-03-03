@@ -15,6 +15,36 @@ import { ILap, ITrainingCenterDatabase } from "../tcx.interface";
 
 import { ITrackPoint } from "./../tcx.interface";
 
+export async function downloadFiles(files: Array<{ blob: Blob; name: string }>): Promise<void> {
+    const shareData: ShareData = {
+        files: files.map(
+            (file: { blob: Blob; name: string }): File =>
+                new File([file.blob], file.name, { type: file.blob.type }),
+        ),
+    };
+
+    if (navigator.canShare && navigator.canShare(shareData)) {
+        try {
+            await navigator.share(shareData);
+
+            return;
+        } catch (error) {
+            if (error instanceof DOMException && !["AbortError", "NotAllowedError"].includes(error.name)) {
+                console.error("Error sharing file:", error.name);
+            }
+        }
+    }
+
+    for (const file of files) {
+        const url = window.URL.createObjectURL(file.blob);
+        const downloadTag = document.createElement("a");
+        downloadTag.href = url;
+        downloadTag.download = file.name;
+        downloadTag.click();
+        window.URL.revokeObjectURL(url);
+    }
+}
+
 export function getValidationErrors<
     TControl extends {
         [K in keyof TControl]: FormControl | FormGroup | FormArray | FormRecord;

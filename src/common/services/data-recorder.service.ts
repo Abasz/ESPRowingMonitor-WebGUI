@@ -14,7 +14,7 @@ import {
     IMetricsEntity,
 } from "../database.interfaces";
 import { appDB } from "../utils/app-database";
-import { createSessionTcxObject } from "../utils/utility.functions";
+import { createSessionTcxObject, downloadFiles } from "../utils/utility.functions";
 
 @Injectable({
     providedIn: "root",
@@ -99,7 +99,7 @@ export class DataRecorderService {
         const database = await exportDB(appDB, { progressCallback });
         const name = `${new Date().toDateTimeStringFormat()} - database.json`;
 
-        this.createDownload([{ blob: database, name }]);
+        downloadFiles([{ blob: database, name }]);
     }
 
     async exportSessionToJson(sessionId: number): Promise<void> {
@@ -121,7 +121,7 @@ export class DataRecorderService {
             files.push({ blob, name });
         }
 
-        this.createDownload(files);
+        downloadFiles(files);
     }
 
     async exportSessionToTcx(sessionId: number): Promise<void> {
@@ -140,7 +140,7 @@ export class DataRecorderService {
             },
         );
         const name = `${new Date(sessionId).toDateTimeStringFormat()} - session.tcx`;
-        this.createDownload([{ blob, name }]);
+        downloadFiles([{ blob, name }]);
     }
 
     async exportSessionToCsv(sessionId: number): Promise<void> {
@@ -165,7 +165,7 @@ export class DataRecorderService {
             files.push({ blob, name });
         }
 
-        this.createDownload(files);
+        downloadFiles(files);
     }
 
     getSessionSummaries$(): Observable<Array<ISessionSummary>> {
@@ -255,39 +255,6 @@ export class DataRecorderService {
 
         if (connectedDeviceName) {
             await this.addConnectedDevice(connectedDeviceName);
-        }
-    }
-
-    private async createDownload(files: Array<{ blob: Blob; name: string }>): Promise<void> {
-        const shareData: ShareData = {
-            files: files.map(
-                (file: { blob: Blob; name: string }): File =>
-                    new File([file.blob], file.name, { type: file.blob.type }),
-            ),
-        };
-
-        if (navigator.canShare && navigator.canShare(shareData)) {
-            try {
-                await navigator.share(shareData);
-
-                return;
-            } catch (error) {
-                if (
-                    error instanceof DOMException &&
-                    !["AbortError", "NotAllowedError"].includes(error.name)
-                ) {
-                    console.error("Error sharing file:", error.name);
-                }
-            }
-        }
-
-        for (const file of files) {
-            const url = window.URL.createObjectURL(file.blob);
-            const downloadTag = document.createElement("a");
-            downloadTag.href = url;
-            downloadTag.download = file.name;
-            downloadTag.click();
-            window.URL.revokeObjectURL(url);
         }
     }
 
