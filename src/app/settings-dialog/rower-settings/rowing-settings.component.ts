@@ -1,4 +1,4 @@
-import { DecimalPipe, KeyValuePipe } from "@angular/common";
+import { DecimalPipe, KeyValuePipe, PercentPipe } from "@angular/common";
 import {
     ChangeDetectionStrategy,
     Component,
@@ -95,6 +95,7 @@ export type RowingSettingsFormGroup = FormGroup<{
     imports: [
         ReactiveFormsModule,
         DecimalPipe,
+        PercentPipe,
         KeyValuePipe,
         MatError,
         MatFormField,

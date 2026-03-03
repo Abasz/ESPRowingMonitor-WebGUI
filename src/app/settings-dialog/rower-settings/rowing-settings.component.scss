@@ -41,6 +41,10 @@
             font-size: var(--mat-form-field-filled-label-text-size, 1rem);
             margin-left: 4px;
         }
+
+        @include flex-layout.sm {
+            grid-column: span 2;
+        }
     }
 
     .mat-mdc-slider {

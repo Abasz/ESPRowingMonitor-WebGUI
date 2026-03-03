@@ -14,7 +14,7 @@
 // lg	'screen and (min-width: 1280px) and (max-width: 1919px)'
 // xl	'screen and (min-width: 1920px) and (max-width: 5000px)'
 @mixin lt-sm {
-    @media screen and (max-width: 599px) {
+    @media screen and (max-width: 959px) {
         @content;
     }
 }
@@ -265,6 +265,21 @@
         }
         &items-end {
             align-items: flex-end;
+        }
+
+        &grid-span- {
+            &1 {
+                grid-column: span 1;
+            }
+            &2 {
+                grid-column: span 2;
+            }
+            &3 {
+                grid-column: span 3;
+            }
+            &4 {
+                grid-column: span 4;
+            }
         }
     }
 }

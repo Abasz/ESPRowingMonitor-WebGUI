@@ -331,16 +331,16 @@ describe("RowingSettingsComponent", (): void => {
             const minimumRecoverySlopeMargin =
                 component.settingsForm.controls.strokeDetectionSettings.controls.minimumRecoverySlopeMargin;
 
-            const initialRecoverySlopeState = minimumRecoverySlope.disabled;
+            const isInitialRecoverySlopeState = minimumRecoverySlope.disabled;
 
-            const initialRecoverySlopeMarginState = minimumRecoverySlopeMargin.disabled;
+            const isInitialRecoverySlopeMarginState = minimumRecoverySlopeMargin.disabled;
 
             component.settingsForm.controls.strokeDetectionSettings.controls.strokeDetectionType.setValue(
                 StrokeDetectionType.Slope,
             );
 
-            expect(minimumRecoverySlope.disabled).toBe(initialRecoverySlopeState);
-            expect(minimumRecoverySlopeMargin.disabled).toBe(initialRecoverySlopeMarginState);
+            expect(minimumRecoverySlope.disabled).toBe(isInitialRecoverySlopeState);
+            expect(minimumRecoverySlopeMargin.disabled).toBe(isInitialRecoverySlopeMarginState);
         });
 
         describe("minimumRecoverySlopeMargin with new firmware (NaN value)", (): void => {

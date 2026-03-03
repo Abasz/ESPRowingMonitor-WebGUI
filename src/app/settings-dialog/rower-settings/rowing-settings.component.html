@@ -46,24 +46,6 @@
                 </mat-form-field>
 
                 <mat-form-field>
-                    <mat-label>Magic Constant</mat-label>
-                    <input matInput formControlName="magicConstant" type="number" step="0.01" />
-                    @if (settingsFormErrors()?.machineSettings?.magicConstant) {
-                        <mat-error>
-                            @if (settingsFormErrors()?.machineSettings?.magicConstant?.required) {
-                                Field is required
-                            }
-                            @if (settingsFormErrors()?.machineSettings?.magicConstant?.min) {
-                                Minimum value is {{ 1 / 35 | number: "1.4-4" }}
-                            }
-                            @if (settingsFormErrors()?.machineSettings?.magicConstant?.max) {
-                                Maximum value is {{ 255 / 35 | number: "1.4-4" }}
-                            }
-                        </mat-error>
-                    }
-                </mat-form-field>
-
-                <mat-form-field>
                     <mat-label>Sprocket Radius</mat-label>
                     <input matInput formControlName="sprocketRadius" type="number" step="0.001" />
                     @if (settingsFormErrors()?.machineSettings?.sprocketRadius) {
@@ -81,8 +63,30 @@
                     }
                 </mat-form-field>
 
+                <mat-form-field class="sm-grid-span-2">
+                    <mat-label>Magic Constant</mat-label>
+                    <input matInput formControlName="magicConstant" type="number" step="0.01" />
+                    @if (settingsFormErrors()?.machineSettings?.magicConstant) {
+                        <mat-error>
+                            @if (settingsFormErrors()?.machineSettings?.magicConstant?.required) {
+                                Field is required
+                            }
+                            @if (settingsFormErrors()?.machineSettings?.magicConstant?.min) {
+                                Minimum value is {{ 1 / 35 | number: "1.4-4" }}
+                            }
+                            @if (settingsFormErrors()?.machineSettings?.magicConstant?.max) {
+                                Maximum value is {{ 255 / 35 | number: "1.4-4" }}
+                            }
+                        </mat-error>
+                    }
+                </mat-form-field>
+
                 <div class="slider-container">
-                    <span>Impulses Per Revolution:</span>
+                    <span
+                        >Impulses Per Revolution ({{
+                            settingsForm.controls.machineSettings.controls.impulsePerRevolution.value
+                        }}):</span
+                    >
                     <mat-slider min="1" max="12" step="1" discrete>
                         <input matSliderThumb formControlName="impulsePerRevolution" />
                     </mat-slider>
@@ -109,7 +113,12 @@
                     "
                     matTooltipShowDelay="1000"
                 >
-                    <span>Rotation Debounce (ms):</span>
+                    <span
+                        >Rotation Debounce ({{
+                            settingsForm.controls.sensorSignalSettings.controls.rotationDebounceTime.value
+                        }}
+                        ms):</span
+                    >
                     <mat-slider
                         [min]="
                             settingsForm.controls.dragFactorSettings.controls.maxDragFactorRecoveryPeriod
@@ -124,7 +133,12 @@
                 </div>
 
                 <div class="slider-container">
-                    <span>Rowing Stop Threshold (sec):</span>
+                    <span
+                        >Rowing Stop Threshold ({{
+                            settingsForm.controls.sensorSignalSettings.controls.rowingStoppedThreshold.value
+                        }}
+                        sec):</span
+                    >
                     <mat-slider min="4" max="20" step="1" discrete>
                         <input matSliderThumb formControlName="rowingStoppedThreshold" />
                     </mat-slider>
@@ -189,7 +203,13 @@
                     "
                     matTooltipShowDelay="1000"
                 >
-                    <span>Drag Factor Period:</span>
+                    <span
+                        >Drag Factor Period ({{
+                            settingsForm.controls.dragFactorSettings.controls.maxDragFactorRecoveryPeriod
+                                .value
+                        }}
+                        sec):</span
+                    >
                     <mat-slider
                         min="1"
                         [max]="settingsForm.controls.sensorSignalSettings.controls.rotationDebounceTime.value"
@@ -204,14 +224,24 @@
                 </div>
 
                 <div class="slider-container">
-                    <span>Drag Coefficients Array Size:</span>
+                    <span
+                        >Drag Coefficients Array Size ({{
+                            settingsForm.controls.dragFactorSettings.controls.dragCoefficientsArrayLength
+                                .value
+                        }}):</span
+                    >
                     <mat-slider min="1" max="15" step="1" discrete>
                         <input matSliderThumb formControlName="dragCoefficientsArrayLength" />
                     </mat-slider>
                 </div>
 
-                <div class="slider-container gt-xs-grid-span-2">
-                    <span>Goodness of Fit Threshold:</span>
+                <div class="slider-container gt-sm-grid-span-2">
+                    <span
+                        >Goodness of Fit Threshold ({{
+                            settingsForm.controls.dragFactorSettings.controls.goodnessOfFitThreshold.value
+                                | percent: "1.0-0"
+                        }}):</span
+                    >
                     <mat-slider
                         min="0"
                         [max]="254 / 255"
@@ -233,7 +263,7 @@
                 }
             </mat-expansion-panel-header>
             <div class="expansion-content" formGroupName="strokeDetectionSettings">
-                <mat-form-field>
+                <mat-form-field [class.sm-grid-span-2]="showMinimumRecoverySlopeMargin()">
                     <mat-label>Stroke Detection Type</mat-label>
                     <mat-select formControlName="strokeDetectionType">
                         @for (type of StrokeDetectionType | enumToArray; track $index) {
@@ -243,7 +273,12 @@
                 </mat-form-field>
 
                 <div class="slider-container" [class.new-impulse-array]="!showMinimumRecoverySlopeMargin()">
-                    <span>Impulse Data Array Size:</span>
+                    <span
+                        >Impulse Data Array Size ({{
+                            settingsForm.controls.strokeDetectionSettings.controls.impulseDataArrayLength
+                                .value
+                        }}):</span
+                    >
                     <mat-slider
                         min="1"
                         [max]="rowerSettings().generalSettings.isCompiledWithDouble ? 15 : 18"
@@ -380,8 +415,13 @@
                     }
                 </mat-form-field>
 
-                <div class="slider-container gt-xs-grid-span-2">
-                    <span>Drive Handle Forces Size:</span>
+                <div class="slider-container gt-sm-grid-span-2">
+                    <span
+                        >Drive Handle Forces Size ({{
+                            settingsForm.controls.strokeDetectionSettings.controls
+                                .driveHandleForcesMaxCapacity.value
+                        }}):</span
+                    >
                     <mat-slider min="0" max="255" step="1" discrete>
                         <input matSliderThumb formControlName="driveHandleForcesMaxCapacity" />
                     </mat-slider>
