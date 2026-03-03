@@ -1,0 +1,7 @@
+@use "../../flex-layout.scss";
+
+.progress {
+    @include flex-layout.gt-xs {
+        min-width: 370px;
+    }
+}

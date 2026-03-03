@@ -1,0 +1,25 @@
+<h1 mat-dialog-title>Upgrading database&hellip;</h1>
+<div mat-dialog-content>
+    <p>Do not start rowing until this completes.</p>
+    <mat-progress-bar
+        [mode]="etaSec() === 0 ? 'indeterminate' : 'determinate'"
+        [value]="progressPercent()"
+    ></mat-progress-bar>
+    <div
+        class="xs-flex-col gt-xs-flex-row gt- xs-items-center gt-xs-justify-space-between gt-xs-gap-16 progress"
+    >
+        <span
+            >ETA:
+            @if (etaSec() === 0 && progress().processed === 0) {
+                Calculating&hellip;
+            } @else if (etaSec() === 0 && progress().processed !== 0) {
+                Completed
+            } @else {
+                ~{{ etaSec() | secondsToTime: "verbose" }}
+            }
+        </span>
+        @if (progress().processed > 0) {
+            <span>{{ progress().processed }} / {{ progress().total }} records</span>
+        }
+    </div>
+</div>

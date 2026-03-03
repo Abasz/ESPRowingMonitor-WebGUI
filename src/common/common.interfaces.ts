@@ -10,6 +10,15 @@ import { BleServiceFlag, LogLevel } from "./ble.interfaces";
 
 // general
 
+export interface IMigrationProgress {
+    /** Number of records processed so far. */
+    processed: number;
+    /** Total number of records needing migration. 0 while counting. */
+    total: number;
+    /** Timestamp (ms) when processing started; 0 until the first record is processed. */
+    startedAt: number;
+}
+
 export interface FirmwareAsset {
     profileName: string;
     profileId: string;

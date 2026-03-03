@@ -22,10 +22,6 @@ import { createSessionTcxObject } from "../utils/utility.functions";
 export class DataRecorderService {
     private currentSessionId: number = Date.now();
 
-    constructor() {
-        appDB.open();
-    }
-
     addConnectedDevice(deviceName: string): Promise<number> {
         const sessionId = this.currentSessionId;
 

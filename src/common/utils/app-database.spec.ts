@@ -1,5 +1,5 @@
 import { Dexie } from "dexie";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IHandleForcesEntity, IMetricsEntity } from "../database.interfaces";
 
@@ -106,6 +106,85 @@ describe("AppDB", (): void => {
                         ?.driveLength,
                 ).toBe(0);
             });
+        });
+    });
+
+    describe("setUpgradeProgressCallback", (): void => {
+        it("should invoke the callback with (0, total) before any records are modified", async (): Promise<void> => {
+            await seedV2Database(
+                [
+                    { timeStamp: 1000, sessionId: 1, strokeId: 1, peakForce: 300, handleForces: [100] },
+                    { timeStamp: 2000, sessionId: 1, strokeId: 2, peakForce: 350, handleForces: [110] },
+                ],
+                [],
+            );
+
+            const calls: Array<[number, number]> = [];
+            appDb.setUpgradeProgressCallback((processed: number, total: number): void => {
+                calls.push([processed, total]);
+            });
+
+            await appDb.open();
+
+            expect(calls[0]).toEqual([0, 2]);
+        });
+
+        it("should invoke the callback with (total, total) when all records have been processed", async (): Promise<void> => {
+            await seedV2Database(
+                [
+                    { timeStamp: 1000, sessionId: 1, strokeId: 1, peakForce: 300, handleForces: [100] },
+                    { timeStamp: 2000, sessionId: 1, strokeId: 2, peakForce: 350, handleForces: [110] },
+                ],
+                [],
+            );
+
+            const calls: Array<[number, number]> = [];
+            appDb.setUpgradeProgressCallback((processed: number, total: number): void => {
+                calls.push([processed, total]);
+            });
+
+            await appDb.open();
+
+            const lastCall = calls[calls.length - 1];
+            expect(lastCall).toEqual([2, 2]);
+        });
+
+        it("should not fire for every individual record (throttled to batches of 500 and final)", async (): Promise<void> => {
+            await seedV2Database(
+                [
+                    { timeStamp: 1000, sessionId: 1, strokeId: 1, peakForce: 300, handleForces: [100] },
+                    { timeStamp: 2000, sessionId: 1, strokeId: 2, peakForce: 350, handleForces: [110] },
+                    { timeStamp: 3000, sessionId: 1, strokeId: 3, peakForce: 400, handleForces: [120] },
+                ],
+                [],
+            );
+
+            const calls: Array<[number, number]> = [];
+            appDb.setUpgradeProgressCallback((processed: number, total: number): void => {
+                calls.push([processed, total]);
+            });
+
+            await appDb.open();
+
+            // for 3 records: initial (0,3) + final (3,3) = 2 calls, not 4 (one per record + initial)
+            expect(calls).toHaveLength(2);
+            expect(calls[0]).toEqual([0, 3]);
+            expect(calls[1]).toEqual([3, 3]);
+        });
+
+        it("should not invoke the callback after it has been cleared with undefined", async (): Promise<void> => {
+            await seedV2Database(
+                [{ timeStamp: 1000, sessionId: 1, strokeId: 1, peakForce: 300, handleForces: [100] }],
+                [],
+            );
+
+            const callback = vi.fn();
+            appDb.setUpgradeProgressCallback(callback);
+            appDb.setUpgradeProgressCallback(undefined);
+
+            await appDb.open();
+
+            expect(callback).not.toHaveBeenCalled();
         });
     });
 });

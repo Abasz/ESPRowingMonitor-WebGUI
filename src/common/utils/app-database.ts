@@ -8,10 +8,14 @@ import {
 } from "../database.interfaces";
 
 export class AppDB extends Dexie {
+    static dbVersion: number = 3;
+
     connectedDevice!: Table<IConnectedDeviceEntity, number>;
     deltaTimes!: Table<IDeltaTimesEntity, number>;
     handleForces!: Table<IHandleForcesEntity, number>;
     sessionData!: Table<IMetricsEntity, number>;
+
+    private upgradeProgressCallback: ((processed: number, total: number) => void) | undefined;
 
     constructor(name: string = "ESPRowingMonitorDB") {
         super(name);
@@ -32,13 +36,32 @@ export class AppDB extends Dexie {
             })
             .upgrade(async (transaction: Transaction): Promise<void> => {
                 console.log("Running version 3 migration: Adding driveLength to handleForces records");
-                await transaction
-                    .table<IHandleForcesEntity>("handleForces")
-                    .filter((record: IHandleForcesEntity): boolean => record.driveLength === undefined)
-                    .modify({ driveLength: 0 });
+
+                const table = transaction.table<IHandleForcesEntity>("handleForces");
+                const total = await table.count();
+
+                let processed = 0;
+                this.upgradeProgressCallback?.(0, total);
+
+                await table.toCollection().modify((record: IHandleForcesEntity): void => {
+                    processed++;
+                    if (processed % 500 === 0 || processed === total) {
+                        this.upgradeProgressCallback?.(processed, total);
+                    }
+
+                    if (record.driveLength !== undefined) {
+                        return;
+                    }
+
+                    record.driveLength = 0;
+                });
 
                 console.log("Version 3 migration completed");
             });
+    }
+
+    setUpgradeProgressCallback(fn: ((processed: number, total: number) => void) | undefined): void {
+        this.upgradeProgressCallback = fn;
     }
 }
 

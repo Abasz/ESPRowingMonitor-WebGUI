@@ -226,6 +226,14 @@
             flex-direction: row;
         }
 
+        &items-center {
+            align-items: center;
+        }
+
+        &justify-space-between {
+            justify-content: space-between;
+        }
+
         &grid-span- {
             &1 {
                 grid-column: span 1;
