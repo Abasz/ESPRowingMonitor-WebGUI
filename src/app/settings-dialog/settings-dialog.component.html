@@ -35,6 +35,14 @@
     </mat-tab-group>
 </div>
 <div mat-dialog-actions align="end">
+    @if (
+        currentTabIndex() === SettingsTab.Rowing &&
+        data.rowerSettings.generalSettings.isRuntimeSettingsEnabled
+    ) {
+        <button (click)="exportProfile()" mat-raised-button class="export-profile-button">
+            Export Profile
+        </button>
+    }
     <button (click)="saveSettings()" mat-raised-button [disabled]="!isSaveButtonEnabled()">Save</button>
     <button (click)="handleDialogClose()" mat-raised-button>Cancel</button>
 </div>

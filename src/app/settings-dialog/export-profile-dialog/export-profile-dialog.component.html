@@ -1,0 +1,32 @@
+<h4 mat-dialog-title>Export Rower Profile</h4>
+<div mat-dialog-content>
+    <form [formGroup]="exportForm" novalidate>
+        <mat-form-field>
+            <mat-label>Device Name</mat-label>
+            <input matInput formControlName="deviceName" />
+            @if (exportForm.controls.deviceName.errors?.required) {
+                <mat-error>Device name is required</mat-error>
+            }
+            @if (exportForm.controls.deviceName.errors?.maxlength) {
+                <mat-error>Device should be maximum 18 characters</mat-error>
+            }
+            @if (exportForm.controls.deviceName.errors?.pattern) {
+                <mat-error>Invalid character(s) in name</mat-error>
+            }
+        </mat-form-field>
+
+        <mat-form-field>
+            <mat-label>Model Number</mat-label>
+            <input matInput formControlName="modelNumber" />
+            @if (exportForm.controls.modelNumber.errors?.required) {
+                <mat-error>Model number is required</mat-error>
+            }
+        </mat-form-field>
+    </form>
+</div>
+<div mat-dialog-actions align="end">
+    <button mat-raised-button color="primary" [disabled]="exportForm.invalid" (click)="onExport()">
+        Export
+    </button>
+    <button mat-raised-button (click)="onCancel()">Cancel</button>
+</div>

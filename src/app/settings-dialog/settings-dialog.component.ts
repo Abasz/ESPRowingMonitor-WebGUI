@@ -14,6 +14,7 @@ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MatButton } from "@angular/material/button";
 import {
     MAT_DIALOG_DATA,
+    MatDialog,
     MatDialogActions,
     MatDialogContent,
     MatDialogRef,
@@ -38,8 +39,13 @@ import { UtilsService } from "../../common/services/utils.service";
 import { SnackBarConfirmComponent } from "../../common/snack-bar-confirm/snack-bar-confirm.component";
 
 import { DisplaySettingsComponent } from "./display-settings/display-settings.component";
+import {
+    ExportProfileDialogComponent,
+    ExportProfileDialogResult,
+} from "./export-profile-dialog/export-profile-dialog.component";
 import { GeneralSettingsComponent } from "./general-settings/general-settings.component";
 import { RowingSettingsComponent, RowingSettingsFormGroup } from "./rower-settings/rowing-settings.component";
+import { SettingsExportService } from "./settings-export.service";
 
 enum SettingsTab {
     General = 0,
@@ -52,6 +58,7 @@ enum SettingsTab {
     templateUrl: "./settings-dialog.component.html",
     styleUrls: ["./settings-dialog.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [SettingsExportService],
     imports: [
         MatDialogTitle,
         CdkScrollable,
@@ -67,6 +74,8 @@ enum SettingsTab {
     ],
 })
 export class SettingsDialogComponent {
+    readonly SettingsTab: typeof SettingsTab = SettingsTab;
+
     readonly rowingSettings: Signal<RowingSettingsComponent> = viewChild.required(RowingSettingsComponent);
     readonly generalSettings: Signal<GeneralSettingsComponent> = viewChild.required(GeneralSettingsComponent);
     readonly displaySettings: Signal<DisplaySettingsComponent> = viewChild.required(DisplaySettingsComponent);
@@ -103,6 +112,8 @@ export class SettingsDialogComponent {
         private ergSettingsService: ErgSettingsService,
         private ergConnectionService: ErgConnectionService,
         private snackBar: MatSnackBar,
+        private dialog: MatDialog,
+        private settingsExportService: SettingsExportService,
         @Inject(MAT_DIALOG_DATA)
         public data: {
             rowerSettings: IRowerSettings;
@@ -177,6 +188,39 @@ export class SettingsDialogComponent {
 
     onTabChange(newTabIndex: SettingsTab): void {
         this.currentTabIndex.set(newTabIndex);
+    }
+
+    async exportProfile(): Promise<void> {
+        if (this.rowingSettings().getForm().invalid) {
+            return;
+        }
+
+        const result = await firstValueFrom(
+            this.dialog
+                .open<
+                    ExportProfileDialogComponent,
+                    void,
+                    ExportProfileDialogResult
+                >(ExportProfileDialogComponent, { width: "360px", maxWidth: "95vw" })
+                .afterClosed(),
+        );
+
+        if (!result) {
+            return;
+        }
+
+        const formValue = this.rowingSettings().getForm().getRawValue();
+
+        await this.settingsExportService.exportRowerProfile(
+            {
+                machineSettings: formValue.machineSettings,
+                sensorSignalSettings: formValue.sensorSignalSettings,
+                dragFactorSettings: formValue.dragFactorSettings,
+                strokeDetectionSettings: formValue.strokeDetectionSettings,
+            },
+            result.deviceName,
+            result.modelNumber,
+        );
     }
 
     async handleDialogClose(): Promise<void> {
