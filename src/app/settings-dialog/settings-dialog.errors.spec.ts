@@ -1,144 +1,29 @@
 import { signal } from "@angular/core";
-import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
-import { MatSnackBar, MatSnackBarRef, TextOnlySnackBar } from "@angular/material/snack-bar";
-import { SwUpdate } from "@angular/service-worker";
-import { BehaviorSubject, EMPTY, of } from "rxjs";
+import { MatSnackBarRef, TextOnlySnackBar } from "@angular/material/snack-bar";
+import { of } from "rxjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SpinnerOverlay } from "../../common/overlay/spinner-overlay.service";
-import { ConfigManagerService } from "../../common/services/config-manager.service";
-import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
-import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
-import { UtilsService } from "../../common/services/utils.service";
 import { DEFAULT_LANDSCAPE_LAYOUT, DEFAULT_PORTRAIT_LAYOUT } from "../dashboard/dashboard-tile-definitions";
 
 import { SettingsDialogComponent } from "./settings-dialog.component";
 import {
-    createMockConfigManagerService,
-    createMockDialogData,
     createMockDisplayForm,
     createMockGeneralForm,
     createMockRowingForm,
+    createSettingsDialogTestBed,
+    ISettingsDialogTestBedResult,
 } from "./settings-dialog.test.helpers";
 
 describe("SettingsDialogComponent error handling", (): void => {
     let component: SettingsDialogComponent;
-    let fixture: ComponentFixture<SettingsDialogComponent>;
-    let mockMatDialogRef: Pick<
-        MatDialogRef<SettingsDialogComponent>,
-        "close" | "updateSize" | "backdropClick" | "keydownEvents" | "disableClose"
-    >;
-    let mockConfigManagerService: Pick<ConfigManagerService, "getConfig" | "getGroup" | "setGroup">;
-    let mockErgSettingsService: Pick<
-        ErgSettingsService,
-        | "changeLogLevel"
-        | "changeDeltaTimeLogging"
-        | "changeLogToSdCard"
-        | "changeBleServiceType"
-        | "changeMachineSettings"
-        | "changeDragFactorSettings"
-        | "changeSensorSignalSettings"
-        | "changeStrokeSettings"
-        | "restartDevice"
-    >;
-    let mockErgConnectionService: Pick<ErgConnectionService, "reconnect" | "connectionStatus$">;
-    let mockSnackBar: Pick<MatSnackBar, "open" | "openFromComponent">;
-    let mockSpinnerOverlay: Pick<SpinnerOverlay, "open">;
-    let mockUtilsService: Pick<UtilsService, "breakpointHelper">;
-    let mockSwUpdate: Pick<SwUpdate, "checkForUpdate" | "isEnabled">;
-    let breakpointSubject: BehaviorSubject<{ maxW599: boolean }>;
+    let mockErgSettingsService: ISettingsDialogTestBedResult["mockErgSettingsService"];
+    let mockConfigManagerService: ISettingsDialogTestBedResult["mockConfigManagerService"];
+    let mockSnackBar: ISettingsDialogTestBedResult["mockSnackBar"];
 
     beforeEach(async (): Promise<void> => {
-        vi.spyOn(navigator, "bluetooth", "get").mockReturnValue({
-            getDevices: (): Promise<Array<BluetoothDevice>> => Promise.resolve([]),
-        } as unknown as Bluetooth);
-
-        const mockDialogData = createMockDialogData();
-
-        mockMatDialogRef = {
-            close: vi.fn(),
-            updateSize: vi.fn(),
-            backdropClick: vi.fn(),
-            keydownEvents: vi.fn(),
-            disableClose: false,
-        };
-        vi.mocked(mockMatDialogRef.backdropClick).mockReturnValue(EMPTY);
-        vi.mocked(mockMatDialogRef.keydownEvents).mockReturnValue(EMPTY);
-
-        mockConfigManagerService = createMockConfigManagerService();
-
-        mockErgSettingsService = {
-            changeLogLevel: vi.fn(),
-            changeDeltaTimeLogging: vi.fn(),
-            changeLogToSdCard: vi.fn(),
-            changeBleServiceType: vi.fn(),
-            changeMachineSettings: vi.fn(),
-            changeDragFactorSettings: vi.fn(),
-            changeSensorSignalSettings: vi.fn(),
-            changeStrokeSettings: vi.fn(),
-            restartDevice: vi.fn(),
-        };
-        vi.mocked(mockErgSettingsService.changeLogLevel).mockResolvedValue();
-        vi.mocked(mockErgSettingsService.changeDeltaTimeLogging).mockResolvedValue();
-        vi.mocked(mockErgSettingsService.changeLogToSdCard).mockResolvedValue();
-        vi.mocked(mockErgSettingsService.changeBleServiceType).mockResolvedValue();
-        vi.mocked(mockErgSettingsService.changeMachineSettings).mockResolvedValue();
-        vi.mocked(mockErgSettingsService.changeDragFactorSettings).mockResolvedValue();
-        vi.mocked(mockErgSettingsService.changeSensorSignalSettings).mockResolvedValue();
-        vi.mocked(mockErgSettingsService.changeStrokeSettings).mockResolvedValue();
-        vi.mocked(mockErgSettingsService.restartDevice).mockResolvedValue();
-
-        mockErgConnectionService = {
-            reconnect: vi.fn(),
-            connectionStatus$: vi.fn(),
-        };
-        vi.mocked(mockErgConnectionService.reconnect).mockResolvedValue();
-        vi.mocked(mockErgConnectionService.connectionStatus$).mockReturnValue(
-            of(mockDialogData.ergConnectionStatus),
-        );
-
-        mockSnackBar = {
-            open: vi.fn(),
-            openFromComponent: vi.fn(),
-        };
-        vi.mocked(mockSnackBar.openFromComponent).mockReturnValue({
-            onAction: vi.fn().mockReturnValue(of(true)),
-        } as unknown as MatSnackBarRef<TextOnlySnackBar>);
-
-        mockSpinnerOverlay = {
-            open: vi.fn(),
-        };
-
-        breakpointSubject = new BehaviorSubject<{ maxW599: boolean }>({ maxW599: false });
-
-        mockUtilsService = {
-            breakpointHelper: vi.fn(),
-        };
-        vi.mocked(mockUtilsService.breakpointHelper).mockReturnValue(breakpointSubject.asObservable());
-
-        mockSwUpdate = {
-            checkForUpdate: vi.fn(),
-            isEnabled: false,
-        };
-
-        await TestBed.configureTestingModule({
-            imports: [SettingsDialogComponent],
-            providers: [
-                { provide: MatDialogRef, useValue: mockMatDialogRef },
-                { provide: MAT_DIALOG_DATA, useValue: mockDialogData },
-                { provide: ConfigManagerService, useValue: mockConfigManagerService },
-                { provide: ErgSettingsService, useValue: mockErgSettingsService },
-                { provide: MatSnackBar, useValue: mockSnackBar },
-                { provide: SpinnerOverlay, useValue: mockSpinnerOverlay },
-                { provide: UtilsService, useValue: mockUtilsService },
-                { provide: SwUpdate, useValue: mockSwUpdate },
-                { provide: ErgConnectionService, useValue: mockErgConnectionService },
-            ],
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(SettingsDialogComponent);
-        component = fixture.componentInstance;
+        // eslint-disable-next-line @typescript-eslint/typedef -- There is a bug in ESLint wanting type annotation on this but that results in invalid TS syntax
+        ({ component, mockErgSettingsService, mockConfigManagerService, mockSnackBar } =
+            await createSettingsDialogTestBed());
     });
 
     describe("errors", (): void => {

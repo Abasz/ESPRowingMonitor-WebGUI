@@ -3,7 +3,12 @@
  * Provides mock form creation utilities and mock data shared across test files
  */
 
-import { signal } from "@angular/core";
+import { Provider, signal } from "@angular/core";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
+import { MatSnackBar, MatSnackBarRef, TextOnlySnackBar } from "@angular/material/snack-bar";
+import { SwUpdate } from "@angular/service-worker";
+import { BehaviorSubject, EMPTY, of } from "rxjs";
 import { vi } from "vitest";
 
 import { IDeviceInformation } from "../../common/ble.interfaces";
@@ -13,10 +18,14 @@ import {
     IErgConnectionStatus,
     IRowerSettings,
 } from "../../common/common.interfaces";
+import { SpinnerOverlay } from "../../common/overlay/spinner-overlay.service";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
+import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
+import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
+import { UtilsService } from "../../common/services/utils.service";
 import { DEFAULT_LANDSCAPE_LAYOUT, DEFAULT_PORTRAIT_LAYOUT } from "../dashboard/dashboard-tile-definitions";
 
-import type { SettingsDialogComponent } from "./settings-dialog.component";
+import { SettingsDialogComponent } from "./settings-dialog.component";
 
 type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
@@ -460,4 +469,192 @@ export const setupCleanGeneralAndDisplayForms: (component: SettingsDialogCompone
     component.onGeneralFormValidityChange(false);
     component.onDisplayFormValidityChange(false);
     component.currentTabIndex.set(2);
+};
+
+// ─── Shared mock factories ────────────────────────────────────────────────────
+
+/**
+ * Creates a fully mocked ErgSettingsService with all 9 methods pre-resolved.
+ */
+export const createMockErgSettingsService = (): Pick<
+    ErgSettingsService,
+    | "changeLogLevel"
+    | "changeDeltaTimeLogging"
+    | "changeLogToSdCard"
+    | "changeBleServiceType"
+    | "changeMachineSettings"
+    | "changeDragFactorSettings"
+    | "changeSensorSignalSettings"
+    | "changeStrokeSettings"
+    | "restartDevice"
+> => {
+    const mock = {
+        changeLogLevel: vi.fn(),
+        changeDeltaTimeLogging: vi.fn(),
+        changeLogToSdCard: vi.fn(),
+        changeBleServiceType: vi.fn(),
+        changeMachineSettings: vi.fn(),
+        changeDragFactorSettings: vi.fn(),
+        changeSensorSignalSettings: vi.fn(),
+        changeStrokeSettings: vi.fn(),
+        restartDevice: vi.fn(),
+    };
+    vi.mocked(mock.changeLogLevel).mockResolvedValue(undefined);
+    vi.mocked(mock.changeDeltaTimeLogging).mockResolvedValue(undefined);
+    vi.mocked(mock.changeLogToSdCard).mockResolvedValue(undefined);
+    vi.mocked(mock.changeBleServiceType).mockResolvedValue(undefined);
+    vi.mocked(mock.changeMachineSettings).mockResolvedValue(undefined);
+    vi.mocked(mock.changeDragFactorSettings).mockResolvedValue(undefined);
+    vi.mocked(mock.changeSensorSignalSettings).mockResolvedValue(undefined);
+    vi.mocked(mock.changeStrokeSettings).mockResolvedValue(undefined);
+    vi.mocked(mock.restartDevice).mockResolvedValue(undefined);
+
+    return mock;
+};
+
+/**
+ * Creates a mock ErgConnectionService with reconnect and connectionStatus$ configured.
+ */
+export const createMockErgConnectionService = (
+    ergConnectionStatus: IErgConnectionStatus,
+): Pick<ErgConnectionService, "reconnect" | "connectionStatus$"> => {
+    const mock = {
+        reconnect: vi.fn(),
+        connectionStatus$: vi.fn(),
+    };
+    vi.mocked(mock.reconnect).mockResolvedValue(undefined);
+    vi.mocked(mock.connectionStatus$).mockReturnValue(of(ergConnectionStatus));
+
+    return mock;
+};
+
+/**
+ * Creates a mock MatDialogRef with close/updateSize/backdropClick/keydownEvents/disableClose.
+ * backdropClick and keydownEvents return EMPTY by default.
+ */
+export const createMockMatDialogRef = (): Pick<
+    MatDialogRef<SettingsDialogComponent>,
+    "close" | "updateSize" | "backdropClick" | "keydownEvents" | "disableClose"
+> => {
+    const mock = {
+        close: vi.fn(),
+        updateSize: vi.fn(),
+        backdropClick: vi.fn(),
+        keydownEvents: vi.fn(),
+        disableClose: false,
+    };
+    vi.mocked(mock.backdropClick).mockReturnValue(EMPTY);
+    vi.mocked(mock.keydownEvents).mockReturnValue(EMPTY);
+
+    return mock;
+};
+
+/**
+ * Creates a mock MatSnackBar with open and openFromComponent configured.
+ * openFromComponent returns a ref whose onAction emits of(true) by default.
+ */
+export const createMockSnackBar = (): Pick<MatSnackBar, "open" | "openFromComponent"> => {
+    const mock = {
+        open: vi.fn(),
+        openFromComponent: vi.fn(),
+    };
+    vi.mocked(mock.openFromComponent).mockReturnValue({
+        onAction: vi.fn().mockReturnValue(of(true)),
+    } as unknown as MatSnackBarRef<TextOnlySnackBar>);
+
+    return mock;
+};
+
+// ─── TestBed setup ────────────────────────────────────────────────────────────
+
+export interface ISettingsDialogTestBedOptions {
+    /** Additional providers appended to the standard module provider list */
+    extraProviders?: Array<Provider>;
+    /** Providers injected via overrideComponent for component-level tokens (e.g. SettingsExportService) */
+    componentProviders?: Array<Provider>;
+}
+
+export interface ISettingsDialogTestBedResult {
+    fixture: ComponentFixture<SettingsDialogComponent>;
+    component: SettingsDialogComponent;
+    mockMatDialogRef: ReturnType<typeof createMockMatDialogRef>;
+    mockConfigManagerService: ReturnType<typeof createMockConfigManagerService>;
+    mockErgSettingsService: ReturnType<typeof createMockErgSettingsService>;
+    mockErgConnectionService: ReturnType<typeof createMockErgConnectionService>;
+    mockSnackBar: ReturnType<typeof createMockSnackBar>;
+    mockSpinnerOverlay: Pick<SpinnerOverlay, "open">;
+    mockUtilsService: Pick<UtilsService, "breakpointHelper">;
+    mockSwUpdate: Pick<SwUpdate, "checkForUpdate" | "isEnabled">;
+    breakpointSubject: BehaviorSubject<{ maxW599: boolean }>;
+}
+
+/**
+ * Configures a TestBed for SettingsDialogComponent with all standard mocks.
+ * Stubs navigator.bluetooth, creates all mock services, and wires up the Angular TestBed.
+ *
+ * @param options.extraProviders    - Additional module-level providers (e.g. MatDialog for the export spec)
+ * @param options.componentProviders - Providers applied via overrideComponent (e.g. SettingsExportService)
+ */
+export const createSettingsDialogTestBed = async (
+    options: ISettingsDialogTestBedOptions = {},
+): Promise<ISettingsDialogTestBedResult> => {
+    vi.spyOn(navigator, "bluetooth", "get").mockReturnValue({
+        getDevices: (): Promise<Array<BluetoothDevice>> => Promise.resolve([]),
+    } as unknown as Bluetooth);
+
+    const mockDialogData = createMockDialogData();
+    const mockMatDialogRef = createMockMatDialogRef();
+    const mockConfigManagerService = createMockConfigManagerService();
+    const mockErgSettingsService = createMockErgSettingsService();
+    const mockErgConnectionService = createMockErgConnectionService(mockDialogData.ergConnectionStatus);
+    const mockSnackBar = createMockSnackBar();
+    const mockSpinnerOverlay: Pick<SpinnerOverlay, "open"> = { open: vi.fn() };
+    const breakpointSubject = new BehaviorSubject<{ maxW599: boolean }>({ maxW599: false });
+    const mockUtilsService: Pick<UtilsService, "breakpointHelper"> = { breakpointHelper: vi.fn() };
+    vi.mocked(mockUtilsService.breakpointHelper).mockReturnValue(breakpointSubject.asObservable());
+    const mockSwUpdate: Pick<SwUpdate, "checkForUpdate" | "isEnabled"> = {
+        checkForUpdate: vi.fn(),
+        isEnabled: false,
+    };
+
+    let builder = TestBed.configureTestingModule({
+        imports: [SettingsDialogComponent],
+        providers: [
+            { provide: MatDialogRef, useValue: mockMatDialogRef },
+            { provide: MAT_DIALOG_DATA, useValue: mockDialogData },
+            { provide: ConfigManagerService, useValue: mockConfigManagerService },
+            { provide: ErgSettingsService, useValue: mockErgSettingsService },
+            { provide: MatSnackBar, useValue: mockSnackBar },
+            { provide: SpinnerOverlay, useValue: mockSpinnerOverlay },
+            { provide: UtilsService, useValue: mockUtilsService },
+            { provide: SwUpdate, useValue: mockSwUpdate },
+            { provide: ErgConnectionService, useValue: mockErgConnectionService },
+            ...(options.extraProviders ?? []),
+        ],
+    });
+
+    if (options.componentProviders?.length) {
+        builder = builder.overrideComponent(SettingsDialogComponent, {
+            set: { providers: options.componentProviders },
+        });
+    }
+
+    await builder.compileComponents();
+
+    const fixture = TestBed.createComponent(SettingsDialogComponent);
+    const component = fixture.componentInstance;
+
+    return {
+        fixture,
+        component,
+        mockMatDialogRef,
+        mockConfigManagerService,
+        mockErgSettingsService,
+        mockErgConnectionService,
+        mockSnackBar,
+        mockSpinnerOverlay,
+        mockUtilsService,
+        mockSwUpdate,
+        breakpointSubject,
+    };
 };
