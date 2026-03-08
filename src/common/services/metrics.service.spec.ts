@@ -28,10 +28,7 @@ describe("MetricsService", (): void => {
         ErgMetricsService,
         "streamMeasurement$" | "streamExtended$" | "streamHandleForces$" | "streamDeltaTimes$"
     >;
-    let mockDataRecorderService: Pick<
-        DataRecorderService,
-        "addDeltaTimes" | "addSessionData" | "addConnectedDevice" | "reset"
-    >;
+    let mockDataRecorderService: Pick<DataRecorderService, "addDeltaTimes" | "addConnectedDevice">;
     let mockHeartRateService: Pick<HeartRateService, "streamHeartRate$" | "connectionStatus$">;
     let mockErgSettingsService: Pick<ErgSettingsService, "rowerSettings">;
     let mockRowerSettingsSignal: WritableSignal<IRowerSettings>;
@@ -103,9 +100,7 @@ describe("MetricsService", (): void => {
 
         mockDataRecorderService = {
             addDeltaTimes: vi.fn(),
-            addSessionData: vi.fn(),
             addConnectedDevice: vi.fn(),
-            reset: vi.fn().mockResolvedValue(undefined),
         };
 
         mockHeartRateService = {
@@ -183,30 +178,23 @@ describe("MetricsService", (): void => {
             vi.useRealTimers();
         });
 
-        it("should update activityStartDistance, activityStartStrokeCount on reset()", async (): Promise<void> => {
+        it("should update activityStartDistance, activityStartStrokeCount on reset()", (): void => {
             const baseMetrics = { ...mockBaseMetrics };
+            let latestMetrics: ICalculatedMetrics | undefined;
+
+            service.allMetrics$.subscribe((metrics: ICalculatedMetrics): void => {
+                latestMetrics = metrics;
+            });
+
+            measurementSubject.next(baseMetrics);
             measurementSubject.next(baseMetrics);
             extendedSubject.next(mockExtendedMetrics);
             handleForcesSubject.next([10, 20, 30]);
-            await vi.advanceTimersByTimeAsync(100);
 
             service.reset();
 
-            expect(mockDataRecorderService.reset).toHaveBeenCalledWith(undefined);
-        });
-
-        it("should call dataRecorder.reset with the connected device name when reset() is called after a device has connected", (): void => {
-            connectionStatusSubject.next(mockConnectionStatus);
-
-            service.reset();
-
-            expect(mockDataRecorderService.reset).toHaveBeenCalledWith(mockConnectionStatus.deviceName);
-        });
-
-        it("should call dataRecorder.reset without a device name when no device was connected before reset()", (): void => {
-            service.reset();
-
-            expect(mockDataRecorderService.reset).toHaveBeenCalledWith(undefined);
+            expect(latestMetrics!.distance).toBe(0);
+            expect(latestMetrics!.strokeCount).toBe(0);
         });
 
         it("should emit a reset event on resetSubject with the correct base metrics on reset()", async (): Promise<void> => {
@@ -321,14 +309,6 @@ describe("MetricsService", (): void => {
     });
 
     describe("Data Recording Integration", (): void => {
-        const baseMetrics = { ...mockBaseMetrics, strokeCount: 5, distance: 500 };
-        const baseMetrics2 = {
-            revTime: baseMetrics.revTime + 1000,
-            distance: baseMetrics.distance + 100,
-            strokeTime: baseMetrics.strokeTime + 1000,
-            strokeCount: baseMetrics.strokeCount + 1,
-        };
-
         beforeEach((): void => {
             service = TestBed.inject(MetricsService);
         });
@@ -347,86 +327,18 @@ describe("MetricsService", (): void => {
             expect(mockDataRecorderService.addDeltaTimes).not.toHaveBeenCalled();
         });
 
-        it("should add session data to dataRecorder when valid metrics are emitted", async (): Promise<void> => {
-            service.allMetrics$.subscribe((): void => {
-                expect(mockDataRecorderService.addSessionData).toHaveBeenCalled();
-                const callArgs = vi.mocked(mockDataRecorderService.addSessionData).mock.lastCall?.[0];
-                expect(callArgs?.strokeCount).toBeGreaterThan(0);
-            });
-
-            measurementSubject.next(baseMetrics);
-            heartRateSubject.next(mockHeartRate);
-            measurementSubject.next(baseMetrics);
-        });
-
-        it("should add session data to dataRecorder when only distance increases", async (): Promise<void> => {
-            const metricsPromise = firstValueFrom(service.allMetrics$.pipe(skip(2)));
-
-            measurementSubject.next(baseMetrics);
-            heartRateSubject.next(mockHeartRate);
-            measurementSubject.next(baseMetrics);
-            measurementSubject.next(baseMetrics);
-            measurementSubject.next(baseMetrics2);
-
-            await metricsPromise;
-
-            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(2);
-        });
-
-        it("should add session data to dataRecorder when only stroke count increases", async (): Promise<void> => {
-            const metricsPromise = firstValueFrom(service.allMetrics$.pipe(skip(2)));
-
-            measurementSubject.next(baseMetrics);
-            heartRateSubject.next(mockHeartRate);
-            measurementSubject.next(baseMetrics);
-            measurementSubject.next(baseMetrics);
-            measurementSubject.next({ ...baseMetrics, strokeCount: baseMetrics.strokeCount + 1 });
-
-            await metricsPromise;
-
-            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(2);
-            const callArgs = vi.mocked(mockDataRecorderService.addSessionData).mock.lastCall?.[0];
-            expect(callArgs?.strokeCount).toBeGreaterThan(0);
-        });
-
-        it("should add connected device to dataRecorder if connectionStatus.deviceName is defined", async (): Promise<void> => {
-            const metricsPromise = firstValueFrom(service.allMetrics$);
-
+        it("should add connected device to dataRecorder if connectionStatus.deviceName is defined", (): void => {
             connectionStatusSubject.next(mockConnectionStatus);
-            measurementSubject.next(baseMetrics);
-            heartRateSubject.next(mockHeartRate);
-            measurementSubject.next(baseMetrics2);
-
-            await metricsPromise;
 
             expect(mockDataRecorderService.addConnectedDevice).toHaveBeenCalledWith("Test Device");
         });
 
-        it("should not add connected device if connectionStatus.deviceName is undefined", async (): Promise<void> => {
+        it("should not add connected device if connectionStatus.deviceName is undefined", (): void => {
             const connectionStatusWithoutDevice = { ...mockConnectionStatus, deviceName: undefined };
-            const metricsPromise = firstValueFrom(service.allMetrics$);
 
             connectionStatusSubject.next(connectionStatusWithoutDevice);
-            measurementSubject.next(baseMetrics);
-            heartRateSubject.next(mockHeartRate);
-            measurementSubject.next(baseMetrics2);
-
-            await metricsPromise;
 
             expect(mockDataRecorderService.addConnectedDevice).not.toHaveBeenCalled();
-        });
-
-        it("should not emit session data if strokeCount and distance are both zero", async (): Promise<void> => {
-            const metricsPromise = firstValueFrom(service.allMetrics$);
-
-            connectionStatusSubject.next(mockConnectionStatus);
-            measurementSubject.next({ ...mockBaseMetrics, strokeCount: 0, distance: 0 });
-            heartRateSubject.next(mockHeartRate);
-            measurementSubject.next({ ...mockBaseMetrics, strokeCount: 0, distance: 0 });
-
-            await metricsPromise;
-
-            expect(mockDataRecorderService.addSessionData).not.toHaveBeenCalled();
         });
     });
 
@@ -598,8 +510,6 @@ describe("MetricsService", (): void => {
                 service.reset();
                 service.reset();
             }).not.toThrow();
-
-            expect(mockDataRecorderService.reset).toHaveBeenCalledTimes(3);
         });
 
         it("should handle null or empty string deviceName gracefully", (): void => {

@@ -2,16 +2,22 @@ import { TestBed } from "@angular/core/testing";
 import { BehaviorSubject } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ICalculatedMetrics } from "../common.interfaces";
+import { ICalculatedMetrics, IErgConnectionStatus, IHeartRate } from "../common.interfaces";
 
+import { DataRecorderService } from "./data-recorder.service";
+import { ErgConnectionService } from "./ergometer/erg-connection.service";
 import { MetricsService } from "./metrics.service";
 import { SessionManagerService } from "./session-manager.service";
 
 describe("SessionManagerService", (): void => {
     let service: SessionManagerService;
 
-    let mockMetricsService: Pick<MetricsService, "reset" | "allMetrics$">;
+    let mockMetricsService: Pick<MetricsService, "reset" | "allMetrics$" | "heartRateData$">;
+    let mockDataRecorderService: Pick<DataRecorderService, "reset" | "addSessionData">;
+    let mockErgConnectionService: Pick<ErgConnectionService, "connectionStatus$">;
     let allMetricsSubject: BehaviorSubject<ICalculatedMetrics>;
+    let heartRateSubject: BehaviorSubject<IHeartRate | undefined>;
+    let connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
 
     const mockMetrics: ICalculatedMetrics = {
         avgStrokePower: 0,
@@ -28,18 +34,41 @@ describe("SessionManagerService", (): void => {
         driveLength: 0,
     };
 
+    const mockHeartRate: IHeartRate = {
+        heartRate: 150,
+        rrIntervals: [800],
+        contactDetected: true,
+    };
+
     beforeEach((): void => {
         vi.useFakeTimers();
 
         allMetricsSubject = new BehaviorSubject<ICalculatedMetrics>(mockMetrics);
+        heartRateSubject = new BehaviorSubject<IHeartRate | undefined>(undefined);
+        connectionStatusSubject = new BehaviorSubject<IErgConnectionStatus>({ status: "disconnected" });
 
         mockMetricsService = {
             reset: vi.fn(),
             allMetrics$: allMetricsSubject.asObservable(),
+            heartRateData$: heartRateSubject.asObservable(),
+        };
+
+        mockDataRecorderService = {
+            reset: vi.fn().mockResolvedValue(undefined),
+            addSessionData: vi.fn().mockResolvedValue(undefined),
+        };
+
+        mockErgConnectionService = {
+            connectionStatus$: vi.fn().mockReturnValue(connectionStatusSubject.asObservable()),
         };
 
         TestBed.configureTestingModule({
-            providers: [SessionManagerService, { provide: MetricsService, useValue: mockMetricsService }],
+            providers: [
+                SessionManagerService,
+                { provide: MetricsService, useValue: mockMetricsService },
+                { provide: DataRecorderService, useValue: mockDataRecorderService },
+                { provide: ErgConnectionService, useValue: mockErgConnectionService },
+            ],
         });
 
         service = TestBed.inject(SessionManagerService);
@@ -87,6 +116,14 @@ describe("SessionManagerService", (): void => {
             expect(mockMetricsService.reset).toHaveBeenCalled();
         });
 
+        it("should call dataRecorder.reset with connectedDeviceName on start", (): void => {
+            connectionStatusSubject.next({ status: "connected", deviceName: "ESP Rowing Monitor" });
+
+            service.start();
+
+            expect(mockDataRecorderService.reset).toHaveBeenCalledWith("ESP Rowing Monitor");
+        });
+
         it("should reset elapsed time to zero when starting a new session", (): void => {
             service.start();
             vi.advanceTimersByTime(3000);
@@ -111,6 +148,16 @@ describe("SessionManagerService", (): void => {
 
             service.stop();
             expect(mockMetricsService.reset).toHaveBeenCalled();
+        });
+
+        it("should not call dataRecorder.reset when stopping", (): void => {
+            connectionStatusSubject.next({ status: "connected", deviceName: "ESP Rowing Monitor" });
+            service.start();
+            vi.mocked(mockDataRecorderService.reset).mockClear();
+
+            service.stop();
+
+            expect(mockDataRecorderService.reset).not.toHaveBeenCalled();
         });
 
         it("should not change state if already stopped", (): void => {
@@ -152,6 +199,26 @@ describe("SessionManagerService", (): void => {
             allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, driveDuration: 0.5 });
 
             expect(service.sessionState()).toBe("running");
+        });
+
+        it("should call dataRecorder.reset on auto-start from stopped", (): void => {
+            connectionStatusSubject.next({ status: "connected", deviceName: "ESP Rowing Monitor" });
+            vi.mocked(mockDataRecorderService.reset).mockClear();
+
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, driveDuration: 0.5 });
+
+            expect(mockDataRecorderService.reset).toHaveBeenCalledWith("ESP Rowing Monitor");
+        });
+
+        it("should call dataRecorder.reset on auto-start from stopped state", (): void => {
+            connectionStatusSubject.next({ status: "connected", deviceName: "ESP Rowing Monitor" });
+            service.start();
+            service.stop();
+            vi.mocked(mockDataRecorderService.reset).mockClear();
+
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, driveDuration: 0.5 });
+
+            expect(mockDataRecorderService.reset).toHaveBeenCalledWith("ESP Rowing Monitor");
         });
 
         it("should not auto-start when already running", (): void => {
@@ -196,16 +263,132 @@ describe("SessionManagerService", (): void => {
 
             expect(service.sessionState()).toBe("stopped");
         });
+
+        it("should record the first stroke that triggers auto-start", (): void => {
+            const firstStroke: ICalculatedMetrics = {
+                ...mockMetrics,
+                strokeCount: 1,
+                driveDuration: 0.5,
+                distance: 100,
+            };
+            heartRateSubject.next(mockHeartRate);
+
+            allMetricsSubject.next(firstStroke);
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith({
+                ...firstStroke,
+                heartRate: mockHeartRate,
+            });
+        });
+
+        it("should record the first stroke even without heart rate data", (): void => {
+            const firstStroke: ICalculatedMetrics = {
+                ...mockMetrics,
+                strokeCount: 1,
+                driveDuration: 0.5,
+                distance: 100,
+            };
+
+            allMetricsSubject.next(firstStroke);
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith({
+                ...firstStroke,
+                heartRate: undefined,
+            });
+        });
+    });
+
+    describe("session data recording", (): void => {
+        it("should record session data when running and metrics change", (): void => {
+            service.start();
+            heartRateSubject.next(mockHeartRate);
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith({
+                ...mockMetrics,
+                strokeCount: 1,
+                distance: 100,
+                heartRate: mockHeartRate,
+            });
+        });
+
+        it("should not record session data when stopped", (): void => {
+            service.start();
+            service.stop();
+            heartRateSubject.next(mockHeartRate);
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 0, distance: 50 });
+
+            expect(mockDataRecorderService.addSessionData).not.toHaveBeenCalled();
+        });
+
+        it("should not record when strokeCount and distance are both zero", (): void => {
+            service.start();
+            heartRateSubject.next(mockHeartRate);
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 0, distance: 0 });
+
+            expect(mockDataRecorderService.addSessionData).not.toHaveBeenCalled();
+        });
+
+        it("should not record duplicate metrics with same distance and strokeCount", (): void => {
+            service.start();
+            heartRateSubject.next(mockHeartRate);
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(1);
+        });
+
+        it("should record when distance increases", (): void => {
+            service.start();
+            heartRateSubject.next(mockHeartRate);
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 200 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(2);
+        });
+
+        it("should record when strokeCount increases", (): void => {
+            service.start();
+            heartRateSubject.next(mockHeartRate);
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 2, distance: 100 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(2);
+        });
     });
 
     describe("distance regression handling", (): void => {
         it("should call metricsService.reset on distance regression", (): void => {
+            service.start();
             vi.mocked(mockMetricsService.reset).mockClear();
 
             allMetricsSubject.next({ ...mockMetrics, distance: 5000 });
             allMetricsSubject.next({ ...mockMetrics, distance: 0 });
 
             expect(mockMetricsService.reset).toHaveBeenCalled();
+        });
+
+        it("should call dataRecorder.reset on distance regression", (): void => {
+            connectionStatusSubject.next({ status: "connected", deviceName: "ESP Rowing Monitor" });
+            service.start();
+            vi.mocked(mockDataRecorderService.reset).mockClear();
+
+            allMetricsSubject.next({ ...mockMetrics, distance: 5000 });
+            allMetricsSubject.next({ ...mockMetrics, distance: 0 });
+
+            expect(mockDataRecorderService.reset).toHaveBeenCalledWith("ESP Rowing Monitor");
         });
 
         it("should transition to stopped on distance regression", (): void => {
@@ -235,6 +418,34 @@ describe("SessionManagerService", (): void => {
             allMetricsSubject.next({ ...mockMetrics, distance: 200 });
 
             expect(mockMetricsService.reset).not.toHaveBeenCalled();
+            expect(service.sessionState()).toBe("running");
+        });
+
+        it("should not trigger during stop", (): void => {
+            service.start();
+            allMetricsSubject.next({ ...mockMetrics, distance: 5000 });
+            vi.mocked(mockMetricsService.reset).mockClear();
+            vi.mocked(mockDataRecorderService.reset).mockClear();
+
+            service.stop();
+
+            // stop() resets metrics but not dataRecorder; regression handler does not fire
+            expect(mockMetricsService.reset).toHaveBeenCalledTimes(1);
+            expect(mockDataRecorderService.reset).not.toHaveBeenCalled();
+            expect(service.sessionState()).toBe("stopped");
+        });
+
+        it("should not trigger during start", (): void => {
+            service.start();
+            allMetricsSubject.next({ ...mockMetrics, distance: 5000 });
+            service.stop();
+            vi.mocked(mockMetricsService.reset).mockClear();
+            vi.mocked(mockDataRecorderService.reset).mockClear();
+
+            service.start();
+
+            expect(mockMetricsService.reset).toHaveBeenCalledTimes(1);
+            expect(mockDataRecorderService.reset).toHaveBeenCalledTimes(1);
             expect(service.sessionState()).toBe("running");
         });
     });
