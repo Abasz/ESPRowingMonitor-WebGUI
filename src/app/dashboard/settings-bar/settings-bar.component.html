@@ -9,9 +9,16 @@
             <mat-icon>sports_score</mat-icon>
         </button>
         <app-open-settings-button></app-open-settings-button>
-        <button matTooltipShowDelay="1000" matTooltip="Reset" (click)="reset()" mat-icon-button>
-            <mat-icon>laps</mat-icon>
-        </button>
+        @if (sessionState() !== "running") {
+            <button matTooltipShowDelay="1000" matTooltip="Start" (click)="startSession()" mat-icon-button>
+                <mat-icon>play_circle</mat-icon>
+            </button>
+        }
+        @if (sessionState() === "running") {
+            <button matTooltipShowDelay="1000" matTooltip="Stop" (click)="stopSession()" mat-icon-button>
+                <mat-icon>stop_circle</mat-icon>
+            </button>
+        }
         <app-connect-heart-rate-button></app-connect-heart-rate-button>
         <app-connect-erg-button></app-connect-erg-button>
         <span>{{

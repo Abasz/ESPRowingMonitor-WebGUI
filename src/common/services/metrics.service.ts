@@ -11,7 +11,6 @@ import {
     shareReplay,
     startWith,
     Subject,
-    take,
     tap,
     withLatestFrom,
 } from "rxjs";
@@ -43,7 +42,6 @@ export class MetricsService {
 
     private activityStartDistance: number = 0;
     private activityStartStrokeCount: number = 0;
-    private activityStartTime: Date = new Date();
 
     private connectedDeviceName?: string;
 
@@ -70,33 +68,14 @@ export class MetricsService {
 
         this.setupLogging();
 
-        this.ergConnectionService
-            .connectionStatus$()
-            .pipe(
-                filter(
-                    (connectionStatus: IErgConnectionStatus): boolean =>
-                        connectionStatus.status === "connected",
-                ),
-                take(1),
-                takeUntilDestroyed(this.destroyRef),
-            )
-            .subscribe((): void => {
-                this.activityStartTime = new Date();
-            });
-
         if (isSecureContext === true && navigator.bluetooth !== undefined) {
             this.ergConnectionService.reconnect();
         }
     }
 
-    getActivityStartTime(): Date {
-        return this.activityStartTime;
-    }
-
     reset(): void {
         this.activityStartDistance = this.baseMetrics.distance;
         this.activityStartStrokeCount = this.baseMetrics.strokeCount;
-        this.activityStartTime = new Date();
         this.dataRecorder.reset(this.connectedDeviceName);
 
         this.resetSubject.next({
@@ -221,9 +200,6 @@ export class MetricsService {
         return combineLatest([
             this.streamMeasurement$().pipe(
                 tap((baseMetrics: IBaseMetrics): void => {
-                    if (baseMetrics.distance < this.baseMetrics.distance) {
-                        this.dataRecorder.reset(this.connectedDeviceName);
-                    }
                     this.baseMetrics = baseMetrics;
                 }),
                 pairwise(),
@@ -242,7 +218,6 @@ export class MetricsService {
                         baseMetricsCurrent.strokeCount - this.activityStartStrokeCount;
 
                     return {
-                        activityStartTime: this.activityStartTime,
                         avgStrokePower: extendedMetrics.avgStrokePower,
                         driveDuration: extendedMetrics.driveDuration / 1e6,
                         recoveryDuration: extendedMetrics.recoveryDuration / 1e6,

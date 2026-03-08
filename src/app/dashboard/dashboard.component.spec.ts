@@ -1,8 +1,8 @@
 import { BreakpointObserver } from "@angular/cdk/layout";
-import { signal } from "@angular/core";
+import { signal, WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { BehaviorSubject, Observable, of } from "rxjs";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BleServiceFlag } from "../../common/ble.interfaces";
 import {
@@ -11,6 +11,7 @@ import {
     IErgConnectionStatus,
     IHeartRate,
     IHRConnectionStatus,
+    SessionState,
 } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
@@ -18,6 +19,7 @@ import { ErgGenericDataService } from "../../common/services/ergometer/erg-gener
 import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
 import { HeartRateService } from "../../common/services/heart-rate/heart-rate.service";
 import { MetricsService } from "../../common/services/metrics.service";
+import { SessionManagerService } from "../../common/services/session-manager.service";
 import { UtilsService } from "../../common/services/utils.service";
 
 import {
@@ -38,10 +40,10 @@ import { createMockMetrics } from "./tiles/dashboard-tile.test.helpers";
 describe("DashboardComponent", (): void => {
     let component: DashboardComponent;
     let fixture: ComponentFixture<DashboardComponent>;
-    let metricsServiceSpy: Pick<
-        MetricsService,
-        "getActivityStartTime" | "allMetrics$" | "heartRateData$" | "hrConnectionStatus$"
-    >;
+    let metricsServiceSpy: Pick<MetricsService, "allMetrics$" | "heartRateData$" | "hrConnectionStatus$">;
+    let sessionManagerSpy: Pick<SessionManagerService, "sessionState" | "elapsedTime">;
+    let mockSessionState: WritableSignal<SessionState>;
+    let mockElapsedTime: WritableSignal<number>;
     let ergConnectionServiceSpy: Pick<ErgConnectionService, "connectionStatus$">;
     let utilsServiceSpy: Pick<UtilsService, "enableWakeLock" | "disableWakeLock">;
     let allMetricsSubject: BehaviorSubject<ICalculatedMetrics>;
@@ -52,14 +54,7 @@ describe("DashboardComponent", (): void => {
     let breakpointSubject: BehaviorSubject<{ matches: boolean }>;
 
     // test data constants
-    const mockInitialMetrics: ICalculatedMetrics = createMockMetrics({
-        activityStartTime: new Date("2024-01-01T10:00:00.000Z"),
-    });
-
-    const mockConnectedStatus: IErgConnectionStatus = {
-        status: "connected",
-        deviceName: "Test Device",
-    };
+    const mockInitialMetrics: ICalculatedMetrics = createMockMetrics();
 
     const mockDisconnectedStatus: IErgConnectionStatus = {
         status: "disconnected",
@@ -95,10 +90,16 @@ describe("DashboardComponent", (): void => {
         connectionStatusSubject = new BehaviorSubject<IErgConnectionStatus>(mockDisconnectedStatus);
 
         metricsServiceSpy = {
-            getActivityStartTime: vi.fn(),
             allMetrics$: allMetricsSubject.asObservable(),
             heartRateData$: heartRateDataSubject.asObservable(),
             hrConnectionStatus$: of({ status: "disconnected" } as IHRConnectionStatus),
+        };
+
+        mockSessionState = signal<SessionState>("stopped");
+        mockElapsedTime = signal<number>(0);
+        sessionManagerSpy = {
+            sessionState: mockSessionState,
+            elapsedTime: mockElapsedTime,
         };
 
         ergConnectionServiceSpy = {
@@ -116,6 +117,7 @@ describe("DashboardComponent", (): void => {
             imports: [DashboardComponent],
             providers: [
                 { provide: MetricsService, useValue: metricsServiceSpy },
+                { provide: SessionManagerService, useValue: sessionManagerSpy },
                 { provide: ErgConnectionService, useValue: ergConnectionServiceSpy },
                 { provide: UtilsService, useValue: utilsServiceSpy },
                 {
@@ -145,10 +147,6 @@ describe("DashboardComponent", (): void => {
         });
 
         it("should initialize signals with correct default values", (): void => {
-            vi.mocked(metricsServiceSpy.getActivityStartTime).mockReturnValue(
-                mockInitialMetrics.activityStartTime,
-            );
-
             expect(component.elapseTime()).toBe(0);
             expect(component.heartRateData()).toBeUndefined();
             expect(component.rowingData()).toEqual(mockInitialMetrics);
@@ -260,38 +258,11 @@ describe("DashboardComponent", (): void => {
     });
 
     describe("elapseTime signal", (): void => {
-        describe("when erg is disconnected", (): void => {
-            it("should maintain initial value of 0", (): void => {
-                expect(component.elapseTime()).toBe(0);
-            });
-        });
+        it("should reflect the sessionManager elapsedTime signal", (): void => {
+            expect(component.elapseTime()).toBe(0);
 
-        describe("when erg connects", (): void => {
-            const now = Date.now();
-
-            beforeEach((): void => {
-                vi.useFakeTimers();
-                vi.setSystemTime(now);
-                vi.mocked(metricsServiceSpy.getActivityStartTime).mockReturnValue(
-                    mockInitialMetrics.activityStartTime,
-                );
-            });
-
-            afterEach((): void => {
-                vi.useRealTimers();
-            });
-
-            it("should start calculating elapsed time from activity start", async (): Promise<void> => {
-                const activityStartTime = new Date(now - 5000);
-                vi.mocked(metricsServiceSpy.getActivityStartTime).mockReturnValue(activityStartTime);
-                expect(component.elapseTime()).toBe(0);
-
-                connectionStatusSubject.next(mockConnectedStatus);
-
-                expect(component.elapseTime()).toBeCloseTo(5, 0);
-                await vi.advanceTimersByTimeAsync(2000);
-                expect(component.elapseTime()).toBeCloseTo(7, 0);
-            });
+            mockElapsedTime.set(42);
+            expect(component.elapseTime()).toBe(42);
         });
     });
 

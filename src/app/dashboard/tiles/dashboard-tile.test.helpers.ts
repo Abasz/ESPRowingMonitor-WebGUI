@@ -5,7 +5,6 @@ import { ICalculatedMetrics, IDisplayConfig } from "../../../common/common.inter
  * Override any property by passing a partial object.
  */
 export const createMockMetrics = (overrides?: Partial<ICalculatedMetrics>): ICalculatedMetrics => ({
-    activityStartTime: new Date("2024-01-01T00:00:00.000Z"),
     avgStrokePower: 0,
     driveDuration: 0,
     recoveryDuration: 0,

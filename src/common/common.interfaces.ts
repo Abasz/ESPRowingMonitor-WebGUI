@@ -153,7 +153,6 @@ export interface IBaseMetrics {
 }
 
 export interface ICalculatedMetrics extends Omit<IExtendedMetrics & IBaseMetrics, "revTime" | "strokeTime"> {
-    activityStartTime: Date;
     speed: number;
     strokeRate: number;
     peakForce: number;
@@ -161,6 +160,8 @@ export interface ICalculatedMetrics extends Omit<IExtendedMetrics & IBaseMetrics
     driveLength: number;
     handleForces: Array<number>;
 }
+
+export type SessionState = "running" | "stopped";
 
 export interface ISessionData extends ICalculatedMetrics {
     heartRate?: IHeartRate;

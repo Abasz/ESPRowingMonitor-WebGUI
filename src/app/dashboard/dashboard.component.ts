@@ -11,20 +11,19 @@ import {
     Type,
 } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
-import { filter, interval, map, merge, Observable, pairwise, startWith, switchMap, take } from "rxjs";
+import { map } from "rxjs";
 
 import {
     Config,
     ICalculatedMetrics,
     IDisplayConfig,
     IDisplayLayoutConfig,
-    IErgConnectionStatus,
     IHeartRate,
     OrientationLock,
 } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
-import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { MetricsService } from "../../common/services/metrics.service";
+import { SessionManagerService } from "../../common/services/session-manager.service";
 import { UtilsService } from "../../common/services/utils.service";
 
 import {
@@ -59,7 +58,7 @@ interface ScreenOrientationWithLock extends ScreenOrientation {
     imports: [SettingsBarComponent, NgComponentOutlet],
 })
 export class DashboardComponent implements AfterViewInit, OnDestroy {
-    readonly elapseTime: Signal<number>;
+    readonly elapseTime: Signal<number> = this.sessionManager.elapsedTime;
     readonly heartRateData: Signal<IHeartRate | undefined> = toSignal(this.metricsService.heartRateData$, {
         requireSync: true,
     });
@@ -69,7 +68,6 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     readonly gridRows: Signal<number>;
     readonly rowingData: Signal<ICalculatedMetrics> = toSignal(this.metricsService.allMetrics$, {
         initialValue: {
-            activityStartTime: new Date(),
             avgStrokePower: 0,
             driveDuration: 0,
             recoveryDuration: 0,
@@ -163,44 +161,11 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
 
     constructor(
         private metricsService: MetricsService,
-        private ergConnectionService: ErgConnectionService,
+        private sessionManager: SessionManagerService,
         private utils: UtilsService,
         private configManager: ConfigManagerService,
         private breakpointObserver: BreakpointObserver,
     ) {
-        this.elapseTime = toSignal(
-            this.ergConnectionService.connectionStatus$().pipe(
-                filter(
-                    (connectionStatus: IErgConnectionStatus): boolean =>
-                        connectionStatus.status === "connected",
-                ),
-                take(1),
-                switchMap(
-                    (): Observable<number> =>
-                        merge(
-                            interval(1000),
-                            this.metricsService.allMetrics$.pipe(
-                                pairwise(),
-                                filter(
-                                    ([previous, current]: [
-                                        ICalculatedMetrics,
-                                        ICalculatedMetrics,
-                                    ]): boolean => previous.activityStartTime !== current.activityStartTime,
-                                ),
-                            ),
-                        ).pipe(
-                            startWith(0),
-                            map(
-                                (): number =>
-                                    (Date.now() - this.metricsService.getActivityStartTime().getTime()) /
-                                    1000,
-                            ),
-                        ),
-                ),
-            ),
-            { initialValue: 0 },
-        );
-
         this.displayConfig = toSignal(
             this.configManager.configChanged$.pipe(map((config: Config): IDisplayConfig => config.display)),
             {

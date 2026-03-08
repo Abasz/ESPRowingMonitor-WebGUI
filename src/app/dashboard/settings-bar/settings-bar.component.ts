@@ -9,12 +9,17 @@ import { MatTooltip } from "@angular/material/tooltip";
 import { interval, map, take } from "rxjs";
 
 import { BleServiceFlag, BleServiceNames } from "../../../common/ble.interfaces";
-import { IErgConnectionStatus, IRowerSettings, ISessionSummary } from "../../../common/common.interfaces";
+import {
+    IErgConnectionStatus,
+    IRowerSettings,
+    ISessionSummary,
+    SessionState,
+} from "../../../common/common.interfaces";
 import { DataRecorderService } from "../../../common/services/data-recorder.service";
 import { ErgConnectionService } from "../../../common/services/ergometer/erg-connection.service";
 import { ErgGenericDataService } from "../../../common/services/ergometer/erg-generic-data.service";
 import { ErgSettingsService } from "../../../common/services/ergometer/erg-settings.service";
-import { MetricsService } from "../../../common/services/metrics.service";
+import { SessionManagerService } from "../../../common/services/session-manager.service";
 import { UtilsService } from "../../../common/services/utils.service";
 import { BatteryLevelPipe } from "../../../common/utils/battery-level.pipe";
 import { LogbookDialogComponent } from "../../logbook-dialog/logbook-dialog.component";
@@ -57,13 +62,14 @@ export class SettingsBarComponent {
         },
     );
 
+    readonly sessionState: Signal<SessionState> = this.sessionManager.sessionState;
     readonly settings: Signal<IRowerSettings> = this.ergSettingsService.rowerSettings;
     readonly timeOfDay: Signal<number> = toSignal(interval(1000).pipe(map((): number => Date.now())), {
         initialValue: Date.now(),
     });
 
     constructor(
-        private metricsService: MetricsService,
+        private sessionManager: SessionManagerService,
         private dataRecorder: DataRecorderService,
         private ergConnectionService: ErgConnectionService,
         private ergGenericDataService: ErgGenericDataService,
@@ -95,7 +101,11 @@ export class SettingsBarComponent {
             });
     }
 
-    reset(): void {
-        this.metricsService.reset();
+    startSession(): void {
+        this.sessionManager.start();
+    }
+
+    stopSession(): void {
+        this.sessionManager.stop();
     }
 }

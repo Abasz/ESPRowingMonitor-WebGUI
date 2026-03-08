@@ -183,19 +183,7 @@ describe("MetricsService", (): void => {
             vi.useRealTimers();
         });
 
-        it("should set activityStartTime to the current date when erg connection status becomes 'connected'", async (): Promise<void> => {
-            const beforeConnection = new Date();
-
-            await vi.advanceTimersByTimeAsync(100);
-            const atConnection = new Date();
-            connectionStatusSubject.next(mockConnectionStatus);
-
-            expect(service.getActivityStartTime().getTime()).toBeGreaterThan(beforeConnection.getTime());
-            expect(service.getActivityStartTime().getTime()).toBe(atConnection.getTime());
-        });
-
-        it("should update activityStartDistance, activityStartStrokeCount, and activityStartTime on reset()", async (): Promise<void> => {
-            const beforeReset = new Date();
+        it("should update activityStartDistance, activityStartStrokeCount on reset()", async (): Promise<void> => {
             const baseMetrics = { ...mockBaseMetrics };
             measurementSubject.next(baseMetrics);
             extendedSubject.next(mockExtendedMetrics);
@@ -203,9 +191,7 @@ describe("MetricsService", (): void => {
             await vi.advanceTimersByTimeAsync(100);
 
             service.reset();
-            const afterReset = service.getActivityStartTime();
 
-            expect(afterReset.getTime()).toBeGreaterThanOrEqual(beforeReset.getTime());
             expect(mockDataRecorderService.reset).toHaveBeenCalledWith(undefined);
         });
 
@@ -441,42 +427,6 @@ describe("MetricsService", (): void => {
             await metricsPromise;
 
             expect(mockDataRecorderService.addSessionData).not.toHaveBeenCalled();
-        });
-
-        it("should reset dataRecorder if baseMetrics.distance decreases", async (): Promise<void> => {
-            const baseMetrics1 = { ...mockBaseMetrics, distance: baseMetrics2.distance + 100 };
-            const metricsPromise = firstValueFrom(service.allMetrics$);
-
-            measurementSubject.next(baseMetrics1);
-            measurementSubject.next(baseMetrics2);
-
-            await metricsPromise;
-
-            expect(mockDataRecorderService.reset).toHaveBeenCalledWith(undefined);
-        });
-
-        it("should call dataRecorder.reset with connected device name when distance decreases after a device has connected", async (): Promise<void> => {
-            const baseMetrics1 = { ...mockBaseMetrics, distance: baseMetrics2.distance + 100 };
-            const metricsPromise = firstValueFrom(service.allMetrics$);
-
-            connectionStatusSubject.next(mockConnectionStatus);
-            measurementSubject.next(baseMetrics1);
-            measurementSubject.next(baseMetrics2);
-
-            await metricsPromise;
-
-            expect(mockDataRecorderService.reset).toHaveBeenCalledWith(mockConnectionStatus.deviceName);
-        });
-
-        it("should not call dataRecorder.reset() if baseMetrics.distance does not decrease", async (): Promise<void> => {
-            const metricsPromise = firstValueFrom(service.allMetrics$);
-
-            measurementSubject.next(baseMetrics);
-            measurementSubject.next(baseMetrics2);
-
-            await metricsPromise;
-
-            expect(mockDataRecorderService.reset).not.toHaveBeenCalled();
         });
     });
 

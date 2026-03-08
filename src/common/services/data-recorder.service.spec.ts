@@ -57,7 +57,6 @@ describe("DataRecorderService", (): void => {
 
     const createMockSessionData = (): ISessionData => {
         return {
-            activityStartTime: new Date(mockTimeStamp),
             avgStrokePower: 150,
             distance: 5000,
             distPerStroke: 8,

@@ -81,7 +81,6 @@ describe("AppComponent", (): void => {
         const mockMetricsService = {
             heartRateData$: of({ heartRate: 75 } as IHeartRate),
             allMetrics$: of({
-                activityStartTime: new Date(),
                 avgStrokePower: 0,
                 driveDuration: 0,
                 recoveryDuration: 0,
@@ -96,7 +95,6 @@ describe("AppComponent", (): void => {
                 driveLength: 0,
             } as ICalculatedMetrics),
             ergConnectionStatus$: of({ status: "connected" } as IErgConnectionStatus),
-            getActivityStartTime: (): Date => new Date(),
             ergBatteryLevel$: of(80),
             hrConnectionStatus$: of({ status: "connected" }),
             settings: of({ bleServiceFlag: 0, logLevel: 1 }),

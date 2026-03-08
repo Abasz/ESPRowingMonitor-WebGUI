@@ -19,6 +19,7 @@ import {
     IHRConnectionStatus,
     IRowerSettings,
     ISessionSummary,
+    SessionState,
     StrokeDetectionType,
 } from "../../../common/common.interfaces";
 import { ConfigManagerService } from "../../../common/services/config-manager.service";
@@ -28,6 +29,7 @@ import { ErgGenericDataService } from "../../../common/services/ergometer/erg-ge
 import { ErgSettingsService } from "../../../common/services/ergometer/erg-settings.service";
 import { HeartRateService } from "../../../common/services/heart-rate/heart-rate.service";
 import { MetricsService } from "../../../common/services/metrics.service";
+import { SessionManagerService } from "../../../common/services/session-manager.service";
 import { UtilsService } from "../../../common/services/utils.service";
 
 import { SettingsBarComponent } from "./settings-bar.component";
@@ -37,7 +39,9 @@ describe("SettingsBarComponent", (): void => {
     let fixture: ComponentFixture<SettingsBarComponent>;
     let loader: HarnessLoader;
 
-    let mockMetricsService: Pick<MetricsService, "reset" | "hrConnectionStatus$">;
+    let mockSessionManagerService: Pick<SessionManagerService, "start" | "stop" | "sessionState">;
+    let mockSessionState: WritableSignal<SessionState>;
+    let mockMetricsService: Pick<MetricsService, "hrConnectionStatus$">;
     let mockDataRecorderService: Pick<DataRecorderService, "getSessionSummaries$">;
     let mockErgConnectionService: Pick<ErgConnectionService, "connectionStatus$">;
     let mockErgGenericDataService: Pick<ErgGenericDataService, "streamMonitorBatteryLevel$">;
@@ -122,8 +126,14 @@ describe("SettingsBarComponent", (): void => {
         });
         mockRowerSettingsSignal = signal(mockRowerSettings);
 
+        mockSessionState = signal<SessionState>("stopped");
+        mockSessionManagerService = {
+            start: vi.fn(),
+            stop: vi.fn(),
+            sessionState: mockSessionState,
+        };
+
         mockMetricsService = {
-            reset: vi.fn(),
             hrConnectionStatus$: hrConnectionStatusSubject.asObservable(),
         };
 
@@ -170,6 +180,7 @@ describe("SettingsBarComponent", (): void => {
         await TestBed.configureTestingModule({
             imports: [SettingsBarComponent],
             providers: [
+                { provide: SessionManagerService, useValue: mockSessionManagerService },
                 { provide: MetricsService, useValue: mockMetricsService },
                 { provide: DataRecorderService, useValue: mockDataRecorderService },
                 { provide: ErgConnectionService, useValue: mockErgConnectionService },
@@ -260,12 +271,12 @@ describe("SettingsBarComponent", (): void => {
             expect(logbookButton.some(Boolean)).toBe(true);
         });
 
-        it("should render reset button", async (): Promise<void> => {
+        it("should render start button when not running", async (): Promise<void> => {
             const buttons = await loader.getAllHarnesses(MatButtonHarness);
-            const resetButton = await Promise.all(
+            const startButton = await Promise.all(
                 buttons.map(async (btn: MatButtonHarness): Promise<boolean> => {
                     try {
-                        await btn.getHarness(MatIconHarness.with({ name: "laps" }));
+                        await btn.getHarness(MatIconHarness.with({ name: "play_circle" }));
 
                         return true;
                     } catch {
@@ -274,7 +285,27 @@ describe("SettingsBarComponent", (): void => {
                 }),
             );
 
-            expect(resetButton.some(Boolean)).toBe(true);
+            expect(startButton.some(Boolean)).toBe(true);
+        });
+
+        it("should render stop button when running", async (): Promise<void> => {
+            mockSessionState.set("running");
+            fixture.detectChanges();
+
+            const buttons = await loader.getAllHarnesses(MatButtonHarness);
+            const stopButton = await Promise.all(
+                buttons.map(async (btn: MatButtonHarness): Promise<boolean> => {
+                    try {
+                        await btn.getHarness(MatIconHarness.with({ name: "stop_circle" }));
+
+                        return true;
+                    } catch {
+                        return false;
+                    }
+                }),
+            );
+
+            expect(stopButton.some(Boolean)).toBe(true);
         });
 
         it("should render child components", (): void => {
@@ -548,10 +579,17 @@ describe("SettingsBarComponent", (): void => {
         });
     });
 
-    describe("reset method", (): void => {
-        it("should call metricsService reset", (): void => {
-            component.reset();
-            expect(mockMetricsService.reset).toHaveBeenCalled();
+    describe("startSession method", (): void => {
+        it("should call sessionManager start", (): void => {
+            component.startSession();
+            expect(mockSessionManagerService.start).toHaveBeenCalled();
+        });
+    });
+
+    describe("stopSession method", (): void => {
+        it("should call sessionManager stop", (): void => {
+            component.stopSession();
+            expect(mockSessionManagerService.stop).toHaveBeenCalled();
         });
     });
 
@@ -577,24 +615,50 @@ describe("SettingsBarComponent", (): void => {
             });
         });
 
-        describe("reset button click", (): void => {
-            it("should trigger reset method", async (): Promise<void> => {
-                vi.spyOn(component, "reset");
+        describe("start button click", (): void => {
+            it("should trigger startSession method", async (): Promise<void> => {
+                vi.spyOn(component, "startSession");
 
-                const button = await loader.getHarness(MatButtonHarness.with({ text: "laps" }));
+                const button = await loader.getHarness(MatButtonHarness.with({ text: "play_circle" }));
                 expect(button).not.toBeNull();
 
                 await button.click();
-                expect(component.reset).toHaveBeenCalled();
+                expect(component.startSession).toHaveBeenCalled();
             });
 
             it("should have correct tooltip", async (): Promise<void> => {
-                const button = await loader.getHarness(MatButtonHarness.with({ text: "laps" }));
+                const button = await loader.getHarness(MatButtonHarness.with({ text: "play_circle" }));
                 expect(button).not.toBeNull();
 
                 const tooltip = await button.host();
                 const tooltipText = await tooltip.getAttribute("matTooltip");
-                expect(tooltipText).toBe("Reset");
+                expect(tooltipText).toBe("Start");
+            });
+        });
+
+        describe("stop button click", (): void => {
+            beforeEach((): void => {
+                mockSessionState.set("running");
+                fixture.detectChanges();
+            });
+
+            it("should trigger stopSession method", async (): Promise<void> => {
+                vi.spyOn(component, "stopSession");
+
+                const button = await loader.getHarness(MatButtonHarness.with({ text: "stop_circle" }));
+                expect(button).not.toBeNull();
+
+                await button.click();
+                expect(component.stopSession).toHaveBeenCalled();
+            });
+
+            it("should have correct tooltip", async (): Promise<void> => {
+                const button = await loader.getHarness(MatButtonHarness.with({ text: "stop_circle" }));
+                expect(button).not.toBeNull();
+
+                const tooltip = await button.host();
+                const tooltipText = await tooltip.getAttribute("matTooltip");
+                expect(tooltipText).toBe("Stop");
             });
         });
 
@@ -770,7 +834,7 @@ describe("SettingsBarComponent", (): void => {
                 expect((): void => {
                     for (let i = 0; i < 10; i++) {
                         component.openLogbook();
-                        component.reset();
+                        component.startSession();
                     }
                 }).not.toThrow();
             });
