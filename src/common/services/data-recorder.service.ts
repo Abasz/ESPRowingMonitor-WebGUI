@@ -56,6 +56,7 @@ export class DataRecorderService {
                     speed: rowingData.speed,
                     strokeCount: rowingData.strokeCount,
                     strokeRate: rowingData.strokeRate,
+                    elapsedTime: rowingData.elapsedTime,
                     heartRate: rowingData.heartRate,
                 }),
                 appDB.handleForces.put({
@@ -213,6 +214,7 @@ export class DataRecorderService {
                                             deviceName: connectedDevice?.deviceName,
                                             startTime: first.timeStamp - first.driveDuration / 1000,
                                             finishTime: last.timeStamp,
+                                            elapsedTime: last.elapsedTime,
                                             distance: last.distance,
                                             strokeCount: last.strokeCount,
                                         };
@@ -277,7 +279,6 @@ export class DataRecorderService {
             "Handle Forces (N)",
         ].join(",");
 
-        const startTime = rowingSessionData[0].timeStamp.getTime();
         let csvBody = `${headers}\n`;
         let previousStroke: ExportSessionData | undefined = rowingSessionData[0];
 
@@ -286,11 +287,11 @@ export class DataRecorderService {
                 continue;
             }
 
-            const elapsedTime = (data.timeStamp.getTime() - startTime) / 1000;
-
             const calculatedSpeed =
                 previousStroke.distance === 0
-                    ? data.distance / 100 / elapsedTime
+                    ? data.elapsedTime > 0
+                        ? data.distance / 100 / data.elapsedTime
+                        : 0
                     : (data.strokeRate / 60) * data.distPerStroke;
 
             const handleForcesFormatted = `"${data.handleForces.map((force: number): string => force.toFixed(2)).join(",")}"`;
@@ -303,7 +304,7 @@ export class DataRecorderService {
 
             const row = [
                 data.strokeCount.toString(),
-                elapsedTime.toFixed(2),
+                data.elapsedTime.toFixed(2),
                 (data.distance / 100).toString(),
                 (isCalculatedSpeedNaN || calculatedSpeed === 0 ? 0 : 500 / calculatedSpeed).toFixed(2),
                 (isCalculatedSpeedNaN ? 0 : calculatedSpeed * 3.6).toFixed(2),
@@ -376,14 +377,15 @@ export class DataRecorderService {
                         distPerStroke: metric.distPerStroke,
                         dragFactor: metric.dragFactor,
                         driveDuration: metric.driveDuration,
-                        driveLength: handleForces[metric.strokeCount].driveLength,
-                        heartRate: metric.heartRate,
                         recoveryDuration: metric.recoveryDuration,
                         speed: metric.speed,
                         strokeCount: metric.strokeCount,
                         strokeRate: metric.strokeRate,
+                        elapsedTime: metric.elapsedTime,
+                        heartRate: metric.heartRate,
                         timeStamp: new Date(metric.timeStamp),
                         peakForce: handleForces[metric.strokeCount].peakForce,
+                        driveLength: handleForces[metric.strokeCount].driveLength,
                         handleForces: handleForces[metric.strokeCount].handleForces,
                     }),
                 );

@@ -150,7 +150,7 @@ export function createSessionTcxObject(
 
     const lap: ILap = {
         "@": { StartTime: new Date(sessionId).toISOString() },
-        TotalTimeSeconds: (lastDataPoint.timeStamp.getTime() - sessionId) / 1000,
+        TotalTimeSeconds: lastDataPoint.elapsedTime,
         DistanceMeters: lastDataPoint.distance / 100,
         MaximumSpeed: Math.max(
             ...rowingSessionData.map((dataPoint: ExportSessionData): number => dataPoint.speed),

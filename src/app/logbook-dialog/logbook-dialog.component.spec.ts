@@ -42,6 +42,7 @@ describe("LogbookDialogComponent", (): void => {
             sessionId: new Date("2024-01-02T10:00:00Z").getTime(),
             startTime: 1000,
             finishTime: 7000,
+            elapsedTime: 6000,
             distance: 25000,
             strokeCount: 30,
             deviceName: "Device A",
@@ -50,6 +51,7 @@ describe("LogbookDialogComponent", (): void => {
             sessionId: new Date("2024-01-01T10:00:00Z").getTime(),
             startTime: 0,
             finishTime: 4000,
+            elapsedTime: 4000,
             distance: 50000,
             strokeCount: 60,
             deviceName: undefined as unknown as string,
@@ -207,10 +209,7 @@ describe("LogbookDialogComponent", (): void => {
                     const firstRowTimeCell = fixture.nativeElement.querySelector("mat-row .time");
                     expect(firstRowTimeCell).not.toBeNull();
                     expect(firstRowTimeCell.textContent.trim()).toContain(
-                        new SecondsToTimePipe().transform(
-                            (SESSIONS[1].finishTime - SESSIONS[1].startTime) / 1000,
-                            "pace",
-                        ),
+                        new SecondsToTimePipe().transform(SESSIONS[1].elapsedTime, "pace"),
                     );
                 });
 
@@ -226,10 +225,7 @@ describe("LogbookDialogComponent", (): void => {
                     const firstRowTimeCell = fixture.nativeElement.querySelector("mat-row .time");
                     expect(firstRowTimeCell).not.toBeNull();
                     expect(firstRowTimeCell.textContent.trim()).toContain(
-                        new SecondsToTimePipe().transform(
-                            (SESSIONS[0].finishTime - SESSIONS[0].startTime) / 1000,
-                            "pace",
-                        ),
+                        new SecondsToTimePipe().transform(SESSIONS[0].elapsedTime, "pace"),
                     );
                 });
             });

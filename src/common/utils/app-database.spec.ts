@@ -109,6 +109,52 @@ describe("AppDB", (): void => {
         });
     });
 
+    describe("sessionData table", (): void => {
+        it("should backfill elapsedTime on records that lack it", async (): Promise<void> => {
+            const sessionId = 1000;
+            await seedV2Database(
+                [],
+                [
+                    { timeStamp: 2000, sessionId, strokeCount: 1, distance: 10 },
+                    { timeStamp: 4500, sessionId, strokeCount: 2, distance: 25 },
+                ],
+            );
+
+            await appDb.open();
+            const records = await appDb.table<IMetricsEntity>("sessionData").toArray();
+
+            expect(records).toHaveLength(2);
+            // elapsedTime = (timeStamp - sessionId) / 1000
+            expect(
+                records.find((record: IMetricsEntity): boolean => record.timeStamp === 2000)?.elapsedTime,
+            ).toBe(1);
+            expect(
+                records.find((record: IMetricsEntity): boolean => record.timeStamp === 4500)?.elapsedTime,
+            ).toBe(3.5);
+        });
+
+        it("should not overwrite an existing elapsedTime value", async (): Promise<void> => {
+            const sessionId = 1000;
+            await seedV2Database(
+                [],
+                [
+                    { timeStamp: 2000, sessionId, strokeCount: 1, distance: 10, elapsedTime: 0.5 },
+                    { timeStamp: 4500, sessionId, strokeCount: 2, distance: 25 },
+                ],
+            );
+
+            await appDb.open();
+            const records = await appDb.table<IMetricsEntity>("sessionData").toArray();
+
+            expect(
+                records.find((record: IMetricsEntity): boolean => record.timeStamp === 2000)?.elapsedTime,
+            ).toBe(0.5);
+            expect(
+                records.find((record: IMetricsEntity): boolean => record.timeStamp === 4500)?.elapsedTime,
+            ).toBe(3.5);
+        });
+    });
+
     describe("setUpgradeProgressCallback", (): void => {
         it("should invoke the callback with (0, total) before any records are modified", async (): Promise<void> => {
             await seedV2Database(

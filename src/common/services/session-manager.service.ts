@@ -141,7 +141,7 @@ export class SessionManagerService {
                 takeUntilDestroyed(),
             )
             .subscribe(([metrics, heartRate]: [ICalculatedMetrics, IHeartRate | undefined]): void => {
-                this.dataRecorder.addSessionData({ ...metrics, heartRate });
+                this.dataRecorder.addSessionData({ ...metrics, elapsedTime: this._elapsedTime(), heartRate });
             });
     }
 

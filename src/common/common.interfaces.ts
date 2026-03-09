@@ -164,6 +164,7 @@ export interface ICalculatedMetrics extends Omit<IExtendedMetrics & IBaseMetrics
 export type SessionState = "running" | "stopped";
 
 export interface ISessionData extends ICalculatedMetrics {
+    elapsedTime: number;
     heartRate?: IHeartRate;
 }
 
@@ -172,6 +173,7 @@ export interface ISessionSummary {
     deviceName?: string;
     startTime: number;
     finishTime: number;
+    elapsedTime: number;
     distance: number;
     strokeCount: number;
 }

@@ -66,6 +66,7 @@ describe("DataRecorderService", (): void => {
             speed: 4.2,
             strokeCount: 50,
             strokeRate: 24,
+            elapsedTime: 0,
             peakForce: 350,
             handleForces: [100, 200, 300],
             driveLength: 1.5,
@@ -183,6 +184,7 @@ describe("DataRecorderService", (): void => {
                 speed: sessionData.speed,
                 strokeCount: sessionData.strokeCount,
                 strokeRate: sessionData.strokeRate,
+                elapsedTime: sessionData.elapsedTime,
                 heartRate: undefined,
             });
         });
@@ -443,6 +445,7 @@ describe("DataRecorderService", (): void => {
                         speed: 4.0,
                         strokeCount: 55,
                         strokeRate: 22,
+                        elapsedTime: 1,
                     });
                     appDB.handleForces.put({
                         sessionId: testSessionId,
@@ -595,6 +598,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.2,
                     strokeCount: 50,
                     strokeRate: 24,
+                    elapsedTime: 1,
                 });
                 appDB.handleForces.put({
                     sessionId: testSessionId,
@@ -729,6 +733,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.2,
                     strokeCount: 50,
                     strokeRate: 24,
+                    elapsedTime: 1,
                 });
                 appDB.handleForces.put({
                     sessionId: testSessionId,
@@ -780,6 +785,14 @@ describe("DataRecorderService", (): void => {
                 const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
                 const content = await blobArg.text();
                 expect(content).toContain("<Author");
+            });
+
+            it("should set TotalTimeSeconds to the last data point's elapsedTime", async (): Promise<void> => {
+                await service.exportSessionToTcx(testSessionId);
+
+                const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
+                const content = await blobArg.text();
+                expect(content).toContain("<TotalTimeSeconds>1</TotalTimeSeconds>");
             });
         });
 
@@ -847,6 +860,7 @@ describe("DataRecorderService", (): void => {
                     strokeCount: 50,
                     strokeRate: 24,
                     heartRate: { heartRate: 140, contactDetected: true },
+                    elapsedTime: 1,
                 });
                 appDB.handleForces.put({
                     sessionId: testSessionId,
@@ -1174,6 +1188,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.2,
                     strokeCount: 50,
                     strokeRate: 24,
+                    elapsedTime: 1,
                 });
                 appDB.sessionData.add({
                     sessionId: testSessionId2,
@@ -1187,6 +1202,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.5,
                     strokeCount: 60,
                     strokeRate: 26,
+                    elapsedTime: 1,
                 });
             });
 
@@ -1237,6 +1253,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.2,
                     strokeCount: 50,
                     strokeRate: 24,
+                    elapsedTime: 1,
                 });
                 appDB.sessionData.add({
                     sessionId: testSessionId2,
@@ -1250,6 +1267,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.5,
                     strokeCount: 60,
                     strokeRate: 26,
+                    elapsedTime: 1,
                 });
             });
 
@@ -1273,6 +1291,7 @@ describe("DataRecorderService", (): void => {
                     speed: 4.8,
                     strokeCount: 102,
                     strokeRate: 28,
+                    elapsedTime: 1,
                 });
             });
 

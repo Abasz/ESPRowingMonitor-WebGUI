@@ -55,6 +55,7 @@ export const mockImportData = {
                         speed: 4.5,
                         strokeCount: 100,
                         strokeRate: 22,
+                        elapsedTime: 876543.212,
                         heartRate: { heartRate: 140, contactDetected: true, rrIntervals: [700] },
                         $types: { "heartRate.rrIntervals": "arrayNonindexKeys" },
                     },
@@ -70,6 +71,7 @@ export const mockImportData = {
                         speed: 4.6,
                         strokeCount: 101,
                         strokeRate: 23,
+                        elapsedTime: 876543.213,
                         heartRate: { heartRate: 142, contactDetected: true, rrIntervals: [710] },
                         $types: { "heartRate.rrIntervals": "arrayNonindexKeys" },
                     },
@@ -106,6 +108,7 @@ export const setupExportSessionToCsvData = async (): Promise<void> => {
             strokeCount: 50,
             strokeRate: 24,
             heartRate: { heartRate: 140, contactDetected: true },
+            elapsedTime: 1.0,
         });
         appDB.handleForces.put({
             sessionId: testSessionId,
@@ -136,6 +139,7 @@ export const setupSpeedCalculationThreeStrokes = async (): Promise<void> => {
             strokeCount: 1,
             strokeRate: 24,
             heartRate: { heartRate: 140, contactDetected: true },
+            elapsedTime: 2.5,
         });
         appDB.handleForces.put({
             sessionId: testSessionId,
@@ -159,6 +163,7 @@ export const setupSpeedCalculationThreeStrokes = async (): Promise<void> => {
             strokeCount: 2,
             strokeRate: 30,
             heartRate: { heartRate: 145, contactDetected: true },
+            elapsedTime: 4.5,
         });
         appDB.handleForces.put({
             sessionId: testSessionId,
@@ -181,6 +186,7 @@ export const setupSpeedCalculationThreeStrokes = async (): Promise<void> => {
             strokeCount: 3,
             strokeRate: 25,
             heartRate: { heartRate: 150, contactDetected: true },
+            elapsedTime: 7.3,
         });
         appDB.handleForces.put({
             sessionId: testSessionId,
@@ -208,6 +214,7 @@ export const setupSpeedCalculationFilterDuplicates = async (): Promise<void> => 
             strokeCount: 3,
             strokeRate: 30,
             heartRate: { heartRate: 145, contactDetected: true },
+            elapsedTime: 8.3,
         });
         appDB.handleForces.put({
             sessionId: testSessionId,
@@ -231,6 +238,7 @@ export const setupSpeedCalculationFilterDuplicates = async (): Promise<void> => 
             strokeCount: 3,
             strokeRate: 30,
             heartRate: { heartRate: 148, contactDetected: true },
+            elapsedTime: 9.3,
         });
         appDB.handleForces.put({
             sessionId: testSessionId,
@@ -254,6 +262,7 @@ export const setupSpeedCalculationFilterDuplicates = async (): Promise<void> => 
             strokeCount: 4,
             strokeRate: 30,
             heartRate: { heartRate: 148, contactDetected: true },
+            elapsedTime: 10.3,
         });
         appDB.handleForces.put({
             sessionId: testSessionId,
@@ -284,6 +293,7 @@ export const setupSpeedCalculationFirstStrokeStartTime = async (): Promise<void>
             strokeCount: 1,
             strokeRate: 24,
             heartRate: { heartRate: 140, contactDetected: true },
+            elapsedTime: 0.0,
         });
         appDB.handleForces.put({
             sessionId: testSessionId,
@@ -307,6 +317,7 @@ export const setupSpeedCalculationFirstStrokeStartTime = async (): Promise<void>
             strokeCount: 2,
             strokeRate: 30,
             heartRate: { heartRate: 145, contactDetected: true },
+            elapsedTime: 2.5,
         });
         appDB.handleForces.put({
             sessionId: testSessionId,
@@ -330,6 +341,7 @@ export const setupSpeedCalculationFirstStrokeStartTime = async (): Promise<void>
             strokeCount: 3,
             strokeRate: 25,
             heartRate: { heartRate: 150, contactDetected: true },
+            elapsedTime: 4.3,
         });
         appDB.handleForces.put({
             sessionId: testSessionId,
@@ -360,6 +372,7 @@ export const setupSpeedCalculationZeroTimeDelta = async (): Promise<void> => {
             strokeCount: 1,
             strokeRate: 24,
             heartRate: { heartRate: 140, contactDetected: true },
+            elapsedTime: 0.0,
         });
         appDB.handleForces.put({
             sessionId: testSessionId,
@@ -390,6 +403,7 @@ export const setupSpeedCalculationZeroDistance = async (): Promise<void> => {
             strokeCount: 1,
             strokeRate: 0,
             heartRate: { heartRate: 140, contactDetected: true },
+            elapsedTime: 2.0,
         });
         appDB.handleForces.put({
             sessionId: testSessionId,

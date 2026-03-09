@@ -277,6 +277,7 @@ describe("SessionManagerService", (): void => {
 
             expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith({
                 ...firstStroke,
+                elapsedTime: 0.5,
                 heartRate: mockHeartRate,
             });
         });
@@ -293,6 +294,7 @@ describe("SessionManagerService", (): void => {
 
             expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith({
                 ...firstStroke,
+                elapsedTime: 0.5,
                 heartRate: undefined,
             });
         });
@@ -310,6 +312,7 @@ describe("SessionManagerService", (): void => {
                 ...mockMetrics,
                 strokeCount: 1,
                 distance: 100,
+                elapsedTime: 0,
                 heartRate: mockHeartRate,
             });
         });
@@ -391,6 +394,7 @@ describe("SessionManagerService", (): void => {
                 ...mockMetrics,
                 strokeCount: 2,
                 distance: 200,
+                elapsedTime: 0,
                 heartRate: mockHeartRate,
             });
         });
@@ -421,6 +425,7 @@ describe("SessionManagerService", (): void => {
                 ...mockMetrics,
                 strokeCount: 1,
                 distance: 100,
+                elapsedTime: 1,
                 heartRate: mockHeartRate,
             });
         });
@@ -436,7 +441,7 @@ describe("SessionManagerService", (): void => {
             vi.advanceTimersByTime(1000);
 
             expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith(
-                expect.objectContaining({ heartRate: updatedHr }),
+                expect.objectContaining({ elapsedTime: 1, heartRate: updatedHr }),
             );
         });
 

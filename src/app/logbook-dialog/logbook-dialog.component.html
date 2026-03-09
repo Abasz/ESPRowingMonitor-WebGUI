@@ -24,7 +24,7 @@
         <ng-container matColumnDef="time">
             <mat-header-cell mat-sort-header *matHeaderCellDef class="time">Time</mat-header-cell>
             <mat-cell *matCellDef="let sessionData" class="time">
-                {{ (sessionData.finishTime - sessionData.startTime) / 1000 | secondsToTime: "pace" }}
+                {{ sessionData.elapsedTime | secondsToTime: "pace" }}
             </mat-cell>
         </ng-container>
         <ng-container matColumnDef="distance">

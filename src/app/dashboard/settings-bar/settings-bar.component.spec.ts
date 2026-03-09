@@ -110,6 +110,7 @@ describe("SettingsBarComponent", (): void => {
             deviceName: "Test Device",
             startTime: Date.now() - 1200000, // 20 minutes ago
             finishTime: Date.now(),
+            elapsedTime: 1200, // 20 minutes
             distance: 5000,
             strokeCount: 150,
         },
@@ -802,6 +803,7 @@ describe("SettingsBarComponent", (): void => {
                         deviceName: `Device ${index}`,
                         startTime: Date.now() - index * 1000,
                         finishTime: Date.now(),
+                        elapsedTime: index * 1000,
                         distance: index * 100,
                         strokeCount: index * 10,
                     }),

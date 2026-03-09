@@ -35,26 +35,42 @@ export class AppDB extends Dexie {
                 connectedDevice: "&sessionId",
             })
             .upgrade(async (transaction: Transaction): Promise<void> => {
-                console.log("Running version 3 migration: Adding driveLength to handleForces records");
+                console.log("Running version 3 migration");
 
-                const table = transaction.table<IHandleForcesEntity>("handleForces");
-                const total = await table.count();
+                const handleForcesTable = transaction.table<IHandleForcesEntity>("handleForces");
+                const sessionDataTable = transaction.table<IMetricsEntity>("sessionData");
 
+                const counts = await Promise.all([handleForcesTable.count(), sessionDataTable.count()]);
+
+                const total = counts[0] + counts[1];
                 let processed = 0;
                 this.upgradeProgressCallback?.(0, total);
 
-                await table.toCollection().modify((record: IHandleForcesEntity): void => {
+                const reportProgress = (): void => {
                     processed++;
                     if (processed % 500 === 0 || processed === total) {
                         this.upgradeProgressCallback?.(processed, total);
                     }
+                };
 
-                    if (record.driveLength !== undefined) {
-                        return;
-                    }
+                await Promise.all([
+                    handleForcesTable.toCollection().modify((record: IHandleForcesEntity): void => {
+                        reportProgress();
+                        if (record.driveLength !== undefined) {
+                            return;
+                        }
 
-                    record.driveLength = 0;
-                });
+                        record.driveLength = 0;
+                    }),
+                    sessionDataTable.toCollection().modify((record: IMetricsEntity): void => {
+                        reportProgress();
+                        if (record.elapsedTime !== undefined) {
+                            return;
+                        }
+
+                        record.elapsedTime = (record.timeStamp - record.sessionId) / 1000;
+                    }),
+                ]);
 
                 console.log("Version 3 migration completed");
             });
