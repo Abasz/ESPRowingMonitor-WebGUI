@@ -1,13 +1,19 @@
 import { Injectable, Signal, signal, WritableSignal } from "@angular/core";
-import { takeUntilDestroyed, toObservable, toSignal } from "@angular/core/rxjs-interop";
+import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
 import {
+    BehaviorSubject,
+    combineLatest,
     distinctUntilChanged,
     EMPTY,
     filter,
     interval,
     map,
+    Observable,
+    of,
     pairwise,
+    startWith,
     switchMap,
+    takeUntil,
     withLatestFrom,
 } from "rxjs";
 
@@ -24,7 +30,7 @@ export class SessionManagerService {
     readonly sessionState: Signal<SessionState>;
     readonly elapsedTime: Signal<number>;
 
-    private _sessionState: WritableSignal<SessionState> = signal<SessionState>("stopped");
+    private sessionState$: BehaviorSubject<SessionState> = new BehaviorSubject<SessionState>("stopped");
     private _elapsedTime: WritableSignal<number> = signal<number>(0);
 
     private connectedDeviceName: Signal<string | undefined> = toSignal(
@@ -45,10 +51,10 @@ export class SessionManagerService {
         private dataRecorder: DataRecorderService,
         private ergConnectionService: ErgConnectionService,
     ) {
-        this.sessionState = this._sessionState.asReadonly();
+        this.sessionState = toSignal(this.sessionState$, { requireSync: true });
         this.elapsedTime = this._elapsedTime.asReadonly();
 
-        toObservable(this._sessionState)
+        this.sessionState$
             .pipe(
                 switchMap((state: SessionState): typeof EMPTY | ReturnType<typeof interval> =>
                     state === "running" ? interval(1000) : EMPTY,
@@ -59,13 +65,15 @@ export class SessionManagerService {
                 this._elapsedTime.set((Date.now() - this.sessionStartTimestamp) / 1000);
             });
 
+        // setupAutoStart must subscribe before setupRecording so that the state
+        // is "running" by the time setupRecording's end-filter evaluates synchronously
         this.setupAutoStart();
-        this.setupSessionDataRecording();
+        this.setupRecording();
         this.setupDistanceRegressionHandler();
     }
 
     start(): void {
-        if (this._sessionState() === "running") {
+        if (this.sessionState() === "running") {
             return;
         }
 
@@ -74,15 +82,15 @@ export class SessionManagerService {
         this.sessionStartTimestamp = Date.now();
         this._elapsedTime.set(0);
 
-        this._sessionState.set("running");
+        this.sessionState$.next("running");
     }
 
     stop(): void {
-        if (this._sessionState() !== "running") {
+        if (this.sessionState() !== "running") {
             return;
         }
 
-        this._sessionState.set("stopped");
+        this.sessionState$.next("stopped");
         this.metricsService.reset();
     }
 
@@ -91,7 +99,7 @@ export class SessionManagerService {
             .pipe(
                 filter(
                     (metrics: ICalculatedMetrics): boolean =>
-                        this._sessionState() !== "running" && metrics.strokeCount > 0,
+                        this.sessionState() !== "running" && metrics.strokeCount > 0,
                 ),
                 takeUntilDestroyed(),
             )
@@ -99,27 +107,37 @@ export class SessionManagerService {
                 this.dataRecorder.reset(this.connectedDeviceName());
                 this.sessionStartTimestamp = Date.now() - metrics.driveDuration * 1000;
                 this._elapsedTime.set(Math.max(0, (Date.now() - this.sessionStartTimestamp) / 1000));
-                this._sessionState.set("running");
+                this.sessionState$.next("running");
             });
     }
 
-    private setupSessionDataRecording(): void {
+    private setupRecording(): void {
         this.metricsService.allMetrics$
             .pipe(
-                withLatestFrom(this.metricsService.heartRateData$),
                 filter(
-                    ([metrics]: [ICalculatedMetrics, IHeartRate | undefined]): boolean =>
-                        this._sessionState() === "running" &&
-                        (metrics.strokeCount > 0 || metrics.distance > 0),
+                    (metrics: ICalculatedMetrics): boolean => metrics.strokeCount > 0 || metrics.distance > 0,
                 ),
                 distinctUntilChanged(
-                    (
-                        [previousMetrics]: [ICalculatedMetrics, IHeartRate | undefined],
-                        [currentMetrics]: [ICalculatedMetrics, IHeartRate | undefined],
-                    ): boolean =>
+                    (previousMetrics: ICalculatedMetrics, currentMetrics: ICalculatedMetrics): boolean =>
                         previousMetrics.distance === currentMetrics.distance &&
-                        previousMetrics.strokeCount === currentMetrics.strokeCount,
+                        previousMetrics.strokeCount === currentMetrics.strokeCount &&
+                        previousMetrics.speed === currentMetrics.speed,
                 ),
+                switchMap(
+                    (metrics: ICalculatedMetrics): Observable<[ICalculatedMetrics, number]> =>
+                        combineLatest([of(metrics), interval(1000).pipe(startWith(0))]).pipe(
+                            takeUntil(
+                                this.sessionState$.pipe(
+                                    filter(
+                                        (sessionState: SessionState): boolean => sessionState === "stopped",
+                                    ),
+                                ),
+                            ),
+                        ),
+                ),
+                map(([metrics]: [ICalculatedMetrics, number]): ICalculatedMetrics => metrics),
+                withLatestFrom(this.metricsService.heartRateData$),
+                filter((): boolean => this.sessionState() === "running"),
                 takeUntilDestroyed(),
             )
             .subscribe(([metrics, heartRate]: [ICalculatedMetrics, IHeartRate | undefined]): void => {
@@ -130,7 +148,7 @@ export class SessionManagerService {
     private setupDistanceRegressionHandler(): void {
         this.metricsService.allMetrics$
             .pipe(
-                filter((): boolean => this._sessionState() === "running"),
+                filter((): boolean => this.sessionState() === "running"),
                 map((metrics: ICalculatedMetrics): number => metrics.distance),
                 pairwise(),
                 filter(([previous, current]: [number, number]): boolean => current < previous),
@@ -139,7 +157,7 @@ export class SessionManagerService {
             .subscribe((): void => {
                 this.metricsService.reset();
                 this.dataRecorder.reset(this.connectedDeviceName());
-                this._sessionState.set("stopped");
+                this.sessionState$.next("stopped");
                 this._elapsedTime.set(0);
             });
     }

@@ -346,26 +346,150 @@ describe("SessionManagerService", (): void => {
             expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(1);
         });
 
-        it("should record when distance increases", (): void => {
+        it("should record when speed changes to zero with same distance and strokeCount", (): void => {
+            service.start();
+            heartRateSubject.next(mockHeartRate);
+            allMetricsSubject.next({
+                ...mockMetrics,
+                strokeCount: 1,
+                distance: 100,
+                speed: 2.5,
+            });
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100, speed: 0 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(1);
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith(
+                expect.objectContaining({ distance: 100, strokeCount: 1, speed: 0 }),
+            );
+        });
+
+        it("should record when distance or strokeCount increases", (): void => {
             service.start();
             heartRateSubject.next(mockHeartRate);
             vi.mocked(mockDataRecorderService.addSessionData).mockClear();
 
             allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
             allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 200 });
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 2, distance: 200 });
 
-            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(2);
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(3);
         });
 
-        it("should record when strokeCount increases", (): void => {
+        it("should record after stop and restart with new stroke data", (): void => {
             service.start();
+            heartRateSubject.next(mockHeartRate);
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
+            service.stop();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // new session: auto-start fires on strokeCount > 0, setupRecording also records
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 2, distance: 200 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith({
+                ...mockMetrics,
+                strokeCount: 2,
+                distance: 200,
+                heartRate: mockHeartRate,
+            });
+        });
+
+        it("should not write stale session-1 data into session 2 when the 1Hz timer fires after manual restart", (): void => {
+            service.start();
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
+            service.stop();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            service.start();
+            vi.advanceTimersByTime(2000);
+
+            expect(mockDataRecorderService.addSessionData).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("timer-triggered recording (at-least-1Hz heart rate sampling)", (): void => {
+        it("should record a timer sample 1s after the last data point", (): void => {
+            service.start();
+            heartRateSubject.next(mockHeartRate);
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            vi.advanceTimersByTime(1000);
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith({
+                ...mockMetrics,
+                strokeCount: 1,
+                distance: 100,
+                heartRate: mockHeartRate,
+            });
+        });
+
+        it("should capture updated heart rate on timer tick without new stroke", (): void => {
+            service.start();
+            heartRateSubject.next(mockHeartRate);
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            const updatedHr: IHeartRate = { heartRate: 170, contactDetected: true };
+            heartRateSubject.next(updatedHr);
+            vi.advanceTimersByTime(1000);
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith(
+                expect.objectContaining({ heartRate: updatedHr }),
+            );
+        });
+
+        it("should reset the timer when a new data point arrives", (): void => {
+            service.start();
+            heartRateSubject.next(mockHeartRate);
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // advance 500ms (no timer tick yet — 1s hasn't elapsed)
+            vi.advanceTimersByTime(500);
+            expect(mockDataRecorderService.addSessionData).not.toHaveBeenCalled();
+
+            // new stroke arrives at 500ms → switchMap restarts, records immediately via startWith(0)
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 2, distance: 200 });
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(1);
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // 1s after the new stroke (not 500ms from original timer)
+            vi.advanceTimersByTime(1000);
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(1);
+        });
+
+        it("should not start timer without data-containing emissions", (): void => {
             heartRateSubject.next(mockHeartRate);
             vi.mocked(mockDataRecorderService.addSessionData).mockClear();
 
-            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
-            allMetricsSubject.next({ ...mockMetrics, strokeCount: 2, distance: 100 });
+            vi.advanceTimersByTime(3000);
 
-            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(2);
+            expect(mockDataRecorderService.addSessionData).not.toHaveBeenCalled();
+        });
+
+        it("should not record via timer when stopped", (): void => {
+            service.start();
+            heartRateSubject.next(mockHeartRate);
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
+            service.stop();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            vi.advanceTimersByTime(3000);
+
+            expect(mockDataRecorderService.addSessionData).not.toHaveBeenCalled();
+        });
+
+        it("should record multiple timer samples when no new data points arrive", (): void => {
+            service.start();
+            heartRateSubject.next(mockHeartRate);
+            allMetricsSubject.next({ ...mockMetrics, strokeCount: 1, distance: 100 });
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            vi.advanceTimersByTime(3000);
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(3);
         });
     });
 
