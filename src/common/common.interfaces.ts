@@ -163,6 +163,11 @@ export interface ICalculatedMetrics extends Omit<IExtendedMetrics & IBaseMetrics
 
 export type SessionState = "running" | "stopped";
 
+export interface IRawCalculatedMetrics extends Omit<ICalculatedMetrics, "distance" | "strokeCount"> {
+    rawDistance: number;
+    rawStrokeCount: number;
+}
+
 export interface ISessionData extends ICalculatedMetrics {
     elapsedTime: number;
     heartRate?: IHeartRate;

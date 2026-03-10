@@ -66,7 +66,7 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     readonly layoutTiles: Signal<Array<PlacedDashboardTile>>;
     readonly gridColumns: Signal<number>;
     readonly gridRows: Signal<number>;
-    readonly rowingData: Signal<ICalculatedMetrics> = toSignal(this.metricsService.allMetrics$, {
+    readonly rowingData: Signal<ICalculatedMetrics> = toSignal(this.sessionManager.sessionMetrics$, {
         initialValue: {
             avgStrokePower: 0,
             driveDuration: 0,

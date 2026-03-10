@@ -1,25 +1,14 @@
 import { DestroyRef, Injectable } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import {
-    combineLatest,
-    filter,
-    map,
-    merge,
-    Observable,
-    pairwise,
-    shareReplay,
-    startWith,
-    Subject,
-    tap,
-} from "rxjs";
+import { combineLatest, filter, map, Observable, pairwise, shareReplay, startWith } from "rxjs";
 
 import {
     IBaseMetrics,
-    ICalculatedMetrics,
     IErgConnectionStatus,
     IExtendedMetrics,
     IHeartRate,
     IHRConnectionStatus,
+    IRawCalculatedMetrics,
 } from "../common.interfaces";
 
 import { DataRecorderService } from "./data-recorder.service";
@@ -34,21 +23,9 @@ const cmInM = 100;
     providedIn: "root",
 })
 export class MetricsService {
-    readonly allMetrics$: Observable<ICalculatedMetrics>;
+    readonly rawMetrics$: Observable<IRawCalculatedMetrics>;
     readonly heartRateData$: Observable<IHeartRate | undefined>;
     readonly hrConnectionStatus$: Observable<IHRConnectionStatus>;
-
-    private activityStartDistance: number = 0;
-    private activityStartStrokeCount: number = 0;
-
-    private baseMetrics: IBaseMetrics = {
-        revTime: 0,
-        distance: 0,
-        strokeTime: 0,
-        strokeCount: 0,
-    };
-
-    private resetSubject: Subject<IBaseMetrics> = new Subject();
 
     constructor(
         private ergMetricService: ErgMetricsService,
@@ -58,7 +35,7 @@ export class MetricsService {
         private heartRateService: HeartRateService,
         private destroyRef: DestroyRef,
     ) {
-        this.allMetrics$ = this.setupMetricStream$().pipe(shareReplay({ bufferSize: 1, refCount: true }));
+        this.rawMetrics$ = this.streamBasicMetrics$().pipe(shareReplay({ bufferSize: 1, refCount: true }));
         this.heartRateData$ = this.heartRateService.streamHeartRate$();
         this.hrConnectionStatus$ = this.heartRateService.connectionStatus$();
 
@@ -67,18 +44,6 @@ export class MetricsService {
         if (isSecureContext === true && navigator.bluetooth !== undefined) {
             this.ergConnectionService.reconnect();
         }
-    }
-
-    reset(): void {
-        this.activityStartDistance = this.baseMetrics.distance;
-        this.activityStartStrokeCount = this.baseMetrics.strokeCount;
-
-        this.resetSubject.next({
-            revTime: this.baseMetrics.revTime,
-            distance: this.baseMetrics.distance,
-            strokeTime: this.baseMetrics.strokeTime,
-            strokeCount: this.baseMetrics.strokeCount,
-        });
     }
 
     private calculateDriveLength(handleForcesLength: number): number {
@@ -163,14 +128,9 @@ export class MetricsService {
             });
     }
 
-    private setupMetricStream$(): Observable<ICalculatedMetrics> {
+    private streamBasicMetrics$(): Observable<IRawCalculatedMetrics> {
         return combineLatest([
-            this.streamMeasurement$().pipe(
-                tap((baseMetrics: IBaseMetrics): void => {
-                    this.baseMetrics = baseMetrics;
-                }),
-                pairwise(),
-            ),
+            this.ergMetricService.streamMeasurement$().pipe(pairwise()),
             this.streamExtended$(),
             this.streamHandleForces$(),
         ]).pipe(
@@ -179,44 +139,26 @@ export class MetricsService {
                     [IBaseMetrics, IBaseMetrics],
                     IExtendedMetrics,
                     Array<number>,
-                ]): ICalculatedMetrics => {
-                    const distance: number = baseMetricsCurrent.distance - this.activityStartDistance;
-                    const strokeCount: number =
-                        baseMetricsCurrent.strokeCount - this.activityStartStrokeCount;
-
-                    return {
-                        avgStrokePower: extendedMetrics.avgStrokePower,
-                        driveDuration: extendedMetrics.driveDuration / 1e6,
-                        recoveryDuration: extendedMetrics.recoveryDuration / 1e6,
-                        dragFactor: extendedMetrics.dragFactor,
-                        distance: distance > 0 ? distance : 0,
-                        strokeCount: strokeCount > 0 ? strokeCount : 0,
-                        handleForces: handleForces,
-                        peakForce: Math.max(...handleForces, 0),
-                        strokeRate: this.calculateStrokeRate(baseMetricsPrevious, baseMetricsCurrent),
-                        speed: this.calculateSpeed(baseMetricsPrevious, baseMetricsCurrent),
-                        distPerStroke: this.calculateStrokeDistance(baseMetricsPrevious, baseMetricsCurrent),
-                        driveLength: this.calculateDriveLength(handleForces.length),
-                    };
-                },
+                ]): IRawCalculatedMetrics => ({
+                    avgStrokePower: extendedMetrics.avgStrokePower,
+                    driveDuration: extendedMetrics.driveDuration / 1e6,
+                    recoveryDuration: extendedMetrics.recoveryDuration / 1e6,
+                    dragFactor: extendedMetrics.dragFactor,
+                    rawDistance: baseMetricsCurrent.distance,
+                    rawStrokeCount: baseMetricsCurrent.strokeCount,
+                    handleForces: handleForces,
+                    peakForce: Math.max(...handleForces, 0),
+                    strokeRate: this.calculateStrokeRate(baseMetricsPrevious, baseMetricsCurrent),
+                    speed: this.calculateSpeed(baseMetricsPrevious, baseMetricsCurrent),
+                    distPerStroke: this.calculateStrokeDistance(baseMetricsPrevious, baseMetricsCurrent),
+                    driveLength: this.calculateDriveLength(handleForces.length),
+                }),
             ),
         );
     }
 
     private streamExtended$(): Observable<IExtendedMetrics> {
-        return merge(
-            this.ergMetricService.streamExtended$(),
-            this.resetSubject.pipe(
-                map(
-                    (): IExtendedMetrics => ({
-                        avgStrokePower: 0,
-                        dragFactor: 0,
-                        driveDuration: 0,
-                        recoveryDuration: 0,
-                    }),
-                ),
-            ),
-        ).pipe(
+        return this.ergMetricService.streamExtended$().pipe(
             startWith({
                 avgStrokePower: 0,
                 dragFactor: 0,
@@ -227,13 +169,6 @@ export class MetricsService {
     }
 
     private streamHandleForces$(): Observable<Array<number>> {
-        return merge(
-            this.ergMetricService.streamHandleForces$(),
-            this.resetSubject.pipe(map((): Array<number> => [])),
-        ).pipe(startWith([]));
-    }
-
-    private streamMeasurement$(): Observable<IBaseMetrics> {
-        return merge(this.ergMetricService.streamMeasurement$(), this.resetSubject);
+        return this.ergMetricService.streamHandleForces$().pipe(startWith([]));
     }
 }

@@ -1,15 +1,15 @@
 import { signal, WritableSignal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
-import { BehaviorSubject, firstValueFrom, skip, Subject } from "rxjs";
+import { BehaviorSubject, firstValueFrom, Subject } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import {
     IBaseMetrics,
-    ICalculatedMetrics,
     IErgConnectionStatus,
     IExtendedMetrics,
     IHeartRate,
     IHRConnectionStatus,
+    IRawCalculatedMetrics,
     IRowerSettings,
 } from "../common.interfaces";
 
@@ -135,7 +135,7 @@ describe("MetricsService", (): void => {
             service = TestBed.inject(MetricsService);
 
             expect(service).toBeTruthy();
-            expect(service.allMetrics$).toBeDefined();
+            expect(service.rawMetrics$).toBeDefined();
             expect(service.heartRateData$).toBeDefined();
             expect(service.hrConnectionStatus$).toBeDefined();
         });
@@ -168,65 +168,6 @@ describe("MetricsService", (): void => {
         });
     });
 
-    describe("Activity Management", (): void => {
-        beforeEach((): void => {
-            vi.useFakeTimers();
-            service = TestBed.inject(MetricsService);
-        });
-
-        afterEach((): void => {
-            vi.useRealTimers();
-        });
-
-        it("should update activityStartDistance, activityStartStrokeCount on reset()", (): void => {
-            const baseMetrics = { ...mockBaseMetrics };
-            let latestMetrics: ICalculatedMetrics | undefined;
-
-            service.allMetrics$.subscribe((metrics: ICalculatedMetrics): void => {
-                latestMetrics = metrics;
-            });
-
-            measurementSubject.next(baseMetrics);
-            measurementSubject.next(baseMetrics);
-            extendedSubject.next(mockExtendedMetrics);
-            handleForcesSubject.next([10, 20, 30]);
-
-            service.reset();
-
-            expect(latestMetrics!.distance).toBe(0);
-            expect(latestMetrics!.strokeCount).toBe(0);
-        });
-
-        it("should emit a reset event on resetSubject with the correct base metrics on reset()", async (): Promise<void> => {
-            const metricsPromise = firstValueFrom(service.allMetrics$.pipe(skip(4)));
-
-            service.reset();
-            measurementSubject.next(mockBaseMetrics);
-            measurementSubject.next({
-                revTime: mockBaseMetrics.revTime + 1000,
-                distance: mockBaseMetrics.distance + 100,
-                strokeTime: mockBaseMetrics.strokeTime + 1000,
-                strokeCount: mockBaseMetrics.strokeCount + 1,
-            });
-            service.reset();
-
-            const metrics = await metricsPromise;
-
-            expect(metrics.distance).toBe(0);
-            expect(metrics.strokeCount).toBe(0);
-            expect(metrics.avgStrokePower).toBe(0);
-            expect(metrics.handleForces).toHaveLength(0);
-            expect(metrics.strokeCount).toBe(0);
-            expect(metrics.strokeRate).toBe(0);
-            expect(metrics.distPerStroke).toBe(0);
-            expect(metrics.peakForce).toBe(0);
-            expect(metrics.dragFactor).toBe(0);
-            expect(metrics.recoveryDuration).toBe(0);
-            expect(metrics.driveDuration).toBe(0);
-            expect(metrics.driveLength).toBe(0);
-        });
-    });
-
     describe("Calculation Methods", (): void => {
         beforeEach((): void => {
             service = TestBed.inject(MetricsService);
@@ -246,7 +187,7 @@ describe("MetricsService", (): void => {
                 strokeCount: 0,
             };
 
-            service.allMetrics$.subscribe((metrics: ICalculatedMetrics): void => {
+            service.rawMetrics$.subscribe((metrics: IRawCalculatedMetrics): void => {
                 // speed = (distance_diff / 100) / (time_diff / 1e6)
                 // expected: (1000 / 100) / ((2000000 - 1000000) / 1e6) = 10 / 1 = 10 m/s
                 expect(metrics.speed).toBe(10);
@@ -260,7 +201,7 @@ describe("MetricsService", (): void => {
             const baseMetrics1: IBaseMetrics = { revTime: 0, distance: 1000, strokeTime: 0, strokeCount: 1 };
             const baseMetrics2: IBaseMetrics = { revTime: 0, distance: 2000, strokeTime: 0, strokeCount: 2 };
 
-            service.allMetrics$.subscribe((metrics: ICalculatedMetrics): void => {
+            service.rawMetrics$.subscribe((metrics: IRawCalculatedMetrics): void => {
                 // distPerStroke = (distance_diff / 100) / stroke_diff
                 // expected: (1000 / 100) / 1 = 10 m/stroke
                 expect(metrics.distPerStroke).toBe(10);
@@ -284,7 +225,7 @@ describe("MetricsService", (): void => {
                 strokeCount: 2,
             };
 
-            service.allMetrics$.subscribe((metrics: ICalculatedMetrics): void => {
+            service.rawMetrics$.subscribe((metrics: IRawCalculatedMetrics): void => {
                 // strokeRate = (stroke_diff / (time_diff / 1e6)) * 60
                 // expected: (1 / ((2000000 - 1000000) / 1e6)) * 60 = (1 / 1) * 60 = 60 strokes/min
                 expect(metrics.strokeRate).toBe(60);
@@ -297,7 +238,7 @@ describe("MetricsService", (): void => {
         it("should return 0 for calculations when values haven't changed", async (): Promise<void> => {
             const baseMetrics = { ...mockBaseMetrics };
 
-            service.allMetrics$.subscribe((metrics: ICalculatedMetrics): void => {
+            service.rawMetrics$.subscribe((metrics: IRawCalculatedMetrics): void => {
                 expect(metrics.speed).toBe(0);
                 expect(metrics.strokeRate).toBe(0);
                 expect(metrics.distPerStroke).toBe(0);
@@ -364,29 +305,6 @@ describe("MetricsService", (): void => {
 
             expect(status).toEqual(mockHRConnectionStatus);
         });
-
-        it("should emit default values from streamExtended$ and streamHandleForces$ after reset", async (): Promise<void> => {
-            const metricsPromise = firstValueFrom(service.allMetrics$.pipe(skip(2)));
-
-            measurementSubject.next(mockBaseMetrics);
-            extendedSubject.next(mockExtendedMetrics);
-            handleForcesSubject.next([10, 20, 30]);
-            service.reset();
-
-            const metrics = await metricsPromise;
-
-            expect(metrics.avgStrokePower).toBe(0);
-            expect(metrics.dragFactor).toBe(0);
-            expect(metrics.driveDuration).toBe(0);
-            expect(metrics.recoveryDuration).toBe(0);
-            expect(metrics.handleForces).toEqual([]);
-            expect(metrics.distance).toBe(0);
-            expect(metrics.strokeCount).toBe(0);
-            expect(metrics.strokeRate).toBe(0);
-            expect(metrics.distPerStroke).toBe(0);
-            expect(metrics.peakForce).toBe(0);
-            expect(metrics.driveLength).toBe(0);
-        });
     });
 
     describe("driveLength Calculation", (): void => {
@@ -402,7 +320,7 @@ describe("MetricsService", (): void => {
                 }),
             );
 
-            const metricsPromise = firstValueFrom(service.allMetrics$);
+            const metricsPromise = firstValueFrom(service.rawMetrics$);
 
             measurementSubject.next(mockBaseMetrics);
             extendedSubject.next(mockExtendedMetrics);
@@ -430,7 +348,7 @@ describe("MetricsService", (): void => {
                     }),
                 );
 
-                const metricsPromise = firstValueFrom(service.allMetrics$);
+                const metricsPromise = firstValueFrom(service.rawMetrics$);
 
                 measurementSubject.next(mockBaseMetrics);
                 extendedSubject.next(mockExtendedMetrics);
@@ -455,7 +373,7 @@ describe("MetricsService", (): void => {
                     }),
                 );
 
-                const metricsPromise = firstValueFrom(service.allMetrics$);
+                const metricsPromise = firstValueFrom(service.rawMetrics$);
 
                 measurementSubject.next(mockBaseMetrics);
                 extendedSubject.next(mockExtendedMetrics);
@@ -480,7 +398,7 @@ describe("MetricsService", (): void => {
                     }),
                 );
 
-                const metricsPromise = firstValueFrom(service.allMetrics$);
+                const metricsPromise = firstValueFrom(service.rawMetrics$);
 
                 measurementSubject.next(mockBaseMetrics);
                 extendedSubject.next(mockExtendedMetrics);
@@ -504,19 +422,11 @@ describe("MetricsService", (): void => {
             service = TestBed.inject(MetricsService);
         });
 
-        it("should handle multiple rapid reset() calls gracefully", (): void => {
-            expect((): void => {
-                service.reset();
-                service.reset();
-                service.reset();
-            }).not.toThrow();
-        });
-
         it("should handle null or empty string deviceName gracefully", (): void => {
             const baseMetrics = { ...mockBaseMetrics, strokeCount: 1 };
             const connectionWithNullDevice = { status: "connected" as const, deviceName: null };
 
-            service.allMetrics$.subscribe((): void => {
+            service.rawMetrics$.subscribe((): void => {
                 expect(mockDataRecorderService.addConnectedDevice).not.toHaveBeenCalled();
             });
 
@@ -532,7 +442,7 @@ describe("MetricsService", (): void => {
             const baseMetrics1: IBaseMetrics = { revTime: 0, distance: 0, strokeTime: 0, strokeCount: 0 };
             const baseMetrics2: IBaseMetrics = { revTime: 0, distance: 1000, strokeTime: 0, strokeCount: 1 };
 
-            service.allMetrics$.subscribe((metrics: ICalculatedMetrics): void => {
+            service.rawMetrics$.subscribe((metrics: IRawCalculatedMetrics): void => {
                 expect(isNaN(metrics.speed)).toBe(false);
                 expect(isFinite(metrics.speed)).toBe(true);
                 expect(isNaN(metrics.strokeRate)).toBe(false);

@@ -40,8 +40,8 @@ import { createMockMetrics } from "./tiles/dashboard-tile.test.helpers";
 describe("DashboardComponent", (): void => {
     let component: DashboardComponent;
     let fixture: ComponentFixture<DashboardComponent>;
-    let metricsServiceSpy: Pick<MetricsService, "allMetrics$" | "heartRateData$" | "hrConnectionStatus$">;
-    let sessionManagerSpy: Pick<SessionManagerService, "sessionState" | "elapsedTime">;
+    let metricsServiceSpy: Pick<MetricsService, "heartRateData$" | "hrConnectionStatus$">;
+    let sessionManagerSpy: Pick<SessionManagerService, "sessionState" | "elapsedTime" | "sessionMetrics$">;
     let mockSessionState: WritableSignal<SessionState>;
     let mockElapsedTime: WritableSignal<number>;
     let ergConnectionServiceSpy: Pick<ErgConnectionService, "connectionStatus$">;
@@ -90,7 +90,6 @@ describe("DashboardComponent", (): void => {
         connectionStatusSubject = new BehaviorSubject<IErgConnectionStatus>(mockDisconnectedStatus);
 
         metricsServiceSpy = {
-            allMetrics$: allMetricsSubject.asObservable(),
             heartRateData$: heartRateDataSubject.asObservable(),
             hrConnectionStatus$: of({ status: "disconnected" } as IHRConnectionStatus),
         };
@@ -100,6 +99,7 @@ describe("DashboardComponent", (): void => {
         sessionManagerSpy = {
             sessionState: mockSessionState,
             elapsedTime: mockElapsedTime,
+            sessionMetrics$: allMetricsSubject.asObservable(),
         };
 
         ergConnectionServiceSpy = {
