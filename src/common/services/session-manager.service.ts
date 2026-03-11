@@ -28,6 +28,7 @@ import {
     IRawCalculatedMetrics,
     SessionState,
 } from "../common.interfaces";
+import { Stopwatch } from "../utils/stopwatch";
 
 import { DataRecorderService } from "./data-recorder.service";
 import { ErgConnectionService } from "./ergometer/erg-connection.service";
@@ -81,7 +82,7 @@ export class SessionManagerService {
         { initialValue: undefined },
     );
 
-    private sessionStartTimestamp: number = 0;
+    private readonly stopwatch: Stopwatch = new Stopwatch();
 
     private indicateStop$: Observable<SessionState> = this.sessionState$.pipe(
         filter((sessionState: SessionState): boolean => sessionState === "stopped"),
@@ -135,7 +136,7 @@ export class SessionManagerService {
                 takeUntilDestroyed(),
             )
             .subscribe((): void => {
-                this._elapsedTime.set((Date.now() - this.sessionStartTimestamp) / 1000);
+                this._elapsedTime.set(this.stopwatch.elapsedSeconds());
             });
 
         this.setupAutoStart();
@@ -147,8 +148,8 @@ export class SessionManagerService {
             return;
         }
 
-        this.sessionStartTimestamp = Date.now() - timeOffset;
-        this._elapsedTime.set(timeOffset / 1000);
+        this.stopwatch.start(timeOffset);
+        this._elapsedTime.set(this.stopwatch.elapsedSeconds());
         this.dataRecorder.reset(this.connectedDeviceName());
         this.sessionState$.next("running");
     }
@@ -158,6 +159,7 @@ export class SessionManagerService {
             return;
         }
 
+        this.stopwatch.stop();
         this.sessionState$.next("stopped");
     }
 
@@ -203,7 +205,11 @@ export class SessionManagerService {
                 takeUntilDestroyed(),
             )
             .subscribe(([metrics, heartRate]: [ICalculatedMetrics, IHeartRate | undefined]): void => {
-                this.dataRecorder.addSessionData({ ...metrics, elapsedTime: this._elapsedTime(), heartRate });
+                this.dataRecorder.addSessionData({
+                    ...metrics,
+                    elapsedTime: this.stopwatch.elapsedSeconds(),
+                    heartRate,
+                });
             });
     }
 
