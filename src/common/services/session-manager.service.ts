@@ -97,7 +97,11 @@ export class SessionManagerService {
         this.elapsedTime = this._elapsedTime.asReadonly();
 
         this.sessionMetrics$ = this.sessionState$.pipe(
-            distinctUntilChanged(),
+            // suppress paused→running so the existing scan accumulator survives resume
+            distinctUntilChanged(
+                (prev: SessionState, curr: SessionState): boolean =>
+                    prev === curr || (prev === "paused" && curr === "running"),
+            ),
             filter((state: SessionState): boolean => state === "running"),
             withLatestFrom(this.sessionSeed),
             map(
@@ -109,8 +113,18 @@ export class SessionManagerService {
             switchMap(
                 (seed: SessionAccumulator): Observable<ICalculatedMetrics> =>
                     this.metricsService.rawMetrics$.pipe(
+                        filter(
+                            (): boolean =>
+                                this.sessionState() === "running" || this.sessionState() === "paused",
+                        ),
+                        scan(
+                            (acc: SessionAccumulator, curr: IRawCalculatedMetrics): SessionAccumulator =>
+                                this.sessionState() === "paused"
+                                    ? { ...acc, previousRawMetrics: curr }
+                                    : SessionManagerService.accumulateSessionMetrics(acc, curr),
+                            seed,
+                        ),
                         filter((): boolean => this.sessionState() === "running"),
-                        scan(SessionManagerService.accumulateSessionMetrics, seed),
                         map(({ sessionMetrics }: SessionAccumulator): ICalculatedMetrics => sessionMetrics),
                         distinctUntilChanged(
                             (
@@ -148,14 +162,31 @@ export class SessionManagerService {
             return;
         }
 
+        if (this.sessionState() === "paused") {
+            this.stopwatch.start(timeOffset);
+            this._elapsedTime.set(this.stopwatch.elapsedSeconds());
+            this.sessionState$.next("running");
+
+            return;
+        }
+
         this.stopwatch.start(timeOffset);
         this._elapsedTime.set(this.stopwatch.elapsedSeconds());
         this.dataRecorder.reset(this.connectedDeviceName());
         this.sessionState$.next("running");
     }
 
-    stop(): void {
+    pause(): void {
         if (this.sessionState() !== "running") {
+            return;
+        }
+
+        this.stopwatch.pause();
+        this.sessionState$.next("paused");
+    }
+
+    stop(): void {
+        if (this.sessionState() !== "running" && this.sessionState() !== "paused") {
             return;
         }
 
@@ -177,6 +208,12 @@ export class SessionManagerService {
                 takeUntilDestroyed(),
             )
             .subscribe(([prev, curr]: [IRawCalculatedMetrics, IRawCalculatedMetrics]): void => {
+                if (this.sessionState() === "paused") {
+                    this.start(curr.driveDuration * 1000);
+
+                    return;
+                }
+
                 // if device resets while stopped treat the new data as overflown and that current is the full delta, hence set seed to 0
                 const prevForSeed: IRawCalculatedMetrics =
                     curr.rawStrokeCount < prev.rawStrokeCount

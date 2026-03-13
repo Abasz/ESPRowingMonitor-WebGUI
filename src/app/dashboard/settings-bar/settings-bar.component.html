@@ -9,12 +9,22 @@
             <mat-icon>sports_score</mat-icon>
         </button>
         <app-open-settings-button></app-open-settings-button>
-        @if (sessionState() !== "running") {
+        @if (sessionState() !== "running" && sessionState() !== "paused") {
             <button matTooltipShowDelay="1000" matTooltip="Start" (click)="startSession()" mat-icon-button>
                 <mat-icon>play_circle</mat-icon>
             </button>
         }
+        @if (sessionState() === "paused") {
+            <button matTooltipShowDelay="1000" matTooltip="Resume" (click)="startSession()" mat-icon-button>
+                <mat-icon>play_circle</mat-icon>
+            </button>
+        }
         @if (sessionState() === "running") {
+            <button matTooltipShowDelay="1000" matTooltip="Pause" (click)="pauseSession()" mat-icon-button>
+                <mat-icon>pause_circle</mat-icon>
+            </button>
+        }
+        @if (sessionState() === "running" || sessionState() === "paused") {
             <button matTooltipShowDelay="1000" matTooltip="Stop" (click)="stopSession()" mat-icon-button>
                 <mat-icon>stop_circle</mat-icon>
             </button>

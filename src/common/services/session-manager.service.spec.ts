@@ -112,15 +112,6 @@ describe("SessionManagerService", (): void => {
     });
 
     describe("start method", (): void => {
-        it("should transition from stopped to running", (): void => {
-            service.start();
-            service.stop();
-            expect(service.sessionState()).toBe("stopped");
-
-            service.start();
-            expect(service.sessionState()).toBe("running");
-        });
-
         it("should not change state if already running", (): void => {
             service.start();
 
@@ -128,21 +119,79 @@ describe("SessionManagerService", (): void => {
             expect(service.sessionState()).toBe("running");
         });
 
-        it("should call dataRecorder.reset with connectedDeviceName on start", (): void => {
-            connectionStatusSubject.next({ status: "connected", deviceName: "ESP Rowing Monitor" });
+        describe("when in stopped state", (): void => {
+            it("should transition from stopped to running", (): void => {
+                service.start();
+                service.stop();
+                expect(service.sessionState()).toBe("stopped");
 
-            service.start();
+                service.start();
+                expect(service.sessionState()).toBe("running");
+            });
 
-            expect(mockDataRecorderService.reset).toHaveBeenCalledWith("ESP Rowing Monitor");
+            it("should call dataRecorder.reset with connectedDeviceName on start", (): void => {
+                connectionStatusSubject.next({ status: "connected", deviceName: "ESP Rowing Monitor" });
+
+                service.start();
+
+                expect(mockDataRecorderService.reset).toHaveBeenCalledWith("ESP Rowing Monitor");
+            });
+
+            it("should reset elapsed time to zero", (): void => {
+                service.start();
+                vi.advanceTimersByTime(3000);
+                service.stop();
+
+                service.start();
+                expect(service.elapsedTime()).toBe(0);
+            });
         });
 
-        it("should reset elapsed time to zero when starting a new session", (): void => {
-            service.start();
-            vi.advanceTimersByTime(3000);
-            service.stop();
+        describe("when in paused state", (): void => {
+            it("should transition from paused to running", (): void => {
+                service.start();
+                service.pause();
 
-            service.start();
-            expect(service.elapsedTime()).toBe(0);
+                service.start();
+                expect(service.sessionState()).toBe("running");
+            });
+
+            it("should resume elapsed time from where it stopped after resume", (): void => {
+                service.start();
+                vi.advanceTimersByTime(3000);
+
+                service.pause();
+                vi.advanceTimersByTime(5000);
+
+                service.start();
+                vi.advanceTimersByTime(2000);
+
+                expect(service.elapsedTime()).toBeCloseTo(5, 0);
+            });
+
+            it("should not call dataRecorder.reset when resuming from paused", (): void => {
+                service.start();
+                service.pause();
+                vi.mocked(mockDataRecorderService.reset).mockClear();
+
+                service.start();
+
+                expect(mockDataRecorderService.reset).not.toHaveBeenCalled();
+            });
+
+            it("should preserve accumulated data across pause and resume", (): void => {
+                service.start();
+                rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
+                service.pause();
+                vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+                service.start();
+                rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 4, rawDistance: 3800 });
+
+                expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith(
+                    expect.objectContaining({ strokeCount: 4, distance: 3800 }),
+                );
+            });
         });
     });
 
@@ -152,6 +201,26 @@ describe("SessionManagerService", (): void => {
 
             service.stop();
             expect(service.sessionState()).toBe("stopped");
+        });
+
+        it("should transition from paused to stopped", (): void => {
+            service.start();
+            service.pause();
+
+            service.stop();
+            expect(service.sessionState()).toBe("stopped");
+        });
+
+        it("should allow new session after pause-stop", (): void => {
+            service.start();
+            service.pause();
+            service.stop();
+            vi.mocked(mockDataRecorderService.reset).mockClear();
+
+            service.start();
+
+            expect(service.sessionState()).toBe("running");
+            expect(mockDataRecorderService.reset).toHaveBeenCalledTimes(1);
         });
 
         it("should not call dataRecorder.reset when stopping", (): void => {
@@ -196,6 +265,36 @@ describe("SessionManagerService", (): void => {
             vi.advanceTimersByTime(5000);
             expect(service.elapsedTime()).toBe(0);
         });
+
+        it("should freeze when paused", (): void => {
+            service.start();
+            vi.advanceTimersByTime(3000);
+            const timeBeforePause: number = service.elapsedTime();
+
+            service.pause();
+            vi.advanceTimersByTime(5000);
+
+            expect(service.elapsedTime()).toBe(timeBeforePause);
+        });
+
+        it("should accumulate elapsed time across multiple pause-resume cycles", (): void => {
+            service.start();
+            vi.advanceTimersByTime(2000);
+
+            service.pause();
+            vi.advanceTimersByTime(10000);
+
+            service.start();
+            vi.advanceTimersByTime(3000);
+
+            service.pause();
+            vi.advanceTimersByTime(10000);
+
+            service.start();
+            vi.advanceTimersByTime(1000);
+
+            expect(service.elapsedTime()).toBeCloseTo(6, 0);
+        });
     });
 
     describe("auto-start on first stroke", (): void => {
@@ -215,7 +314,7 @@ describe("SessionManagerService", (): void => {
             expect(mockDataRecorderService.reset).toHaveBeenCalledWith("ESP Rowing Monitor");
         });
 
-        it("should call dataRecorder.reset on auto-start from stopped state", (): void => {
+        it("should call dataRecorder.reset on auto-start from stopped after a prior stop", (): void => {
             connectionStatusSubject.next({ status: "connected", deviceName: "ESP Rowing Monitor" });
             service.start();
             service.stop();
@@ -268,7 +367,7 @@ describe("SessionManagerService", (): void => {
             expect(service.elapsedTime()).toBeCloseTo(3, 0);
         });
 
-        it("should not auto-start even when rawStrokeCount has not increased above previous value", (): void => {
+        it("should not auto-start when rawStrokeCount does not increase above previous value", (): void => {
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 0 });
 
             expect(service.sessionState()).toBe("stopped");
@@ -843,6 +942,433 @@ describe("SessionManagerService", (): void => {
 
             expect(service.sessionState()).toBe("running");
             expect(vi.mocked(mockDataRecorderService.reset)).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe("pause method", (): void => {
+        it("should transition from running to paused", (): void => {
+            service.start();
+
+            service.pause();
+            expect(service.sessionState()).toBe("paused");
+        });
+
+        it("should not change state if already stopped", (): void => {
+            service.start();
+            service.stop();
+
+            service.pause();
+            expect(service.sessionState()).toBe("stopped");
+        });
+
+        it("should not change state if already paused", (): void => {
+            service.start();
+            service.pause();
+
+            service.pause();
+            expect(service.sessionState()).toBe("paused");
+        });
+
+        it("should not call dataRecorder.reset when pausing", (): void => {
+            service.start();
+            vi.mocked(mockDataRecorderService.reset).mockClear();
+
+            service.pause();
+
+            expect(mockDataRecorderService.reset).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("recording during pause", (): void => {
+        it("should not record session data while paused", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 950 });
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 1000 });
+
+            expect(mockDataRecorderService.addSessionData).not.toHaveBeenCalled();
+        });
+
+        it("should not record via 1Hz timer while paused", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 950 });
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            vi.advanceTimersByTime(3000);
+
+            expect(mockDataRecorderService.addSessionData).not.toHaveBeenCalled();
+        });
+
+        it("should resume recording from paused state when a new stroke arrives", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 950 });
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(1);
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith(
+                expect.objectContaining({ strokeCount: 2, distance: 1900 }),
+            );
+        });
+    });
+
+    describe("auto-resume from paused", (): void => {
+        it("should be triggered when stroke arrives", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
+            service.pause();
+
+            rawMetricsSubject.next({
+                ...mockRawMetrics,
+                rawStrokeCount: 4,
+                rawDistance: 3800,
+                driveDuration: 0.5,
+            });
+
+            expect(service.sessionState()).toBe("running");
+        });
+
+        it("should not call dataRecorder.reset", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
+            service.pause();
+            vi.mocked(mockDataRecorderService.reset).mockClear();
+
+            rawMetricsSubject.next({
+                ...mockRawMetrics,
+                rawStrokeCount: 4,
+                rawDistance: 3800,
+                driveDuration: 0.5,
+            });
+
+            expect(mockDataRecorderService.reset).not.toHaveBeenCalled();
+        });
+
+        it("should continue accumulating strokes", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            rawMetricsSubject.next({
+                ...mockRawMetrics,
+                rawStrokeCount: 4,
+                rawDistance: 3800,
+                driveDuration: 0.5,
+            });
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 5, rawDistance: 4750 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 5, distance: 4750 }),
+            );
+        });
+    });
+
+    describe("while in paused state", (): void => {
+        it("should not count distance", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 });
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // boat glides 50 m further — no new stroke
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1950 });
+
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2900 });
+
+            // delta after resume: 2900 - 1950 = 950 (only the post-resume stroke), total = 1900 + 950 = 2850
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 3, distance: 2850 }),
+            );
+        });
+
+        it("should not double-count distance if the same raw value is re-emitted on resume", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 });
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // same raw re-emitted (no change during pause)
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 });
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
+
+            // delta: 2850 - 1900 = 950, total = 1900 + 950 = 2850
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 3, distance: 2850 }),
+            );
+        });
+    });
+
+    describe("when paused while rower is idle (no new strokes or distance)", (): void => {
+        it("should resume cleanly and continue accumulating after pause-while-idle then manual resume (S17)", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 });
+            vi.advanceTimersByTime(1000);
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            service.start();
+            vi.advanceTimersByTime(1000);
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 3, distance: 2850 }),
+            );
+        });
+
+        it("should auto-resume cleanly after pause-while-idle then new stroke (S18)", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 });
+            vi.advanceTimersByTime(1000);
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            rawMetricsSubject.next({
+                ...mockRawMetrics,
+                rawStrokeCount: 3,
+                rawDistance: 2850,
+                driveDuration: 0.5,
+            }); // auto-resume
+
+            expect(service.sessionState()).toBe("running");
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 3, distance: 2850 }),
+            );
+        });
+    });
+
+    describe("when device reconnects while paused", (): void => {
+        it("should resume and count reconnect delta when counter is higher than in pause (S19)", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // reconnect: device now at count=6, distance=5700 (3 strokes during disconnect)
+            rawMetricsSubject.next({
+                ...mockRawMetrics,
+                rawStrokeCount: 6,
+                rawDistance: 5700,
+                driveDuration: 0.5,
+            }); // auto-resume
+
+            expect(service.sessionState()).toBe("running");
+            // delta: strokes 3→6 = +3, so session total = 3+3 = 6; distance 2850+2850 = 5700
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 6, distance: 5700 }),
+            );
+        });
+
+        it("should resume and treat lower counter than in paused as overflow (S20)", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // soft reconnect with lower counter = device partially reset
+            rawMetricsSubject.next({
+                ...mockRawMetrics,
+                rawStrokeCount: 2,
+                rawDistance: 1900,
+                driveDuration: 0.5,
+            }); // auto-resume (regression branch: treat prev as 0)
+
+            expect(service.sessionState()).toBe("running");
+            // regression: prevStrokeCount resets to 0, delta = 2 → total = 3+2 = 5; prevDist=0  → 3+1900=4750
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 5, distance: 4750 }),
+            );
+        });
+
+        it("should not auto-resume on reconnect with zero strokes", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // hard reboot: first packet is rawStrokeCount=0
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 0, rawDistance: 0 });
+
+            expect(service.sessionState()).toBe("paused");
+
+            // first new stroke after reboot triggers auto-resume
+            rawMetricsSubject.next({
+                ...mockRawMetrics,
+                rawStrokeCount: 1,
+                rawDistance: 950,
+                driveDuration: 0.5,
+            });
+
+            expect(service.sessionState()).toBe("running");
+            // regression in scan: prev was 3 → curr 0 → then curr 1: prev resets to 0, delta=1 → total=3+1=4
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 4, distance: 3800 }),
+            );
+        });
+    });
+
+    describe("when multiple pause then resume cycles occur", (): void => {
+        it("should correctly accumulate strokes across two pause-resume cycles (S24)", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 950 });
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 });
+            service.pause();
+
+            service.start(); // first resume
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
+            service.pause();
+
+            service.start(); // second resume
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 4, rawDistance: 3800 });
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 5, rawDistance: 4750 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 5, distance: 4750 }),
+            );
+        });
+
+        it("should correctly accumulate strokes across two auto-resume cycles (S25)", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 950 });
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 });
+            service.pause();
+
+            // auto-resume 1
+            rawMetricsSubject.next({
+                ...mockRawMetrics,
+                rawStrokeCount: 3,
+                rawDistance: 2850,
+                driveDuration: 0.5,
+            });
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 4, rawDistance: 3800 });
+            service.pause();
+
+            // auto-resume 2
+            rawMetricsSubject.next({
+                ...mockRawMetrics,
+                rawStrokeCount: 5,
+                rawDistance: 4750,
+                driveDuration: 0.5,
+            });
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 6, rawDistance: 5700 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 6, distance: 5700 }),
+            );
+        });
+    });
+
+    describe("timer during pause", (): void => {
+        it("should resume timer recording immediately after manual resume (S22)", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 });
+            vi.advanceTimersByTime(1000); // timer tick at (2)
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            service.start(); // resume
+            vi.advanceTimersByTime(1000);
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith(
+                expect.objectContaining({ strokeCount: 2, distance: 1900 }),
+            );
+        });
+
+        it("should restart timer after auto-resume from pause-while-idle on new stroke (S23)", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 });
+            vi.advanceTimersByTime(1000); // timer tick at (2)
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // auto-resume on new stroke
+            rawMetricsSubject.next({
+                ...mockRawMetrics,
+                rawStrokeCount: 3,
+                rawDistance: 2850,
+                driveDuration: 0.5,
+            });
+
+            expect(service.sessionState()).toBe("running");
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith(
+                expect.objectContaining({ strokeCount: 3, distance: 2850 }),
+            );
+
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 4, rawDistance: 3800 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 4, distance: 3800 }),
+            );
+        });
+    });
+
+    describe("as part of the edge case handling", (): void => {
+        it("should not emit timer ticks after pause-stop and should record cleanly on new session (S28)", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 950 });
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 });
+            vi.advanceTimersByTime(1000); // timer tick at (2)
+            service.pause();
+            service.stop();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            vi.advanceTimersByTime(3000); // stale timer should not fire
+            expect(mockDataRecorderService.addSessionData).not.toHaveBeenCalled();
+
+            // new manual session
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 4, rawDistance: 3800 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 2, distance: 1900 }),
+            );
+        });
+
+        it("should not emit sessionMetrics$ while paused (filter blocks running=false)", (): void => {
+            const emittedValues: Array<ICalculatedMetrics> = [];
+            service.sessionMetrics$.subscribe((metrics: ICalculatedMetrics): number =>
+                emittedValues.push(metrics),
+            );
+
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 950 });
+            const countAfterRunning = emittedValues.length;
+
+            service.pause();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 1000 }); // glide
+
+            expect(emittedValues.length).toBe(countAfterRunning); // no new emission during pause
+        });
+
+        it("should track raw metrics during pause so resume delta is correct (filter running|paused in scan)", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 });
+            service.pause();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // (distance grows by 250m total while paused)
+            for (let i = 1; i <= 5; i++) {
+                rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 + i * 50 });
+            }
+            // final paused raw: rawDistance=2150
+
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 3100 }); // +950 from last paused value
+
+            // previousRaw.rawDistance = 2150 → delta = 3100-2150 = 950, total = 1900+950 = 2850
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 3, distance: 2850 }),
+            );
         });
     });
 

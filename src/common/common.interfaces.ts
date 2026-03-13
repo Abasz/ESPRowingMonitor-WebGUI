@@ -161,7 +161,7 @@ export interface ICalculatedMetrics extends Omit<IExtendedMetrics & IBaseMetrics
     handleForces: Array<number>;
 }
 
-export type SessionState = "running" | "stopped";
+export type SessionState = "running" | "paused" | "stopped";
 
 export interface IRawCalculatedMetrics extends Omit<ICalculatedMetrics, "distance" | "strokeCount"> {
     rawDistance: number;

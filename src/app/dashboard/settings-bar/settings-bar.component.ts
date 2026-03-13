@@ -105,6 +105,10 @@ export class SettingsBarComponent {
         this.sessionManager.start();
     }
 
+    pauseSession(): void {
+        this.sessionManager.pause();
+    }
+
     stopSession(): void {
         this.sessionManager.stop();
     }

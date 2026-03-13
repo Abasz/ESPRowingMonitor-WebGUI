@@ -39,7 +39,7 @@ describe("SettingsBarComponent", (): void => {
     let fixture: ComponentFixture<SettingsBarComponent>;
     let loader: HarnessLoader;
 
-    let mockSessionManagerService: Pick<SessionManagerService, "start" | "stop" | "sessionState">;
+    let mockSessionManagerService: Pick<SessionManagerService, "start" | "stop" | "pause" | "sessionState">;
     let mockSessionState: WritableSignal<SessionState>;
     let mockMetricsService: Pick<MetricsService, "hrConnectionStatus$">;
     let mockDataRecorderService: Pick<DataRecorderService, "getSessionSummaries$">;
@@ -131,6 +131,7 @@ describe("SettingsBarComponent", (): void => {
         mockSessionManagerService = {
             start: vi.fn(),
             stop: vi.fn(),
+            pause: vi.fn(),
             sessionState: mockSessionState,
         };
 
