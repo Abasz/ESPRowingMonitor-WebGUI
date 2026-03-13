@@ -18,17 +18,17 @@ describe("Stopwatch", (): void => {
             expect(stopwatch.elapsedSeconds()).toBe(0);
         });
 
-        it("should not be running", (): void => {
+        it("should be in stopped state", (): void => {
             const stopwatch = new Stopwatch();
-            expect(stopwatch.isRunning).toBe(false);
+            expect(stopwatch.state).toBe("stopped");
         });
     });
 
     describe("start method", (): void => {
-        it("should mark stopwatch as running", (): void => {
+        it("should transition to running state", (): void => {
             const stopwatch = new Stopwatch();
             stopwatch.start();
-            expect(stopwatch.isRunning).toBe(true);
+            expect(stopwatch.state).toBe("running");
         });
 
         it("should begin from zero when no offset is given", (): void => {
@@ -71,14 +71,104 @@ describe("Stopwatch", (): void => {
             vi.advanceTimersByTime(800);
             expect(stopwatch.elapsedMs()).toBe(1000);
         });
+
+        it("should be a no-op when called while already running", (): void => {
+            const stopwatch = new Stopwatch();
+            stopwatch.start();
+            vi.advanceTimersByTime(1000);
+
+            stopwatch.start();
+            vi.advanceTimersByTime(500);
+            expect(stopwatch.elapsedMs()).toBe(1500);
+        });
+
+        it("should resume a paused stopwatch without resetting accumulated time", (): void => {
+            const stopwatch = new Stopwatch();
+            stopwatch.start();
+            vi.advanceTimersByTime(1000);
+            stopwatch.pause();
+
+            stopwatch.start();
+            expect(stopwatch.state).toBe("running");
+            vi.advanceTimersByTime(500);
+            expect(stopwatch.elapsedMs()).toBe(1500);
+        });
+
+        it("should apply the offsetMs argument when resuming from pause", (): void => {
+            const stopwatch = new Stopwatch();
+            stopwatch.start();
+            vi.advanceTimersByTime(1000);
+            stopwatch.pause();
+
+            stopwatch.start(500);
+            vi.advanceTimersByTime(200);
+            expect(stopwatch.elapsedMs()).toBe(1700);
+        });
+    });
+
+    describe("pause method", (): void => {
+        it("should transition to paused state", (): void => {
+            const stopwatch = new Stopwatch();
+            stopwatch.start();
+            stopwatch.pause();
+            expect(stopwatch.state).toBe("paused");
+        });
+
+        it("should freeze elapsed time at the moment of pause", (): void => {
+            const stopwatch = new Stopwatch();
+            stopwatch.start();
+            vi.advanceTimersByTime(800);
+            stopwatch.pause();
+
+            const frozenMs = stopwatch.elapsedMs();
+            vi.advanceTimersByTime(5000);
+            expect(stopwatch.elapsedMs()).toBe(frozenMs);
+        });
+
+        it("should preserve accumulated time so resume continues seamlessly", (): void => {
+            const stopwatch = new Stopwatch();
+            stopwatch.start();
+            vi.advanceTimersByTime(1000);
+            stopwatch.pause();
+            vi.advanceTimersByTime(9999);
+            stopwatch.start();
+            vi.advanceTimersByTime(500);
+            expect(stopwatch.elapsedMs()).toBe(1500);
+        });
+
+        it("should be a no-op when called on a stopped stopwatch", (): void => {
+            const stopwatch = new Stopwatch();
+            stopwatch.pause();
+            expect(stopwatch.state).toBe("stopped");
+            expect(stopwatch.elapsedMs()).toBe(0);
+        });
+
+        it("should be a no-op when called while already paused", (): void => {
+            const stopwatch = new Stopwatch();
+            stopwatch.start();
+            vi.advanceTimersByTime(500);
+            stopwatch.pause();
+            const msAfterFirstPause = stopwatch.elapsedMs();
+
+            stopwatch.pause();
+            expect(stopwatch.elapsedMs()).toBe(msAfterFirstPause);
+        });
     });
 
     describe("stop method", (): void => {
-        it("should mark stopwatch as not running", (): void => {
+        it("should transition to stopped state", (): void => {
             const stopwatch = new Stopwatch();
             stopwatch.start();
             stopwatch.stop();
-            expect(stopwatch.isRunning).toBe(false);
+            expect(stopwatch.state).toBe("stopped");
+        });
+
+        it("should transition from paused to stopped state", (): void => {
+            const stopwatch = new Stopwatch();
+            stopwatch.start();
+            stopwatch.pause();
+            stopwatch.stop();
+            expect(stopwatch.state).toBe("stopped");
         });
 
         it("should freeze elapsed time at the moment of stop", (): void => {
@@ -110,6 +200,17 @@ describe("Stopwatch", (): void => {
             stopwatch.stop();
             expect(stopwatch.elapsedMs()).toBe(msAfterFirstStop);
         });
+
+        it("should stop a paused stopwatch and preserve the frozen time", (): void => {
+            const stopwatch = new Stopwatch();
+            stopwatch.start();
+            vi.advanceTimersByTime(1000);
+            stopwatch.pause();
+            stopwatch.stop();
+
+            expect(stopwatch.state).toBe("stopped");
+            expect(stopwatch.elapsedMs()).toBe(1000);
+        });
     });
 
     describe("reset method", (): void => {
@@ -121,18 +222,27 @@ describe("Stopwatch", (): void => {
             expect(stopwatch.elapsedMs()).toBe(0);
         });
 
-        it("should mark stopwatch as not running after reset", (): void => {
+        it("should transition to stopped state after reset", (): void => {
             const stopwatch = new Stopwatch();
             stopwatch.start();
             stopwatch.reset();
-            expect(stopwatch.isRunning).toBe(false);
+            expect(stopwatch.state).toBe("stopped");
+        });
+
+        it("should clear paused state on reset", (): void => {
+            const stopwatch = new Stopwatch();
+            stopwatch.start();
+            stopwatch.pause();
+            stopwatch.reset();
+            expect(stopwatch.state).toBe("stopped");
+            expect(stopwatch.elapsedMs()).toBe(0);
         });
 
         it("should reset to zero without having called start", (): void => {
             const stopwatch = new Stopwatch();
             stopwatch.reset();
             expect(stopwatch.elapsedMs()).toBe(0);
-            expect(stopwatch.isRunning).toBe(false);
+            expect(stopwatch.state).toBe("stopped");
         });
     });
 
@@ -183,6 +293,24 @@ describe("Stopwatch", (): void => {
             stopwatch.stop();
             stopwatch.start();
             expect(stopwatch.elapsedMs()).toBe(0);
+        });
+
+        it("should accumulate time correctly across multiple pause-resume cycles", (): void => {
+            const stopwatch = new Stopwatch();
+
+            stopwatch.start();
+            vi.advanceTimersByTime(1000);
+            stopwatch.pause();
+            vi.advanceTimersByTime(9999);
+            stopwatch.start();
+            vi.advanceTimersByTime(500);
+            stopwatch.pause();
+            vi.advanceTimersByTime(9999);
+            stopwatch.start();
+            vi.advanceTimersByTime(300);
+            stopwatch.stop();
+
+            expect(stopwatch.elapsedMs()).toBe(1800);
         });
     });
 });
