@@ -1,5 +1,5 @@
 import { TestBed } from "@angular/core/testing";
-import { BehaviorSubject } from "rxjs";
+import { BehaviorSubject, Subject } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -288,9 +288,34 @@ describe("SessionManagerService", (): void => {
             expect(vi.mocked(mockDataRecorderService.reset)).not.toHaveBeenCalled();
         });
 
+        it("should auto-start on the very first rawMetrics emission when no prior value was buffered", (): void => {
+            TestBed.resetTestingModule();
+
+            const coldRawSubject = new Subject<IRawCalculatedMetrics>();
+
+            TestBed.configureTestingModule({
+                providers: [
+                    SessionManagerService,
+                    {
+                        provide: MetricsService,
+                        useValue: {
+                            rawMetrics$: coldRawSubject.asObservable(),
+                            heartRateData$: heartRateSubject.asObservable(),
+                        },
+                    },
+                    { provide: DataRecorderService, useValue: mockDataRecorderService },
+                    { provide: ErgConnectionService, useValue: mockErgConnectionService },
+                ],
+            });
+
+            const freshService: SessionManagerService = TestBed.inject(SessionManagerService);
+
+            coldRawSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, driveDuration: 0.5 });
+
+            expect(freshService.sessionState()).toBe("running");
+        });
+
         it("should record the first stroke that triggers auto-start", (): void => {
-            // auto-start sets offset = { distance: 100, strokeCount: 0 }
-            // session values: strokeCount = max(0, 1-0) = 1, distance = max(0, 100-100) = 0
             heartRateSubject.next(mockHeartRate);
 
             rawMetricsSubject.next({
@@ -298,12 +323,20 @@ describe("SessionManagerService", (): void => {
                 rawStrokeCount: 1,
                 rawDistance: 100,
                 driveDuration: 0.5,
-            });
+            }); // triggers auto-start; seed.previousRaw=prev={rawStrokeCount:0, rawDistance:0}, so replay delta=1
 
+            rawMetricsSubject.next({
+                ...mockRawMetrics,
+                rawStrokeCount: 2,
+                rawDistance: 200,
+                driveDuration: 0.5,
+            }); // second stroke: delta.distance=100, delta.strokeCount=1 → cumulative {strokeCount:2, distance:200}
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenCalledTimes(2);
             expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith({
                 ...mockSessionMetrics,
                 strokeCount: 1,
-                distance: 0,
+                distance: 100,
                 driveDuration: 0.5,
                 elapsedTime: 0.5,
                 heartRate: mockHeartRate,
@@ -316,16 +349,85 @@ describe("SessionManagerService", (): void => {
                 rawStrokeCount: 1,
                 rawDistance: 100,
                 driveDuration: 0.5,
-            });
+            }); // triggers auto-start; seed.previousRaw=prev={rawStrokeCount:0} → replay delta=1
+
+            rawMetricsSubject.next({
+                ...mockRawMetrics,
+                rawStrokeCount: 2,
+                rawDistance: 200,
+                driveDuration: 0.5,
+            }); // second stroke: cumulative {strokeCount:2, distance:200}
 
             expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith({
                 ...mockSessionMetrics,
                 strokeCount: 1,
-                distance: 0,
+                distance: 100,
                 driveDuration: 0.5,
                 elapsedTime: 0.5,
                 heartRate: undefined,
             });
+        });
+
+        it("should count all 20 strokes including the first trigger stroke on auto-start", (): void => {
+            // feeds 20 strokes
+            for (let i = 1; i <= 20; i++) {
+                rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: i, rawDistance: i * 950 });
+            }
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 20, distance: 19000 }),
+            );
+        });
+
+        it("should count exactly the strokes after stop when auto-resuming mid-sequence", (): void => {
+            // first 3 strokes with manual start
+            service.start();
+            for (let i = 1; i <= 3; i++) {
+                rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: i, rawDistance: i * 950 });
+            }
+            service.stop();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // strokes 4-20: auto-start fires on stroke 4 (prev={rawStrokeCount:3, rawDistance:2850})
+            for (let i = 4; i <= 20; i++) {
+                rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: i, rawDistance: i * 950 });
+            }
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 17, distance: 16150 }),
+            );
+        });
+
+        it("should auto-start and count all strokes when reconnecting mid-session after a device reboot", (): void => {
+            // record 20 strokes before the stop
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 20, rawDistance: 19000 });
+            service.stop();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // app reconnects at stroke 3 of the new device session (skipped zero because connection delay)
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
+
+            expect(service.sessionState()).toBe("running");
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 3, distance: 2850 }),
+            );
+        });
+
+        it("should auto-start normally when reboot during stopped and starting from zero strokes", (): void => {
+            // record 20 strokes before the stop
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 20, rawDistance: 19000 });
+            service.stop();
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 0, rawDistance: 0 }); // reboot at zero
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 950 }); // first new stroke
+
+            expect(service.sessionState()).toBe("running");
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 1, distance: 950 }),
+            );
         });
     });
 
@@ -335,7 +437,7 @@ describe("SessionManagerService", (): void => {
             heartRateSubject.next(mockHeartRate);
             vi.mocked(mockDataRecorderService.addSessionData).mockClear();
 
-            // offset = {0,0} from start(), so session distance=100, strokeCount=1
+            // seed = {0,0} from start(), so session distance=100, strokeCount=1
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 100 });
 
             expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith({
@@ -417,22 +519,21 @@ describe("SessionManagerService", (): void => {
             service.stop();
             vi.mocked(mockDataRecorderService.addSessionData).mockClear();
 
-            // rawStrokeCount: 2 > 1, so auto-start fires.
-            // start() captures latestRawMetrics()={rawDistance:200, rawStrokeCount:2} as offset base,
-            // then autoStart overrides strokeCount = 2-1 = 1. Final offset = {distance:200, strokeCount:1}.
+            // auto-start fires;
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 200 });
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 300 });
 
             expect(service.sessionState()).toBe("running");
             expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith({
                 ...mockSessionMetrics,
-                strokeCount: 1,
-                distance: 0,
+                strokeCount: 2,
+                distance: 200,
                 elapsedTime: 0,
                 heartRate: mockHeartRate,
             });
         });
 
-        it("should apply correct offset when manual start follows accumulated raw values", (): void => {
+        it("should apply correct delta when manual start follows accumulated raw values", (): void => {
             service.start();
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 5, rawDistance: 500 });
             service.stop();
@@ -552,35 +653,146 @@ describe("SessionManagerService", (): void => {
     });
 
     describe("distance regression handling", (): void => {
-        it("should call dataRecorder.reset on distance regression", (): void => {
-            connectionStatusSubject.next({ status: "connected", deviceName: "ESP Rowing Monitor" });
+        it("should keep session running on distance regression", (): void => {
+            service.start();
+
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 5000 });
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 0 });
+
+            expect(service.sessionState()).toBe("running");
+        });
+
+        it("should not call dataRecorder.reset on distance regression", (): void => {
             service.start();
             vi.mocked(mockDataRecorderService.reset).mockClear();
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 5000 });
             rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 0 });
 
-            expect(mockDataRecorderService.reset).toHaveBeenCalledWith("ESP Rowing Monitor");
+            expect(mockDataRecorderService.reset).not.toHaveBeenCalled();
         });
 
-        it("should transition to stopped on distance regression", (): void => {
-            service.start();
-
-            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 5000 });
-            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 0 });
-
-            expect(service.sessionState()).toBe("stopped");
-            expect(service.elapsedTime()).toBe(0);
-        });
-
-        it("should reset elapsed time to zero on distance regression", (): void => {
+        it("should preserve elapsed time through a regression", (): void => {
             service.start();
             vi.advanceTimersByTime(3000);
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 5000 });
             rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 0 });
 
-            expect(service.elapsedTime()).toBe(0);
+            expect(service.elapsedTime()).toBeCloseTo(3, 0);
+        });
+
+        it("should accumulate distance across a device reboot", (): void => {
+            // session start: offset = {0, 0}
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 1500, rawStrokeCount: 30 });
+
+            // device reboots: rawDistance drops to 0. accumulated so far = 1500.
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 0, rawStrokeCount: 0 });
+
+            // continue rowing 300m on new segment. session distance = 1500 + 300 = 1800.
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 300, rawStrokeCount: 6 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ distance: 1800, strokeCount: 36 }),
+            );
+        });
+
+        it("should accumulate stroke count across a device reboot", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 1000, rawStrokeCount: 20 });
+
+            // device reboots
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 0, rawStrokeCount: 0 });
+
+            // 5 more strokes after reboot
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 100, rawStrokeCount: 5 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 25 }),
+            );
+        });
+
+        it("should count the first stroke when rawStrokeCount resets to non-zero without going through 0", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 1000, rawStrokeCount: 10 });
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // regression due to device reboot
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 100, rawStrokeCount: 2 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ strokeCount: 12 }),
+            );
+        });
+
+        it("should count the first distance when rawDistance resets to non-zero without going through 0", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 10000, rawStrokeCount: 10 });
+            vi.mocked(mockDataRecorderService.addSessionData).mockClear();
+
+            // regression due to device reboot
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 950, rawStrokeCount: 1 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ distance: 10950 }),
+            );
+        });
+
+        it("should accumulate full stroke count across a manual stop-restart when new stream starts from stroke 1", (): void => {
+            // session 1: 10 strokes
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 9500, rawStrokeCount: 10 });
+            service.stop();
+
+            // session 2: new stream from stroke 1 (rawStrokeCount never passed through 0)
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 950, rawStrokeCount: 1 });
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 1900, rawStrokeCount: 2 });
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 2850, rawStrokeCount: 3 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ distance: 2850, strokeCount: 3 }),
+            );
+        });
+
+        it("should accumulate correctly across multiple reboots", (): void => {
+            service.start();
+
+            // segment 1: 1000m, 20 strokes
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 1000, rawStrokeCount: 20 });
+
+            // reboot 1
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 0, rawStrokeCount: 0 });
+
+            // segment 2: 500m, 10 strokes
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 500, rawStrokeCount: 10 });
+
+            // reboot 2
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 0, rawStrokeCount: 0 });
+
+            // segment 3: 200m, 4 strokes
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 200, rawStrokeCount: 4 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ distance: 1700, strokeCount: 34 }),
+            );
+        });
+
+        it("should reset accumulated on a new manual session start", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 1000, rawStrokeCount: 20 });
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 0, rawStrokeCount: 0 }); // reboot
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 200, rawStrokeCount: 4 });
+            service.stop();
+
+            // new manual session — accumulated must not carry over
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 300, rawStrokeCount: 6 });
+
+            expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
+                expect.objectContaining({ distance: 100, strokeCount: 2 }),
+            );
         });
 
         it("should not trigger on increasing distance", (): void => {
@@ -597,11 +809,12 @@ describe("SessionManagerService", (): void => {
         it("should not trigger during stop", (): void => {
             service.start();
             rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 5000 });
+            service.stop();
             vi.mocked(mockDataRecorderService.reset).mockClear();
 
-            service.stop();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 0, rawDistance: 0 }); // reboot
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 0, rawDistance: 100 }); // coasting while stopped after reboot
 
-            // stop() does not reset dataRecorder; regression handler does not fire
             expect(mockDataRecorderService.reset).not.toHaveBeenCalled();
             expect(service.sessionState()).toBe("stopped");
         });
@@ -618,27 +831,15 @@ describe("SessionManagerService", (): void => {
             expect(service.sessionState()).toBe("running");
         });
 
-        it("should not false-trigger regression on stop and restart with higher raw distance", (): void => {
+        it("should not false-trigger regression on stop and auto-restart with lower raw distance", (): void => {
             service.start();
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 100 });
             service.stop();
             vi.mocked(mockDataRecorderService.reset).mockClear();
 
-            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 200 });
-
-            expect(service.sessionState()).toBe("running");
-            expect(vi.mocked(mockDataRecorderService.reset)).toHaveBeenCalledTimes(1);
-        });
-
-        it("should allow auto-start again after regression resets state to stop", (): void => {
-            service.start();
-            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 5000, rawStrokeCount: 10 });
-            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 0, rawStrokeCount: 10 });
-            expect(service.sessionState()).toBe("stopped");
-            vi.mocked(mockDataRecorderService.reset).mockClear();
-
-            // new stroke arrives after regression — auto-start should fire
-            rawMetricsSubject.next({ ...mockRawMetrics, rawDistance: 0, rawStrokeCount: 11 });
+            // auto-start with new raw distance lower than the last seen value — not a regression
+            // because state was "stopped" when it was emitted, so the filter guards it
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 50 });
 
             expect(service.sessionState()).toBe("running");
             expect(vi.mocked(mockDataRecorderService.reset)).toHaveBeenCalledTimes(1);

@@ -8,11 +8,14 @@ import {
     filter,
     interval,
     map,
+    merge,
     Observable,
     of,
     pairwise,
+    scan,
     shareReplay,
     startWith,
+    Subject,
     switchMap,
     takeUntil,
     withLatestFrom,
@@ -30,6 +33,26 @@ import { DataRecorderService } from "./data-recorder.service";
 import { ErgConnectionService } from "./ergometer/erg-connection.service";
 import { MetricsService } from "./metrics.service";
 
+const ZERO_RAW_METRICS: IRawCalculatedMetrics = {
+    avgStrokePower: 0,
+    driveDuration: 0,
+    recoveryDuration: 0,
+    dragFactor: 0,
+    rawDistance: 0,
+    rawStrokeCount: 0,
+    handleForces: [],
+    peakForce: 0,
+    strokeRate: 0,
+    speed: 0,
+    distPerStroke: 0,
+    driveLength: 0,
+};
+
+interface SessionAccumulator {
+    sessionMetrics: ICalculatedMetrics;
+    previousRawMetrics: IRawCalculatedMetrics;
+}
+
 @Injectable({
     providedIn: "root",
 })
@@ -40,23 +63,12 @@ export class SessionManagerService {
 
     private sessionState$: BehaviorSubject<SessionState> = new BehaviorSubject<SessionState>("stopped");
     private _elapsedTime: WritableSignal<number> = signal<number>(0);
-    private sessionRawOffset: { distance: number; strokeCount: number } = { distance: 0, strokeCount: 0 };
-    private latestRawMetrics: Signal<IRawCalculatedMetrics> = toSignal(this.metricsService.rawMetrics$, {
-        initialValue: {
-            avgStrokePower: 0,
-            driveDuration: 0,
-            recoveryDuration: 0,
-            dragFactor: 0,
-            rawDistance: 0,
-            rawStrokeCount: 0,
-            handleForces: [],
-            peakForce: 0,
-            strokeRate: 0,
-            speed: 0,
-            distPerStroke: 0,
-            driveLength: 0,
-        },
-    });
+
+    private readonly autoStartSeed$: Subject<IRawCalculatedMetrics> = new Subject<IRawCalculatedMetrics>();
+    private readonly sessionSeed: Observable<IRawCalculatedMetrics> = merge(
+        this.metricsService.rawMetrics$,
+        this.autoStartSeed$,
+    ).pipe(startWith(ZERO_RAW_METRICS), shareReplay({ bufferSize: 1, refCount: true }));
 
     private connectedDeviceName: Signal<string | undefined> = toSignal(
         this.ergConnectionService.connectionStatus$().pipe(
@@ -71,6 +83,10 @@ export class SessionManagerService {
 
     private sessionStartTimestamp: number = 0;
 
+    private indicateStop$: Observable<SessionState> = this.sessionState$.pipe(
+        filter((sessionState: SessionState): boolean => sessionState === "stopped"),
+    );
+
     constructor(
         private metricsService: MetricsService,
         private dataRecorder: DataRecorderService,
@@ -79,22 +95,34 @@ export class SessionManagerService {
         this.sessionState = toSignal(this.sessionState$, { requireSync: true });
         this.elapsedTime = this._elapsedTime.asReadonly();
 
-        this.sessionMetrics$ = this.metricsService.rawMetrics$.pipe(
-            filter((): boolean => this.sessionState() === "running"),
-            map((raw: IRawCalculatedMetrics): ICalculatedMetrics => {
-                const { rawDistance, rawStrokeCount, ...rest }: IRawCalculatedMetrics = raw;
-
-                return {
-                    ...rest,
-                    distance: Math.max(0, rawDistance - this.sessionRawOffset.distance),
-                    strokeCount: Math.max(0, rawStrokeCount - this.sessionRawOffset.strokeCount),
-                };
-            }),
-            distinctUntilChanged(
-                (previousMetrics: ICalculatedMetrics, currentMetrics: ICalculatedMetrics): boolean =>
-                    previousMetrics.distance === currentMetrics.distance &&
-                    previousMetrics.strokeCount === currentMetrics.strokeCount &&
-                    previousMetrics.speed === currentMetrics.speed,
+        this.sessionMetrics$ = this.sessionState$.pipe(
+            distinctUntilChanged(),
+            filter((state: SessionState): boolean => state === "running"),
+            withLatestFrom(this.sessionSeed),
+            map(
+                ([, seedRaw]: [SessionState, IRawCalculatedMetrics]): SessionAccumulator => ({
+                    sessionMetrics: { ...seedRaw, distance: 0, strokeCount: 0 },
+                    previousRawMetrics: seedRaw,
+                }),
+            ),
+            switchMap(
+                (seed: SessionAccumulator): Observable<ICalculatedMetrics> =>
+                    this.metricsService.rawMetrics$.pipe(
+                        filter((): boolean => this.sessionState() === "running"),
+                        scan(SessionManagerService.accumulateSessionMetrics, seed),
+                        map(({ sessionMetrics }: SessionAccumulator): ICalculatedMetrics => sessionMetrics),
+                        distinctUntilChanged(
+                            (
+                                previousMetrics: ICalculatedMetrics,
+                                currentMetrics: ICalculatedMetrics,
+                            ): boolean =>
+                                previousMetrics.distance === currentMetrics.distance &&
+                                previousMetrics.strokeCount === currentMetrics.strokeCount &&
+                                previousMetrics.speed === currentMetrics.speed,
+                        ),
+                        startWith(seed.sessionMetrics),
+                        takeUntil(this.indicateStop$),
+                    ),
             ),
             shareReplay({ bufferSize: 1, refCount: true }),
         );
@@ -110,26 +138,18 @@ export class SessionManagerService {
                 this._elapsedTime.set((Date.now() - this.sessionStartTimestamp) / 1000);
             });
 
-        // setupAutoStart must subscribe before setupRecording so that the state
-        // is "running" by the time setupRecording's end-filter evaluates synchronously
         this.setupAutoStart();
         this.setupRecording();
-        this.setupDistanceRegressionHandler();
     }
 
-    start(): void {
+    start(timeOffset: number = 0): void {
         if (this.sessionState() === "running") {
             return;
         }
 
+        this.sessionStartTimestamp = Date.now() - timeOffset;
+        this._elapsedTime.set(timeOffset / 1000);
         this.dataRecorder.reset(this.connectedDeviceName());
-        this.sessionRawOffset = {
-            distance: this.latestRawMetrics().rawDistance,
-            strokeCount: this.latestRawMetrics().rawStrokeCount,
-        };
-        this.sessionStartTimestamp = Date.now();
-        this._elapsedTime.set(0);
-
         this.sessionState$.next("running");
     }
 
@@ -144,7 +164,7 @@ export class SessionManagerService {
     private setupAutoStart(): void {
         this.metricsService.rawMetrics$
             .pipe(
-                startWith(this.latestRawMetrics()),
+                startWith(ZERO_RAW_METRICS),
                 pairwise(),
                 filter(
                     ([prev, curr]: [IRawCalculatedMetrics, IRawCalculatedMetrics]): boolean =>
@@ -152,17 +172,16 @@ export class SessionManagerService {
                         (curr.rawStrokeCount > prev.rawStrokeCount ||
                             (curr.rawStrokeCount > 0 && curr.rawStrokeCount < prev.rawStrokeCount)),
                 ),
-                map(
-                    ([, curr]: [IRawCalculatedMetrics, IRawCalculatedMetrics]): IRawCalculatedMetrics => curr,
-                ),
                 takeUntilDestroyed(),
             )
-            .subscribe((raw: IRawCalculatedMetrics): void => {
-                this.start();
-
-                this.sessionRawOffset.strokeCount = raw.rawStrokeCount - 1; // this stroke is session stroke #1
-                this.sessionStartTimestamp -= raw.driveDuration * 1000;
-                this._elapsedTime.set(Math.max(0, raw.driveDuration));
+            .subscribe(([prev, curr]: [IRawCalculatedMetrics, IRawCalculatedMetrics]): void => {
+                // if device resets while stopped treat the new data as overflown and that current is the full delta, hence set seed to 0
+                const prevForSeed: IRawCalculatedMetrics =
+                    curr.rawStrokeCount < prev.rawStrokeCount
+                        ? { ...prev, rawDistance: 0, rawStrokeCount: 0 }
+                        : prev;
+                this.autoStartSeed$.next(prevForSeed);
+                this.start(curr.driveDuration * 1000);
             });
     }
 
@@ -175,13 +194,7 @@ export class SessionManagerService {
                 switchMap(
                     (metrics: ICalculatedMetrics): Observable<[ICalculatedMetrics, number]> =>
                         combineLatest([of(metrics), interval(1000).pipe(startWith(0))]).pipe(
-                            takeUntil(
-                                this.sessionState$.pipe(
-                                    filter(
-                                        (sessionState: SessionState): boolean => sessionState === "stopped",
-                                    ),
-                                ),
-                            ),
+                            takeUntil(this.indicateStop$),
                         ),
                 ),
                 map(([metrics]: [ICalculatedMetrics, number]): ICalculatedMetrics => metrics),
@@ -194,19 +207,36 @@ export class SessionManagerService {
             });
     }
 
-    private setupDistanceRegressionHandler(): void {
-        this.metricsService.rawMetrics$
-            .pipe(
-                filter((): boolean => this.sessionState() === "running"),
-                map((raw: IRawCalculatedMetrics): number => raw.rawDistance),
-                pairwise(),
-                filter(([previous, current]: [number, number]): boolean => current < previous),
-                takeUntilDestroyed(),
-            )
-            .subscribe((): void => {
-                this.dataRecorder.reset(this.connectedDeviceName());
-                this.sessionState$.next("stopped");
-                this._elapsedTime.set(0);
-            });
+    private static accumulateSessionMetrics(
+        sessionMetrics: SessionAccumulator,
+        currentMetrics: IRawCalculatedMetrics,
+    ): SessionAccumulator {
+        const {
+            rawDistance: currentRawDistance,
+            rawStrokeCount: currentRawStrokeCount,
+            ...currentRest
+        }: IRawCalculatedMetrics = currentMetrics;
+
+        // if device resets mid session treat the new data as overflown and that current is the full delta, hence set previous to 0
+        const prevDistance =
+            currentRawDistance < sessionMetrics.previousRawMetrics.rawDistance
+                ? 0
+                : sessionMetrics.previousRawMetrics.rawDistance;
+        const prevStrokeCount =
+            currentRawStrokeCount < sessionMetrics.previousRawMetrics.rawStrokeCount
+                ? 0
+                : sessionMetrics.previousRawMetrics.rawStrokeCount;
+
+        return {
+            sessionMetrics: {
+                ...currentRest,
+                distance:
+                    sessionMetrics.sessionMetrics.distance + Math.max(0, currentRawDistance - prevDistance),
+                strokeCount:
+                    sessionMetrics.sessionMetrics.strokeCount +
+                    Math.max(0, currentRawStrokeCount - prevStrokeCount),
+            },
+            previousRawMetrics: currentMetrics,
+        };
     }
 }
