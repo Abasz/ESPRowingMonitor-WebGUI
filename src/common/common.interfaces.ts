@@ -95,10 +95,18 @@ export interface IDisplayForceCurveConfig {
     showAxisLabels: boolean;
 }
 
+export type AveragingMode = "off" | "all" | "performance";
+
+export interface IDisplayAveragingConfig {
+    mode: AveragingMode;
+    windowSize: number;
+}
+
 export interface IDisplayConfig {
     general: IDisplayGeneralConfig;
     forceCurve: IDisplayForceCurveConfig;
     layout: IDisplayLayoutConfig;
+    averaging: IDisplayAveragingConfig;
 }
 
 export class Config {
@@ -122,6 +130,10 @@ export class Config {
             landscape: DEFAULT_LANDSCAPE_LAYOUT,
             portrait: DEFAULT_PORTRAIT_LAYOUT,
             orientationLock: "auto",
+        },
+        averaging: {
+            mode: "off",
+            windowSize: 3,
         },
     };
 }

@@ -199,6 +199,7 @@ describe("SettingsDialogComponent tabs", (): void => {
                 portrait: DEFAULT_PORTRAIT_LAYOUT,
                 orientationLock: "auto",
             }),
+            getAveragingConfig: vi.fn().mockReturnValue({ mode: "off", windowSize: 3 }),
         } as unknown as ReturnType<typeof component.displaySettings>);
         vi.spyOn(component, "rowingSettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(createMockRowingForm(false)),

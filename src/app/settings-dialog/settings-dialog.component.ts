@@ -25,12 +25,7 @@ import { MatTab, MatTabGroup } from "@angular/material/tabs";
 import { firstValueFrom, map, Observable } from "rxjs";
 
 import { IDeviceInformation } from "../../common/ble.interfaces";
-import {
-    IDisplayForceCurveConfig,
-    IErgConnectionStatus,
-    IRowerSettings,
-    UnitSystem,
-} from "../../common/common.interfaces";
+import { IErgConnectionStatus, IRowerSettings } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
 import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { ErgSettingsService } from "../../common/services/ergometer/erg-settings.service";
@@ -313,15 +308,17 @@ export class SettingsDialogComponent {
         const displaySettingsForm = display.getForm();
 
         if (displaySettingsForm.dirty || display.isLayoutDirty()) {
-            const {
-                unitSystem,
-                ...forceCurveSettings
-            }: { unitSystem: UnitSystem } & IDisplayForceCurveConfig = displaySettingsForm.getRawValue();
+            const formValue = displaySettingsForm.getRawValue();
 
             this.configManager.setGroup("display", {
-                general: { unitSystem },
-                forceCurve: forceCurveSettings,
+                general: { unitSystem: formValue.unitSystem },
+                forceCurve: {
+                    showPeakForceInTitle: formValue.showPeakForceInTitle,
+                    showGridLines: formValue.showGridLines,
+                    showAxisLabels: formValue.showAxisLabels,
+                },
                 layout: display.getLayoutConfig(),
+                averaging: display.getAveragingConfig(),
             });
         }
     }

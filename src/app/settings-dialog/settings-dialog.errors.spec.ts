@@ -49,6 +49,7 @@ describe("SettingsDialogComponent error handling", (): void => {
                     portrait: DEFAULT_PORTRAIT_LAYOUT,
                     orientationLock: "auto",
                 }),
+                getAveragingConfig: vi.fn().mockReturnValue({ mode: "off", windowSize: 3 }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(
@@ -114,6 +115,7 @@ describe("SettingsDialogComponent error handling", (): void => {
                         portrait: DEFAULT_PORTRAIT_LAYOUT,
                         orientationLock: "auto",
                     }),
+                    getAveragingConfig: vi.fn().mockReturnValue({ mode: "off", windowSize: 3 }),
                 } as unknown as ReturnType<typeof component.displaySettings>);
 
                 const rowingSettingsSpy = vi.fn().mockReturnValue({
@@ -153,6 +155,7 @@ describe("SettingsDialogComponent error handling", (): void => {
                     portrait: DEFAULT_PORTRAIT_LAYOUT,
                     orientationLock: "auto",
                 }),
+                getAveragingConfig: vi.fn().mockReturnValue({ mode: "off", windowSize: 3 }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockRowingForm(false)),
@@ -192,6 +195,7 @@ describe("SettingsDialogComponent error handling", (): void => {
                     portrait: DEFAULT_PORTRAIT_LAYOUT,
                     orientationLock: "auto",
                 }),
+                getAveragingConfig: vi.fn().mockReturnValue({ mode: "off", windowSize: 3 }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(mockRowingForm),
@@ -235,6 +239,7 @@ describe("SettingsDialogComponent error handling", (): void => {
                     portrait: DEFAULT_PORTRAIT_LAYOUT,
                     orientationLock: "auto",
                 }),
+                getAveragingConfig: vi.fn().mockReturnValue({ mode: "off", windowSize: 3 }),
             } as unknown as ReturnType<typeof component.displaySettings>);
             vi.spyOn(component, "rowingSettings").mockReturnValue({
                 getForm: vi.fn().mockReturnValue(createMockRowingForm(false)),

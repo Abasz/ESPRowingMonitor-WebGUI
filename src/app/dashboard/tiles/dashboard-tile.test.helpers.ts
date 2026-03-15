@@ -38,5 +38,9 @@ export const createMockDisplayConfig = (overrides?: Partial<IDisplayConfig>): ID
         portrait: { tiles: [] },
         orientationLock: "auto",
     },
+    averaging: {
+        mode: "off",
+        windowSize: 3,
+    },
     ...overrides,
 });

@@ -16,10 +16,14 @@ import { MatButtonToggle, MatButtonToggleGroup } from "@angular/material/button-
 import { MatCheckbox } from "@angular/material/checkbox";
 import { MatDivider } from "@angular/material/divider";
 import { MatIcon } from "@angular/material/icon";
+import { MatSliderModule } from "@angular/material/slider";
+import { MatTooltip } from "@angular/material/tooltip";
 import { startWith } from "rxjs";
 
 import {
+    AveragingMode,
     IDashboardLayoutConfig,
+    IDisplayAveragingConfig,
     IDisplayLayoutConfig,
     OrientationLock,
     UnitSystem,
@@ -40,6 +44,8 @@ type DisplaySettingsFormGroup = FormGroup<{
     showGridLines: FormControl<boolean>;
     showAxisLabels: FormControl<boolean>;
     unitSystem: FormControl<UnitSystem>;
+    averagingMode: FormControl<AveragingMode>;
+    averagingWindowSize: FormControl<number>;
 }>;
 
 interface IEditorLayout {
@@ -61,6 +67,8 @@ interface IEditorLayout {
         MatCheckbox,
         MatDivider,
         MatIcon,
+        MatSliderModule,
+        MatTooltip,
         TileLayoutEditorComponent,
     ],
 })
@@ -68,6 +76,7 @@ export class DisplaySettingsComponent {
     readonly isFormValidChange: OutputEmitterRef<boolean> = output<boolean>();
     readonly settingsForm: DisplaySettingsFormGroup;
     readonly isLayoutDirty: WritableSignal<boolean> = signal<boolean>(false);
+    readonly isAveragingSliderDisabled: Signal<boolean>;
 
     readonly landscapeLayout: WritableSignal<IDashboardLayoutConfig>;
     readonly portraitLayout: WritableSignal<IDashboardLayoutConfig>;
@@ -101,8 +110,12 @@ export class DisplaySettingsComponent {
             showGridLines: boolean;
             showAxisLabels: boolean;
             unitSystem: UnitSystem;
+            averagingMode: AveragingMode;
+            averagingWindowSize: number;
         }>
     >;
+
+    private readonly averagingMode: Signal<AveragingMode>;
 
     constructor(
         private formBuilder: NonNullableFormBuilder,
@@ -115,7 +128,11 @@ export class DisplaySettingsComponent {
             showGridLines: [config.display.forceCurve.showGridLines],
             showAxisLabels: [config.display.forceCurve.showAxisLabels],
             unitSystem: [config.display.general.unitSystem],
+            averagingMode: [config.display.averaging.mode],
+            averagingWindowSize: [config.display.averaging.windowSize],
         });
+
+        this.isAveragingSliderDisabled = computed((): boolean => this.averagingMode() === "off");
 
         this.landscapeLayout = signal<IDashboardLayoutConfig>(config.display.layout.landscape);
         this.portraitLayout = signal<IDashboardLayoutConfig>(config.display.layout.portrait);
@@ -126,6 +143,13 @@ export class DisplaySettingsComponent {
 
         this.formValueChanged = toSignal(
             this.settingsForm.valueChanges.pipe(startWith(this.settingsForm.value)),
+            { requireSync: true },
+        );
+
+        this.averagingMode = toSignal(
+            this.settingsForm.controls.averagingMode.valueChanges.pipe(
+                startWith(this.settingsForm.controls.averagingMode.value),
+            ),
             { requireSync: true },
         );
 
@@ -144,6 +168,13 @@ export class DisplaySettingsComponent {
             landscape: this.landscapeLayout(),
             portrait: this.portraitLayout(),
             orientationLock: this.orientationLock(),
+        };
+    }
+
+    getAveragingConfig(): IDisplayAveragingConfig {
+        return {
+            mode: this.settingsForm.controls.averagingMode.value,
+            windowSize: this.settingsForm.controls.averagingWindowSize.value,
         };
     }
 

@@ -19,6 +19,22 @@
             </mat-button-toggle-group>
         </div>
         <mat-divider></mat-divider>
+        <h4>Metrics Averaging</h4>
+        <div class="general-container">
+            <label>Mode:</label>
+            <mat-button-toggle-group formControlName="averagingMode" hideSingleSelectionIndicator>
+                <mat-button-toggle value="off">Off</mat-button-toggle>
+                <mat-button-toggle value="performance" matTooltip="Speed, Power, Stroke Rate"
+                    >Performance</mat-button-toggle
+                >
+                <mat-button-toggle value="all">All</mat-button-toggle>
+            </mat-button-toggle-group>
+            <label>Window size:</label>
+            <mat-slider min="2" max="6" step="1" discrete [disabled]="isAveragingSliderDisabled()">
+                <input matSliderThumb formControlName="averagingWindowSize" />
+            </mat-slider>
+        </div>
+        <mat-divider></mat-divider>
         <h4>Dashboard Layout</h4>
         <app-tile-layout-editor
             [layout]="currentEditorLayout().tileLayout"

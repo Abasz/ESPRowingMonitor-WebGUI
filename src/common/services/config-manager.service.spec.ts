@@ -51,6 +51,10 @@ describe("ConfigManagerService", (): void => {
                     portrait: DEFAULT_PORTRAIT_LAYOUT,
                     orientationLock: "auto" as const,
                 },
+                averaging: {
+                    mode: "off" as const,
+                    windowSize: 3,
+                },
             },
         };
     };

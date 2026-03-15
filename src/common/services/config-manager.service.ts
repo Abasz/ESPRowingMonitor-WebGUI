@@ -81,6 +81,10 @@ export class ConfigManagerService {
                             portrait: parsedConfig.display?.layout?.portrait ?? DEFAULT_PORTRAIT_LAYOUT,
                             orientationLock: parsedConfig.display?.layout?.orientationLock ?? "auto",
                         },
+                        averaging: {
+                            ...defaultConfig.display.averaging,
+                            ...parsedConfig.display?.averaging,
+                        },
                     },
                 };
             } catch {

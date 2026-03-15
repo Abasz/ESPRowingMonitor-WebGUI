@@ -295,6 +295,408 @@ describe("DashboardComponent", (): void => {
         });
     });
 
+    describe("metrics averaging", (): void => {
+        const setAveragingConfig = (mode: "off" | "performance" | "all", windowSize: number = 3): void => {
+            configSubject.next({
+                ...configSubject.value,
+                display: {
+                    ...configSubject.value.display,
+                    averaging: { mode, windowSize },
+                },
+            });
+        };
+
+        it("should pass through latest value when mode is off", (): void => {
+            setAveragingConfig("off");
+
+            const metrics1 = createMockMetrics({ distance: 10, strokeCount: 1, speed: 2 });
+            const metrics2 = createMockMetrics({ distance: 20, strokeCount: 2, speed: 4 });
+
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(metrics2);
+
+            expect(component.rowingData()).toEqual(metrics2);
+        });
+
+        it("should average performance metrics when mode is performance", (): void => {
+            setAveragingConfig("performance", 2);
+
+            const metrics1 = createMockMetrics({
+                distance: 10,
+                strokeCount: 1,
+                speed: 2,
+                avgStrokePower: 100,
+                strokeRate: 20,
+                dragFactor: 80,
+            });
+            const metrics2 = createMockMetrics({
+                distance: 20,
+                strokeCount: 2,
+                speed: 4,
+                avgStrokePower: 200,
+                strokeRate: 30,
+                dragFactor: 90,
+            });
+
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(metrics2);
+
+            const result = component.rowingData();
+
+            expect(result.speed).toBe(3);
+            expect(result.avgStrokePower).toBe(150);
+            expect(result.strokeRate).toBe(25);
+            expect(result.distance).toBe(20);
+            expect(result.strokeCount).toBe(2);
+            expect(result.dragFactor).toBe(90);
+        });
+
+        it("should average all averageable metrics when mode is all", (): void => {
+            setAveragingConfig("all", 2);
+
+            const metrics1 = createMockMetrics({
+                distance: 10,
+                strokeCount: 1,
+                speed: 2,
+                avgStrokePower: 100,
+                strokeRate: 20,
+                dragFactor: 80,
+                driveDuration: 0.8,
+                recoveryDuration: 1.2,
+                peakForce: 200,
+                distPerStroke: 8,
+                driveLength: 1.0,
+            });
+            const metrics2 = createMockMetrics({
+                distance: 20,
+                strokeCount: 2,
+                speed: 4,
+                avgStrokePower: 200,
+                strokeRate: 30,
+                dragFactor: 90,
+                driveDuration: 1.0,
+                recoveryDuration: 1.4,
+                peakForce: 300,
+                distPerStroke: 10,
+                driveLength: 1.4,
+            });
+
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(metrics2);
+
+            const result = component.rowingData();
+
+            expect(result.speed).toBe(3);
+            expect(result.avgStrokePower).toBe(150);
+            expect(result.strokeRate).toBe(25);
+            expect(result.dragFactor).toBe(85);
+            expect(result.driveDuration).toBeCloseTo(0.9);
+            expect(result.recoveryDuration).toBeCloseTo(1.3);
+            expect(result.peakForce).toBe(250);
+            expect(result.distPerStroke).toBe(9);
+            expect(result.driveLength).toBeCloseTo(1.2);
+            expect(result.distance).toBe(20);
+            expect(result.strokeCount).toBe(2);
+        });
+
+        it("should respect window size and drop oldest values", (): void => {
+            setAveragingConfig("performance", 2);
+
+            const metrics1 = createMockMetrics({ distance: 10, strokeCount: 1, speed: 10, strokeRate: 20 });
+            const metrics2 = createMockMetrics({ distance: 20, strokeCount: 2, speed: 20, strokeRate: 20 });
+            const metrics3 = createMockMetrics({ distance: 30, strokeCount: 3, speed: 30, strokeRate: 20 });
+
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(metrics2);
+            allMetricsSubject.next(metrics3);
+
+            expect(component.rowingData().speed).toBe(25);
+        });
+
+        it("should return latest value when buffer has only one entry", (): void => {
+            setAveragingConfig("all", 3);
+
+            expect(component.rowingData()).toEqual(mockInitialMetrics);
+        });
+
+        it("should reset buffer when strokeRate drops to zero", (): void => {
+            setAveragingConfig("performance", 3);
+
+            const metrics1 = createMockMetrics({
+                distance: 100,
+                strokeCount: 10,
+                speed: 4,
+                avgStrokePower: 100,
+                strokeRate: 20,
+            });
+            const metrics2 = createMockMetrics({
+                distance: 200,
+                strokeCount: 20,
+                speed: 6,
+                avgStrokePower: 150,
+                strokeRate: 25,
+            });
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(metrics2);
+
+            const paddlingStopped = createMockMetrics({
+                distance: 200,
+                strokeCount: 20,
+                speed: 4,
+                avgStrokePower: 50,
+                strokeRate: 0,
+            });
+            allMetricsSubject.next(paddlingStopped);
+
+            expect(component.rowingData()).toEqual(paddlingStopped);
+        });
+
+        it("should not reset buffer when speed drops to zero but strokeRate is non-zero", (): void => {
+            setAveragingConfig("performance", 2);
+
+            const metrics1 = createMockMetrics({
+                distance: 100,
+                strokeCount: 10,
+                speed: 4,
+                avgStrokePower: 200,
+                strokeRate: 20,
+            });
+            const metrics2 = createMockMetrics({
+                distance: 200,
+                strokeCount: 20,
+                speed: 0,
+                avgStrokePower: 100,
+                strokeRate: 18,
+            });
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(metrics2);
+
+            // no reset: buffer still averages. avg=(200+100)/2=150, not raw 100 (what a reset would yield)
+            expect(component.rowingData().avgStrokePower).toBe(150);
+        });
+
+        it("should update last buffer entry in-place when strokeCount is unchanged", (): void => {
+            setAveragingConfig("performance", 3);
+            // prime the buffer with two prior strokes so coalescing is observable via the average
+            allMetricsSubject.next(
+                createMockMetrics({
+                    distance: 100,
+                    strokeCount: 8,
+                    avgStrokePower: 80,
+                    strokeRate: 17,
+                }),
+            );
+            allMetricsSubject.next(
+                createMockMetrics({
+                    distance: 200,
+                    strokeCount: 9,
+                    avgStrokePower: 90,
+                    strokeRate: 18,
+                }),
+            );
+
+            const metrics1 = createMockMetrics({
+                distance: 300,
+                strokeCount: 10,
+                avgStrokePower: 110,
+                strokeRate: 19,
+            });
+            const update1 = createMockMetrics({
+                distance: 300,
+                strokeCount: 10,
+                avgStrokePower: 120,
+                strokeRate: 21,
+            });
+            const update2 = createMockMetrics({
+                distance: 300,
+                strokeCount: 10,
+                avgStrokePower: 130,
+                strokeRate: 22,
+            });
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(update1);
+            allMetricsSubject.next(update2);
+
+            // avg=(80+90+130)/3=100; without coalescing avg would be (100+120+130)/3≈116.7
+            expect(component.rowingData().avgStrokePower).toBe(100);
+        });
+
+        it("should never average handleForces", (): void => {
+            setAveragingConfig("all", 2);
+
+            const metrics1 = createMockMetrics({ distance: 10, strokeCount: 1, strokeRate: 20 });
+            (metrics1 as { handleForces: Array<number> }).handleForces = [10, 20, 30];
+            const metrics2 = createMockMetrics({ distance: 20, strokeCount: 2, strokeRate: 20 });
+            (metrics2 as { handleForces: Array<number> }).handleForces = [40, 50, 60];
+
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(metrics2);
+
+            expect(component.rowingData().handleForces).toEqual([40, 50, 60]);
+        });
+
+        it("should reset buffer when mode changes to off", (): void => {
+            setAveragingConfig("performance", 3);
+
+            const metrics1 = createMockMetrics({ distance: 10, strokeCount: 1, speed: 2, strokeRate: 20 });
+            const metrics2 = createMockMetrics({ distance: 20, strokeCount: 2, speed: 4, strokeRate: 20 });
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(metrics2);
+
+            setAveragingConfig("off");
+
+            const metrics3 = createMockMetrics({ distance: 30, strokeCount: 3, speed: 6, strokeRate: 20 });
+            allMetricsSubject.next(metrics3);
+
+            expect(component.rowingData()).toEqual(metrics3);
+        });
+
+        it("should start accumulating when mode changes from off to performance", (): void => {
+            setAveragingConfig("off");
+
+            const metrics1 = createMockMetrics({ distance: 10, strokeCount: 1, speed: 2, strokeRate: 20 });
+            allMetricsSubject.next(metrics1);
+
+            setAveragingConfig("performance", 2);
+
+            const metrics2 = createMockMetrics({ distance: 20, strokeCount: 2, speed: 4, strokeRate: 20 });
+            const metrics3 = createMockMetrics({ distance: 30, strokeCount: 3, speed: 6, strokeRate: 20 });
+            allMetricsSubject.next(metrics2);
+            allMetricsSubject.next(metrics3);
+
+            expect(component.rowingData().speed).toBe(5);
+        });
+
+        it("should trim buffer when window size decreases", (): void => {
+            setAveragingConfig("performance", 4);
+
+            const metrics1 = createMockMetrics({ distance: 10, strokeCount: 1, speed: 10, strokeRate: 20 });
+            const metrics2 = createMockMetrics({ distance: 20, strokeCount: 2, speed: 20, strokeRate: 20 });
+            const metrics3 = createMockMetrics({ distance: 30, strokeCount: 3, speed: 30, strokeRate: 20 });
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(metrics2);
+            allMetricsSubject.next(metrics3);
+
+            setAveragingConfig("performance", 2);
+
+            const metrics4 = createMockMetrics({ distance: 40, strokeCount: 4, speed: 40, strokeRate: 20 });
+            allMetricsSubject.next(metrics4);
+
+            expect(component.rowingData().speed).toBe(35);
+        });
+
+        it("should keep buffer when window size increases", (): void => {
+            setAveragingConfig("performance", 2);
+
+            const metrics1 = createMockMetrics({ distance: 10, strokeCount: 1, speed: 10, strokeRate: 20 });
+            const metrics2 = createMockMetrics({ distance: 20, strokeCount: 2, speed: 20, strokeRate: 20 });
+            const metrics3 = createMockMetrics({ distance: 30, strokeCount: 3, speed: 30, strokeRate: 20 });
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(metrics2);
+            allMetricsSubject.next(metrics3);
+
+            setAveragingConfig("performance", 4);
+
+            const metrics4 = createMockMetrics({ distance: 40, strokeCount: 4, speed: 40, strokeRate: 20 });
+            allMetricsSubject.next(metrics4);
+
+            expect(component.rowingData().speed).toBe(30);
+        });
+
+        it("should switch averaged key set when mode changes from all to performance", (): void => {
+            setAveragingConfig("all", 2);
+
+            const metrics1 = createMockMetrics({
+                distance: 10,
+                strokeCount: 1,
+                speed: 2,
+                strokeRate: 20,
+                dragFactor: 80,
+            });
+            const metrics2 = createMockMetrics({
+                distance: 20,
+                strokeCount: 2,
+                speed: 4,
+                strokeRate: 20,
+                dragFactor: 100,
+            });
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(metrics2);
+
+            expect(component.rowingData().dragFactor).toBe(90);
+
+            setAveragingConfig("performance", 2);
+
+            const metrics3 = createMockMetrics({
+                distance: 30,
+                strokeCount: 3,
+                speed: 6,
+                strokeRate: 20,
+                dragFactor: 120,
+            });
+            allMetricsSubject.next(metrics3);
+
+            expect(component.rowingData().dragFactor).toBe(120);
+        });
+
+        it("should switch averaged key set when mode changes from performance to all", (): void => {
+            setAveragingConfig("performance", 2);
+
+            const metrics1 = createMockMetrics({
+                distance: 10,
+                strokeCount: 1,
+                speed: 2,
+                strokeRate: 20,
+                dragFactor: 80,
+            });
+            const metrics2 = createMockMetrics({
+                distance: 20,
+                strokeCount: 2,
+                speed: 4,
+                strokeRate: 20,
+                dragFactor: 100,
+            });
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(metrics2);
+
+            expect(component.rowingData().dragFactor).toBe(100);
+
+            setAveragingConfig("all", 2);
+
+            const metrics3 = createMockMetrics({
+                distance: 30,
+                strokeCount: 3,
+                speed: 6,
+                strokeRate: 20,
+                dragFactor: 120,
+            });
+            allMetricsSubject.next(metrics3);
+
+            expect(component.rowingData().dragFactor).toBe(110);
+        });
+
+        it("should accumulate fresh buffer after strokeRate-zero reset", (): void => {
+            setAveragingConfig("performance", 2);
+
+            const metrics1 = createMockMetrics({ distance: 100, strokeCount: 10, speed: 4, strokeRate: 20 });
+            const metrics2 = createMockMetrics({ distance: 200, strokeCount: 20, speed: 6, strokeRate: 20 });
+            allMetricsSubject.next(metrics1);
+            allMetricsSubject.next(metrics2);
+
+            // rower stops: strokeRate drops to 0 → buffer resets
+            allMetricsSubject.next(createMockMetrics({ distance: 200, strokeCount: 20, strokeRate: 0 }));
+
+            const metrics3 = createMockMetrics({ distance: 10, strokeCount: 1, speed: 10, strokeRate: 20 });
+            const metrics4 = createMockMetrics({ distance: 20, strokeCount: 2, speed: 20, strokeRate: 20 });
+            const metrics5 = createMockMetrics({ distance: 30, strokeCount: 3, speed: 30, strokeRate: 20 });
+            allMetricsSubject.next(metrics3);
+            allMetricsSubject.next(metrics4);
+            allMetricsSubject.next(metrics5);
+
+            expect(component.rowingData().speed).toBe(25);
+        });
+    });
+
     describe("ngAfterViewInit method", (): void => {
         it("should enable wake lock", async (): Promise<void> => {
             await component.ngAfterViewInit();

@@ -120,6 +120,10 @@ export const createMockConfig: (overrides?: DeepPartial<Config>) => Config = (
                 portrait: DEFAULT_PORTRAIT_LAYOUT,
                 orientationLock: "auto" as const,
             },
+            averaging: {
+                mode: "off" as const,
+                windowSize: 3,
+            },
         },
     };
 
@@ -138,6 +142,10 @@ export const createMockConfig: (overrides?: DeepPartial<Config>) => Config = (
                 ...(overrides.display?.forceCurve ?? {}),
             },
             layout: (overrides.display?.layout as IDisplayLayoutConfig) ?? defaultConfig.display.layout,
+            averaging: {
+                ...defaultConfig.display.averaging,
+                ...(overrides.display?.averaging ?? {}),
+            },
         },
     };
 };
@@ -435,6 +443,10 @@ export const setupMockChildComponents: (
             portrait: DEFAULT_PORTRAIT_LAYOUT,
             orientationLock: "auto",
         }),
+        getAveragingConfig: vi.fn().mockReturnValue({
+            mode: "off",
+            windowSize: 3,
+        }),
     } as unknown as ReturnType<typeof component.displaySettings>);
 
     component.onDisplayFormValidityChange(true);
@@ -465,6 +477,10 @@ export const setupCleanGeneralAndDisplayForms: (component: SettingsDialogCompone
             landscape: DEFAULT_LANDSCAPE_LAYOUT,
             portrait: DEFAULT_PORTRAIT_LAYOUT,
             orientationLock: "auto",
+        }),
+        getAveragingConfig: vi.fn().mockReturnValue({
+            mode: "off",
+            windowSize: 3,
         }),
     } as unknown as ReturnType<typeof component.displaySettings>);
 

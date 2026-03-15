@@ -164,6 +164,20 @@ describe("DisplaySettingsComponent", (): void => {
             expect(component.settingsForm.dirty).toBe(true);
         });
 
+        it("should mark the form as dirty when averaging mode is changed", async (): Promise<void> => {
+            const toggleGroup = await loader.getHarness(
+                MatButtonToggleGroupHarness.with({ selector: '[formControlName="averagingMode"]' }),
+            );
+
+            expect(component.settingsForm.dirty).toBe(false);
+
+            const toggles = await toggleGroup.getToggles();
+            await toggles[1].check();
+            fixture.detectChanges();
+
+            expect(component.settingsForm.dirty).toBe(true);
+        });
+
         it("should emit validity on changes", async (): Promise<void> => {
             const emitSpy = vi.spyOn(component.isFormValidChange, "emit");
             const checkbox = await loader.getHarness(MatCheckboxHarness);
@@ -177,6 +191,58 @@ describe("DisplaySettingsComponent", (): void => {
     describe("getForm method", (): void => {
         it("should return the settings form", (): void => {
             expect(component.getForm()).toBe(component.settingsForm);
+        });
+    });
+
+    describe("averaging configuration", (): void => {
+        it("should initialize averagingMode from config", (): void => {
+            expect(component.settingsForm.controls.averagingMode.value).toBe("off");
+        });
+
+        it("should initialize averagingWindowSize from config", (): void => {
+            expect(component.settingsForm.controls.averagingWindowSize.value).toBe(3);
+        });
+
+        it("should disable the slider when averagingMode is off", (): void => {
+            expect(component.isAveragingSliderDisabled()).toBe(true);
+        });
+
+        it("should enable the slider when averagingMode is set to performance", (): void => {
+            component.settingsForm.controls.averagingMode.setValue("performance");
+
+            expect(component.isAveragingSliderDisabled()).toBe(false);
+        });
+
+        it("should enable the slider when averagingMode is set to all", (): void => {
+            component.settingsForm.controls.averagingMode.setValue("all");
+
+            expect(component.isAveragingSliderDisabled()).toBe(false);
+        });
+
+        it("should return the correct averaging config via getAveragingConfig", (): void => {
+            component.settingsForm.controls.averagingMode.setValue("performance");
+            component.settingsForm.controls.averagingWindowSize.setValue(5);
+
+            expect(component.getAveragingConfig()).toEqual({ mode: "performance", windowSize: 5 });
+        });
+
+        it("should initialize with custom averaging config from config", (): void => {
+            vi.mocked(mockConfigManager.getConfig).mockReturnValue(
+                createMockConfig({
+                    display: {
+                        averaging: {
+                            mode: "all",
+                            windowSize: 4,
+                        },
+                    },
+                }),
+            );
+
+            const localFixture = TestBed.createComponent(DisplaySettingsComponent);
+            const localComponent = localFixture.componentInstance;
+
+            expect(localComponent.settingsForm.controls.averagingMode.value).toBe("all");
+            expect(localComponent.settingsForm.controls.averagingWindowSize.value).toBe(4);
         });
     });
 
