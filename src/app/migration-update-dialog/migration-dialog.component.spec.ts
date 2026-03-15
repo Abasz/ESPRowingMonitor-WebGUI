@@ -4,6 +4,7 @@ import { MAT_DIALOG_DATA } from "@angular/material/dialog";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IMigrationProgress } from "../../common/common.interfaces";
+import { UtilsService } from "../../common/services/utils.service";
 
 import { MigrationOverlayComponent } from "./migration-dialog.component";
 
@@ -15,13 +16,22 @@ describe("MigrationOverlayComponent", (): void => {
     let component: MigrationOverlayComponent;
     let fixture: ComponentFixture<MigrationOverlayComponent>;
     let progressSignal: WritableSignal<IMigrationProgress>;
+    let mockUtilsService: Pick<UtilsService, "enableWakeLock" | "disableWakeLock">;
 
     beforeEach(async (): Promise<void> => {
         progressSignal = signal<IMigrationProgress>(createMockProgress());
 
+        mockUtilsService = {
+            enableWakeLock: vi.fn(),
+            disableWakeLock: vi.fn(),
+        };
+
         await TestBed.configureTestingModule({
             imports: [MigrationOverlayComponent],
-            providers: [{ provide: MAT_DIALOG_DATA, useValue: progressSignal }],
+            providers: [
+                { provide: MAT_DIALOG_DATA, useValue: progressSignal },
+                { provide: UtilsService, useValue: mockUtilsService },
+            ],
         }).compileComponents();
 
         fixture = TestBed.createComponent(MigrationOverlayComponent);
@@ -183,6 +193,22 @@ describe("MigrationOverlayComponent", (): void => {
                 expect(component.etaSec()).toBeGreaterThan(0);
                 expect(component.etaSec()).toBeLessThanOrEqual(60);
             });
+        });
+    });
+
+    describe("ngAfterViewInit method", (): void => {
+        it("should enable wake lock", async (): Promise<void> => {
+            await component.ngAfterViewInit();
+
+            expect(vi.mocked(mockUtilsService.enableWakeLock)).toHaveBeenCalled();
+        });
+    });
+
+    describe("ngOnDestroy method", (): void => {
+        it("should disable wake lock", (): void => {
+            component.ngOnDestroy();
+
+            expect(vi.mocked(mockUtilsService.disableWakeLock)).toHaveBeenCalled();
         });
     });
 });

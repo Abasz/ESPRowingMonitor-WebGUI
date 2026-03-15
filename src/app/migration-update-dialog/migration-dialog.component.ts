@@ -1,8 +1,17 @@
-import { ChangeDetectionStrategy, Component, computed, Inject, Signal } from "@angular/core";
+import {
+    AfterViewInit,
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    Inject,
+    OnDestroy,
+    Signal,
+} from "@angular/core";
 import { MAT_DIALOG_DATA, MatDialogContent, MatDialogTitle } from "@angular/material/dialog";
 import { MatProgressBar } from "@angular/material/progress-bar";
 
 import { IMigrationProgress } from "../../common/common.interfaces";
+import { UtilsService } from "../../common/services/utils.service";
 import { SecondsToTimePipe } from "../../common/utils/seconds-to-time.pipe";
 
 @Component({
@@ -12,7 +21,7 @@ import { SecondsToTimePipe } from "../../common/utils/seconds-to-time.pipe";
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [MatProgressBar, MatDialogTitle, MatDialogContent, SecondsToTimePipe],
 })
-export class MigrationOverlayComponent {
+export class MigrationOverlayComponent implements AfterViewInit, OnDestroy {
     readonly progressPercent: Signal<number> = computed((): number => {
         const { processed, total }: IMigrationProgress = this.progress();
 
@@ -37,5 +46,16 @@ export class MigrationOverlayComponent {
         return Math.ceil(remainingRecords / ratePerMs / 1000);
     });
 
-    constructor(@Inject(MAT_DIALOG_DATA) readonly progress: Signal<IMigrationProgress>) {}
+    constructor(
+        @Inject(MAT_DIALOG_DATA) readonly progress: Signal<IMigrationProgress>,
+        private readonly utils: UtilsService,
+    ) {}
+
+    async ngAfterViewInit(): Promise<void> {
+        this.utils.enableWakeLock();
+    }
+
+    ngOnDestroy(): void {
+        this.utils.disableWakeLock();
+    }
 }
