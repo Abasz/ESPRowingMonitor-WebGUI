@@ -35,6 +35,7 @@ describe("ConfigManagerService", (): void => {
                 heartRateMonitor: merged.heartRateMonitor,
                 heartRateBleId: merged.heartRateBleId,
                 ergoMonitorBleId: merged.ergoMonitorBleId,
+                autoStartTimer: true,
             },
             display: {
                 general: {

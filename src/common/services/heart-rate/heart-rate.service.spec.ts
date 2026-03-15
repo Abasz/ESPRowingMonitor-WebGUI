@@ -52,6 +52,7 @@ describe("HeartRateService", (): void => {
             ergoMonitorBleId: "",
             heartRateBleId: "",
             heartRateMonitor,
+            autoStartTimer: true,
         },
         display: {
             general: {

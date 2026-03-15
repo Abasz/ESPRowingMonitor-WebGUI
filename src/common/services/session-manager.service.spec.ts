@@ -3,12 +3,14 @@ import { BehaviorSubject, Subject } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+    Config,
     ICalculatedMetrics,
     IErgConnectionStatus,
     IHeartRate,
     IRawCalculatedMetrics,
 } from "../common.interfaces";
 
+import { ConfigManagerService } from "./config-manager.service";
 import { DataRecorderService } from "./data-recorder.service";
 import { ErgConnectionService } from "./ergometer/erg-connection.service";
 import { MetricsService } from "./metrics.service";
@@ -20,6 +22,8 @@ describe("SessionManagerService", (): void => {
     let mockMetricsService: Pick<MetricsService, "rawMetrics$" | "heartRateData$">;
     let mockDataRecorderService: Pick<DataRecorderService, "reset" | "addSessionData">;
     let mockErgConnectionService: Pick<ErgConnectionService, "connectionStatus$">;
+    let mockConfigManagerService: Pick<ConfigManagerService, "configChanged$">;
+    let configSubject: BehaviorSubject<Config>;
     let rawMetricsSubject: BehaviorSubject<IRawCalculatedMetrics>;
     let heartRateSubject: BehaviorSubject<IHeartRate | undefined>;
     let connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
@@ -81,12 +85,18 @@ describe("SessionManagerService", (): void => {
             connectionStatus$: vi.fn().mockReturnValue(connectionStatusSubject.asObservable()),
         };
 
+        configSubject = new BehaviorSubject<Config>(new Config());
+        mockConfigManagerService = {
+            configChanged$: configSubject.asObservable(),
+        };
+
         TestBed.configureTestingModule({
             providers: [
                 SessionManagerService,
                 { provide: MetricsService, useValue: mockMetricsService },
                 { provide: DataRecorderService, useValue: mockDataRecorderService },
                 { provide: ErgConnectionService, useValue: mockErgConnectionService },
+                { provide: ConfigManagerService, useValue: mockConfigManagerService },
             ],
         });
 
@@ -404,6 +414,7 @@ describe("SessionManagerService", (): void => {
                     },
                     { provide: DataRecorderService, useValue: mockDataRecorderService },
                     { provide: ErgConnectionService, useValue: mockErgConnectionService },
+                    { provide: ConfigManagerService, useValue: mockConfigManagerService },
                 ],
             });
 
@@ -1067,6 +1078,69 @@ describe("SessionManagerService", (): void => {
             expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
                 expect.objectContaining({ strokeCount: 5, distance: 4750 }),
             );
+        });
+    });
+
+    describe("when autoStartTimer config is disabled", (): void => {
+        it("should not auto-start when a new stroke appears in stopped state", (): void => {
+            configSubject.next({
+                ...new Config(),
+                general: { ...new Config().general, autoStartTimer: false },
+            });
+
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, driveDuration: 0.5 });
+
+            expect(service.sessionState()).toBe("stopped");
+            expect(vi.mocked(mockDataRecorderService.reset)).not.toHaveBeenCalled();
+        });
+
+        it("should not auto-resume when a new stroke appears in paused state", (): void => {
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 950 });
+            service.pause();
+
+            configSubject.next({
+                ...new Config(),
+                general: { ...new Config().general, autoStartTimer: false },
+            });
+
+            rawMetricsSubject.next({
+                ...mockRawMetrics,
+                rawStrokeCount: 2,
+                rawDistance: 1900,
+                driveDuration: 0.5,
+            });
+
+            expect(service.sessionState()).toBe("paused");
+        });
+
+        it("should auto-start again after re-enabling the config", (): void => {
+            configSubject.next({
+                ...new Config(),
+                general: { ...new Config().general, autoStartTimer: false },
+            });
+
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, driveDuration: 0.5 });
+            expect(service.sessionState()).toBe("stopped");
+
+            configSubject.next({
+                ...new Config(),
+                general: { ...new Config().general, autoStartTimer: true },
+            });
+
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, driveDuration: 0.5 });
+            expect(service.sessionState()).toBe("running");
+        });
+
+        it("should still allow manual start when auto-start is disabled", (): void => {
+            configSubject.next({
+                ...new Config(),
+                general: { ...new Config().general, autoStartTimer: false },
+            });
+
+            service.start();
+
+            expect(service.sessionState()).toBe("running");
         });
     });
 

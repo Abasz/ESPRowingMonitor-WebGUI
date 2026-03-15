@@ -88,6 +88,7 @@ describe("GeneralSettingsComponent", (): void => {
             heartRateMonitor: "off",
             ergoMonitorBleId: "",
             heartRateBleId: "",
+            autoStartTimer: true,
         });
 
         mockSwUpdate = {
@@ -688,6 +689,19 @@ describe("GeneralSettingsComponent", (): void => {
                 });
             });
         });
+
+        it("should render auto-start timer checkbox", async (): Promise<void> => {
+            await fixture.whenStable();
+            fixture.detectChanges();
+            const checkboxes = fixture.nativeElement.querySelectorAll(
+                "mat-checkbox",
+            ) as NodeListOf<HTMLElement>;
+            const autoStartCheckbox = Array.from(checkboxes).find(
+                (el: HTMLElement): boolean =>
+                    !!el.textContent && el.textContent.includes("Auto-start session"),
+            );
+            expect(autoStartCheckbox).toBeDefined();
+        });
     });
 
     describe("as part of form initialization", (): void => {
@@ -699,6 +713,7 @@ describe("GeneralSettingsComponent", (): void => {
             expect(component.settingsForm.value.deltaTimeLogging).toBe(false);
             expect(component.settingsForm.value.logToSdCard).toBe(true);
             expect(component.settingsForm.value.heartRateMonitor).toBe("off");
+            expect(component.settingsForm.value.autoStartTimer).toBe(true);
         });
 
         it("should emit form validity on initialization", async (): Promise<void> => {
@@ -713,12 +728,26 @@ describe("GeneralSettingsComponent", (): void => {
                 ergoMonitorBleId: "",
                 heartRateBleId: "",
                 heartRateMonitor: "ble",
+                autoStartTimer: true,
             });
 
             component.ngOnInit();
 
             expect(mockConfigManagerService.getGroup).toHaveBeenCalledWith("general");
             expect(component.settingsForm.value.heartRateMonitor).toBe("ble");
+        });
+
+        it("should retrieve autoStartTimer setting from ConfigManager", (): void => {
+            vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
+                ergoMonitorBleId: "",
+                heartRateBleId: "",
+                heartRateMonitor: "off",
+                autoStartTimer: false,
+            });
+
+            component.ngOnInit();
+
+            expect(component.settingsForm.value.autoStartTimer).toBe(false);
         });
     });
 

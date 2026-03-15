@@ -22,6 +22,7 @@ import {
 } from "rxjs";
 
 import {
+    Config,
     ICalculatedMetrics,
     IErgConnectionStatus,
     IHeartRate,
@@ -30,6 +31,7 @@ import {
 } from "../common.interfaces";
 import { Stopwatch } from "../utils/stopwatch";
 
+import { ConfigManagerService } from "./config-manager.service";
 import { DataRecorderService } from "./data-recorder.service";
 import { ErgConnectionService } from "./ergometer/erg-connection.service";
 import { MetricsService } from "./metrics.service";
@@ -84,6 +86,13 @@ export class SessionManagerService {
 
     private readonly stopwatch: Stopwatch = new Stopwatch();
 
+    private readonly autoStartEnabled: Signal<boolean> = toSignal(
+        this.configManager.configChanged$.pipe(
+            map((config: Config): boolean => config.general.autoStartTimer),
+        ),
+        { initialValue: true },
+    );
+
     private indicateStop$: Observable<SessionState> = this.sessionState$.pipe(
         filter((sessionState: SessionState): boolean => sessionState === "stopped"),
     );
@@ -92,6 +101,7 @@ export class SessionManagerService {
         private metricsService: MetricsService,
         private dataRecorder: DataRecorderService,
         private ergConnectionService: ErgConnectionService,
+        private configManager: ConfigManagerService,
     ) {
         this.sessionState = toSignal(this.sessionState$, { requireSync: true });
         this.elapsedTime = this._elapsedTime.asReadonly();
@@ -201,6 +211,7 @@ export class SessionManagerService {
                 pairwise(),
                 filter(
                     ([prev, curr]: [IRawCalculatedMetrics, IRawCalculatedMetrics]): boolean =>
+                        this.autoStartEnabled() &&
                         this.sessionState() !== "running" &&
                         (curr.rawStrokeCount > prev.rawStrokeCount ||
                             (curr.rawStrokeCount > 0 && curr.rawStrokeCount < prev.rawStrokeCount)),

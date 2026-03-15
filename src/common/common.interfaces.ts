@@ -64,6 +64,7 @@ export interface IGeneralConfig {
     ergoMonitorBleId: string;
     heartRateBleId: string;
     heartRateMonitor: HeartRateMonitorMode;
+    autoStartTimer: boolean;
 }
 
 export interface IDisplayGeneralConfig {
@@ -105,6 +106,7 @@ export class Config {
         ergoMonitorBleId: "",
         heartRateBleId: "",
         heartRateMonitor: "off",
+        autoStartTimer: true,
     };
 
     display: IDisplayConfig = {

@@ -26,7 +26,6 @@ import { firstValueFrom, map, Observable } from "rxjs";
 
 import { IDeviceInformation } from "../../common/ble.interfaces";
 import {
-    HeartRateMonitorMode,
     IDisplayForceCurveConfig,
     IErgConnectionStatus,
     IRowerSettings,
@@ -269,9 +268,15 @@ export class SettingsDialogComponent {
         }
 
         if (settingsForm.controls.heartRateMonitor.dirty) {
-            const generalConfig = this.configManager.getGroup("general");
-            generalConfig.heartRateMonitor = settingsForm.value.heartRateMonitor as HeartRateMonitorMode;
-            this.configManager.setGroup("general", generalConfig);
+            this.configManager.setGroup("general", {
+                heartRateMonitor: settingsForm.controls.heartRateMonitor.value,
+            });
+        }
+
+        if (settingsForm.controls.autoStartTimer.dirty) {
+            this.configManager.setGroup("general", {
+                autoStartTimer: settingsForm.controls.autoStartTimer.value,
+            });
         }
     }
 
