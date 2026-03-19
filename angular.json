@@ -23,6 +23,7 @@
                         },
                         "index": "src/index.html",
                         "allowedCommonJsDependencies": [
+                            "hammerjs",
                             "js2xmlparser",
                             "js-md5"
                         ],
