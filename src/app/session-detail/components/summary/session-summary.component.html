@@ -1,0 +1,68 @@
+<mat-card class="gt-sm-grid-row-span-2">
+    <h3>Totals</h3>
+    <div class="metrics totals flex-row flex-auto gt-sm-flex-col flex-wrap justify-space-around gap-8">
+        <div>
+            <span class="label">Distance</span>
+            <span class="value"
+                >{{ stats().totalDistance | number: "1.0-0" }} <span class="unit">m</span></span
+            >
+        </div>
+        <div>
+            <span class="label">Time</span>
+            <span class="value">{{ stats().totalTime | secondsToTime: "pace" }}</span>
+        </div>
+        <div>
+            <span class="label">Strokes</span>
+            <span class="value">{{ stats().totalStrokeCount }}</span>
+        </div>
+    </div>
+</mat-card>
+
+<mat-card>
+    <h3>Maximums</h3>
+    <div class="metrics flex-row flex-wrap gap-16 justify-space-around">
+        <div>
+            <span class="label">Pace</span>
+            <span class="value"
+                >{{ maxPace() }}
+                <span class="unit">/500m</span>
+            </span>
+        </div>
+        @for (metric of maxMetrics(); track metric.label) {
+            <div>
+                <span class="label">{{ metric.label }}</span>
+                <span class="value">
+                    {{ metric.value | number: metric.format }}
+                    @if (metric.unit) {
+                        <span class="unit">{{ metric.unit }}</span>
+                    }
+                </span>
+            </div>
+        }
+    </div>
+</mat-card>
+
+<mat-card>
+    <h3>Averages</h3>
+    <div class="metrics flex-row flex-wrap gap-16 justify-space-around">
+        <div>
+            <span class="label">Pace</span>
+            <span class="value"
+                >{{ avgPace() }}
+                <span class="unit">/500m</span>
+            </span>
+        </div>
+
+        @for (metric of avgMetrics(); track metric.label) {
+            <div>
+                <span class="label">{{ metric.label }}</span>
+                <span class="value">
+                    {{ metric.value | number: metric.format }}
+                    @if (metric.unit) {
+                        <span class="unit">{{ metric.unit }}</span>
+                    }
+                </span>
+            </div>
+        }
+    </div>
+</mat-card>

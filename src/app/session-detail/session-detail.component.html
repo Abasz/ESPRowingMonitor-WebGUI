@@ -11,7 +11,7 @@
 } @else if (analysis(); as data) {
     <mat-tab-group>
         <mat-tab label="Summary">
-            <p>Summary for session {{ data.sessionId | date: "yyyy-MM-dd HH:mm" }}</p>
+            <app-session-summary [analysis]="data" />
         </mat-tab>
         <mat-tab label="Strokes">
             <p>Strokes analysis ({{ data.strokes.length }} strokes)</p>
