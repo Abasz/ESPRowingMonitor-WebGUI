@@ -1,0 +1,20 @@
+@if (loading()) {
+    <div class="loading-container flex-col items-center justify-center gap-16">
+        <mat-spinner diameter="70"></mat-spinner>
+        <p>Loading session...</p>
+    </div>
+} @else if (error(); as errorMessage) {
+    <div class="error-container flex-col items-center justify-center gap-16">
+        <p>{{ errorMessage }}</p>
+        <button mat-raised-button (click)="goBack()">Back to Dashboard</button>
+    </div>
+} @else if (analysis(); as data) {
+    <mat-tab-group>
+        <mat-tab label="Summary">
+            <p>Summary for session {{ data.sessionId | date: "yyyy-MM-dd HH:mm" }}</p>
+        </mat-tab>
+        <mat-tab label="Strokes">
+            <p>Strokes analysis ({{ data.strokes.length }} strokes)</p>
+        </mat-tab>
+    </mat-tab-group>
+}

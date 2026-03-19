@@ -1,5 +1,5 @@
 import { CdkScrollable } from "@angular/cdk/scrolling";
-import { DatePipe } from "@angular/common";
+import { DatePipe, Location } from "@angular/common";
 import {
     AfterViewInit,
     ChangeDetectionStrategy,
@@ -39,6 +39,7 @@ import {
     MatTable,
     MatTableDataSource,
 } from "@angular/material/table";
+import { Router } from "@angular/router";
 import { ExportProgress } from "dexie-export-import";
 import { ImportProgress } from "dexie-export-import/dist/import";
 import { finalize, from, Observable, switchMap } from "rxjs";
@@ -110,6 +111,8 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
         private snackBar: MatSnackBar,
         @Inject(MAT_DIALOG_DATA) private sessionSummary: Array<ISessionSummary>,
         private destroyRef: DestroyRef,
+        private location: Location,
+        private router: Router,
     ) {
         this.dataRecorder
             .getSessionSummaries$()
@@ -263,6 +266,13 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
             }
         }
         (event.target as HTMLInputElement).value = "";
+    }
+
+    openSession(sessionId: number): void {
+        const path = this.location.prepareExternalUrl(
+            this.router.serializeUrl(this.router.createUrlTree(["session", sessionId])),
+        );
+        window.open(path, "_blank");
     }
 
     ngAfterViewInit(): void {

@@ -1,4 +1,5 @@
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
+import { Location } from "@angular/common";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { MatButtonHarness } from "@angular/material/button/testing";
 import { MAT_DIALOG_DATA } from "@angular/material/dialog";
@@ -9,8 +10,9 @@ import {
     MatSnackBarRef,
     TextOnlySnackBar,
 } from "@angular/material/snack-bar";
+import { Router } from "@angular/router";
 import { firstValueFrom, Observable, of, Subject } from "rxjs";
-import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import { ISessionSummary } from "../../common/common.interfaces";
 import { DataRecorderService } from "../../common/services/data-recorder.service";
@@ -36,6 +38,8 @@ describe("LogbookDialogComponent", (): void => {
         | "import"
     >;
     let snackBarSpy: Pick<MatSnackBar, "open" | "openFromComponent">;
+    let routerSpy: Pick<Router, "serializeUrl" | "createUrlTree">;
+    let locationSpy: Pick<Location, "prepareExternalUrl">;
 
     const SESSIONS: Array<ISessionSummary> = [
         {
@@ -86,12 +90,22 @@ describe("LogbookDialogComponent", (): void => {
             dismiss: vi.fn(),
         } as unknown as MatSnackBarRef<SnackBarConfirmComponent>);
 
+        routerSpy = {
+            createUrlTree: vi.fn().mockReturnValue({}),
+            serializeUrl: vi.fn().mockReturnValue("/session/123"),
+        };
+        locationSpy = {
+            prepareExternalUrl: vi.fn().mockReturnValue("/base/session/123"),
+        };
+
         await TestBed.configureTestingModule({
             imports: [LogbookDialogComponent],
             providers: [
                 { provide: MAT_DIALOG_DATA, useValue: SESSIONS },
                 { provide: DataRecorderService, useValue: dataRecorderSpy },
                 { provide: MatSnackBar, useValue: snackBarSpy },
+                { provide: Router, useValue: routerSpy },
+                { provide: Location, useValue: locationSpy },
             ],
         }).compileComponents();
 
@@ -736,6 +750,34 @@ describe("LogbookDialogComponent", (): void => {
             fileInput.dispatchEvent(new Event("change"));
 
             expect(dataRecorderSpy.import).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("openSession method", (): void => {
+        beforeEach((): void => {
+            vi.spyOn(window, "open").mockReturnValue(null);
+        });
+
+        afterEach((): void => {
+            vi.restoreAllMocks();
+        });
+
+        it("should open a new tab with the router-built session URL", (): void => {
+            component.openSession(SESSIONS[0].sessionId);
+
+            expect(routerSpy.createUrlTree).toHaveBeenCalledWith(["session", SESSIONS[0].sessionId]);
+            expect(locationSpy.prepareExternalUrl).toHaveBeenCalledWith("/session/123");
+            expect(window.open).toHaveBeenCalledWith("/base/session/123", "_blank");
+        });
+
+        it("should open correct URL when bar_chart button is clicked", async (): Promise<void> => {
+            summaries$.next(SESSIONS);
+            await fixture.whenStable();
+
+            const barChartButton = fixture.nativeElement.querySelector("mat-row .actions button");
+            barChartButton.click();
+
+            expect(window.open).toHaveBeenCalledWith("/base/session/123", "_blank");
         });
     });
 });

@@ -7,7 +7,6 @@ import { provideRouter } from "@angular/router";
 import { ServiceWorkerModule } from "@angular/service-worker";
 
 import { AppComponent } from "./app/app.component";
-import { DashboardComponent } from "./app/dashboard/dashboard.component";
 import { SpinnerOverlay } from "./common/overlay/spinner-overlay.service";
 import { DatabaseMigrationService } from "./common/services/database-migration.service";
 import { ErrorInterceptor } from "./common/services/error.interceptor.service";
@@ -19,8 +18,15 @@ bootstrapApplication(AppComponent, {
         provideRouter([
             {
                 path: "",
-                loadComponent: async (): Promise<typeof DashboardComponent> =>
-                    (await import("./app/dashboard/dashboard.component")).DashboardComponent,
+                loadComponent: async (): Promise<
+                    typeof import("./app/dashboard/dashboard.component").DashboardComponent
+                > => (await import("./app/dashboard/dashboard.component")).DashboardComponent,
+            },
+            {
+                path: "session/:id",
+                loadComponent: async (): Promise<
+                    typeof import("./app/session-detail/session-detail.component").SessionDetailComponent
+                > => (await import("./app/session-detail/session-detail.component")).SessionDetailComponent,
             },
             { path: "**", redirectTo: "" },
         ]),
