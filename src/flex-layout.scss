@@ -61,6 +61,9 @@
 } // Switch from flex-row to flex-col on mobile.
 
 // Gap.
+.gap-4 {
+    gap: 4px;
+}
 .gap-8 {
     gap: 8px;
 }
@@ -71,6 +74,9 @@
 // Justify content.
 .justify-space-between {
     justify-content: space-between;
+}
+.justify-space-around {
+    justify-content: space-around;
 }
 .justify-center {
     justify-content: center;
@@ -91,6 +97,9 @@
 }
 .items-end {
     align-items: flex-end;
+}
+.items-baseline {
+    align-items: baseline;
 }
 
 .flex-1 {
@@ -186,6 +195,10 @@
 // xl	'screen and (min-width: 1920px) and (max-width: 5000px)'
 @include lt-sm {
     .lt-sm- {
+        &hide {
+            display: none;
+        }
+
         &grid-span- {
             &1 {
                 grid-column: span 1;
@@ -253,8 +266,20 @@
 
 @include gt-sm {
     .gt-sm- {
+        &flex-col {
+            display: flex;
+            flex-direction: column;
+        }
+        &flex-row {
+            display: flex;
+            flex-direction: row;
+        }
+
         &justify-center {
             justify-content: center;
+        }
+        &justify-space-between {
+            justify-content: space-between;
         }
 
         &items-center {
@@ -279,6 +304,20 @@
             }
             &4 {
                 grid-column: span 4;
+            }
+        }
+        &grid-row-span- {
+            &1 {
+                grid-row: span 1;
+            }
+            &2 {
+                grid-row: span 2;
+            }
+            &3 {
+                grid-row: span 3;
+            }
+            &4 {
+                grid-row: span 4;
             }
         }
     }
