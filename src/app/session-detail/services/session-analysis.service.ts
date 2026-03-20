@@ -11,6 +11,8 @@ import {
     ISessionStroke,
 } from "../models/session-analysis.interfaces";
 
+import { detectLaps } from "./lap-detection";
+
 @Injectable({
     providedIn: "root",
 })
@@ -43,7 +45,7 @@ export class SessionAnalysisService {
                     records,
                     strokes,
                     statistics,
-                    laps: [],
+                    laps: detectLaps(strokes),
                 };
             },
         );

@@ -81,12 +81,43 @@ describe("SessionAnalysisService", (): void => {
             expect(result.deviceName).toBeUndefined();
         });
 
-        it("should return empty laps array", async (): Promise<void> => {
+        it("should return empty laps for a session below the minimum stroke count", async (): Promise<void> => {
             await seedSession([createMetricsEntity()], [createHandleForcesEntity()]);
 
             const result = await service.loadSession(mockSessionId);
 
             expect(result.laps).toEqual([]);
+        });
+
+        it("should detect a single lap for a continuous multi-stroke session", async (): Promise<void> => {
+            await seedSession(
+                [
+                    createMetricsEntity({
+                        strokeCount: 1,
+                        timeStamp: mockSessionId + 1000,
+                        elapsedTime: 1,
+                        strokeRate: 24,
+                    }),
+                    createMetricsEntity({
+                        strokeCount: 2,
+                        timeStamp: mockSessionId + 3000,
+                        elapsedTime: 3,
+                        strokeRate: 24,
+                    }),
+                    createMetricsEntity({
+                        strokeCount: 3,
+                        timeStamp: mockSessionId + 5000,
+                        elapsedTime: 5,
+                        strokeRate: 24,
+                    }),
+                ],
+                [createHandleForcesEntity({ strokeId: 1 })],
+            );
+
+            const result = await service.loadSession(mockSessionId);
+
+            expect(result.laps).toHaveLength(1);
+            expect(result.laps[0].lapNumber).toBe(1);
         });
     });
 
