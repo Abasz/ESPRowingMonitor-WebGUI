@@ -1,0 +1,62 @@
+@use "@angular/material" as mat;
+
+@use "../../../../theme";
+
+@use "../../../../flex-layout" as flex-layout;
+
+:host {
+    display: block;
+    overflow-x: auto;
+
+    @include mat.table-overrides(
+        (
+            background-color: transparent,
+            row-item-container-height: 32px,
+        )
+    );
+}
+
+table {
+    width: 100%;
+}
+
+mat-row {
+    cursor: pointer;
+
+    &:hover {
+        background-color: #{mat.get-theme-color(theme.$light-theme, primary, 90)};
+    }
+
+    &.selected {
+        background-color: color-mix(
+            in srgb,
+            #{mat.get-theme-color(theme.$light-theme, primary)} 12%,
+            transparent
+        );
+    }
+}
+
+mat-header-cell,
+mat-cell {
+    font-size: 0.8em;
+    padding: 0 8px;
+
+    @include flex-layout.xs {
+        &.mat-column-startTime {
+            display: none;
+        }
+        &.mat-column-lapNumber {
+            max-width: 30px;
+        }
+
+        &:first-of-type,
+        &:first-of-type {
+            padding-left: 8px;
+        }
+
+        &:last-of-type,
+        &:last-of-type {
+            padding-right: 8px;
+        }
+    }
+}

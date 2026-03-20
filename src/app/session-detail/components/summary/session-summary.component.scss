@@ -2,11 +2,11 @@
 
 :host {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
 
     @include gt-sm {
-        grid-template-columns: max-content 1fr;
+        grid-template-columns: max-content minmax(0, 1fr);
 
         font-size: 0.75em;
     }
@@ -87,4 +87,8 @@ mat-card {
             font-weight: 500;
         }
     }
+}
+
+.laps-section {
+    grid-column: 1 / -1;
 }

@@ -1,7 +1,10 @@
+import { DebugElement } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { beforeEach, describe, expect, it } from "vitest";
+import { By } from "@angular/platform-browser";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ISessionAnalysis } from "../../models/session-analysis.interfaces";
+import { SessionChartComponent } from "../shared/session-chart.component";
 
 import { SessionSummaryComponent } from "./session-summary.component";
 
@@ -121,6 +124,38 @@ describe("SessionSummaryComponent", (): void => {
         }
 
         return null;
+    };
+
+    const createAnalysisWithLaps = (): ISessionAnalysis => {
+        const analysis = createMockAnalysis();
+        analysis.laps = [
+            {
+                lapNumber: 1,
+                startIndex: 0,
+                endIndex: 4,
+                startTime: 0,
+                endTime: 10,
+                duration: 10,
+                avgPower: 150,
+                avgStrokeRate: 24,
+                avgSpeed: 2.5,
+                avgDistPerStroke: 10,
+            },
+            {
+                lapNumber: 2,
+                startIndex: 8,
+                endIndex: 12,
+                startTime: 20,
+                endTime: 30,
+                duration: 10,
+                avgPower: 180,
+                avgStrokeRate: 26,
+                avgSpeed: 2.8,
+                avgDistPerStroke: 11,
+            },
+        ];
+
+        return analysis;
     };
 
     beforeEach(async (): Promise<void> => {
@@ -367,6 +402,175 @@ describe("SessionSummaryComponent", (): void => {
 
             expect(speedChart.data.datasets.length).toBe(2);
             expect(speedChart.data.datasets[1].label).toBe("Average");
+        });
+    });
+
+    describe("as part of lap table rendering", (): void => {
+        it("should show lap table when multiple laps exist", (): void => {
+            fixture.componentRef.setInput("analysis", createAnalysisWithLaps());
+            fixture.detectChanges();
+
+            const lapTable = fixture.nativeElement.querySelector("app-lap-table");
+
+            expect(lapTable).toBeTruthy();
+        });
+
+        it("should hide lap table when no laps exist", (): void => {
+            const lapTable = fixture.nativeElement.querySelector("app-lap-table");
+
+            expect(lapTable).toBeNull();
+        });
+
+        it("should hide lap table when only one laps exist", (): void => {
+            fixture.componentRef.setInput("analysis", {
+                ...createMockAnalysis(),
+                laps: [
+                    {
+                        lapNumber: 1,
+                        startIndex: 0,
+                        endIndex: 4,
+                        startTime: 0,
+                        endTime: 10,
+                        duration: 10,
+                        avgPower: 150,
+                        avgStrokeRate: 24,
+                        avgSpeed: 2.5,
+                        avgDistPerStroke: 10,
+                    },
+                ],
+            });
+
+            fixture.detectChanges();
+
+            const lapTable = fixture.nativeElement.querySelector("app-lap-table");
+
+            expect(lapTable).toBeNull();
+        });
+
+        it("should show Laps heading in section card", (): void => {
+            fixture.componentRef.setInput("analysis", createAnalysisWithLaps());
+            fixture.detectChanges();
+
+            const lapsCard = getCardByTitle("Laps");
+
+            expect(lapsCard).toBeTruthy();
+        });
+
+        it("should select lap on onLapSelected call", (): void => {
+            const analysis = createAnalysisWithLaps();
+            fixture.componentRef.setInput("analysis", analysis);
+            fixture.detectChanges();
+
+            component.onLapSelected(analysis.laps[0]);
+
+            expect(component.selectedLap()).toEqual(analysis.laps[0]);
+        });
+
+        it("should clear selection on onShowFullSession call", (): void => {
+            const analysis = createAnalysisWithLaps();
+            fixture.componentRef.setInput("analysis", analysis);
+            fixture.detectChanges();
+
+            component.onLapSelected(analysis.laps[0]);
+            component.onShowFullSession();
+
+            expect(component.selectedLap()).toBeUndefined();
+        });
+
+        it("should show Show Full Session button when a lap is selected", (): void => {
+            const analysis = createAnalysisWithLaps();
+            fixture.componentRef.setInput("analysis", analysis);
+            fixture.detectChanges();
+
+            component.onLapSelected(analysis.laps[0]);
+            fixture.detectChanges();
+
+            const button = fixture.nativeElement.querySelector("button[mat-button]");
+
+            expect(button?.textContent).toContain("Show Full Session");
+        });
+
+        it("should hide Show Full Session button when no lap is selected", (): void => {
+            fixture.componentRef.setInput("analysis", createAnalysisWithLaps());
+            fixture.detectChanges();
+
+            const button = fixture.nativeElement.querySelector("button[mat-button]");
+
+            expect(button).toBeNull();
+        });
+    });
+
+    describe("as part of chart zoom on lap selection", (): void => {
+        it("should call zoomToRange on all charts when a lap is selected", (): void => {
+            const analysis = createAnalysisWithLaps();
+            fixture.componentRef.setInput("analysis", analysis);
+            fixture.detectChanges();
+
+            const chartEls = fixture.debugElement.queryAll(By.directive(SessionChartComponent));
+            const zoomSpies = chartEls.map(
+                (chartEl: DebugElement): ReturnType<typeof vi.spyOn> =>
+                    vi.spyOn(chartEl.componentInstance as SessionChartComponent, "zoomToRange"),
+            );
+
+            component.onLapSelected(analysis.laps[0]);
+
+            for (const spy of zoomSpies) {
+                expect(spy).toHaveBeenCalledWith(analysis.laps[0].startTime, analysis.laps[0].endTime);
+            }
+        });
+
+        it("should call resetZoom on all charts when showing full session", (): void => {
+            const analysis = createAnalysisWithLaps();
+            fixture.componentRef.setInput("analysis", analysis);
+            fixture.detectChanges();
+
+            component.onLapSelected(analysis.laps[0]);
+
+            const chartEls = fixture.debugElement.queryAll(By.directive(SessionChartComponent));
+            const resetSpies = chartEls.map(
+                (chartEl: DebugElement): ReturnType<typeof vi.spyOn> =>
+                    vi.spyOn(chartEl.componentInstance as SessionChartComponent, "resetZoom"),
+            );
+
+            component.onShowFullSession();
+
+            for (const spy of resetSpies) {
+                expect(spy).toHaveBeenCalled();
+            }
+        });
+    });
+
+    describe("when the analysis input changes", (): void => {
+        it("should reset selectedLap to undefined", (): void => {
+            const analysis = createAnalysisWithLaps();
+            fixture.componentRef.setInput("analysis", analysis);
+            fixture.detectChanges();
+
+            component.onLapSelected(analysis.laps[0]);
+            expect(component.selectedLap()).toBe(analysis.laps[0]);
+
+            fixture.componentRef.setInput("analysis", { ...analysis });
+            fixture.detectChanges();
+
+            expect(component.selectedLap()).toBeUndefined();
+        });
+
+        it("should hide the Show Full Session button after analysis changes", (): void => {
+            const analysis = createAnalysisWithLaps();
+            fixture.componentRef.setInput("analysis", analysis);
+            fixture.detectChanges();
+
+            component.onLapSelected(analysis.laps[0]);
+            fixture.detectChanges();
+
+            const buttonBefore = fixture.nativeElement.querySelector("button[mat-button]");
+            expect(buttonBefore).not.toBeNull();
+
+            fixture.componentRef.setInput("analysis", { ...analysis });
+            fixture.detectChanges();
+
+            const buttonAfter = fixture.nativeElement.querySelector("button[mat-button]");
+            expect(buttonAfter).toBeNull();
         });
     });
 });

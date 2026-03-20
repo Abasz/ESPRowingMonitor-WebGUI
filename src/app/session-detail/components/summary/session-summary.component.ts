@@ -1,16 +1,30 @@
 import { DecimalPipe } from "@angular/common";
-import { ChangeDetectionStrategy, Component, computed, input, InputSignal, Signal } from "@angular/core";
+import {
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    input,
+    InputSignal,
+    linkedSignal,
+    Signal,
+    viewChildren,
+    WritableSignal,
+} from "@angular/core";
+import { MatButton } from "@angular/material/button";
 import { MatCard } from "@angular/material/card";
 import { ChartData, ChartOptions, Point } from "chart.js";
 
 import { SecondsToTimePipe } from "../../../../common/utils/seconds-to-time.pipe";
 import {
+    ILap,
     ISessionAnalysis,
     ISessionRecord,
     ISessionStatistics,
     ISessionStroke,
 } from "../../models/session-analysis.interfaces";
 import { SessionChartComponent } from "../shared/session-chart.component";
+
+import { LapTableComponent } from "./lap-table.component";
 
 interface IMetricItem {
     label: string;
@@ -307,13 +321,20 @@ const buildDriveRecoveryChartConfig = (strokes: Array<ISessionRecord>): IChartCo
     templateUrl: "./session-summary.component.html",
     styleUrls: ["./session-summary.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatCard, SecondsToTimePipe, DecimalPipe, SessionChartComponent],
+    imports: [MatCard, MatButton, SecondsToTimePipe, DecimalPipe, SessionChartComponent, LapTableComponent],
 })
 export class SessionSummaryComponent {
     readonly analysis: InputSignal<ISessionAnalysis> = input.required<ISessionAnalysis>();
 
     readonly stats: Signal<ISessionStatistics> = computed(
         (): ISessionStatistics => this.analysis().statistics,
+    );
+
+    readonly selectedLap: WritableSignal<ILap | undefined> = linkedSignal<ISessionAnalysis, ILap | undefined>(
+        {
+            source: this.analysis,
+            computation: (): ILap | undefined => undefined,
+        },
     );
 
     readonly maxMetrics: Signal<Array<IMetricItem>> = computed((): Array<IMetricItem> => {
@@ -389,4 +410,21 @@ export class SessionSummaryComponent {
     private readonly hasHeartRate: Signal<boolean> = computed(
         (): boolean => this.stats().avg.heartRate !== undefined,
     );
+
+    private readonly chartComponents: Signal<ReadonlyArray<SessionChartComponent>> =
+        viewChildren(SessionChartComponent);
+
+    onLapSelected(lap: ILap): void {
+        this.selectedLap.set(lap);
+        for (const chart of this.chartComponents()) {
+            chart.zoomToRange(lap.startTime, lap.endTime);
+        }
+    }
+
+    onShowFullSession(): void {
+        this.selectedLap.set(undefined);
+        for (const chart of this.chartComponents()) {
+            chart.resetZoom();
+        }
+    }
 }

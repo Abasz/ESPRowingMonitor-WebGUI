@@ -84,3 +84,18 @@
         </div>
     }
 </div>
+@if (analysis().laps.length > 1) {
+    <mat-card class="laps-section">
+        <div class="flex-row items-center justify-space-between">
+            <h3>Laps</h3>
+            @if (selectedLap()) {
+                <button mat-button (click)="onShowFullSession()">Show Full Session</button>
+            }
+        </div>
+        <app-lap-table
+            [laps]="analysis().laps"
+            [selectedLap]="selectedLap()"
+            (lapSelected)="onLapSelected($event)"
+        />
+    </mat-card>
+}
