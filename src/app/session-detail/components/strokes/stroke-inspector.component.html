@@ -1,0 +1,22 @@
+<mat-card>
+    <div class="stroke-header flex-row justify-space-between items-baseline">
+        <span class="label">Stroke Index: {{ stroke().strokeIndex }}</span>
+        <span class="stroke-time">Elapsed Time: {{ stroke().elapsedTime | secondsToTime: "pace" }}</span>
+    </div>
+    <div class="metric-grid">
+        <span class="label">Pace:</span>
+        <span class="value flex-row items-baseline">
+            {{ pace() }}
+            <span class="unit"> /500m</span>
+        </span>
+        @for (metric of metrics(); track metric.label) {
+            <span class="label">{{ metric.label }}:</span>
+            <span class="value flex-row items-baseline">
+                {{ metric.value | number: metric.format }}
+                @if (metric.unit) {
+                    <span class="unit"> {{ metric.unit }}</span>
+                }
+            </span>
+        }
+    </div>
+</mat-card>

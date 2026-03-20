@@ -1,0 +1,37 @@
+mat-card {
+    padding: 16px;
+}
+
+.stroke-header {
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.stroke-time {
+    font-size: 0.75em;
+    opacity: 0.7;
+    text-align: end;
+}
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: 1fr max-content;
+    row-gap: 2px;
+    column-gap: 8px;
+    align-items: baseline;
+}
+
+.label {
+    font-size: 0.7em;
+}
+
+.value {
+    gap: 2px;
+    font-weight: 500;
+    font-size: 0.8em;
+}
+
+.unit {
+    font-size: 0.6em;
+    font-weight: 400;
+}
