@@ -125,6 +125,13 @@ describe("SessionDetailComponent", (): void => {
             expect(component.error()).toBe("Invalid session ID");
             expect(component.loading()).toBe(false);
         });
+
+        it("should still show toolbar when error is displayed", (): void => {
+            routeParamId = "abc";
+            fixture.detectChanges();
+
+            expect(fixture.nativeElement.querySelector("mat-toolbar")).toBeTruthy();
+        });
     });
 
     describe("when loading session data", (): void => {
@@ -186,6 +193,69 @@ describe("SessionDetailComponent", (): void => {
             fixture.detectChanges();
 
             const backButton = fixture.nativeElement.querySelector(".error-container button");
+            backButton.click();
+
+            expect(mockRouter.navigate).toHaveBeenCalledWith(["/"]);
+        });
+    });
+
+    describe("as part of session toolbar", (): void => {
+        it("should display toolbar with session date", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            await fixture.whenStable();
+
+            const toolbar = fixture.nativeElement.querySelector("mat-toolbar");
+
+            expect(toolbar).toBeTruthy();
+
+            const dateSpan = toolbar.querySelector(".session-date");
+
+            expect(dateSpan.textContent).toMatch(/\d{4}-\d{2}-\d{2}/);
+        });
+
+        it("should display device name when available", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(
+                createMockAnalysis({ deviceName: "FTMS Rower" }),
+            );
+            await fixture.whenStable();
+
+            const deviceName = fixture.nativeElement.querySelector(".device-name");
+
+            expect(deviceName.textContent).toContain("FTMS Rower");
+        });
+
+        it("should not display device name when undefined", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(
+                createMockAnalysis({ deviceName: undefined }),
+            );
+            await fixture.whenStable();
+
+            const deviceName = fixture.nativeElement.querySelector(".device-name");
+
+            expect(deviceName).toBeNull();
+        });
+
+        it("should hide device name in error state", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(
+                createMockAnalysis({ deviceName: "FTMS Rower" }),
+            );
+            await fixture.whenStable();
+
+            component.error.set("Some error");
+            fixture.detectChanges();
+
+            const deviceName = fixture.nativeElement.querySelector(".device-name");
+
+            expect(deviceName).toBeNull();
+        });
+
+        it("should navigate back when toolbar back button is clicked", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            await fixture.whenStable();
+
+            const backButton = fixture.nativeElement.querySelector(
+                "mat-toolbar button[aria-label='Back to dashboard']",
+            );
             backButton.click();
 
             expect(mockRouter.navigate).toHaveBeenCalledWith(["/"]);

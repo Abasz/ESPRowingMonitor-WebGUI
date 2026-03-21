@@ -3,7 +3,6 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
-    inject,
     Injector,
     input,
     InputSignal,
@@ -253,10 +252,10 @@ export class SessionStrokesComponent {
         };
     });
 
-    private readonly injector: Injector = inject(Injector);
-
     private readonly continuousChart: Signal<SessionChartComponent | undefined> =
         viewChild<SessionChartComponent>("continuousChart");
+
+    constructor(private injector: Injector) {}
 
     onPrevious(): void {
         const index = this.currentStrokeIndex();

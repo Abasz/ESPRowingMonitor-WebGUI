@@ -1,7 +1,10 @@
+import { DatePipe } from "@angular/common";
 import { ChangeDetectionStrategy, Component, OnInit, signal, WritableSignal } from "@angular/core";
-import { MatButton } from "@angular/material/button";
+import { MatButton, MatIconButton } from "@angular/material/button";
+import { MatIcon } from "@angular/material/icon";
 import { MatProgressSpinner } from "@angular/material/progress-spinner";
 import { MatTab, MatTabGroup } from "@angular/material/tabs";
+import { MatToolbar } from "@angular/material/toolbar";
 import { ActivatedRoute, Router } from "@angular/router";
 
 import { SessionStrokesComponent } from "./components/strokes/session-strokes.component";
@@ -15,10 +18,14 @@ import { SessionAnalysisService } from "./services/session-analysis.service";
     styleUrls: ["./session-detail.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        DatePipe,
         MatProgressSpinner,
         MatTabGroup,
         MatTab,
         MatButton,
+        MatIconButton,
+        MatIcon,
+        MatToolbar,
         SessionSummaryComponent,
         SessionStrokesComponent,
     ],

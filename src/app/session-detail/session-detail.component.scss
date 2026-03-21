@@ -1,6 +1,29 @@
 :host {
-    display: block;
+    display: flex;
+    flex-direction: column;
     height: 100%;
+}
+
+mat-toolbar {
+    flex-shrink: 0;
+
+    button[mat-icon-button] {
+        color: var(--mat-toolbar-container-text-color);
+    }
+
+    .session-date {
+        font-size: 1em;
+        font-weight: 500;
+    }
+
+    .device-name {
+        font-size: 0.85em;
+        opacity: 0.7;
+    }
+}
+
+mat-tab-group {
+    min-height: 0;
 }
 
 app-session-summary,

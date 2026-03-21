@@ -1,3 +1,14 @@
+<mat-toolbar class="gap-8">
+    <button mat-icon-button (click)="goBack()" aria-label="Back to dashboard">
+        <mat-icon>arrow_back</mat-icon>
+    </button>
+    <span class="session-date">{{ analysis()?.sessionId | date: "yyyy-MM-dd HH:mm" }}</span>
+    <span class="flex-1"></span>
+
+    @if (!error() && analysis()?.deviceName; as deviceName) {
+        <span class="device-name xs-hide">{{ deviceName }}</span>
+    }
+</mat-toolbar>
 @if (loading()) {
     <div class="loading-container flex-col items-center justify-center gap-16">
         <mat-spinner diameter="70"></mat-spinner>
@@ -9,7 +20,7 @@
         <button mat-raised-button (click)="goBack()">Back to Dashboard</button>
     </div>
 } @else if (analysis(); as data) {
-    <mat-tab-group>
+    <mat-tab-group class="flex-1">
         <mat-tab label="Summary">
             <app-session-summary [analysis]="data" />
         </mat-tab>
