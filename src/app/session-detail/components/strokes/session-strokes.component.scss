@@ -1,0 +1,55 @@
+@use "../../../../flex-layout" as *;
+@use "@angular/material" as mat;
+@use "../../../../theme";
+
+:host {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.stroke-detail {
+    app-session-chart {
+        min-height: 200px;
+        height: 100%;
+    }
+}
+
+.navigation {
+    padding: 0 8px;
+}
+
+.slider-container {
+    position: relative;
+    align-items: stretch;
+
+    mat-slider {
+        width: 100%;
+    }
+}
+
+.lap-markers {
+    position: relative;
+    height: 12px;
+
+    button {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #{mat.get-theme-color(theme.$light-theme, outline)};
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        transform: translateX(-50%);
+        top: 1px;
+
+        &:hover {
+            background: #{mat.get-theme-color(theme.$light-theme, primary)};
+        }
+    }
+}
+
+app-session-chart.continuous-force-chart {
+    height: 300px;
+}

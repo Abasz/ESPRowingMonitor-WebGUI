@@ -1,0 +1,62 @@
+<div class="stroke-detail flex-row xs-flex-col gap-8">
+    <app-stroke-inspector class="flex-1" [stroke]="currentStroke()" />
+    <div class="flex-1">
+        <app-session-chart
+            [chartData]="singleStrokeForceCurve()"
+            [chartOptions]="singleStrokeChartOptions()"
+            tooltipUnit="N"
+            [tooltipDecimals]="0"
+            [tooltipTitleFormatter]="undefined"
+        />
+    </div>
+</div>
+
+<div class="navigation flex-row items-center gap-8">
+    <button
+        mat-icon-button
+        (click)="onPrevious()"
+        [disabled]="currentStrokeIndex() === 0"
+        aria-label="Previous stroke"
+    >
+        <mat-icon>chevron_left</mat-icon>
+    </button>
+    <div class="slider-container flex-col flex-1">
+        <mat-slider [min]="0" [max]="maxIndex()" [step]="1">
+            <input
+                matSliderThumb
+                [value]="currentStrokeIndex()"
+                (input)="onSliderChange($event.target.value)"
+            />
+        </mat-slider>
+        @if (laps().length > 1) {
+            <div class="lap-markers">
+                @for (lap of laps(); track lap.lapNumber) {
+                    <button
+                        type="button"
+                        [style.left.%]="(lap.startIndex / maxIndex()) * 100"
+                        (click)="onLapSelected(lap.lapNumber)"
+                        [matTooltip]="'Lap ' + lap.lapNumber"
+                    ></button>
+                }
+            </div>
+        }
+    </div>
+    <button
+        mat-icon-button
+        (click)="onNext()"
+        [disabled]="currentStrokeIndex() === maxIndex()"
+        aria-label="Next stroke"
+    >
+        <mat-icon>chevron_right</mat-icon>
+    </button>
+</div>
+
+<app-session-chart
+    class="continuous-force-chart"
+    #continuousChart
+    [chartData]="continuousChartData()"
+    [chartOptions]="continuousChartOptions()"
+    tooltipUnit="N"
+    [tooltipDecimals]="0"
+    [tooltipTitleFormatter]="undefined"
+/>

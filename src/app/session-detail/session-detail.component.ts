@@ -4,6 +4,7 @@ import { MatProgressSpinner } from "@angular/material/progress-spinner";
 import { MatTab, MatTabGroup } from "@angular/material/tabs";
 import { ActivatedRoute, Router } from "@angular/router";
 
+import { SessionStrokesComponent } from "./components/strokes/session-strokes.component";
 import { SessionSummaryComponent } from "./components/summary/session-summary.component";
 import { ISessionAnalysis } from "./models/session-analysis.interfaces";
 import { SessionAnalysisService } from "./services/session-analysis.service";
@@ -13,7 +14,14 @@ import { SessionAnalysisService } from "./services/session-analysis.service";
     templateUrl: "./session-detail.component.html",
     styleUrls: ["./session-detail.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatProgressSpinner, MatTabGroup, MatTab, MatButton, SessionSummaryComponent],
+    imports: [
+        MatProgressSpinner,
+        MatTabGroup,
+        MatTab,
+        MatButton,
+        SessionSummaryComponent,
+        SessionStrokesComponent,
+    ],
 })
 export class SessionDetailComponent implements OnInit {
     readonly analysis: WritableSignal<ISessionAnalysis | undefined> = signal(undefined);

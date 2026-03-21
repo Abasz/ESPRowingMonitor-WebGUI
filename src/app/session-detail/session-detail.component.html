@@ -14,7 +14,7 @@
             <app-session-summary [analysis]="data" />
         </mat-tab>
         <mat-tab label="Strokes">
-            <p>Strokes analysis ({{ data.strokes.length }} strokes)</p>
+            <app-session-strokes [strokes]="data.strokes" [laps]="data.laps" />
         </mat-tab>
     </mat-tab-group>
 }

@@ -26,6 +26,7 @@ import {
     Tooltip,
     TooltipItem,
 } from "chart.js";
+import ChartDataLabels from "chartjs-plugin-datalabels";
 import zoomPlugin from "chartjs-plugin-zoom";
 import { BaseChartDirective, provideCharts } from "ng2-charts";
 
@@ -60,6 +61,7 @@ const DEFAULT_CHART_OPTIONS: ChartOptions = {
     },
     plugins: {
         legend: { display: false },
+        datalabels: { display: false },
         tooltip: { mode: "index", intersect: false },
         zoom: {
             pan: {
@@ -148,6 +150,7 @@ const DEFAULT_CHART_OPTIONS: ChartOptions = {
                 Legend,
                 Tooltip,
                 zoomPlugin,
+                ChartDataLabels,
             ],
         }),
     ],
