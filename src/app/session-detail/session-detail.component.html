@@ -2,7 +2,34 @@
     <button mat-icon-button (click)="goBack()" aria-label="Back to dashboard">
         <mat-icon>arrow_back</mat-icon>
     </button>
-    <span class="session-date">{{ analysis()?.sessionId | date: "yyyy-MM-dd HH:mm" }}</span>
+
+    <mat-form-field subscriptSizing="dynamic">
+        <input
+            matInput
+            [formControl]="filterControl"
+            [matAutocomplete]="sessionAuto"
+            (focus)="filterControl.setValue('')"
+        />
+        <mat-autocomplete
+            #sessionAuto="matAutocomplete"
+            (optionSelected)="onSessionSelected($event.option.value)"
+            (opened)="selectActiveOption()"
+            (closed)="onAutocompleteClosed()"
+        >
+            @for (session of filteredSessions(); track session.sessionId) {
+                <mat-option [value]="session.sessionId">
+                    <div class="flex-col">
+                        <span>{{ session.sessionId | date: "yyyy-MM-dd HH:mm" }}</span>
+                        <span class="details">
+                            {{ session.distance / 100 | number: "1.0-0" }}m ·
+                            {{ session.elapsedTime | secondsToTime: "pace" }}
+                        </span>
+                    </div>
+                </mat-option>
+            }
+        </mat-autocomplete>
+    </mat-form-field>
+
     <span class="flex-1"></span>
 
     @if (!error() && analysis()?.deviceName; as deviceName) {

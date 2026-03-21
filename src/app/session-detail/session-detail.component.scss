@@ -1,19 +1,27 @@
+@use "@angular/material" as mat;
+@use "../../theme";
+
+$toolbar-text: var(--mat-toolbar-container-text-color);
+
 :host {
     display: flex;
     flex-direction: column;
     height: 100%;
+
+    @include mat.form-field-overrides(
+        (
+            filled-input-text-color: $toolbar-text,
+            filled-caret-color: $toolbar-text,
+            filled-container-color: transparent,
+        )
+    );
 }
 
 mat-toolbar {
     flex-shrink: 0;
 
     button[mat-icon-button] {
-        color: var(--mat-toolbar-container-text-color);
-    }
-
-    .session-date {
-        font-size: 1em;
-        font-weight: 500;
+        color: $toolbar-text;
     }
 
     .device-name {
@@ -24,6 +32,21 @@ mat-toolbar {
 
 mat-tab-group {
     min-height: 0;
+}
+
+mat-option {
+    div {
+        line-height: 1.4;
+
+        span {
+            white-space: nowrap;
+        }
+    }
+
+    .details {
+        font-size: 0.75em;
+        opacity: 0.6;
+    }
 }
 
 app-session-summary,

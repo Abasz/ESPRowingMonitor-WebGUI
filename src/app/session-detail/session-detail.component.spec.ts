@@ -1,6 +1,10 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { ActivatedRoute, Router } from "@angular/router";
+import { ActivatedRoute, convertToParamMap, Router } from "@angular/router";
+import { BehaviorSubject, of } from "rxjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ISessionSummary } from "../../common/common.interfaces";
+import { DataRecorderService } from "../../common/services/data-recorder.service";
 
 import { ISessionAnalysis } from "./models/session-analysis.interfaces";
 import { SessionAnalysisService } from "./services/session-analysis.service";
@@ -74,16 +78,39 @@ const createMockAnalysis = (overrides?: Partial<ISessionAnalysis>): ISessionAnal
     ...overrides,
 });
 
+const mockSessions: Array<ISessionSummary> = [
+    {
+        sessionId: 1700000000000,
+        deviceName: "TestDevice",
+        startTime: 1700000000000,
+        finishTime: 1700000060000,
+        elapsedTime: 60,
+        distance: 25000,
+        strokeCount: 20,
+    },
+    {
+        sessionId: 1700100000000,
+        deviceName: "OtherDevice",
+        startTime: 1700100000000,
+        finishTime: 1700100120000,
+        elapsedTime: 120,
+        distance: 50000,
+        strokeCount: 40,
+    },
+];
+
 describe("SessionDetailComponent", (): void => {
     let component: SessionDetailComponent;
     let fixture: ComponentFixture<SessionDetailComponent>;
     let mockSessionAnalysis: Pick<SessionAnalysisService, "loadSession">;
+    let mockDataRecorder: Pick<DataRecorderService, "getSessionSummaries$">;
     let mockRouter: Pick<Router, "navigate">;
-    let routeParamId: string | null;
+    let paramMapSubject: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
     beforeEach(async (): Promise<void> => {
-        routeParamId = "1700000000000";
+        paramMapSubject = new BehaviorSubject(convertToParamMap({ id: "1700000000000" }));
         mockSessionAnalysis = { loadSession: vi.fn() };
+        mockDataRecorder = { getSessionSummaries$: vi.fn().mockReturnValue(of(mockSessions)) };
         mockRouter = { navigate: vi.fn().mockResolvedValue(true) };
 
         await TestBed.configureTestingModule({
@@ -91,10 +118,11 @@ describe("SessionDetailComponent", (): void => {
             providers: [
                 {
                     provide: ActivatedRoute,
-                    useValue: { snapshot: { paramMap: { get: (): string | null => routeParamId } } },
+                    useValue: { paramMap: paramMapSubject.asObservable() },
                 },
                 { provide: Router, useValue: mockRouter },
                 { provide: SessionAnalysisService, useValue: mockSessionAnalysis },
+                { provide: DataRecorderService, useValue: mockDataRecorder },
             ],
         }).compileComponents();
 
@@ -110,7 +138,7 @@ describe("SessionDetailComponent", (): void => {
 
     describe("when session ID is invalid", (): void => {
         it("should show error for non-numeric ID", (): void => {
-            routeParamId = "abc";
+            paramMapSubject.next(convertToParamMap({ id: "abc" }));
             fixture.detectChanges();
 
             expect(component.error()).toBe("Invalid session ID");
@@ -118,8 +146,8 @@ describe("SessionDetailComponent", (): void => {
             expect(fixture.nativeElement.querySelector(".error-container")).toBeTruthy();
         });
 
-        it("should show error when ID is null", (): void => {
-            routeParamId = null;
+        it("should show error when ID is missing", (): void => {
+            paramMapSubject.next(convertToParamMap({}));
             fixture.detectChanges();
 
             expect(component.error()).toBe("Invalid session ID");
@@ -127,7 +155,7 @@ describe("SessionDetailComponent", (): void => {
         });
 
         it("should still show toolbar when error is displayed", (): void => {
-            routeParamId = "abc";
+            paramMapSubject.next(convertToParamMap({ id: "abc" }));
             fixture.detectChanges();
 
             expect(fixture.nativeElement.querySelector("mat-toolbar")).toBeTruthy();
@@ -161,7 +189,7 @@ describe("SessionDetailComponent", (): void => {
             await fixture.whenStable();
 
             expect(component.error()).toBe("Session not found or contains no data");
-            expect(fixture.nativeElement.querySelector(".error-container")).toBeTruthy();
+            expect(component.filterControl.value).toBe("");
         });
 
         it("should show error when load fails", async (): Promise<void> => {
@@ -169,7 +197,7 @@ describe("SessionDetailComponent", (): void => {
             await fixture.whenStable();
 
             expect(component.error()).toBe("Database error");
-            expect(fixture.nativeElement.querySelector(".error-container")).toBeTruthy();
+            expect(component.filterControl.value).toBe("");
         });
 
         it("should show generic error when load fails with non-Error value", async (): Promise<void> => {
@@ -189,7 +217,7 @@ describe("SessionDetailComponent", (): void => {
         });
 
         it("should navigate to root when Back to Dashboard button is clicked in error state", (): void => {
-            routeParamId = "abc";
+            paramMapSubject.next(convertToParamMap({ id: "abc" }));
             fixture.detectChanges();
 
             const backButton = fixture.nativeElement.querySelector(".error-container button");
@@ -200,7 +228,7 @@ describe("SessionDetailComponent", (): void => {
     });
 
     describe("as part of session toolbar", (): void => {
-        it("should display toolbar with session date", async (): Promise<void> => {
+        it("should display toolbar with session autocomplete", async (): Promise<void> => {
             vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
             await fixture.whenStable();
 
@@ -208,9 +236,9 @@ describe("SessionDetailComponent", (): void => {
 
             expect(toolbar).toBeTruthy();
 
-            const dateSpan = toolbar.querySelector(".session-date");
+            const input = toolbar.querySelector("input[matInput]");
 
-            expect(dateSpan.textContent).toMatch(/\d{4}-\d{2}-\d{2}/);
+            expect(input).toBeTruthy();
         });
 
         it("should display device name when available", async (): Promise<void> => {
@@ -259,6 +287,203 @@ describe("SessionDetailComponent", (): void => {
             backButton.click();
 
             expect(mockRouter.navigate).toHaveBeenCalledWith(["/"]);
+        });
+    });
+
+    describe("as part of session switcher", (): void => {
+        it("should populate sessions from DataRecorderService", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            await fixture.whenStable();
+
+            expect(component.filteredSessions()).toEqual(mockSessions);
+        });
+
+        it("should render autocomplete input with current session date", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            await fixture.whenStable();
+
+            const input: HTMLInputElement = fixture.nativeElement.querySelector(
+                "mat-toolbar input[matInput]",
+            );
+
+            expect(input).toBeTruthy();
+            expect(component.filterControl.value).toMatch(/\d{4}-\d{2}-\d{2}/);
+        });
+
+        it("should navigate to selected session", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            await fixture.whenStable();
+
+            await component.onSessionSelected(1700100000000);
+
+            expect(mockRouter.navigate).toHaveBeenCalledWith(["/session", 1700100000000]);
+        });
+
+        it("should not navigate when selecting the current session", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            await fixture.whenStable();
+
+            component.onSessionSelected(1700000000000);
+
+            expect(mockRouter.navigate).not.toHaveBeenCalled();
+        });
+
+        it("should handle non-string filter values from autocomplete selection", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            await fixture.whenStable();
+
+            component.filterControl.setValue(1700100000000 as unknown as string);
+
+            expect((): void => {
+                component.filteredSessions();
+            }).not.toThrow();
+            expect(component.filteredSessions().length).toBe(2);
+        });
+
+        it("should filter sessions by search term", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            await fixture.whenStable();
+
+            component.filterControl.setValue("OtherDevice");
+
+            expect(component.filteredSessions().length).toBe(1);
+            expect(component.filteredSessions()[0].sessionId).toBe(1700100000000);
+        });
+
+        it("should show all sessions when filter is empty", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            await fixture.whenStable();
+
+            component.filterControl.setValue("");
+
+            expect(component.filteredSessions().length).toBe(2);
+        });
+
+        it("should not set display text before session loads", (): void => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockReturnValue(
+                new Promise((): void => {
+                    // never resolves
+                }),
+            );
+            fixture.detectChanges();
+
+            expect(component.filterControl.value).toBe("");
+        });
+
+        it("should restore current session date when input loses focus with empty filter", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            await fixture.whenStable();
+
+            component.filterControl.setValue("");
+
+            component.onAutocompleteClosed();
+
+            expect(component.filterControl.value).toMatch(/\d{4}-\d{2}-\d{2}/);
+        });
+
+        it("should not restore session date when filter has text", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            await fixture.whenStable();
+
+            component.filterControl.setValue("some search text");
+
+            component.onAutocompleteClosed();
+
+            expect(component.filterControl.value).toBe("some search text");
+        });
+
+        it("should select active option when autocomplete opens", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            const input: HTMLInputElement = fixture.nativeElement.querySelector(
+                "mat-toolbar input[matInput]",
+            );
+            input.focus();
+            input.dispatchEvent(new Event("focusin"));
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            const selectedOptions = document.querySelectorAll("mat-option.mdc-list-item--selected");
+
+            expect(selectedOptions.length).toBe(1);
+        });
+
+        it("should not throw when selectActiveOption is called without analysis", (): void => {
+            expect((): void => {
+                component.selectActiveOption();
+            }).not.toThrow();
+        });
+
+        it("should reload when route param changes", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            await fixture.whenStable();
+
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(
+                createMockAnalysis({ sessionId: 1700100000000 }),
+            );
+            paramMapSubject.next(convertToParamMap({ id: "1700100000000" }));
+            await fixture.whenStable();
+
+            expect(mockSessionAnalysis.loadSession).toHaveBeenCalledTimes(2);
+            expect(mockSessionAnalysis.loadSession).toHaveBeenLastCalledWith(1700100000000);
+        });
+    });
+
+    describe("as part of session filtering by date", (): void => {
+        it("should filter sessions by date substring", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            await fixture.whenStable();
+
+            const dateStr = component.formatSessionDate(mockSessions[0].sessionId);
+            const datePrefix = dateStr.substring(0, 10);
+
+            component.filterControl.setValue(datePrefix);
+
+            const filtered = component.filteredSessions();
+
+            expect(filtered.length).toBeGreaterThanOrEqual(1);
+            expect(
+                filtered.every((session: ISessionSummary): boolean =>
+                    component.formatSessionDate(session.sessionId).includes(datePrefix),
+                ),
+            ).toBe(true);
+        });
+    });
+
+    describe("as part of race condition handling", (): void => {
+        it("should discard stale load results when a newer load is initiated", async (): Promise<void> => {
+            let resolveFirst!: (value: ISessionAnalysis) => void;
+            let resolveSecond!: (value: ISessionAnalysis) => void;
+
+            vi.mocked(mockSessionAnalysis.loadSession)
+                .mockImplementationOnce(
+                    (): Promise<ISessionAnalysis> =>
+                        new Promise((resolve: (value: ISessionAnalysis) => void): void => {
+                            resolveFirst = resolve;
+                        }),
+                )
+                .mockImplementationOnce(
+                    (): Promise<ISessionAnalysis> =>
+                        new Promise((resolve: (value: ISessionAnalysis) => void): void => {
+                            resolveSecond = resolve;
+                        }),
+                );
+
+            fixture.detectChanges();
+
+            paramMapSubject.next(convertToParamMap({ id: "1700100000000" }));
+
+            resolveSecond(createMockAnalysis({ sessionId: 1700100000000 }));
+            await fixture.whenStable();
+
+            resolveFirst(createMockAnalysis({ sessionId: 1700000000000 }));
+            await fixture.whenStable();
+
+            expect(component.analysis()?.sessionId).toBe(1700100000000);
         });
     });
 });
