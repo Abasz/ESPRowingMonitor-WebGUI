@@ -10,7 +10,7 @@ import {
 } from "@angular/forms";
 
 import { IValidationError, IValidationErrors } from "../common.interfaces";
-import { ExportSessionData } from "../database.interfaces";
+import { IExportHandleForces, IExportRecord, IExportSession } from "../database.interfaces";
 import { ILap, ITrainingCenterDatabase } from "../tcx.interface";
 
 import { ITrackPoint } from "./../tcx.interface";
@@ -159,35 +159,38 @@ export function deepMerge(
     return result;
 }
 
-export function createSessionTcxObject(
-    sessionId: number,
-    rowingSessionData: Array<ExportSessionData>,
-): ITrainingCenterDatabase {
-    const lastDataPoint = rowingSessionData[rowingSessionData.length - 1];
+export function createSessionTcxObject(exportSession: IExportSession): ITrainingCenterDatabase {
+    const {
+        sessionId,
+        records,
+        handleForces,
+    }: {
+        sessionId: number;
+        records: Array<IExportRecord>;
+        handleForces: Record<number, IExportHandleForces>;
+    } = exportSession;
+    const lastDataPoint = records[records.length - 1];
 
-    const heartRatePoints: Array<number> = rowingSessionData
+    const heartRatePoints: Array<number> = records
         .filter(
-            (dataPoint: ExportSessionData): dataPoint is Required<ExportSessionData> =>
+            (dataPoint: IExportRecord): dataPoint is Required<IExportRecord> =>
                 dataPoint.heartRate !== undefined,
         )
-        .map((dataPoint: Required<ExportSessionData>): number => dataPoint.heartRate.heartRate);
+        .map((dataPoint: Required<IExportRecord>): number => dataPoint.heartRate.heartRate);
 
-    const strokeRates: Array<number> = rowingSessionData
-        .filter((dataPoint: ExportSessionData): boolean => dataPoint.strokeRate > 0)
-        .map((dataPoint: ExportSessionData): number => dataPoint.strokeRate);
+    const strokeRates: Array<number> = records
+        .filter((dataPoint: IExportRecord): boolean => dataPoint.strokeRate > 0)
+        .map((dataPoint: IExportRecord): number => dataPoint.strokeRate);
 
-    const dragFactors: Array<number> = rowingSessionData
-        .filter((dataPoint: ExportSessionData): boolean => dataPoint.dragFactor > 0)
-        .map((dataPoint: ExportSessionData): number => dataPoint.dragFactor);
+    const dragFactors: Array<number> = records
+        .filter((dataPoint: IExportRecord): boolean => dataPoint.dragFactor > 0)
+        .map((dataPoint: IExportRecord): number => dataPoint.dragFactor);
 
     const lap: ILap = {
         "@": { StartTime: new Date(sessionId).toISOString() },
         TotalTimeSeconds: lastDataPoint.elapsedTime,
         DistanceMeters: lastDataPoint.distance / 100,
-        MaximumSpeed: Math.max(
-            ...rowingSessionData.map((dataPoint: ExportSessionData): number => dataPoint.speed),
-            0,
-        ),
+        MaximumSpeed: Math.max(...records.map((dataPoint: IExportRecord): number => dataPoint.speed), 0),
         Intensity: "Active",
         Cadence: Math.round(
             strokeRates.reduce((average: number, strokeRate: number): number => average + strokeRate, 0) /
@@ -195,7 +198,7 @@ export function createSessionTcxObject(
         ),
         TriggerMethod: "Manual",
         Track: {
-            Trackpoint: rowingSessionData.map((dataPoint: ExportSessionData): ITrackPoint => {
+            Trackpoint: records.map((dataPoint: IExportRecord): ITrackPoint => {
                 const trackPoint: ITrackPoint = {
                     Time: new Date(dataPoint.timeStamp).toISOString(),
                     DistanceMeters: dataPoint.distance / 100,
@@ -221,21 +224,23 @@ export function createSessionTcxObject(
             "ns3:LX": {
                 "ns3:Steps": lastDataPoint.strokeCount,
                 "ns3:AvgSpeed":
-                    rowingSessionData.reduce(
-                        (average: number, dataPoint: ExportSessionData): number => average + dataPoint.speed,
+                    records.reduce(
+                        (average: number, dataPoint: IExportRecord): number => average + dataPoint.speed,
                         0,
                     ) /
-                    (rowingSessionData.length - 1),
+                    (records.length - 1),
                 "ns3:AvgWatts": Math.round(
-                    rowingSessionData.reduce(
-                        (average: number, dataPoint: ExportSessionData): number =>
+                    records.reduce(
+                        (average: number, dataPoint: IExportRecord): number =>
                             average + dataPoint.avgStrokePower,
                         0,
                     ) /
-                        (rowingSessionData.length - 1),
+                        (records.length - 1),
                 ),
                 "ns3:MaxWatts": Math.max(
-                    ...rowingSessionData.map((dataPoint: ExportSessionData): number => dataPoint.peakForce),
+                    ...Object.values(handleForces).map(
+                        (handleForce: IExportHandleForces): number => handleForce.peakForce,
+                    ),
                     0,
                 ),
             },

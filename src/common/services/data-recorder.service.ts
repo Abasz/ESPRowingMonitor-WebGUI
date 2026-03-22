@@ -7,9 +7,11 @@ import { filter, from, Observable } from "rxjs";
 
 import { ISessionData, ISessionSummary } from "../common.interfaces";
 import {
-    ExportSessionData,
     IConnectedDeviceEntity,
     IDeltaTimesEntity,
+    IExportHandleForces,
+    IExportRecord,
+    IExportSession,
     IHandleForcesEntity,
     IMetricsEntity,
 } from "../database.interfaces";
@@ -104,14 +106,14 @@ export class DataRecorderService {
     }
 
     async exportSessionToJson(sessionId: number): Promise<void> {
-        const [deltaTimes, rowingSessionData]: [Array<number>, Array<ExportSessionData>] = await Promise.all([
+        const [deltaTimes, exportSession]: [Array<number>, IExportSession] = await Promise.all([
             this.getDeltaTimes(sessionId),
-            this.getSessionData(sessionId),
+            this.buildExportSession(sessionId),
         ]);
 
         const files: Array<{ blob: Blob; name: string }> = [
             {
-                blob: new Blob([JSON.stringify(rowingSessionData)], { type: "application/json" }),
+                blob: new Blob([JSON.stringify(exportSession)], { type: "application/json" }),
                 name: `${new Date(sessionId).toDateTimeStringFormat()} - session.json`,
             },
         ];
@@ -126,11 +128,11 @@ export class DataRecorderService {
     }
 
     async exportSessionToTcx(sessionId: number): Promise<void> {
-        const rowingSessionData = await this.getSessionData(sessionId);
+        const exportSession = await this.buildExportSession(sessionId);
 
         const blob = new Blob(
             [
-                parse("TrainingCenterDatabase", createSessionTcxObject(sessionId, rowingSessionData), {
+                parse("TrainingCenterDatabase", createSessionTcxObject(exportSession), {
                     format: {
                         doubleQuotes: true,
                     },
@@ -145,12 +147,12 @@ export class DataRecorderService {
     }
 
     async exportSessionToCsv(sessionId: number): Promise<void> {
-        const [deltaTimes, rowingSessionData]: [Array<number>, Array<ExportSessionData>] = await Promise.all([
+        const [deltaTimes, exportSession]: [Array<number>, IExportSession] = await Promise.all([
             this.getDeltaTimes(sessionId),
-            this.getSessionData(sessionId),
+            this.buildExportSession(sessionId),
         ]);
 
-        const csvContent = this.formatSessionCsv(rowingSessionData);
+        const csvContent = this.formatSessionCsv(exportSession);
 
         const files: Array<{ blob: Blob; name: string }> = [
             {
@@ -260,7 +262,12 @@ export class DataRecorderService {
         }
     }
 
-    private formatSessionCsv(rowingSessionData: Array<ExportSessionData>): string {
+    private formatSessionCsv(exportSession: IExportSession): string {
+        const {
+            records,
+            handleForces,
+        }: { records: Array<IExportRecord>; handleForces: Record<number, IExportHandleForces> } =
+            exportSession;
         const headers = [
             "Stroke Number",
             "Elapsed Time",
@@ -280,9 +287,9 @@ export class DataRecorderService {
         ].join(",");
 
         let csvBody = `${headers}\n`;
-        let previousStroke: ExportSessionData | undefined = rowingSessionData[0];
+        let previousStroke: IExportRecord | undefined = records[0];
 
-        for (const data of rowingSessionData) {
+        for (const data of records) {
             if (previousStroke !== data && previousStroke.strokeCount === data.strokeCount) {
                 continue;
             }
@@ -294,7 +301,12 @@ export class DataRecorderService {
                         : 0
                     : (data.strokeRate / 60) * data.distPerStroke;
 
-            const handleForcesFormatted = `"${data.handleForces.map((force: number): string => force.toFixed(2)).join(",")}"`;
+            const handleForce: IExportHandleForces | undefined = handleForces[data.strokeCount] ?? {
+                handleForces: [],
+                peakForce: 0,
+                driveLength: 0,
+            };
+            const handleForcesFormatted = `"${handleForce.handleForces.map((force: number): string => force.toFixed(2)).join(",")}"`;
             const heartRateValue =
                 data.heartRate?.heartRate !== null && data.heartRate?.heartRate !== undefined
                     ? data.heartRate.heartRate.toString()
@@ -313,10 +325,10 @@ export class DataRecorderService {
                 data.distPerStroke.toString(),
                 data.driveDuration.toFixed(2),
                 data.recoveryDuration.toFixed(2),
-                data.driveLength.toFixed(2),
+                handleForce.driveLength.toFixed(2),
                 heartRateValue,
                 data.dragFactor.toString(),
-                data.peakForce.toFixed(2),
+                handleForce.peakForce.toFixed(2),
                 handleForcesFormatted,
             ].join(",");
 
@@ -342,36 +354,25 @@ export class DataRecorderService {
         );
     }
 
-    private async getSessionData(sessionId: number): Promise<Array<ExportSessionData>> {
+    private async buildExportSession(sessionId: number): Promise<IExportSession> {
         return appDB.transaction(
             "r",
             appDB.sessionData,
             appDB.handleForces,
-            async (): Promise<Array<ExportSessionData>> => {
-                const [metricsEntity, handleForcesEntity]: [
+            appDB.connectedDevice,
+            async (): Promise<IExportSession> => {
+                const [metricsEntities, handleForcesEntities, connectedDevice]: [
                     Array<IMetricsEntity>,
                     Array<IHandleForcesEntity>,
+                    { sessionId: number; deviceName: string } | undefined,
                 ] = await Promise.all([
                     appDB.sessionData.where({ sessionId }).toArray(),
                     appDB.handleForces.where({ sessionId }).toArray(),
+                    appDB.connectedDevice.where({ sessionId }).last(),
                 ]);
 
-                const handleForces: { [key: number]: IHandleForcesEntity } = handleForcesEntity.reduce(
-                    (
-                        previousValue: { [key: number]: IHandleForcesEntity },
-                        currentValue: IHandleForcesEntity,
-                    ): { [key: number]: IHandleForcesEntity } => {
-                        previousValue[currentValue.strokeId] = {
-                            ...currentValue,
-                        };
-
-                        return previousValue;
-                    },
-                    {},
-                );
-
-                const rowingSessionData: Array<ExportSessionData> = metricsEntity.map(
-                    (metric: IMetricsEntity): ExportSessionData => ({
+                const records: Array<IExportRecord> = metricsEntities.map(
+                    (metric: IMetricsEntity): IExportRecord => ({
                         avgStrokePower: metric.avgStrokePower,
                         distance: metric.distance,
                         distPerStroke: metric.distPerStroke,
@@ -384,13 +385,24 @@ export class DataRecorderService {
                         elapsedTime: metric.elapsedTime,
                         heartRate: metric.heartRate,
                         timeStamp: new Date(metric.timeStamp),
-                        peakForce: handleForces[metric.strokeCount].peakForce,
-                        driveLength: handleForces[metric.strokeCount].driveLength,
-                        handleForces: handleForces[metric.strokeCount].handleForces,
                     }),
                 );
 
-                return rowingSessionData;
+                const handleForces: Record<number, IExportHandleForces> = {};
+                for (const entity of handleForcesEntities) {
+                    handleForces[entity.strokeId] = {
+                        peakForce: entity.peakForce,
+                        driveLength: entity.driveLength,
+                        handleForces: entity.handleForces,
+                    };
+                }
+
+                return {
+                    sessionId,
+                    deviceName: connectedDevice?.deviceName,
+                    records,
+                    handleForces,
+                };
             },
         );
     }

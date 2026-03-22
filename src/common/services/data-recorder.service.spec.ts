@@ -3,6 +3,7 @@ import { firstValueFrom } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import { ISessionData, ISessionSummary } from "../common.interfaces";
+import { IExportSession } from "../database.interfaces";
 import { appDB } from "../utils/app-database";
 
 import { DataRecorderService } from "./data-recorder.service";
@@ -636,11 +637,12 @@ describe("DataRecorderService", (): void => {
             expect(clickedFiles[1]).toMatch(/deltaTimes.*\.json$/);
 
             const sessionContent = await createdBlobs[0].text();
-            const sessionData = JSON.parse(sessionContent) as Array<Record<string, unknown>>;
-            expect(Array.isArray(sessionData)).toBe(true);
-            expect(sessionData[0]).toHaveProperty("avgStrokePower");
-            expect(sessionData[0]).toHaveProperty("distance");
-            expect(sessionData[0]).toHaveProperty("strokeCount");
+            const exportData = JSON.parse(sessionContent) as IExportSession;
+            const records = exportData["records"];
+            expect(Array.isArray(records)).toBe(true);
+            expect(records[0]).toHaveProperty("avgStrokePower");
+            expect(records[0]).toHaveProperty("distance");
+            expect(records[0]).toHaveProperty("strokeCount");
 
             const deltaTimesContent = await createdBlobs[1].text();
             const deltaTimesData = JSON.parse(deltaTimesContent) as Array<number>;
@@ -662,11 +664,12 @@ describe("DataRecorderService", (): void => {
             expect(mockAnchor.download).toMatch(/\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2} - session\.json$/);
 
             const sessionContent = await createdBlobs[0].text();
-            const sessionData = JSON.parse(sessionContent) as Array<Record<string, unknown>>;
-            expect(Array.isArray(sessionData)).toBe(true);
-            expect(sessionData[0]).toHaveProperty("avgStrokePower");
-            expect(sessionData[0]).toHaveProperty("distance");
-            expect(sessionData[0]).toHaveProperty("strokeCount");
+            const exportData = JSON.parse(sessionContent) as Record<string, unknown>;
+            const records = exportData["records"] as Array<Record<string, unknown>>;
+            expect(Array.isArray(records)).toBe(true);
+            expect(records[0]).toHaveProperty("avgStrokePower");
+            expect(records[0]).toHaveProperty("distance");
+            expect(records[0]).toHaveProperty("strokeCount");
         });
 
         it("should create blob with correct JSON content type", async (): Promise<void> => {
@@ -675,6 +678,23 @@ describe("DataRecorderService", (): void => {
             expect(createObjectURLSpy).toHaveBeenCalled();
             const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
             expect(blobArg.type).toBe("application/json");
+        });
+
+        it("should include deviceName in exported JSON when connected device exists", async (): Promise<void> => {
+            const createdBlobs: Array<Blob> = [];
+            createObjectURLSpy.mockImplementation((blob: Blob): string => {
+                createdBlobs.push(blob);
+
+                return "blob:test-url";
+            });
+
+            await appDB.connectedDevice.put({ sessionId: testSessionId, deviceName: "ESP Rowing Monitor" });
+
+            await service.exportSessionToJson(testSessionId);
+
+            const sessionContent = await createdBlobs[0].text();
+            const sessionData = JSON.parse(sessionContent) as Record<string, unknown>;
+            expect(sessionData["deviceName"]).toBe("ESP Rowing Monitor");
         });
 
         describe("when Web Share API is available", (): void => {
