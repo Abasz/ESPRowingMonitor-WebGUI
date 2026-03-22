@@ -21,9 +21,10 @@ import { MatOption } from "@angular/material/select";
 import { MatTab, MatTabGroup } from "@angular/material/tabs";
 import { MatToolbar } from "@angular/material/toolbar";
 import { ActivatedRoute, ParamMap, Router } from "@angular/router";
-import { combineLatest, map, startWith } from "rxjs";
+import { BehaviorSubject, combineLatest, map, startWith } from "rxjs";
 
 import { ISessionSummary } from "../../common/common.interfaces";
+import { IExportSession } from "../../common/database.interfaces";
 import { DataRecorderService } from "../../common/services/data-recorder.service";
 import { SecondsToTimePipe } from "../../common/utils/seconds-to-time.pipe";
 
@@ -66,27 +67,11 @@ export class SessionDetailComponent implements OnInit {
     readonly loading: WritableSignal<boolean> = signal(true);
 
     readonly filterControl: FormControl<string> = new FormControl("", { nonNullable: true });
-    readonly filteredSessions: Signal<Array<ISessionSummary>> = toSignal(
-        combineLatest([
-            this.filterControl.valueChanges.pipe(startWith("")),
-            this.dataRecorder.getSessionSummaries$(),
-        ]).pipe(
-            map(([filter, sessions]: [string | number, Array<ISessionSummary>]): Array<ISessionSummary> => {
-                const lowerFilter = typeof filter === "string" ? filter.toLowerCase() : "";
-                if (lowerFilter.length === 0) {
-                    return sessions;
-                }
+    readonly filteredSessions: Signal<Array<ISessionSummary>>;
 
-                return sessions.filter((session: ISessionSummary): boolean => {
-                    const dateStr = this.formatSessionDate(session.sessionId).toLowerCase();
-                    const device = (session.deviceName ?? "").toLowerCase();
-
-                    return dateStr.includes(lowerFilter) || device.includes(lowerFilter);
-                });
-            }),
-        ),
-        { initialValue: [] },
-    );
+    private readonly importedSessions: BehaviorSubject<Array<ISessionSummary>> = new BehaviorSubject<
+        Array<ISessionSummary>
+    >([]);
 
     private readonly autocomplete: Signal<MatAutocomplete | undefined> =
         viewChild<MatAutocomplete>("sessionAuto");
@@ -99,7 +84,38 @@ export class SessionDetailComponent implements OnInit {
         private destroyRef: DestroyRef,
         private sessionAnalysis: SessionAnalysisService,
         private dataRecorder: DataRecorderService,
-    ) {}
+    ) {
+        this.filteredSessions = toSignal(
+            combineLatest([
+                this.filterControl.valueChanges.pipe(startWith("")),
+                this.dataRecorder.getSessionSummaries$(),
+                this.importedSessions,
+            ]).pipe(
+                map(
+                    ([filter, sessions, imported]: [
+                        string | number,
+                        Array<ISessionSummary>,
+                        Array<ISessionSummary>,
+                    ]): Array<ISessionSummary> => {
+                        const allSessions = [...sessions, ...imported];
+                        const lowerFilter = typeof filter === "string" ? filter.toLowerCase() : "";
+                        if (lowerFilter.length === 0) {
+                            return allSessions;
+                        }
+
+                        return allSessions.filter((session: ISessionSummary): boolean => {
+                            const dateStr = this.formatSessionDate(session.sessionId).toLowerCase();
+                            const device = (session.deviceName ?? "").toLowerCase();
+
+                            return dateStr.includes(lowerFilter) || device.includes(lowerFilter);
+                        });
+                    },
+                ),
+                takeUntilDestroyed(),
+            ),
+            { initialValue: [] },
+        );
+    }
 
     ngOnInit(): void {
         this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params: ParamMap): void => {
@@ -108,6 +124,10 @@ export class SessionDetailComponent implements OnInit {
                 this.error.set("Invalid session ID");
                 this.loading.set(false);
 
+                return;
+            }
+
+            if (sessionId === this.analysis()?.sessionId) {
                 return;
             }
 
@@ -154,6 +174,61 @@ export class SessionDetailComponent implements OnInit {
 
     formatSessionDate(sessionId: number): string {
         return datePipe.transform(sessionId, "yyyy-MM-dd HH:mm") ?? "";
+    }
+
+    async onFileSelected(event: Event): Promise<void> {
+        const input = event.target as HTMLInputElement;
+        const file = input.files?.[0];
+        if (file === undefined) {
+            return;
+        }
+
+        try {
+            const text = await file.text();
+            const parsed = JSON.parse(text) as IExportSession;
+
+            if (!Array.isArray(parsed.records) || parsed.records.length === 0) {
+                this.error.set("JSON file contains no session data");
+                this.loading.set(false);
+
+                return;
+            }
+
+            const exportSession: IExportSession = {
+                ...parsed,
+                deviceName: parsed.deviceName ?? "Unknown",
+            };
+            const result = this.sessionAnalysis.loadFromJson(exportSession);
+
+            this.analysis.set(result);
+            this.loading.set(false);
+
+            const lastStroke = result.strokes[result.strokes.length - 1];
+            const isAlreadyImported = this.importedSessions.value.some(
+                (session: ISessionSummary): boolean => session.sessionId === result.sessionId,
+            );
+            if (!isAlreadyImported) {
+                this.importedSessions.next([
+                    ...this.importedSessions.value,
+                    {
+                        sessionId: result.sessionId,
+                        deviceName: result.deviceName,
+                        startTime: result.strokes[0].timeStamp,
+                        finishTime: lastStroke.timeStamp,
+                        elapsedTime: lastStroke.elapsedTime,
+                        distance: lastStroke.distance,
+                        strokeCount: result.strokes.length,
+                    },
+                ]);
+            }
+            this.filterControl.setValue(this.formatSessionDate(result.sessionId), { emitEvent: false });
+            await this.router.navigate(["/session", result.sessionId], { replaceUrl: true });
+        } catch {
+            this.error.set("Failed to parse JSON file");
+            this.loading.set(false);
+        } finally {
+            input.value = "";
+        }
     }
 
     private async loadSession(sessionId: number): Promise<void> {

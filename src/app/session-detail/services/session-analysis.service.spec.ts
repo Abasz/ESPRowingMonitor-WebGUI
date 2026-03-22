@@ -1,7 +1,7 @@
 import { TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { IHandleForcesEntity, IMetricsEntity } from "../../../common/database.interfaces";
+import { IExportSession, IHandleForcesEntity, IMetricsEntity } from "../../../common/database.interfaces";
 import { appDB } from "../../../common/utils/app-database";
 
 import { SessionAnalysisService } from "./session-analysis.service";
@@ -449,6 +449,213 @@ describe("SessionAnalysisService", (): void => {
             const result = await service.loadSession(mockSessionId);
 
             expect(result.statistics.avg.heartRate).toBeUndefined();
+        });
+    });
+
+    describe("loadFromJson method", (): void => {
+        const createExportSession = (overrides: Partial<IExportSession> = {}): IExportSession => ({
+            sessionId: mockSessionId,
+            deviceName: undefined,
+            records: [
+                {
+                    timeStamp: new Date(mockSessionId + 1000),
+                    elapsedTime: 1,
+                    speed: 4.2,
+                    strokeRate: 24,
+                    avgStrokePower: 150,
+                    distance: 500,
+                    strokeCount: 1,
+                    distPerStroke: 8,
+                    driveDuration: 0.8,
+                    recoveryDuration: 1.2,
+                    dragFactor: 110,
+                },
+            ],
+            handleForces: {
+                1: { peakForce: 100, driveLength: 1.5, handleForces: [20, 60, 100, 80, 40] },
+            },
+            ...overrides,
+        });
+
+        it("should convert IExportSession to ISessionAnalysis", (): void => {
+            const exportSession = createExportSession({ deviceName: "TestDevice" });
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.strokes.length).toBe(1);
+            expect(result.deviceName).toBe("TestDevice");
+            expect(result.sessionId).toBe(mockSessionId);
+            expect(result.strokes[0].speed).toBe(4.2);
+            expect(result.strokes[0].strokeRate).toBe(24);
+            expect(result.strokes[0].handleForces).toEqual([20, 60, 100, 80, 40]);
+        });
+
+        it("should compute statistics from imported data", (): void => {
+            const exportSession = createExportSession({
+                records: [
+                    {
+                        timeStamp: new Date(mockSessionId + 1000),
+                        elapsedTime: 1,
+                        speed: 4.0,
+                        avgStrokePower: 100,
+                        strokeRate: 24,
+                        distance: 500,
+                        strokeCount: 1,
+                        distPerStroke: 8,
+                        driveDuration: 0.8,
+                        recoveryDuration: 1.2,
+                        dragFactor: 110,
+                    },
+                    {
+                        timeStamp: new Date(mockSessionId + 2000),
+                        elapsedTime: 2,
+                        speed: 5.0,
+                        avgStrokePower: 200,
+                        strokeRate: 24,
+                        distance: 1000,
+                        strokeCount: 2,
+                        distPerStroke: 8,
+                        driveDuration: 0.8,
+                        recoveryDuration: 1.2,
+                        dragFactor: 110,
+                    },
+                ],
+                handleForces: {
+                    1: { peakForce: 100, driveLength: 1.5, handleForces: [] },
+                    2: { peakForce: 200, driveLength: 1.6, handleForces: [] },
+                },
+            });
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.statistics.totalStrokeCount).toBe(2);
+            expect(result.statistics.max.speed).toBe(5.0);
+            expect(result.statistics.avg.strokePower).toBe(150);
+        });
+
+        it("should detect laps from imported data", (): void => {
+            const exportSession = createExportSession();
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.laps).toBeDefined();
+            expect(result.laps.length).toBeGreaterThanOrEqual(0);
+        });
+
+        it("should handle missing handle forces gracefully", (): void => {
+            const exportSession = createExportSession({ handleForces: {} });
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.strokes[0].peakForce).toBe(0);
+            expect(result.strokes[0].driveLength).toBe(0);
+            expect(result.strokes[0].handleForces).toEqual([]);
+        });
+
+        it("should set deviceName from export session", (): void => {
+            const exportSession = createExportSession({ deviceName: "MyDevice" });
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.deviceName).toBe("MyDevice");
+        });
+
+        it("should set deviceName to undefined when not provided", (): void => {
+            const exportSession = createExportSession({ deviceName: undefined });
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.deviceName).toBeUndefined();
+        });
+
+        it("should handle ISO string timestamps from JSON parse", (): void => {
+            const isoString = "2023-11-14T22:13:20.000Z";
+            const exportSession = createExportSession({
+                records: [
+                    {
+                        timeStamp: isoString as unknown as Date,
+                        elapsedTime: 1,
+                        speed: 4.2,
+                        strokeRate: 24,
+                        avgStrokePower: 150,
+                        distance: 500,
+                        strokeCount: 1,
+                        distPerStroke: 8,
+                        driveDuration: 0.8,
+                        recoveryDuration: 1.2,
+                        dragFactor: 110,
+                    },
+                ],
+            });
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.strokes[0].timeStamp).toBe(new Date(isoString).getTime());
+        });
+
+        it("should use sessionId from export session", (): void => {
+            const exportSession = createExportSession({ sessionId: 1700099000000 });
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.sessionId).toBe(1700099000000);
+        });
+
+        it("should deduplicate strokes by stroke count keeping last entry", (): void => {
+            const exportSession = createExportSession({
+                records: [
+                    {
+                        timeStamp: new Date(mockSessionId + 1000),
+                        elapsedTime: 1,
+                        speed: 4.0,
+                        avgStrokePower: 100,
+                        strokeRate: 24,
+                        distance: 500,
+                        strokeCount: 1,
+                        distPerStroke: 8,
+                        driveDuration: 0.8,
+                        recoveryDuration: 1.2,
+                        dragFactor: 110,
+                    },
+                    {
+                        timeStamp: new Date(mockSessionId + 2000),
+                        elapsedTime: 2,
+                        speed: 4.2,
+                        avgStrokePower: 0,
+                        strokeRate: 24,
+                        distance: 600,
+                        strokeCount: 1,
+                        distPerStroke: 8,
+                        driveDuration: 0.8,
+                        recoveryDuration: 1.2,
+                        dragFactor: 110,
+                    },
+                    {
+                        timeStamp: new Date(mockSessionId + 3000),
+                        elapsedTime: 3,
+                        speed: 5.0,
+                        avgStrokePower: 200,
+                        strokeRate: 24,
+                        distance: 1000,
+                        strokeCount: 2,
+                        distPerStroke: 8,
+                        driveDuration: 0.8,
+                        recoveryDuration: 1.2,
+                        dragFactor: 110,
+                    },
+                ],
+                handleForces: {
+                    1: { peakForce: 100, driveLength: 1.5, handleForces: [] },
+                    2: { peakForce: 200, driveLength: 1.6, handleForces: [] },
+                },
+            });
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.records).toHaveLength(3);
+            expect(result.strokes).toHaveLength(2);
+            expect(result.strokes[0].strokeIndex).toBe(1);
+            expect(result.strokes[1].strokeIndex).toBe(2);
         });
     });
 });

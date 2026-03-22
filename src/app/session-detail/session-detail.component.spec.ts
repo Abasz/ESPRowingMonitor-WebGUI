@@ -102,14 +102,14 @@ const mockSessions: Array<ISessionSummary> = [
 describe("SessionDetailComponent", (): void => {
     let component: SessionDetailComponent;
     let fixture: ComponentFixture<SessionDetailComponent>;
-    let mockSessionAnalysis: Pick<SessionAnalysisService, "loadSession">;
+    let mockSessionAnalysis: Pick<SessionAnalysisService, "loadSession" | "loadFromJson">;
     let mockDataRecorder: Pick<DataRecorderService, "getSessionSummaries$">;
     let mockRouter: Pick<Router, "navigate">;
     let paramMapSubject: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
     beforeEach(async (): Promise<void> => {
         paramMapSubject = new BehaviorSubject(convertToParamMap({ id: "1700000000000" }));
-        mockSessionAnalysis = { loadSession: vi.fn() };
+        mockSessionAnalysis = { loadSession: vi.fn(), loadFromJson: vi.fn() };
         mockDataRecorder = { getSessionSummaries$: vi.fn().mockReturnValue(of(mockSessions)) };
         mockRouter = { navigate: vi.fn().mockResolvedValue(true) };
 
@@ -159,6 +159,7 @@ describe("SessionDetailComponent", (): void => {
             fixture.detectChanges();
 
             expect(fixture.nativeElement.querySelector("mat-toolbar")).toBeTruthy();
+            expect(fixture.nativeElement.querySelector("button[aria-label='Open JSON file']")).toBeTruthy();
         });
     });
 
@@ -430,6 +431,256 @@ describe("SessionDetailComponent", (): void => {
 
             expect(mockSessionAnalysis.loadSession).toHaveBeenCalledTimes(2);
             expect(mockSessionAnalysis.loadSession).toHaveBeenLastCalledWith(1700100000000);
+        });
+    });
+
+    describe("as part of JSON file import", (): void => {
+        const createFileEvent = (content: string, filename: string = "session.json"): Event => {
+            const file = new File([content], filename, { type: "application/json" });
+            const input = document.createElement("input");
+            Object.defineProperty(input, "files", { value: [file] });
+
+            return { target: input } as unknown as Event;
+        };
+
+        const validExportJson = JSON.stringify({
+            sessionId: 1700200000000,
+            records: [{ timeStamp: "2023-11-17T00:00:00Z", elapsedTime: 1, speed: 4, strokeCount: 1 }],
+            handleForces: {},
+        });
+
+        it("should load session from valid JSON file", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            vi.mocked(mockSessionAnalysis.loadFromJson).mockReturnValue(
+                createMockAnalysis({ sessionId: 1700200000000, deviceName: "ImportedDevice" }),
+            );
+
+            const event = createFileEvent(validExportJson, "my-session.json");
+            await component.onFileSelected(event);
+
+            expect(mockSessionAnalysis.loadFromJson).toHaveBeenCalled();
+            expect(component.analysis()?.deviceName).toBe("ImportedDevice");
+        });
+
+        it("should set Unknown as fallback device name when not in data", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            vi.mocked(mockSessionAnalysis.loadFromJson).mockReturnValue(createMockAnalysis());
+
+            const event = createFileEvent(validExportJson);
+            await component.onFileSelected(event);
+
+            const callArg = vi.mocked(mockSessionAnalysis.loadFromJson).mock.calls[0][0];
+            expect(callArg.deviceName).toBe("Unknown");
+        });
+
+        it("should show error for empty records", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            const event = createFileEvent(JSON.stringify({ sessionId: 1, records: [], handleForces: {} }));
+            await component.onFileSelected(event);
+
+            expect(component.error()).toBe("JSON file contains no session data");
+        });
+
+        it("should show error for invalid JSON", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            const event = createFileEvent("not valid json");
+            await component.onFileSelected(event);
+
+            expect(component.error()).toBe("Failed to parse JSON file");
+        });
+
+        it("should do nothing when no file is selected", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            const input = document.createElement("input");
+            const event = { target: input } as unknown as Event;
+            await component.onFileSelected(event);
+
+            expect(mockSessionAnalysis.loadFromJson).not.toHaveBeenCalled();
+        });
+
+        it("should render upload button in toolbar", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            const uploadButton = fixture.nativeElement.querySelector("button[aria-label='Open JSON file']");
+
+            expect(uploadButton).toBeTruthy();
+        });
+
+        it("should reset file input after selection", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            vi.mocked(mockSessionAnalysis.loadFromJson).mockReturnValue(createMockAnalysis());
+
+            const file = new File([validExportJson], "session.json", { type: "application/json" });
+            const input = document.createElement("input");
+            Object.defineProperty(input, "files", { value: [file], writable: true });
+            const event = { target: input } as unknown as Event;
+            await component.onFileSelected(event);
+
+            expect(input.value).toBe("");
+        });
+
+        it("should update route with imported session ID", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            vi.mocked(mockSessionAnalysis.loadFromJson).mockReturnValue(
+                createMockAnalysis({ sessionId: 1700200000000 }),
+            );
+
+            const event = createFileEvent(validExportJson);
+            await component.onFileSelected(event);
+
+            expect(mockRouter.navigate).toHaveBeenCalledWith(["/session", 1700200000000], {
+                replaceUrl: true,
+            });
+        });
+
+        it("should load DB session after importing a JSON file", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            vi.mocked(mockSessionAnalysis.loadFromJson).mockReturnValue(
+                createMockAnalysis({ sessionId: 1700200000000, deviceName: "ImportedDevice" }),
+            );
+
+            const event = createFileEvent(validExportJson);
+            await component.onFileSelected(event);
+
+            expect(component.analysis()?.sessionId).toBe(1700200000000);
+
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(
+                createMockAnalysis({ sessionId: 1700100000000, deviceName: "OtherDevice" }),
+            );
+            paramMapSubject.next(convertToParamMap({ id: "1700100000000" }));
+            await fixture.whenStable();
+
+            expect(mockSessionAnalysis.loadSession).toHaveBeenLastCalledWith(1700100000000);
+            expect(component.analysis()?.sessionId).toBe(1700100000000);
+        });
+
+        it("should add imported session to autocomplete list", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            vi.mocked(mockSessionAnalysis.loadFromJson).mockReturnValue(
+                createMockAnalysis({ sessionId: 1700200000000, deviceName: "ImportedDevice" }),
+            );
+
+            const event = createFileEvent(validExportJson);
+            await component.onFileSelected(event);
+
+            component.filterControl.setValue("");
+
+            expect(component.filteredSessions().length).toBe(3);
+            expect(
+                component
+                    .filteredSessions()
+                    .some((s: ISessionSummary): boolean => s.sessionId === 1700200000000),
+            ).toBe(true);
+        });
+
+        it("should not add duplicate entry when same file is imported twice", async (): Promise<void> => {
+            vi.mocked(mockSessionAnalysis.loadSession).mockResolvedValue(createMockAnalysis());
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            vi.mocked(mockSessionAnalysis.loadFromJson).mockReturnValue(
+                createMockAnalysis({ sessionId: 1700200000000, deviceName: "ImportedDevice" }),
+            );
+
+            await component.onFileSelected(createFileEvent(validExportJson));
+            await component.onFileSelected(createFileEvent(validExportJson));
+
+            component.filterControl.setValue("");
+
+            const importedCount = component
+                .filteredSessions()
+                .filter((s: ISessionSummary): boolean => s.sessionId === 1700200000000).length;
+
+            expect(importedCount).toBe(1);
+            expect(component.filteredSessions().length).toBe(3);
+        });
+
+        describe("during initial load should set loading to false", (): void => {
+            it("when JSON has empty records", async (): Promise<void> => {
+                vi.mocked(mockSessionAnalysis.loadSession).mockReturnValue(
+                    new Promise((): void => {
+                        // never resolves — initial load still in progress
+                    }),
+                );
+                fixture.detectChanges();
+
+                expect(component.loading()).toBe(true);
+
+                const event = createFileEvent(
+                    JSON.stringify({ sessionId: 1, records: [], handleForces: {} }),
+                );
+                await component.onFileSelected(event);
+
+                expect(component.loading()).toBe(false);
+                expect(component.error()).toBe("JSON file contains no session data");
+
+                fixture.detectChanges();
+
+                expect(fixture.nativeElement.querySelector("mat-spinner")).toBeNull();
+                expect(fixture.nativeElement.querySelector(".error-container")).toBeTruthy();
+            });
+
+            it("when JSON is invalid", async (): Promise<void> => {
+                vi.mocked(mockSessionAnalysis.loadSession).mockReturnValue(
+                    new Promise((): void => {
+                        // never resolves
+                    }),
+                );
+                fixture.detectChanges();
+
+                expect(component.loading()).toBe(true);
+
+                const event = createFileEvent("not valid json");
+                await component.onFileSelected(event);
+
+                expect(component.loading()).toBe(false);
+                expect(component.error()).toBe("Failed to parse JSON file");
+
+                fixture.detectChanges();
+
+                expect(fixture.nativeElement.querySelector("mat-spinner")).toBeNull();
+                expect(fixture.nativeElement.querySelector(".error-container")).toBeTruthy();
+            });
         });
     });
 

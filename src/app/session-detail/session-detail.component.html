@@ -30,6 +30,11 @@
         </mat-autocomplete>
     </mat-form-field>
 
+    <button mat-icon-button (click)="fileInput.click()" aria-label="Open JSON file">
+        <mat-icon>upload_file</mat-icon>
+    </button>
+    <input #fileInput hidden type="file" accept=".json" (change)="onFileSelected($event)" />
+
     <span class="flex-1"></span>
 
     @if (!error() && analysis()?.deviceName; as deviceName) {

@@ -1,6 +1,12 @@
 import { Injectable } from "@angular/core";
 
-import { IHandleForcesEntity, IMetricsEntity } from "../../../common/database.interfaces";
+import {
+    IExportHandleForces,
+    IExportRecord,
+    IExportSession,
+    IHandleForcesEntity,
+    IMetricsEntity,
+} from "../../../common/database.interfaces";
 import { appDB } from "../../../common/utils/app-database";
 import {
     ISessionAnalysis,
@@ -49,6 +55,56 @@ export class SessionAnalysisService {
                 };
             },
         );
+    }
+
+    loadFromJson(exportSession: IExportSession): ISessionAnalysis {
+        const records: Array<ISessionRecord> = exportSession.records.map(
+            (entry: IExportRecord, index: number): ISessionRecord => ({
+                strokeIndex: entry.strokeCount ?? index,
+                timeStamp: new Date(entry.timeStamp).getTime(),
+                elapsedTime: entry.elapsedTime,
+                speed: entry.speed,
+                avgStrokePower: entry.avgStrokePower,
+                strokeRate: entry.strokeRate,
+                distPerStroke: entry.distPerStroke,
+                distance: entry.distance,
+                driveDuration: entry.driveDuration,
+                recoveryDuration: entry.recoveryDuration,
+                dragFactor: entry.dragFactor,
+                heartRate: entry.heartRate,
+            }),
+        );
+
+        const uniqueRecords = new Map<number, ISessionRecord>();
+        for (const record of records) {
+            uniqueRecords.set(record.strokeIndex, record);
+        }
+
+        const strokes: Array<ISessionStroke> = Array.from(uniqueRecords.values()).map(
+            (record: ISessionRecord): ISessionStroke => {
+                const handleForce: IExportHandleForces | undefined =
+                    exportSession.handleForces[record.strokeIndex];
+
+                return {
+                    ...record,
+                    peakForce: handleForce?.peakForce ?? 0,
+                    driveLength: handleForce?.driveLength ?? 0,
+                    handleForces: handleForce?.handleForces ?? [],
+                };
+            },
+        );
+
+        const sessionId = exportSession.sessionId;
+        const statistics = this.computeStatistics(strokes);
+
+        return {
+            sessionId,
+            deviceName: exportSession.deviceName,
+            records,
+            strokes,
+            statistics,
+            laps: detectLaps(strokes),
+        };
     }
 
     private buildHandleForcesMap(entities: Array<IHandleForcesEntity>): Record<number, IHandleForcesEntity> {
