@@ -61,3 +61,30 @@ mat-card {
         font-size: 0.75em;
     }
 }
+
+.charts-section {
+    grid-column: 1 / -1;
+
+    .chart-wrapper {
+        height: 350px;
+
+        app-session-chart {
+            min-height: 0;
+        }
+    }
+
+    .chart-header {
+        span:nth-child(1) {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        span:nth-child(2) {
+            font-size: 0.875em;
+            font-weight: 500;
+        }
+    }
+}

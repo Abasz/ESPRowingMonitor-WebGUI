@@ -100,6 +100,29 @@ describe("SessionSummaryComponent", (): void => {
         return null;
     };
 
+    type ChartConfig = ReturnType<typeof component.charts>[number];
+
+    const getChartConfig = (title: string): ChartConfig | null => {
+        for (const chart of component.charts()) {
+            if (chart.title === title) {
+                return chart;
+            }
+        }
+
+        return null;
+    };
+
+    const getChartWrapperByTitle = (title: string): Element | null => {
+        const wrappers = fixture.nativeElement.querySelectorAll(".chart-wrapper") as NodeListOf<Element>;
+        for (const wrapper of Array.from(wrappers)) {
+            if (wrapper.querySelector(".chart-header span:nth-child(2)")?.textContent?.includes(title)) {
+                return wrapper;
+            }
+        }
+
+        return null;
+    };
+
     beforeEach(async (): Promise<void> => {
         await TestBed.configureTestingModule({
             imports: [SessionSummaryComponent],
@@ -213,6 +236,137 @@ describe("SessionSummaryComponent", (): void => {
             const distMetric = getMetricByLabel(totalsCard!, "Distance");
 
             expect(distMetric?.querySelector(".value")?.textContent).toContain("10");
+        });
+    });
+
+    describe("as part of chart rendering", (): void => {
+        it("should render 7 chart wrappers when HR data is present", (): void => {
+            const chartWrappers = fixture.nativeElement.querySelectorAll(".chart-wrapper");
+
+            expect(chartWrappers.length).toBe(7);
+        });
+
+        it("should render 6 chart wrappers when HR data is absent", (): void => {
+            const analysis = createMockAnalysis();
+            analysis.statistics.avg.heartRate = undefined;
+            fixture.componentRef.setInput("analysis", analysis);
+            fixture.detectChanges();
+
+            const chartWrappers = fixture.nativeElement.querySelectorAll(".chart-wrapper");
+
+            expect(chartWrappers.length).toBe(6);
+        });
+
+        it("should render chart headers with color circles", (): void => {
+            const colorCircles = fixture.nativeElement.querySelectorAll(".chart-header span:nth-child(1)");
+
+            expect(colorCircles.length).toBe(7);
+            expect(colorCircles[0].style.backgroundColor).toBeTruthy();
+        });
+
+        it("should render chart wrappers for all configured charts", (): void => {
+            expect(getChartWrapperByTitle("Speed")).toBeTruthy();
+            expect(getChartWrapperByTitle("Stroke Power")).toBeTruthy();
+            expect(getChartWrapperByTitle("Stroke Rate")).toBeTruthy();
+            expect(getChartWrapperByTitle("Drive / Recovery")).toBeTruthy();
+        });
+
+        it("should assign units and decimal places per chart", (): void => {
+            expect(getChartConfig("Speed")?.unit).toBe("km/h");
+            expect(getChartConfig("Speed")?.decimals).toBe(1);
+            expect(getChartConfig("Stroke Power")?.unit).toBe("W");
+            expect(getChartConfig("Stroke Power")?.decimals).toBe(0);
+        });
+
+        it("should set Y-axis title on charts that use auto scaling", (): void => {
+            const chartTitleToYUnit: Record<string, string> = {
+                Speed: "km/h",
+                "Stroke Power": "W",
+                "Stroke Rate": "spm",
+                "Dist/Stroke": "m",
+            };
+
+            for (const [title, expectedUnit] of Object.entries(chartTitleToYUnit)) {
+                const yScale = (getChartConfig(title)?.options?.scales?.y ?? {}) as {
+                    title?: { display: boolean; text: string };
+                };
+
+                expect(yScale.title?.text, `${title} Y-axis title`).toBe(expectedUnit);
+            }
+        });
+
+        it("should set explicit Y-axis min and delegate max to grace on auto-scaled charts", (): void => {
+            const yScale = (getChartConfig("Speed")?.options?.scales?.y ?? {}) as {
+                min?: number;
+                max?: number;
+            };
+
+            expect(yScale.min).toBeDefined();
+            expect(yScale.max).toBeUndefined();
+        });
+
+        it("should not set negative Y-axis min on any chart that uses auto bounds", (): void => {
+            const analysis = createMockAnalysis();
+            analysis.records[0].speed = 0.01;
+            analysis.records[0].avgStrokePower = 0.01;
+            analysis.records[0].strokeRate = 0.01;
+            analysis.records[0].driveDuration = 0.01;
+            analysis.records[0].recoveryDuration = 0.01;
+            fixture.componentRef.setInput("analysis", analysis);
+            fixture.detectChanges();
+
+            const autoScaleCharts = ["Speed", "Stroke Power", "Stroke Rate"];
+            for (const title of autoScaleCharts) {
+                const yScale = (getChartConfig(title)?.options?.scales?.y ?? {}) as {
+                    min?: number;
+                };
+
+                expect(yScale.min, `${title} should not have negative min`).toBeGreaterThanOrEqual(0);
+            }
+        });
+    });
+
+    describe("as part of chart data content", (): void => {
+        it("should convert speed to km/h in speed chart data points", (): void => {
+            const speedChart = getChartConfig("Speed")!;
+            const points = speedChart.data.datasets[0].data as Array<{ x: number; y: number }>;
+
+            expect(points[0].y).toBeCloseTo(2.5 * 3.6, 5);
+        });
+
+        it("should filter out zero distPerStroke values", (): void => {
+            const analysis = createMockAnalysis();
+            analysis.strokes.push({
+                strokeIndex: 1,
+                distance: 1000,
+                speed: 2.5,
+                strokeRate: 24,
+                avgStrokePower: 150,
+                elapsedTime: 5.0,
+                timeStamp: 1700000005000,
+                heartRate: undefined,
+                peakForce: 200,
+                driveLength: 0.8,
+                distPerStroke: 0,
+                driveDuration: 0.8,
+                recoveryDuration: 1.7,
+                dragFactor: 110,
+                handleForces: [],
+            });
+            fixture.componentRef.setInput("analysis", analysis);
+            fixture.detectChanges();
+
+            const distChart = getChartConfig("Dist/Stroke")!;
+            const points = distChart.data.datasets[0].data as Array<{ x: number; y: number }>;
+
+            expect(points.every((p: { x: number; y: number }): boolean => p.y !== 0)).toBe(true);
+        });
+
+        it("should include an average line as the second dataset in the speed chart", (): void => {
+            const speedChart = getChartConfig("Speed")!;
+
+            expect(speedChart.data.datasets.length).toBe(2);
+            expect(speedChart.data.datasets[1].label).toBe("Average");
         });
     });
 });

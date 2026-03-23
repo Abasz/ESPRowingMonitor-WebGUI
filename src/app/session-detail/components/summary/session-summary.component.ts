@@ -1,9 +1,16 @@
 import { DecimalPipe } from "@angular/common";
 import { ChangeDetectionStrategy, Component, computed, input, InputSignal, Signal } from "@angular/core";
 import { MatCard } from "@angular/material/card";
+import { ChartData, ChartOptions, Point } from "chart.js";
 
 import { SecondsToTimePipe } from "../../../../common/utils/seconds-to-time.pipe";
-import { ISessionAnalysis, ISessionStatistics } from "../../models/session-analysis.interfaces";
+import {
+    ISessionAnalysis,
+    ISessionRecord,
+    ISessionStatistics,
+    ISessionStroke,
+} from "../../models/session-analysis.interfaces";
+import { SessionChartComponent } from "../shared/session-chart.component";
 
 interface IMetricItem {
     label: string;
@@ -12,14 +19,295 @@ interface IMetricItem {
     unit?: string;
 }
 
+interface IChartConfig {
+    title: string;
+    color: string;
+    unit: string;
+    decimals: number;
+    data: ChartData;
+    options?: ChartOptions;
+}
+
+interface IAverageDataset {
+    data: Array<Point>;
+    borderColor: string;
+    borderDash: Array<number>;
+    label: string;
+}
+
+const CHART_COLORS = {
+    speed: "#11a9ed",
+    power: "#cf23b8",
+    strokeRate: "#ed7e00",
+    heartRate: "#ff0035",
+    distPerStroke: "#7cb5ec",
+    driveLength: "#2dc937",
+    drive: "#11a9ed",
+    recovery: "#ed7e00",
+    average: "#888888",
+};
+
+// 15% opacity in hex
+const FILL_OPACITY = "26";
+
+const buildPoints = <T extends ISessionRecord>(
+    strokes: Array<T>,
+    valueAccessor: (stroke: T) => number,
+): Array<Point> =>
+    strokes.map(
+        (stroke: T): Point => ({
+            x: stroke.elapsedTime,
+            y: valueAccessor(stroke),
+        }),
+    );
+
+const createAverageDataset = (strokes: Array<ISessionRecord>, averageValue: number): IAverageDataset => ({
+    data:
+        strokes.length > 0
+            ? [
+                  { x: strokes[0].elapsedTime, y: averageValue },
+                  { x: strokes[strokes.length - 1].elapsedTime, y: averageValue },
+              ]
+            : [],
+    borderColor: CHART_COLORS.average,
+    borderDash: [6, 3],
+    label: "Average",
+});
+
+const computeYMin = (...pointArrays: Array<Array<Point>>): number => {
+    const yValues = pointArrays.flat().map((point: Point): number => point.y as number);
+
+    if (yValues.length === 0) {
+        return 0;
+    }
+
+    const yMin = yValues.reduce((min: number, y: number): number => (y < min ? y : min), Infinity);
+    const yMax = yValues.reduce((max: number, y: number): number => (y > max ? y : max), -Infinity);
+    const range = yMax - yMin || 1;
+
+    return Math.max(0, yMin - range * 0.05);
+};
+
+const createYScale = (
+    yAxisTitle: string,
+    ...pointArrays: Array<Array<Point>>
+): { title: { display: boolean; text: string }; min: number } => ({
+    title: { display: true, text: yAxisTitle },
+    min: computeYMin(...pointArrays),
+});
+
 const secondsToTimePipe = new SecondsToTimePipe();
+
+const buildSpeedChartConfig = (strokes: Array<ISessionRecord>, stats: ISessionStatistics): IChartConfig => {
+    const speedPoints = buildPoints(strokes, (stroke: ISessionRecord): number => stroke.speed * 3.6);
+    const speedAvg = createAverageDataset(strokes, stats.avg.speed * 3.6);
+
+    return {
+        title: "Speed",
+        color: CHART_COLORS.speed,
+        unit: "km/h",
+        decimals: 1,
+        data: {
+            datasets: [
+                {
+                    data: speedPoints,
+                    borderColor: CHART_COLORS.speed,
+                    backgroundColor: CHART_COLORS.speed + FILL_OPACITY,
+                    fill: true,
+                    label: "Speed",
+                },
+                speedAvg,
+            ],
+        },
+        options: { scales: { y: createYScale("km/h", speedPoints, speedAvg.data) } },
+    };
+};
+
+const buildPowerChartConfig = (strokes: Array<ISessionRecord>, stats: ISessionStatistics): IChartConfig => {
+    const powerPoints = buildPoints(strokes, (stroke: ISessionRecord): number => stroke.avgStrokePower);
+    const powerAvg = createAverageDataset(strokes, stats.avg.strokePower);
+
+    return {
+        title: "Stroke Power",
+        color: CHART_COLORS.power,
+        unit: "W",
+        decimals: 0,
+        data: {
+            datasets: [
+                {
+                    data: powerPoints,
+                    borderColor: CHART_COLORS.power,
+                    backgroundColor: CHART_COLORS.power + FILL_OPACITY,
+                    fill: true,
+                    label: "Power",
+                },
+                powerAvg,
+            ],
+        },
+        options: { scales: { y: createYScale("W", powerPoints, powerAvg.data) } },
+    };
+};
+
+const buildStrokeRateChartConfig = (
+    strokes: Array<ISessionRecord>,
+    stats: ISessionStatistics,
+): IChartConfig => {
+    const strokeRatePoints = buildPoints(strokes, (stroke: ISessionRecord): number => stroke.strokeRate);
+    const strokeRateAvg = createAverageDataset(strokes, stats.avg.strokeRate);
+
+    return {
+        title: "Stroke Rate",
+        color: CHART_COLORS.strokeRate,
+        unit: "spm",
+        decimals: 0,
+        data: {
+            datasets: [
+                {
+                    data: strokeRatePoints,
+                    borderColor: CHART_COLORS.strokeRate,
+                    label: "Stroke Rate",
+                },
+                strokeRateAvg,
+            ],
+        },
+        options: { scales: { y: createYScale("spm", strokeRatePoints, strokeRateAvg.data) } },
+    };
+};
+
+const buildHeartRateChartConfig = (
+    strokes: Array<ISessionRecord>,
+    averageHeartRate: number,
+): IChartConfig => {
+    const hrPoints = strokes.map((stroke: ISessionRecord): { x: number; y: number } => ({
+        x: stroke.elapsedTime,
+        // as per docs NaN values create visual gaps instead of false zero-spikes at sensor dropouts
+        y: stroke.heartRate?.heartRate ?? NaN,
+    }));
+    const hrNonNaNPoints: Array<Point> = hrPoints.filter(
+        (point: { x: number; y: number }): boolean => !Number.isNaN(point.y),
+    ) as Array<Point>;
+    const hrAvg = createAverageDataset(strokes, averageHeartRate);
+
+    return {
+        title: "Heart Rate",
+        color: CHART_COLORS.heartRate,
+        unit: "bpm",
+        decimals: 0,
+        data: {
+            datasets: [
+                {
+                    data: hrPoints,
+                    borderColor: CHART_COLORS.heartRate,
+                    label: "Heart Rate",
+                },
+                hrAvg,
+            ],
+        },
+        options: { scales: { y: createYScale("bpm", hrNonNaNPoints, hrAvg.data) } },
+    };
+};
+
+const buildDistPerStrokeChartConfig = (strokes: Array<ISessionRecord>): IChartConfig => {
+    const distPerStrokePoints = buildPoints(
+        strokes,
+        (stroke: ISessionRecord): number => stroke.distPerStroke,
+    ).filter((point: Point): boolean => point.y !== 0);
+
+    return {
+        title: "Dist/Stroke",
+        color: CHART_COLORS.distPerStroke,
+        unit: "m",
+        decimals: 1,
+        data: {
+            datasets: [
+                {
+                    data: distPerStrokePoints,
+                    borderColor: CHART_COLORS.distPerStroke,
+                    showLine: false,
+                    label: "Dist/Stroke",
+                },
+            ],
+        },
+        options: {
+            elements: { point: { radius: 1, borderWidth: 2 } },
+            scales: { y: createYScale("m", distPerStrokePoints) },
+        },
+    };
+};
+
+const buildDriveLengthChartConfig = (
+    records: Array<ISessionRecord>,
+    strokes: Array<ISessionStroke>,
+): IChartConfig => {
+    const driveLengthMap = new Map<number, number>(
+        strokes.map((stroke: ISessionStroke): [number, number] => [stroke.strokeIndex, stroke.driveLength]),
+    );
+
+    const driveLengthPoints = records.map((record: ISessionRecord): { x: number; y: number } => ({
+        x: record.elapsedTime,
+        y: driveLengthMap.get(record.strokeIndex) ?? NaN,
+    }));
+
+    return {
+        title: "Drive Length",
+        color: CHART_COLORS.driveLength,
+        unit: "m",
+        decimals: 2,
+        data: {
+            datasets: [
+                {
+                    data: driveLengthPoints,
+                    borderColor: CHART_COLORS.driveLength,
+                    label: "Drive Length",
+                },
+            ],
+        },
+        options: {
+            scales: {
+                y: {
+                    title: { display: true, text: "m" },
+                    min: 0.5,
+                    max: 2.1,
+                },
+            },
+        },
+    };
+};
+
+const buildDriveRecoveryChartConfig = (strokes: Array<ISessionRecord>): IChartConfig => {
+    const drivePoints = buildPoints(strokes, (stroke: ISessionRecord): number => stroke.driveDuration);
+    const recoveryPoints = buildPoints(strokes, (stroke: ISessionRecord): number => stroke.recoveryDuration);
+
+    return {
+        title: "Drive / Recovery",
+        color: CHART_COLORS.drive,
+        unit: "s",
+        decimals: 2,
+        data: {
+            datasets: [
+                { data: drivePoints, borderColor: CHART_COLORS.drive, label: "Drive" },
+                { data: recoveryPoints, borderColor: CHART_COLORS.recovery, label: "Recovery" },
+            ],
+        },
+        options: {
+            scales: {
+                y: {
+                    title: { display: true, text: "s" },
+                    min: 0.1,
+                    max: 0.6,
+                },
+            },
+            plugins: { legend: { display: true } },
+        },
+    };
+};
 
 @Component({
     selector: "app-session-summary",
     templateUrl: "./session-summary.component.html",
     styleUrls: ["./session-summary.component.scss"],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatCard, SecondsToTimePipe, DecimalPipe],
+    imports: [MatCard, SecondsToTimePipe, DecimalPipe, SessionChartComponent],
 })
 export class SessionSummaryComponent {
     readonly analysis: InputSignal<ISessionAnalysis> = input.required<ISessionAnalysis>();
@@ -74,4 +362,31 @@ export class SessionSummaryComponent {
 
         return avg.speed > 0 ? secondsToTimePipe.transform(500 / avg.speed, "pace") : "--";
     });
+
+    readonly charts: Signal<Array<IChartConfig>> = computed((): Array<IChartConfig> => {
+        const records = this.analysis().records;
+        const strokes = this.analysis().strokes;
+        const stats = this.stats();
+        const configs: Array<IChartConfig> = [
+            buildSpeedChartConfig(records, stats),
+            buildPowerChartConfig(records, stats),
+            buildStrokeRateChartConfig(records, stats),
+        ];
+
+        if (this.hasHeartRate()) {
+            configs.push(buildHeartRateChartConfig(records, stats.avg.heartRate as number));
+        }
+
+        configs.push(
+            buildDistPerStrokeChartConfig(records),
+            buildDriveLengthChartConfig(records, strokes),
+            buildDriveRecoveryChartConfig(records),
+        );
+
+        return configs;
+    });
+
+    private readonly hasHeartRate: Signal<boolean> = computed(
+        (): boolean => this.stats().avg.heartRate !== undefined,
+    );
 }
