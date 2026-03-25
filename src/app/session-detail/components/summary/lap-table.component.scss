@@ -1,7 +1,5 @@
 @use "@angular/material" as mat;
 
-@use "../../../../theme";
-
 @use "../../../../flex-layout" as flex-layout;
 
 :host {
@@ -24,15 +22,11 @@ mat-row {
     cursor: pointer;
 
     &:hover {
-        background-color: #{mat.get-theme-color(theme.$light-theme, primary, 90)};
+        background-color: var(--mat-sys-primary-container);
     }
 
     &.selected {
-        background-color: color-mix(
-            in srgb,
-            #{mat.get-theme-color(theme.$light-theme, primary)} 12%,
-            transparent
-        );
+        background-color: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
     }
 }
 

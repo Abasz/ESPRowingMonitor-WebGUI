@@ -1,8 +1,7 @@
-@use "../../../theme" as app-theme;
 @use "./directives/dnd-theme" as dnd-theme;
 
 :host {
-    @include dnd-theme.theme-m2(app-theme.$light-theme);
+    @include dnd-theme.theme();
 
     display: flex;
     flex-direction: column;

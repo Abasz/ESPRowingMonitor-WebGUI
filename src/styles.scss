@@ -3,33 +3,44 @@
 @use "theme";
 @use "flex-layout";
 
-@include mat.elevation-classes();
-@include mat.app-background();
+html {
+    @include mat.theme(
+        (
+            color: (
+                primary: theme.$primary-palette,
+                tertiary: theme.$tertiary-palette,
+                theme-type: light,
+            ),
+            typography: Roboto,
+            density: 0,
+        )
+    );
+    @include mat.elevation-classes();
+
+    @include mat.core-overrides(
+        (
+            option-selected-state-layer-color: var(--mat-sys-primary-container),
+        )
+    );
+    @include mat.button-toggle-overrides(
+        (
+            selected-state-background-color: var(--mat-sys-primary-container),
+            selected-state-text-color: var(--mat-sys-primary),
+        )
+    );
+    @include mat.toolbar-overrides(
+        (
+            container-background-color: var(--mat-sys-primary),
+            container-text-color: white,
+        )
+    );
+}
 
 html,
 body {
     height: 100vh;
     margin: 0px;
     font-family: Roboto, "Helvetica Neue", sans-serif;
-
-    @include mat.all-component-themes(theme.$light-theme);
-    @include mat.core-overrides(
-        (
-            option-selected-state-layer-color: #{mat.get-theme-color(theme.$light-theme, primary, 90)},
-        )
-    );
-    @include mat.button-toggle-overrides(
-        (
-            selected-state-background-color: #{mat.get-theme-color(theme.$light-theme, primary, 90)},
-            selected-state-text-color: #{mat.get-theme-color(theme.$light-theme, primary, 40)},
-        )
-    );
-    @include mat.toolbar-overrides(
-        (
-            container-background-color: #{mat.get-theme-color(theme.$light-theme, primary)},
-            container-text-color: white,
-        )
-    );
 
     app-root {
         font-size: calc(16px + (50 - 16) * ((100vw - 300px) / (1920 - 300)));

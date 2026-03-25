@@ -1,6 +1,4 @@
 @use "../../../../flex-layout" as *;
-@use "@angular/material" as mat;
-@use "../../../../theme";
 
 :host {
     display: flex;
@@ -37,7 +35,7 @@
         width: 10px;
         height: 10px;
         border-radius: 50%;
-        background: #{mat.get-theme-color(theme.$light-theme, outline)};
+        background: var(--mat-sys-outline);
         border: none;
         padding: 0;
         cursor: pointer;
@@ -45,7 +43,7 @@
         top: 1px;
 
         &:hover {
-            background: #{mat.get-theme-color(theme.$light-theme, primary)};
+            background: var(--mat-sys-primary);
         }
     }
 }
