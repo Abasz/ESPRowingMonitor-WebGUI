@@ -2,7 +2,6 @@ import { Injectable } from "@angular/core";
 import { Dexie, IndexableTypePart, liveQuery } from "dexie";
 import { exportDB, ExportProgress, importInto, peakImportFile } from "dexie-export-import";
 import { ImportProgress } from "dexie-export-import/dist/import";
-import { parse } from "js2xmlparser";
 import { filter, from, Observable } from "rxjs";
 
 import { ISessionData, ISessionSummary } from "../common.interfaces";
@@ -16,7 +15,8 @@ import {
     IMetricsEntity,
 } from "../database.interfaces";
 import { appDB } from "../utils/app-database";
-import { createSessionTcxObject, downloadFiles } from "../utils/utility.functions";
+import { createSessionFitFile } from "../utils/fit-file";
+import { downloadFiles } from "../utils/utility.functions";
 
 @Injectable({
     providedIn: "root",
@@ -126,22 +126,11 @@ export class DataRecorderService {
         downloadFiles(files);
     }
 
-    async exportSessionToTcx(sessionId: number): Promise<void> {
+    async exportSessionToFit(sessionId: number): Promise<void> {
         const exportSession = await this.buildExportSession(sessionId);
-
-        const blob = new Blob(
-            [
-                parse("TrainingCenterDatabase", createSessionTcxObject(exportSession), {
-                    format: {
-                        doubleQuotes: true,
-                    },
-                }),
-            ],
-            {
-                type: "application/vnd.garmin.tcx+xml",
-            },
-        );
-        const name = `${new Date(sessionId).toDateTimeStringFormat()} - session.tcx`;
+        const fitData = createSessionFitFile(exportSession);
+        const blob = new Blob([fitData as ArrayBuffer], { type: "application/vnd.ant.fit" });
+        const name = `${new Date(sessionId).toDateTimeStringFormat()} - session.fit`;
         downloadFiles([{ blob, name }]);
     }
 

@@ -33,7 +33,7 @@ describe("LogbookDialogComponent", (): void => {
         | "deleteSession"
         | "export"
         | "exportSessionToJson"
-        | "exportSessionToTcx"
+        | "exportSessionToFit"
         | "exportSessionToCsv"
         | "import"
     >;
@@ -69,7 +69,7 @@ describe("LogbookDialogComponent", (): void => {
             deleteSession: vi.fn(),
             export: vi.fn(),
             exportSessionToJson: vi.fn(),
-            exportSessionToTcx: vi.fn(),
+            exportSessionToFit: vi.fn(),
             exportSessionToCsv: vi.fn(),
             import: vi.fn(),
         };
@@ -365,12 +365,12 @@ describe("LogbookDialogComponent", (): void => {
             expect(dataRecorderSpy.exportSessionToJson).toHaveBeenCalledWith(SESSIONS[0].sessionId);
         });
 
-        it("should call exportSessionToTcx with sessionId when TCX option clicked", async (): Promise<void> => {
+        it("should call exportSessionToFit with sessionId when FIT option clicked", async (): Promise<void> => {
             summaries$.next(SESSIONS);
 
-            await component.exportToTcx(SESSIONS[0].sessionId);
+            await component.exportToFit(SESSIONS[0].sessionId);
 
-            expect(dataRecorderSpy.exportSessionToTcx).toHaveBeenCalledWith(SESSIONS[0].sessionId);
+            expect(dataRecorderSpy.exportSessionToFit).toHaveBeenCalledWith(SESSIONS[0].sessionId);
         });
 
         it("should call exportSessionToCsv with sessionId when CSV option clicked", async (): Promise<void> => {
@@ -409,28 +409,28 @@ describe("LogbookDialogComponent", (): void => {
         });
     });
 
-    describe("exportToTcx method", (): void => {
+    describe("exportToFit method", (): void => {
         it("should call respective service method with the given sessionId", async (): Promise<void> => {
             // arrange
             summaries$.next(SESSIONS);
-            vi.mocked(dataRecorderSpy.exportSessionToTcx).mockResolvedValue();
+            vi.mocked(dataRecorderSpy.exportSessionToFit).mockResolvedValue();
 
-            await component.exportToTcx(SESSIONS[0].sessionId);
+            await component.exportToFit(SESSIONS[0].sessionId);
 
             // assert
-            expect(dataRecorderSpy.exportSessionToTcx).toHaveBeenCalledWith(SESSIONS[0].sessionId);
+            expect(dataRecorderSpy.exportSessionToFit).toHaveBeenCalledWith(SESSIONS[0].sessionId);
         });
 
-        it("shows snackbar on exportToTcx error", async (): Promise<void> => {
+        it("shows snackbar on exportToFit error", async (): Promise<void> => {
             // arrange
             summaries$.next(SESSIONS);
-            vi.mocked(dataRecorderSpy.exportSessionToTcx).mockRejectedValue(new Error("export tcx error"));
+            vi.mocked(dataRecorderSpy.exportSessionToFit).mockRejectedValue(new Error("export fit error"));
 
-            await component.exportToTcx(SESSIONS[0].sessionId);
+            await component.exportToFit(SESSIONS[0].sessionId);
 
             // assert
             expect(snackBarSpy.open).toHaveBeenCalledWith(
-                expect.stringMatching(/Error while downloading session: export tcx error/),
+                expect.stringMatching(/Error while downloading session: export fit error/),
                 "Dismiss",
             );
         });

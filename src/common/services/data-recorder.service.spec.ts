@@ -724,7 +724,7 @@ describe("DataRecorderService", (): void => {
         });
     });
 
-    describe("exportSessionToTcx method", (): void => {
+    describe("exportSessionToFit method", (): void => {
         const testSessionId = 1700000000000;
         let createObjectURLSpy: Mock;
         let mockAnchor: { href: string; download: string; click: Mock };
@@ -761,68 +761,18 @@ describe("DataRecorderService", (): void => {
             });
         });
 
-        describe("in generated XML", (): void => {
-            it("should include XML declaration", async (): Promise<void> => {
-                await service.exportSessionToTcx(testSessionId);
+        it("should create FIT blob with correct download filename", async (): Promise<void> => {
+            await service.exportSessionToFit(testSessionId);
 
-                const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
-                const content = await blobArg.text();
-                expect(content).toContain("<?xml");
-            });
-
-            it("should include TrainingCenterDatabase root element", async (): Promise<void> => {
-                await service.exportSessionToTcx(testSessionId);
-
-                const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
-                const content = await blobArg.text();
-                expect(content).toContain("<TrainingCenterDatabase");
-            });
-
-            it("should include the Garmin TCX namespace on root element", async (): Promise<void> => {
-                await service.exportSessionToTcx(testSessionId);
-
-                const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
-                const content = await blobArg.text();
-                expect(content).toContain("http://www.garmin.com/xmlschemas/TrainingCenterDatabase");
-            });
-
-            it("should include Activities section", async (): Promise<void> => {
-                await service.exportSessionToTcx(testSessionId);
-
-                const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
-                const content = await blobArg.text();
-                expect(content).toContain("<Activities>");
-            });
-
-            it("should include Author section", async (): Promise<void> => {
-                await service.exportSessionToTcx(testSessionId);
-
-                const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
-                const content = await blobArg.text();
-                expect(content).toContain("<Author");
-            });
-
-            it("should set TotalTimeSeconds to the last data point's elapsedTime", async (): Promise<void> => {
-                await service.exportSessionToTcx(testSessionId);
-
-                const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
-                const content = await blobArg.text();
-                expect(content).toContain("<TotalTimeSeconds>1</TotalTimeSeconds>");
-            });
-        });
-
-        it("should create TCX blob with correct download filename", async (): Promise<void> => {
-            await service.exportSessionToTcx(testSessionId);
-
-            expect(mockAnchor.download).toContain("session.tcx");
+            expect(mockAnchor.download).toContain("session.fit");
             expect(mockAnchor.click).toHaveBeenCalled();
         });
 
         it("should create blob with correct MIME type", async (): Promise<void> => {
-            await service.exportSessionToTcx(testSessionId);
+            await service.exportSessionToFit(testSessionId);
 
             const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
-            expect(blobArg.type).toBe("application/vnd.garmin.tcx+xml");
+            expect(blobArg.type).toBe("application/vnd.ant.fit");
         });
 
         describe("when Web Share API is available", (): void => {
@@ -833,18 +783,18 @@ describe("DataRecorderService", (): void => {
                 setupNavigatorWithShare(shareSpy);
             });
 
-            it("should use navigator.share for TCX export", async (): Promise<void> => {
-                await service.exportSessionToTcx(testSessionId);
+            it("should use navigator.share for FIT export", async (): Promise<void> => {
+                await service.exportSessionToFit(testSessionId);
 
                 expect(shareSpy).toHaveBeenCalled();
             });
 
-            it("should include TCX content in shared file", async (): Promise<void> => {
-                await service.exportSessionToTcx(testSessionId);
+            it("should include FIT content in shared file", async (): Promise<void> => {
+                await service.exportSessionToFit(testSessionId);
 
                 const shareData = shareSpy.mock.calls[0][0] as ShareData;
                 expect(shareData.files).toHaveLength(1);
-                expect(shareData.files![0].name).toContain(".tcx");
+                expect(shareData.files![0].name).toContain(".fit");
             });
         });
     });

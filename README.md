@@ -42,7 +42,7 @@ The recommended way to use the app is the hosted PWA on [GitHub Pages](https://a
 
 ### Export and import
 
-- TCX export for platforms such as Strava.
+- FIT file export for platforms such as Strava or Garmin Connect.
 - CSV export with detailed per-stroke data, including elapsed time, distance, pace, power, stroke rate, drive and recovery durations, heart rate, drag factor, peak force, drive length, and handle forces.
 - JSON export and import for backup, transfer, and offline analysis.
 - Native Web Share API support on supported devices, with file download fallback on desktop browsers.
@@ -89,4 +89,3 @@ For more background, see [Dexie StorageManager docs](https://dexie.org/docs/Stor
 - Add calibration support to the UI.
 - Make recorded sessions replayable, especially force curves.
 - Add a browser-based firmware flasher over WebSerial for first-time setup.
-- Fit file export instead of TCX

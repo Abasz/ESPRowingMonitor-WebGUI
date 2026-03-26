@@ -204,9 +204,9 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
         }
     }
 
-    async exportToTcx(sessionId: number): Promise<void> {
+    async exportToFit(sessionId: number): Promise<void> {
         try {
-            await this.dataRecorder.exportSessionToTcx(sessionId);
+            await this.dataRecorder.exportSessionToFit(sessionId);
         } catch (e) {
             if (e instanceof Error) {
                 this.snackBar.open(`Error while downloading session: ${e.message}`, "Dismiss");
