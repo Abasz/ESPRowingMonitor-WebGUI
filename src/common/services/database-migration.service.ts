@@ -1,7 +1,7 @@
 import { Injectable, signal, WritableSignal } from "@angular/core";
 import { MatDialog, MatDialogRef } from "@angular/material/dialog";
 
-import { MigrationOverlayComponent } from "../../app/migration-update-dialog/migration-dialog.component";
+import { MigrationOverlayComponent } from "../../app/dialogs/migration-update-dialog/migration-dialog.component";
 import { IMigrationProgress } from "../common.interfaces";
 import { AppDB, appDB } from "../utils/app-database";
 

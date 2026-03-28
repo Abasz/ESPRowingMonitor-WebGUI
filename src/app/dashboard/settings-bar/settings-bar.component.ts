@@ -22,10 +22,10 @@ import { ErgSettingsService } from "../../../common/services/ergometer/erg-setti
 import { SessionManagerService } from "../../../common/services/session-manager.service";
 import { UtilsService } from "../../../common/services/utils.service";
 import { BatteryLevelPipe } from "../../../common/utils/battery-level.pipe";
-import { LogbookDialogComponent } from "../../logbook-dialog/logbook-dialog.component";
-import { ConnectErgButtonComponent } from "../../toolbar-buttons/connect-erg-button.component";
-import { ConnectHeartRateButtonComponent } from "../../toolbar-buttons/connect-heart-rate-button.component";
-import { OpenSettingsButtonComponent } from "../../toolbar-buttons/open-settings-button.component";
+import { LogbookDialogComponent } from "../../dialogs/logbook-dialog/logbook-dialog.component";
+import { ConnectErgButtonComponent } from "../toolbar-buttons/connect-erg-button.component";
+import { ConnectHeartRateButtonComponent } from "../toolbar-buttons/connect-heart-rate-button.component";
+import { OpenSettingsButtonComponent } from "../toolbar-buttons/open-settings-button.component";
 
 @Component({
     selector: "app-settings-bar",

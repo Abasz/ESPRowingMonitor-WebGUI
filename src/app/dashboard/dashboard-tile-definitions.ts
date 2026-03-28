@@ -6,7 +6,7 @@ import {
     IDisplayConfig,
     IHeartRate,
 } from "../../common/common.interfaces";
-import { TileDefinition } from "../settings-dialog/tile-layout-editor/utils/tile-layout.interfaces";
+import { TileDefinition } from "../dialogs/settings-dialog/tile-layout-editor/utils/tile-layout.interfaces";
 
 import { DistPerStrokeTileComponent } from "./tiles/dist-per-stroke-tile.component";
 import { DistanceTileComponent } from "./tiles/distance-tile.component";

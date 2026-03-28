@@ -5,8 +5,8 @@ import { MatBottomSheet } from "@angular/material/bottom-sheet";
 import { MatDialog } from "@angular/material/dialog";
 import { firstValueFrom, Observable } from "rxjs";
 
-import { FirmwareProfileSelectionComponent } from "../../../app/firmware-profile-dialog/firmware-profile-selection.component";
-import { OtaDialogComponent } from "../../../app/ota-settings-dialog/ota-dialog.component";
+import { FirmwareProfileSelectionComponent } from "../../../app/dialogs/firmware-profile-dialog/firmware-profile-selection.component";
+import { OtaDialogComponent } from "../../../app/dialogs/ota-settings-dialog/ota-dialog.component";
 import { IDeviceInformation } from "../../ble.interfaces";
 import { FirmwareAsset } from "../../common.interfaces";
 import { versionInfo } from "../../data/version";

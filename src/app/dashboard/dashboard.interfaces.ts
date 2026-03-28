@@ -1,7 +1,7 @@
 import type {
     PlacedTile,
     TilePosition,
-} from "../settings-dialog/tile-layout-editor/utils/tile-layout.interfaces";
+} from "../dialogs/settings-dialog/tile-layout-editor/utils/tile-layout.interfaces";
 
 import type { DashboardTileDefinition, DashboardTileId } from "./dashboard-tile-definitions";
 
