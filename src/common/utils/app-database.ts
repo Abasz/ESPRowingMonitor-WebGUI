@@ -56,6 +56,9 @@ export class AppDB extends Dexie {
                 await Promise.all([
                     handleForcesTable.toCollection().modify((record: IHandleForcesEntity): void => {
                         reportProgress();
+
+                        delete (record as IHandleForcesEntity & { peakForce?: number })?.peakForce;
+
                         if (record.driveLength !== undefined) {
                             return;
                         }

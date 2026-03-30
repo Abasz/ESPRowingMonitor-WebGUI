@@ -73,7 +73,6 @@ export class DataRecorderService {
                         )?.timeStamp ?? timeStamp,
                     sessionId,
                     strokeId: rowingData.strokeCount,
-                    peakForce: rowingData.peakForce,
                     handleForces: rowingData.handleForces,
                     driveLength: rowingData.driveLength,
                 }),
@@ -391,7 +390,7 @@ export class DataRecorderService {
                 const handleForces: Record<number, IExportHandleForces> = {};
                 for (const entity of handleForcesEntities) {
                     handleForces[entity.strokeId] = {
-                        peakForce: entity.peakForce,
+                        peakForce: Math.max(...entity.handleForces, 0),
                         driveLength: entity.driveLength,
                         handleForces: entity.handleForces,
                     };

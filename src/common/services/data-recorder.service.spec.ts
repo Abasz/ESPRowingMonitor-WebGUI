@@ -209,7 +209,6 @@ describe("DataRecorderService", (): void => {
                 timeStamp: mockTimeStamp,
                 sessionId: mockTimeStamp,
                 strokeId: sessionData.strokeCount,
-                peakForce: sessionData.peakForce,
                 handleForces: sessionData.handleForces,
                 driveLength: sessionData.driveLength,
             });
@@ -221,7 +220,6 @@ describe("DataRecorderService", (): void => {
                 timeStamp: existingTimestamp,
                 sessionId: mockTimeStamp,
                 strokeId: 50,
-                peakForce: 300,
                 driveLength: 1.0,
                 handleForces: [80, 150, 200],
             });
@@ -268,7 +266,6 @@ describe("DataRecorderService", (): void => {
                 sessionId,
                 timeStamp: sessionId,
                 strokeId: 1,
-                peakForce: 200,
                 driveLength: 1.0,
                 handleForces: [100],
             });
@@ -452,7 +449,6 @@ describe("DataRecorderService", (): void => {
                         sessionId: testSessionId,
                         timeStamp: testSessionId + 1000,
                         strokeId: 55,
-                        peakForce: 320,
                         handleForces: [90, 180, 270],
                         driveLength: 1.2,
                     });
@@ -605,7 +601,6 @@ describe("DataRecorderService", (): void => {
                     sessionId: testSessionId,
                     timeStamp: testSessionId + 1000,
                     strokeId: 50,
-                    peakForce: 350,
                     handleForces: [100, 200, 300],
                     driveLength: 1.5,
                 });
@@ -759,7 +754,6 @@ describe("DataRecorderService", (): void => {
                     sessionId: testSessionId,
                     timeStamp: testSessionId + 1000,
                     strokeId: 50,
-                    peakForce: 350,
                     handleForces: [100, 200, 300],
                     driveLength: 1.5,
                 });
@@ -886,7 +880,6 @@ describe("DataRecorderService", (): void => {
                     sessionId: testSessionId,
                     timeStamp: testSessionId + 1000,
                     strokeId: 50,
-                    peakForce: 350,
                     handleForces: [100.5, 200.25, 300.75],
                     driveLength: 1.5,
                 });
@@ -1138,7 +1131,7 @@ describe("DataRecorderService", (): void => {
             expect(deltaTimes[0].deltaTimes).toEqual([120, 130, 140]);
 
             expect(handleForces).toHaveLength(1);
-            expect(handleForces[0].peakForce).toBe(300);
+            expect(handleForces[0].handleForces).toEqual([100, 200, 300, 200, 100]);
 
             expect(connectedDevice).toHaveLength(1);
             expect(connectedDevice[0].deviceName).toBe("TestDevice");

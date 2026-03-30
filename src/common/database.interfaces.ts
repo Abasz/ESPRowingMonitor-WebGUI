@@ -9,7 +9,6 @@ export interface IHandleForcesEntity {
     timeStamp: number;
     sessionId: number;
     strokeId: number;
-    peakForce: number;
     handleForces: Array<number>;
     driveLength: number;
 }

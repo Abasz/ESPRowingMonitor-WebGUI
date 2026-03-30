@@ -102,7 +102,7 @@ export class SessionAnalysisService {
                 recoveryDuration: metric.recoveryDuration,
                 dragFactor: metric.dragFactor,
                 heartRate: metric.heartRate,
-                peakForce: handleForcesMap[metric.strokeCount]?.peakForce ?? 0,
+                peakForce: Math.max(...(handleForcesMap[metric.strokeCount]?.handleForces ?? []), 0),
                 driveLength: handleForcesMap[metric.strokeCount]?.driveLength ?? 0,
                 handleForces: handleForcesMap[metric.strokeCount]?.handleForces ?? [],
             }),

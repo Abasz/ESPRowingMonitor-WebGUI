@@ -10,7 +10,7 @@ describe("AppDB", (): void => {
     let appDb: AppDB;
 
     const seedV2Database = async (
-        handleForcesRows: Array<Partial<IHandleForcesEntity>>,
+        handleForcesRows: Array<Partial<IHandleForcesEntity> & { peakForce?: number }>,
         sessionDataRows: Array<Partial<IMetricsEntity>>,
     ): Promise<void> => {
         const seed = new Dexie(testDbName);
@@ -76,6 +76,27 @@ describe("AppDB", (): void => {
                     records.find((record: IHandleForcesEntity): boolean => record.timeStamp === 2000)
                         ?.driveLength,
                 ).toBe(0);
+            });
+
+            it("should delete peakForce from records", async (): Promise<void> => {
+                await seedV2Database(
+                    [
+                        {
+                            timeStamp: 1000,
+                            sessionId: 1,
+                            strokeId: 1,
+                            peakForce: 300,
+                            handleForces: [100, 200],
+                        },
+                    ],
+                    [],
+                );
+
+                await appDb.open();
+                const records = await appDb.table("handleForces").toArray();
+
+                expect(records).toHaveLength(1);
+                expect(records[0]).not.toHaveProperty("peakForce");
             });
 
             it("should not overwrite an existing driveLength value", async (): Promise<void> => {

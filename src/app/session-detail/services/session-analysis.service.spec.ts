@@ -30,7 +30,6 @@ describe("SessionAnalysisService", (): void => {
         timeStamp: mockSessionId + 1000,
         sessionId: mockSessionId,
         strokeId: 1,
-        peakForce: 350,
         handleForces: [100, 200, 300],
         driveLength: 1.5,
         ...overrides,
@@ -131,14 +130,12 @@ describe("SessionAnalysisService", (): void => {
                 [
                     createHandleForcesEntity({
                         strokeId: 1,
-                        peakForce: 300,
-                        handleForces: [100, 200],
+                        handleForces: [100, 300],
                         timeStamp: mockSessionId + 1000,
                     }),
                     createHandleForcesEntity({
                         strokeId: 2,
-                        peakForce: 400,
-                        handleForces: [150, 250],
+                        handleForces: [150, 400],
                         timeStamp: mockSessionId + 2000,
                     }),
                 ],
@@ -149,7 +146,7 @@ describe("SessionAnalysisService", (): void => {
             expect(result.strokes).toHaveLength(2);
             expect(result.strokes[0].strokeIndex).toBe(1);
             expect(result.strokes[0].peakForce).toBe(300);
-            expect(result.strokes[0].handleForces).toEqual([100, 200]);
+            expect(result.strokes[0].handleForces).toEqual([100, 300]);
             expect(result.strokes[1].strokeIndex).toBe(2);
             expect(result.strokes[1].peakForce).toBe(400);
         });
@@ -330,13 +327,13 @@ describe("SessionAnalysisService", (): void => {
                 [
                     createHandleForcesEntity({
                         strokeId: 1,
-                        peakForce: 200,
+                        handleForces: [100, 200],
                         driveLength: 1.2,
                         timeStamp: mockSessionId + 1000,
                     }),
                     createHandleForcesEntity({
                         strokeId: 2,
-                        peakForce: 450,
+                        handleForces: [150, 450],
                         driveLength: 1.8,
                         timeStamp: mockSessionId + 2000,
                     }),
