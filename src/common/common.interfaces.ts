@@ -170,6 +170,7 @@ export interface ICalculatedMetrics extends Omit<IExtendedMetrics & IBaseMetrics
     speed: number;
     strokeRate: number;
     peakForce: number;
+    peakForcePositionNorm: number;
     distPerStroke: number;
     driveLength: number;
     handleForces: Array<number>;

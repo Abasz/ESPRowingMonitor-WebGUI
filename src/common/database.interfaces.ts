@@ -2,7 +2,7 @@ import { ISessionData } from "./common.interfaces";
 
 export interface IMetricsEntity extends Omit<
     ISessionData,
-    "peakForce" | "handleForces" | "driveLength" | "totalWork"
+    "peakForce" | "peakForcePositionNorm" | "handleForces" | "driveLength" | "totalWork"
 > {
     sessionId: number;
     timeStamp: number;
@@ -27,7 +27,10 @@ export interface IConnectedDeviceEntity {
     deviceName: string;
 }
 
-export type IExportRecord = Omit<ISessionData, "peakForce" | "handleForces" | "driveLength"> & {
+export type IExportRecord = Omit<
+    ISessionData,
+    "peakForce" | "peakForcePositionNorm" | "handleForces" | "driveLength"
+> & {
     timeStamp: Date;
 };
 

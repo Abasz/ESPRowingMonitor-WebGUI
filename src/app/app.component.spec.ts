@@ -89,6 +89,7 @@ describe("AppComponent", (): void => {
                 strokeCount: 0,
                 handleForces: [],
                 peakForce: 0,
+                peakForcePositionNorm: 0,
                 strokeRate: 0,
                 speed: 0,
                 distPerStroke: 0,

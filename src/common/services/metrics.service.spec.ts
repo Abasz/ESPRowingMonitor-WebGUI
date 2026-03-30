@@ -249,6 +249,131 @@ describe("MetricsService", (): void => {
         });
     });
 
+    describe("peakForce and peakForcePositionNorm Calculation", (): void => {
+        beforeEach((): void => {
+            service = TestBed.inject(MetricsService);
+        });
+
+        it("should compute peakForce and peakForcePositionNorm for a typical force curve", async (): Promise<void> => {
+            const metricsPromise = firstValueFrom(service.rawMetrics$);
+
+            measurementSubject.next(mockBaseMetrics);
+            extendedSubject.next(mockExtendedMetrics);
+            handleForcesSubject.next([10, 50, 30]);
+            measurementSubject.next({
+                revTime: mockBaseMetrics.revTime + 1000,
+                distance: mockBaseMetrics.distance + 100,
+                strokeTime: mockBaseMetrics.strokeTime + 1000,
+                strokeCount: mockBaseMetrics.strokeCount + 1,
+            });
+
+            const metrics = await metricsPromise;
+
+            expect(metrics.peakForce).toBe(50);
+            // peakForceIndex = 1, length = 3 → (1 / 2) * 100 = 50
+            expect(metrics.peakForcePositionNorm).toBe(50);
+        });
+
+        it("should return peakForcePositionNorm of 0 when peak is at start", async (): Promise<void> => {
+            const metricsPromise = firstValueFrom(service.rawMetrics$);
+
+            measurementSubject.next(mockBaseMetrics);
+            extendedSubject.next(mockExtendedMetrics);
+            handleForcesSubject.next([100, 50, 10]);
+            measurementSubject.next({
+                revTime: mockBaseMetrics.revTime + 1000,
+                distance: mockBaseMetrics.distance + 100,
+                strokeTime: mockBaseMetrics.strokeTime + 1000,
+                strokeCount: mockBaseMetrics.strokeCount + 1,
+            });
+
+            const metrics = await metricsPromise;
+
+            expect(metrics.peakForce).toBe(100);
+            // peakForceIndex = 0 → (0 / 2) * 100 = 0
+            expect(metrics.peakForcePositionNorm).toBe(0);
+        });
+
+        it("should return peakForcePositionNorm of 100 when peak is at end", async (): Promise<void> => {
+            const metricsPromise = firstValueFrom(service.rawMetrics$);
+
+            measurementSubject.next(mockBaseMetrics);
+            extendedSubject.next(mockExtendedMetrics);
+            handleForcesSubject.next([10, 50, 100]);
+            measurementSubject.next({
+                revTime: mockBaseMetrics.revTime + 1000,
+                distance: mockBaseMetrics.distance + 100,
+                strokeTime: mockBaseMetrics.strokeTime + 1000,
+                strokeCount: mockBaseMetrics.strokeCount + 1,
+            });
+
+            const metrics = await metricsPromise;
+
+            expect(metrics.peakForce).toBe(100);
+            // peakForceIndex = 2, length = 3 → (2 / 2) * 100 = 100
+            expect(metrics.peakForcePositionNorm).toBe(100);
+        });
+
+        it("should return 0 for peakForcePositionNorm when handleForces has a single element", async (): Promise<void> => {
+            const metricsPromise = firstValueFrom(service.rawMetrics$);
+
+            measurementSubject.next(mockBaseMetrics);
+            extendedSubject.next(mockExtendedMetrics);
+            handleForcesSubject.next([42]);
+            measurementSubject.next({
+                revTime: mockBaseMetrics.revTime + 1000,
+                distance: mockBaseMetrics.distance + 100,
+                strokeTime: mockBaseMetrics.strokeTime + 1000,
+                strokeCount: mockBaseMetrics.strokeCount + 1,
+            });
+
+            const metrics = await metricsPromise;
+
+            expect(metrics.peakForce).toBe(42);
+            // length <= 1 → 0
+            expect(metrics.peakForcePositionNorm).toBe(0);
+        });
+
+        it("should return 0 for peakForce and peakForcePositionNorm when handleForces is empty", async (): Promise<void> => {
+            const metricsPromise = firstValueFrom(service.rawMetrics$);
+
+            measurementSubject.next(mockBaseMetrics);
+            extendedSubject.next(mockExtendedMetrics);
+            handleForcesSubject.next([]);
+            measurementSubject.next({
+                revTime: mockBaseMetrics.revTime + 1000,
+                distance: mockBaseMetrics.distance + 100,
+                strokeTime: mockBaseMetrics.strokeTime + 1000,
+                strokeCount: mockBaseMetrics.strokeCount + 1,
+            });
+
+            const metrics = await metricsPromise;
+
+            expect(metrics.peakForce).toBe(0);
+            expect(metrics.peakForcePositionNorm).toBe(0);
+        });
+
+        it("should use the first occurrence when multiple elements are tied for peak", async (): Promise<void> => {
+            const metricsPromise = firstValueFrom(service.rawMetrics$);
+
+            measurementSubject.next(mockBaseMetrics);
+            extendedSubject.next(mockExtendedMetrics);
+            handleForcesSubject.next([50, 50, 50]);
+            measurementSubject.next({
+                revTime: mockBaseMetrics.revTime + 1000,
+                distance: mockBaseMetrics.distance + 100,
+                strokeTime: mockBaseMetrics.strokeTime + 1000,
+                strokeCount: mockBaseMetrics.strokeCount + 1,
+            });
+
+            const metrics = await metricsPromise;
+
+            expect(metrics.peakForce).toBe(50);
+            // reduce keeps first max → peakForceIndex = 0 → (0 / 2) * 100 = 0
+            expect(metrics.peakForcePositionNorm).toBe(0);
+        });
+    });
+
     describe("Data Recording Integration", (): void => {
         beforeEach((): void => {
             service = TestBed.inject(MetricsService);

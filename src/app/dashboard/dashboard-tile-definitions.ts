@@ -16,6 +16,7 @@ import { DriveTileComponent } from "./tiles/drive-tile.component";
 import { ForceCurveTileComponent } from "./tiles/force-curve-tile.component";
 import { HeartRateTileComponent } from "./tiles/heart-rate-tile.component";
 import { PaceTileComponent } from "./tiles/pace-tile.component";
+import { PeakForcePositionTileComponent } from "./tiles/peak-force-position-tile.component";
 import { PeakForceTileComponent } from "./tiles/peak-force-tile.component";
 import { PowerTileComponent } from "./tiles/power-tile.component";
 import { RecoveryTileComponent } from "./tiles/recovery-tile.component";
@@ -225,6 +226,17 @@ const TILE_REGISTRY = {
         minRowSpan: 1,
         minColumnSpan: 1,
         component: PeakForceTileComponent,
+        context: ["rowingData"],
+    },
+    PeakForcePositionNorm: {
+        id: "peakForcePositionNorm" as const,
+        label: "Peak Position",
+        icon: "vertical_align_center",
+        defaultRowSpan: 1,
+        defaultColumnSpan: 1,
+        minRowSpan: 1,
+        minColumnSpan: 1,
+        component: PeakForcePositionTileComponent,
         context: ["rowingData"],
     },
     Speed: {

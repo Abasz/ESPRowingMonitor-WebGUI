@@ -59,6 +59,7 @@ const ALL_AVERAGEABLE_METRIC_KEYS: ReadonlyArray<AverageableMetricKey> = [
     "recoveryDuration",
     "dragFactor",
     "peakForce",
+    "peakForcePositionNorm",
     "distPerStroke",
     "driveLength",
 ];
@@ -72,6 +73,7 @@ const ZERO_METRICS: ICalculatedMetrics = {
     strokeCount: 0,
     handleForces: [],
     peakForce: 0,
+    peakForcePositionNorm: 0,
     strokeRate: 0,
     speed: 0,
     distPerStroke: 0,

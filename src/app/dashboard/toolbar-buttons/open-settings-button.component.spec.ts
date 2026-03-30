@@ -265,7 +265,7 @@ describe("OpenSettingsButtonComponent", (): void => {
 
                     expect(mockDialog.open).toHaveBeenCalledWith(SettingsDialogComponent, {
                         autoFocus: false,
-                        maxWidth: "560px",
+                        maxWidth: "580px",
                         maxHeight: "95vh",
                         data: {
                             rowerSettings: mockRowerSettings,
@@ -307,7 +307,7 @@ describe("OpenSettingsButtonComponent", (): void => {
                         await sut;
                         expect(mockDialog.open).toHaveBeenCalledWith(SettingsDialogComponent, {
                             autoFocus: false,
-                            maxWidth: "560px",
+                            maxWidth: "580px",
                             maxHeight: "95vh",
                             data: {
                                 rowerSettings: mockRowerSettings,
@@ -379,7 +379,7 @@ describe("OpenSettingsButtonComponent", (): void => {
 
             expect(mockDialog.open).toHaveBeenCalledWith(SettingsDialogComponent, {
                 autoFocus: false,
-                maxWidth: "560px",
+                maxWidth: "580px",
                 maxHeight: "95vh",
                 data: expect.objectContaining({
                     rowerSettings: newSettings,
@@ -396,7 +396,7 @@ describe("OpenSettingsButtonComponent", (): void => {
 
                 expect(mockDialog.open).toHaveBeenCalledWith(SettingsDialogComponent, {
                     autoFocus: false,
-                    maxWidth: "560px",
+                    maxWidth: "580px",
                     maxHeight: "95vh",
                     data: expect.objectContaining({
                         deviceInfo: newDeviceInfo,
@@ -411,7 +411,7 @@ describe("OpenSettingsButtonComponent", (): void => {
 
                 expect(mockDialog.open).toHaveBeenCalledWith(SettingsDialogComponent, {
                     autoFocus: false,
-                    maxWidth: "560px",
+                    maxWidth: "580px",
                     maxHeight: "95vh",
                     data: expect.objectContaining({
                         deviceInfo: undefined,
@@ -486,7 +486,7 @@ describe("OpenSettingsButtonComponent", (): void => {
 
                 expect(mockDialog.open).toHaveBeenCalledWith(SettingsDialogComponent, {
                     autoFocus: false,
-                    maxWidth: "560px",
+                    maxWidth: "580px",
                     maxHeight: "95vh",
                     data: expect.objectContaining({
                         ergConnectionStatus: expect.objectContaining({
@@ -503,7 +503,7 @@ describe("OpenSettingsButtonComponent", (): void => {
 
                 expect(mockDialog.open).toHaveBeenCalledWith(SettingsDialogComponent, {
                     autoFocus: false,
-                    maxWidth: "560px",
+                    maxWidth: "580px",
                     maxHeight: "95vh",
                     data: expect.objectContaining({
                         rowerSettings: null,

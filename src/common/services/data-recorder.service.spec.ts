@@ -69,6 +69,7 @@ describe("DataRecorderService", (): void => {
             strokeRate: 24,
             elapsedTime: 0,
             peakForce: 350,
+            peakForcePositionNorm: 0,
             handleForces: [100, 200, 300],
             driveLength: 1.5,
             totalWork: 0,

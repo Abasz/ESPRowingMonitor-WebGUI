@@ -139,20 +139,35 @@ export class MetricsService {
                     [IBaseMetrics, IBaseMetrics],
                     IExtendedMetrics,
                     Array<number>,
-                ]): IRawCalculatedMetrics => ({
-                    avgStrokePower: extendedMetrics.avgStrokePower,
-                    driveDuration: extendedMetrics.driveDuration / 1e6,
-                    recoveryDuration: extendedMetrics.recoveryDuration / 1e6,
-                    dragFactor: extendedMetrics.dragFactor,
-                    rawDistance: baseMetricsCurrent.distance,
-                    rawStrokeCount: baseMetricsCurrent.strokeCount,
-                    handleForces: handleForces,
-                    peakForce: Math.max(...handleForces, 0),
-                    strokeRate: this.calculateStrokeRate(baseMetricsPrevious, baseMetricsCurrent),
-                    speed: this.calculateSpeed(baseMetricsPrevious, baseMetricsCurrent),
-                    distPerStroke: this.calculateStrokeDistance(baseMetricsPrevious, baseMetricsCurrent),
-                    driveLength: this.calculateDriveLength(handleForces.length),
-                }),
+                ]): IRawCalculatedMetrics => {
+                    const { peakForce, peakForceIndex }: { peakForce: number; peakForceIndex: number } =
+                        handleForces.reduce(
+                            (
+                                acc: { peakForce: number; peakForceIndex: number },
+                                force: number,
+                                index: number,
+                            ): { peakForce: number; peakForceIndex: number } =>
+                                force > acc.peakForce ? { peakForce: force, peakForceIndex: index } : acc,
+                            { peakForce: 0, peakForceIndex: 0 },
+                        );
+
+                    return {
+                        avgStrokePower: extendedMetrics.avgStrokePower,
+                        driveDuration: extendedMetrics.driveDuration / 1e6,
+                        recoveryDuration: extendedMetrics.recoveryDuration / 1e6,
+                        dragFactor: extendedMetrics.dragFactor,
+                        rawDistance: baseMetricsCurrent.distance,
+                        rawStrokeCount: baseMetricsCurrent.strokeCount,
+                        handleForces: handleForces,
+                        peakForce,
+                        peakForcePositionNorm:
+                            handleForces.length > 1 ? (peakForceIndex / (handleForces.length - 1)) * 100 : 0,
+                        strokeRate: this.calculateStrokeRate(baseMetricsPrevious, baseMetricsCurrent),
+                        speed: this.calculateSpeed(baseMetricsPrevious, baseMetricsCurrent),
+                        distPerStroke: this.calculateStrokeDistance(baseMetricsPrevious, baseMetricsCurrent),
+                        driveLength: this.calculateDriveLength(handleForces.length),
+                    };
+                },
             ),
         );
     }

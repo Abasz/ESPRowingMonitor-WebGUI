@@ -45,6 +45,7 @@ const ZERO_RAW_METRICS: IRawCalculatedMetrics = {
     rawStrokeCount: 0,
     handleForces: [],
     peakForce: 0,
+    peakForcePositionNorm: 0,
     strokeRate: 0,
     speed: 0,
     distPerStroke: 0,
