@@ -71,8 +71,8 @@ describe("computeForceStats function", (): void => {
 
     it("should return undefined when all entries have empty force arrays", (): void => {
         const handleForces: Record<number, IExportHandleForces> = {
-            1: { handleForces: [], peakForce: 0, driveLength: 1.0 },
-            2: { handleForces: [], peakForce: 0, driveLength: 1.0 },
+            1: { handleForces: [], peakForce: 0, peakForcePositionNorm: 0, driveLength: 1.0 },
+            2: { handleForces: [], peakForce: 0, peakForcePositionNorm: 0, driveLength: 1.0 },
         };
 
         expect(computeForceStats(handleForces)).toBeUndefined();
@@ -80,7 +80,7 @@ describe("computeForceStats function", (): void => {
 
     it("should compute avg and max for a single entry", (): void => {
         const handleForces: Record<number, IExportHandleForces> = {
-            1: { handleForces: [100, 200], peakForce: 200, driveLength: 1.2 },
+            1: { handleForces: [100, 200], peakForce: 200, peakForcePositionNorm: 60, driveLength: 1.2 },
         };
 
         const result = computeForceStats(handleForces);
@@ -90,9 +90,9 @@ describe("computeForceStats function", (): void => {
 
     it("should compute avg and max across multiple entries", (): void => {
         const handleForces: Record<number, IExportHandleForces> = {
-            1: { handleForces: [100, 200], peakForce: 200, driveLength: 1.2 },
-            2: { handleForces: [150, 250], peakForce: 250, driveLength: 1.3 },
-            3: { handleForces: [200, 300], peakForce: 300, driveLength: 1.4 },
+            1: { handleForces: [100, 200], peakForce: 200, peakForcePositionNorm: 60, driveLength: 1.2 },
+            2: { handleForces: [150, 250], peakForce: 250, peakForcePositionNorm: 55, driveLength: 1.3 },
+            3: { handleForces: [200, 300], peakForce: 300, peakForcePositionNorm: 50, driveLength: 1.4 },
         };
 
         const result = computeForceStats(handleForces);
@@ -102,9 +102,9 @@ describe("computeForceStats function", (): void => {
 
     it("should skip entries with empty force arrays", (): void => {
         const handleForces: Record<number, IExportHandleForces> = {
-            1: { handleForces: [100, 200], peakForce: 200, driveLength: 1.2 },
-            2: { handleForces: [], peakForce: 0, driveLength: 0 },
-            3: { handleForces: [200, 300], peakForce: 300, driveLength: 1.4 },
+            1: { handleForces: [100, 200], peakForce: 200, peakForcePositionNorm: 60, driveLength: 1.2 },
+            2: { handleForces: [], peakForce: 0, peakForcePositionNorm: 0, driveLength: 0 },
+            3: { handleForces: [200, 300], peakForce: 300, peakForcePositionNorm: 50, driveLength: 1.4 },
         };
 
         const result = computeForceStats(handleForces);
@@ -222,8 +222,8 @@ describe("computeStats function", (): void => {
 
         it("should compute paired avg and max force from handleForces", (): void => {
             const handleForces: Record<number, IExportHandleForces> = {
-                1: { handleForces: [100, 200], peakForce: 200, driveLength: 1.2 },
-                2: { handleForces: [200, 300], peakForce: 300, driveLength: 1.4 },
+                1: { handleForces: [100, 200], peakForce: 200, peakForcePositionNorm: 60, driveLength: 1.2 },
+                2: { handleForces: [200, 300], peakForce: 300, peakForcePositionNorm: 50, driveLength: 1.4 },
             };
             const stats = computeStats(records, handleForces);
 

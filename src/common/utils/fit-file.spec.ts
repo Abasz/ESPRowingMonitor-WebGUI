@@ -86,9 +86,9 @@ function createTestSession(overrides?: Partial<IExportSession>): IExportSession 
             },
         ],
         handleForces: {
-            1: { handleForces: [100, 200], peakForce: 200, driveLength: 1.2 },
-            2: { handleForces: [150, 250], peakForce: 250, driveLength: 1.3 },
-            3: { handleForces: [200, 300], peakForce: 300, driveLength: 1.4 },
+            1: { handleForces: [100, 200], peakForce: 200, peakForcePositionNorm: 60, driveLength: 1.2 },
+            2: { handleForces: [150, 250], peakForce: 250, peakForcePositionNorm: 55, driveLength: 1.3 },
+            3: { handleForces: [200, 300], peakForce: 300, peakForcePositionNorm: 50, driveLength: 1.4 },
         },
         ...overrides,
     };

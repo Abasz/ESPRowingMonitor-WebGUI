@@ -36,6 +36,7 @@ export type IExportRecord = Omit<
 
 export interface IExportHandleForces {
     peakForce: number;
+    peakForcePositionNorm: number;
     driveLength: number;
     handleForces: Array<number>;
 }

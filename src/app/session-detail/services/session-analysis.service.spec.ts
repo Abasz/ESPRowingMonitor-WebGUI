@@ -473,7 +473,12 @@ describe("SessionAnalysisService", (): void => {
                 },
             ],
             handleForces: {
-                1: { peakForce: 100, driveLength: 1.5, handleForces: [20, 60, 100, 80, 40] },
+                1: {
+                    peakForce: 100,
+                    peakForcePositionNorm: 0,
+                    driveLength: 1.5,
+                    handleForces: [20, 60, 100, 80, 40],
+                },
             },
             ...overrides,
         });
@@ -524,8 +529,8 @@ describe("SessionAnalysisService", (): void => {
                     },
                 ],
                 handleForces: {
-                    1: { peakForce: 100, driveLength: 1.5, handleForces: [] },
-                    2: { peakForce: 200, driveLength: 1.6, handleForces: [] },
+                    1: { peakForce: 100, peakForcePositionNorm: 0, driveLength: 1.5, handleForces: [] },
+                    2: { peakForce: 200, peakForcePositionNorm: 0, driveLength: 1.6, handleForces: [] },
                 },
             });
 
@@ -652,8 +657,8 @@ describe("SessionAnalysisService", (): void => {
                     },
                 ],
                 handleForces: {
-                    1: { peakForce: 100, driveLength: 1.5, handleForces: [] },
-                    2: { peakForce: 200, driveLength: 1.6, handleForces: [] },
+                    1: { peakForce: 100, peakForcePositionNorm: 0, driveLength: 1.5, handleForces: [] },
+                    2: { peakForce: 200, peakForcePositionNorm: 0, driveLength: 1.6, handleForces: [] },
                 },
             });
 

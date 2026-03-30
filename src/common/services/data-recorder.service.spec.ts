@@ -862,6 +862,7 @@ describe("DataRecorderService", (): void => {
             expect(content).toContain("Distance (m)");
             expect(content).toContain("Heart Rate");
             expect(content).toContain("Drive Length (m)");
+            expect(content).toContain("Peak Force Position (%)");
             expect(content).toContain("Handle Forces (N)");
         });
 
@@ -891,6 +892,17 @@ describe("DataRecorderService", (): void => {
             const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
             const content = await blobArg.text();
             expect(content).toContain('"100.50,200.25,300.75"');
+        });
+
+        it("should include peak force position in CSV row", async (): Promise<void> => {
+            await service.exportSessionToCsv(testSessionId);
+
+            const blobArg = createObjectURLSpy.mock.calls[0][0] as Blob;
+            const content = await blobArg.text();
+            const rows = content.trim().split("\n");
+            const dataRow = rows[1].split(",");
+            const header = rows[0].split(",").indexOf("Peak Force Position (%)");
+            expect(dataRow[header]).toBe("100.0");
         });
 
         it("should export session data with deltaTimes when available", async (): Promise<void> => {

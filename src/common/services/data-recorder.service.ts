@@ -271,6 +271,7 @@ export class DataRecorderService {
             "Heart Rate",
             "Drag Factor",
             "Peak Force (N)",
+            "Peak Force Position (%)",
             "Handle Forces (N)",
         ].join(",");
 
@@ -289,10 +290,11 @@ export class DataRecorderService {
                         : 0
                     : (data.strokeRate / 60) * data.distPerStroke;
 
-            const handleForce: IExportHandleForces | undefined = handleForces[data.strokeCount] ?? {
+            const handleForce: IExportHandleForces = handleForces[data.strokeCount] ?? {
                 handleForces: [],
-                peakForce: 0,
                 driveLength: 0,
+                peakForce: 0,
+                peakForcePositionNorm: 0,
             };
             const handleForcesFormatted = `"${handleForce.handleForces.map((force: number): string => force.toFixed(2)).join(",")}"`;
             const heartRateValue =
@@ -317,6 +319,7 @@ export class DataRecorderService {
                 heartRateValue,
                 data.dragFactor.toString(),
                 handleForce.peakForce.toFixed(2),
+                handleForce.peakForcePositionNorm.toFixed(1),
                 handleForcesFormatted,
             ].join(",");
 
@@ -383,8 +386,25 @@ export class DataRecorderService {
 
                 const handleForces: Record<number, IExportHandleForces> = {};
                 for (const entity of handleForcesEntities) {
+                    const { peakForce, peakForceIndex }: { peakForce: number; peakForceIndex: number } =
+                        entity.handleForces.reduce(
+                            (
+                                accumulator: { peakForce: number; peakForceIndex: number },
+                                force: number,
+                                index: number,
+                            ): { peakForce: number; peakForceIndex: number } =>
+                                force > accumulator.peakForce
+                                    ? { peakForce: force, peakForceIndex: index }
+                                    : accumulator,
+                            { peakForce: 0, peakForceIndex: 0 },
+                        );
+
                     handleForces[entity.strokeId] = {
-                        peakForce: Math.max(...entity.handleForces, 0),
+                        peakForce,
+                        peakForcePositionNorm:
+                            entity.handleForces.length > 1
+                                ? (peakForceIndex / (entity.handleForces.length - 1)) * 100
+                                : 0,
                         driveLength: entity.driveLength,
                         handleForces: entity.handleForces,
                     };
