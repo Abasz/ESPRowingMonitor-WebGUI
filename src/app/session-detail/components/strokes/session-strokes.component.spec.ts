@@ -22,6 +22,7 @@ const createMockStrokes = (count: number): Array<ISessionStroke> =>
             dragFactor: 110,
             heartRate: undefined,
             peakForce: 350,
+            peakForcePositionNorm: 50,
             driveLength: 1.3,
             handleForces: [100, 200, 350, 200, 100],
         }),

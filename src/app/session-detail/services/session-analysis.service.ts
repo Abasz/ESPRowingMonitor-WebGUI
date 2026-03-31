@@ -19,6 +19,17 @@ import {
 
 import { detectLaps } from "./lap-detection";
 
+const findPeakForce = (forces: Array<number>): { peakForce: number; peakForceIndex: number } =>
+    forces.reduce(
+        (
+            accumulator: { peakForce: number; peakForceIndex: number },
+            force: number,
+            index: number,
+        ): { peakForce: number; peakForceIndex: number } =>
+            force > accumulator.peakForce ? { peakForce: force, peakForceIndex: index } : accumulator,
+        { peakForce: 0, peakForceIndex: 0 },
+    );
+
 @Injectable({
     providedIn: "root",
 })
@@ -84,12 +95,19 @@ export class SessionAnalysisService {
             (record: ISessionRecord): ISessionStroke => {
                 const handleForce: IExportHandleForces | undefined =
                     exportSession.handleForces[record.strokeIndex];
+                const forces: Array<number> = handleForce?.handleForces ?? [];
+                const {
+                    peakForce: computedPeakForce,
+                    peakForceIndex,
+                }: { peakForce: number; peakForceIndex: number } = findPeakForce(forces);
 
                 return {
                     ...record,
-                    peakForce: handleForce?.peakForce ?? 0,
+                    peakForce: computedPeakForce,
+                    peakForcePositionNorm:
+                        forces.length > 1 ? (peakForceIndex / (forces.length - 1)) * 100 : 0,
                     driveLength: handleForce?.driveLength ?? 0,
-                    handleForces: handleForce?.handleForces ?? [],
+                    handleForces: forces,
                 };
             },
         );
@@ -144,8 +162,12 @@ export class SessionAnalysisService {
             uniqueByStrokeCount.set(metric.strokeCount, metric);
         }
 
-        return Array.from(uniqueByStrokeCount.values()).map(
-            (metric: IMetricsEntity): ISessionStroke => ({
+        return Array.from(uniqueByStrokeCount.values()).map((metric: IMetricsEntity): ISessionStroke => {
+            const forces: Array<number> = handleForcesMap[metric.strokeCount]?.handleForces ?? [];
+            const { peakForce, peakForceIndex }: { peakForce: number; peakForceIndex: number } =
+                findPeakForce(forces);
+
+            return {
                 strokeIndex: metric.strokeCount,
                 timeStamp: metric.timeStamp,
                 elapsedTime: metric.elapsedTime,
@@ -158,11 +180,12 @@ export class SessionAnalysisService {
                 recoveryDuration: metric.recoveryDuration,
                 dragFactor: metric.dragFactor,
                 heartRate: metric.heartRate,
-                peakForce: Math.max(...(handleForcesMap[metric.strokeCount]?.handleForces ?? []), 0),
+                peakForce,
+                peakForcePositionNorm: forces.length > 1 ? (peakForceIndex / (forces.length - 1)) * 100 : 0,
                 driveLength: handleForcesMap[metric.strokeCount]?.driveLength ?? 0,
-                handleForces: handleForcesMap[metric.strokeCount]?.handleForces ?? [],
-            }),
-        );
+                handleForces: forces,
+            };
+        });
     }
 
     private computeStatistics(strokes: Array<ISessionStroke>): ISessionStatistics {
@@ -192,6 +215,7 @@ export class SessionAnalysisService {
         let sumRecoveryDuration = 0;
         let sumDragFactor = 0;
         let sumHeartRate = 0;
+        let sumPeakForcePositionNorm = 0;
         let heartRateCount = 0;
 
         for (const stroke of strokes) {
@@ -228,6 +252,7 @@ export class SessionAnalysisService {
             sumDriveDuration += stroke.driveDuration;
             sumRecoveryDuration += stroke.recoveryDuration;
             sumDragFactor += stroke.dragFactor;
+            sumPeakForcePositionNorm += stroke.peakForcePositionNorm;
 
             if (stroke.heartRate !== undefined) {
                 sumHeartRate += stroke.heartRate.heartRate;
@@ -241,6 +266,7 @@ export class SessionAnalysisService {
             speed: sumSpeed / count,
             strokePower: sumPower / count,
             strokeRate: sumStrokeRate / count,
+            peakForcePositionNorm: sumPeakForcePositionNorm / count,
             distPerStroke: sumDistPerStroke / count,
             driveLength: sumDriveLength / count,
             driveDuration: sumDriveDuration / count,
@@ -277,6 +303,7 @@ export class SessionAnalysisService {
                 speed: 0,
                 strokePower: 0,
                 strokeRate: 0,
+                peakForcePositionNorm: 0,
                 distPerStroke: 0,
                 driveLength: 0,
                 driveDuration: 0,

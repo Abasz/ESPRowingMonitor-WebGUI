@@ -38,6 +38,7 @@ const createMockAnalysis = (): ISessionAnalysis => ({
             timeStamp: 1700000002500,
             heartRate: { heartRate: 145, contactDetected: true },
             peakForce: 200,
+            peakForcePositionNorm: 50,
             driveLength: 0.8,
             distPerStroke: 10,
             driveDuration: 0.8,
@@ -70,6 +71,7 @@ const createMockAnalysis = (): ISessionAnalysis => ({
             recoveryDuration: 1.6,
             heartRate: 145,
             dragFactor: 110,
+            peakForcePositionNorm: 50,
         },
     },
     laps: [],
@@ -256,7 +258,7 @@ describe("SessionSummaryComponent", (): void => {
             fixture.componentRef.setInput("analysis", analysis);
             fixture.detectChanges();
 
-            expect(component.avgMetrics().length).toBe(8);
+            expect(component.avgMetrics().length).toBe(9);
         });
 
         it("should render max speed as km/h in the maximums card", (): void => {
@@ -275,10 +277,10 @@ describe("SessionSummaryComponent", (): void => {
     });
 
     describe("as part of chart rendering", (): void => {
-        it("should render 7 chart wrappers when HR data is present", (): void => {
+        it("should render 8 chart wrappers when HR data is present", (): void => {
             const chartWrappers = fixture.nativeElement.querySelectorAll(".chart-wrapper");
 
-            expect(chartWrappers.length).toBe(7);
+            expect(chartWrappers.length).toBe(8);
         });
 
         it("should render 6 chart wrappers when HR data is absent", (): void => {
@@ -289,13 +291,13 @@ describe("SessionSummaryComponent", (): void => {
 
             const chartWrappers = fixture.nativeElement.querySelectorAll(".chart-wrapper");
 
-            expect(chartWrappers.length).toBe(6);
+            expect(chartWrappers.length).toBe(7);
         });
 
         it("should render chart headers with color circles", (): void => {
             const colorCircles = fixture.nativeElement.querySelectorAll(".chart-header span:nth-child(1)");
 
-            expect(colorCircles.length).toBe(7);
+            expect(colorCircles.length).toBe(8);
             expect(colorCircles[0].style.backgroundColor).toBeTruthy();
         });
 
@@ -381,6 +383,7 @@ describe("SessionSummaryComponent", (): void => {
                 timeStamp: 1700000005000,
                 heartRate: undefined,
                 peakForce: 200,
+                peakForcePositionNorm: 0,
                 driveLength: 0.8,
                 distPerStroke: 0,
                 driveDuration: 0.8,

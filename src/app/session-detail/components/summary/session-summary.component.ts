@@ -56,6 +56,7 @@ const CHART_COLORS = {
     heartRate: "#ff0035",
     distPerStroke: "#7cb5ec",
     driveLength: "#2dc937",
+    peakForcePositionNorm: "#f5a623",
     drive: "#11a9ed",
     recovery: "#ed7e00",
     average: "#888888",
@@ -316,6 +317,45 @@ const buildDriveRecoveryChartConfig = (strokes: Array<ISessionRecord>): IChartCo
     };
 };
 
+const buildPeakForcePositionChartConfig = (
+    strokes: Array<ISessionStroke>,
+    stats: ISessionStatistics,
+): IChartConfig => {
+    const positionPoints = buildPoints(
+        strokes,
+        (stroke: ISessionStroke): number => stroke.peakForcePositionNorm,
+    );
+    const positionAvg = createAverageDataset(strokes, stats.avg.peakForcePositionNorm);
+
+    return {
+        title: "Peak Force Position",
+        color: CHART_COLORS.peakForcePositionNorm,
+        unit: "%",
+        decimals: 0,
+        data: {
+            datasets: [
+                {
+                    data: positionPoints,
+                    borderColor: CHART_COLORS.peakForcePositionNorm,
+                    showLine: false,
+                    label: "Peak Position",
+                },
+                positionAvg,
+            ],
+        },
+        options: {
+            elements: { point: { radius: 1, borderWidth: 2 } },
+            scales: {
+                y: {
+                    title: { display: true, text: "%" },
+                    min: 0,
+                    max: 100,
+                },
+            },
+        },
+    };
+};
+
 @Component({
     selector: "app-session-summary",
     templateUrl: "./session-summary.component.html",
@@ -358,6 +398,7 @@ export class SessionSummaryComponent {
             { label: "Speed", value: avg.speed * 3.6, format: "1.1-1", unit: "km/h" },
             { label: "Power", value: avg.strokePower, format: "1.0-0", unit: "W" },
             { label: "Stroke Rate", value: avg.strokeRate, format: "1.0-0", unit: "spm" },
+            { label: "Peak Position", value: avg.peakForcePositionNorm, format: "1.0-0", unit: "%" },
             { label: "Dist/Stroke", value: avg.distPerStroke, format: "1.1-1", unit: "m" },
             { label: "Drive Length", value: avg.driveLength, format: "1.2-2", unit: "m" },
             { label: "Drive", value: avg.driveDuration, format: "1.2-2", unit: "s" },
@@ -401,6 +442,7 @@ export class SessionSummaryComponent {
         configs.push(
             buildDistPerStrokeChartConfig(records),
             buildDriveLengthChartConfig(records, strokes),
+            buildPeakForcePositionChartConfig(strokes, stats),
             buildDriveRecoveryChartConfig(records),
         );
 

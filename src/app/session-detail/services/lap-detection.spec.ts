@@ -23,6 +23,7 @@ const createStroke = (
     dragFactor: 110,
     heartRate: undefined,
     peakForce: 200,
+    peakForcePositionNorm: 50,
     driveLength: 0.8,
     handleForces: [20, 60, 100, 80, 40],
     ...overrides,

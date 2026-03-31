@@ -146,9 +146,11 @@ describe("SessionAnalysisService", (): void => {
             expect(result.strokes).toHaveLength(2);
             expect(result.strokes[0].strokeIndex).toBe(1);
             expect(result.strokes[0].peakForce).toBe(300);
+            expect(result.strokes[0].peakForcePositionNorm).toBe(100);
             expect(result.strokes[0].handleForces).toEqual([100, 300]);
             expect(result.strokes[1].strokeIndex).toBe(2);
             expect(result.strokes[1].peakForce).toBe(400);
+            expect(result.strokes[1].peakForcePositionNorm).toBe(100);
         });
 
         it("should default to zero values when handle forces are missing", async (): Promise<void> => {
@@ -402,6 +404,64 @@ describe("SessionAnalysisService", (): void => {
             expect(result.statistics.avg.driveDuration).toBeCloseTo(0.8);
             expect(result.statistics.avg.recoveryDuration).toBe(1.2);
             expect(result.statistics.avg.dragFactor).toBe(110);
+        });
+
+        it("should calculate peakForcePositionNorm average across all strokes", async (): Promise<void> => {
+            await seedSession(
+                [
+                    createMetricsEntity({
+                        strokeCount: 1,
+                        timeStamp: mockSessionId + 1000,
+                    }),
+                    createMetricsEntity({
+                        strokeCount: 2,
+                        timeStamp: mockSessionId + 2000,
+                    }),
+                ],
+                [
+                    createHandleForcesEntity({
+                        strokeId: 1,
+                        handleForces: [100, 200, 300],
+                        timeStamp: mockSessionId + 1000,
+                    }),
+                    createHandleForcesEntity({
+                        strokeId: 2,
+                        handleForces: [300, 200, 100],
+                        timeStamp: mockSessionId + 2000,
+                    }),
+                ],
+            );
+
+            const result = await service.loadSession(mockSessionId);
+
+            expect(result.strokes[0].peakForcePositionNorm).toBe(100);
+            expect(result.strokes[1].peakForcePositionNorm).toBe(0);
+            expect(result.statistics.avg.peakForcePositionNorm).toBe(50);
+        });
+
+        it("should return peakForcePositionNorm of 0 for single element handle forces", async (): Promise<void> => {
+            await seedSession(
+                [createMetricsEntity({ strokeCount: 1, timeStamp: mockSessionId + 1000 })],
+                [
+                    createHandleForcesEntity({
+                        strokeId: 1,
+                        handleForces: [500],
+                        timeStamp: mockSessionId + 1000,
+                    }),
+                ],
+            );
+
+            const result = await service.loadSession(mockSessionId);
+
+            expect(result.strokes[0].peakForcePositionNorm).toBe(0);
+        });
+
+        it("should return peakForcePositionNorm of 0 for empty handle forces", async (): Promise<void> => {
+            await seedSession([createMetricsEntity({ strokeCount: 1, timeStamp: mockSessionId + 1000 })], []);
+
+            const result = await service.loadSession(mockSessionId);
+
+            expect(result.strokes[0].peakForcePositionNorm).toBe(0);
         });
 
         it("should calculate heart rate average only from strokes with heart rate", async (): Promise<void> => {

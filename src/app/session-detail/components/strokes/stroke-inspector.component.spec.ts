@@ -19,6 +19,7 @@ const createMockStroke = (overrides: Partial<ISessionStroke> = {}): ISessionStro
     dragFactor: 110,
     heartRate: undefined,
     peakForce: 450,
+    peakForcePositionNorm: 50,
     driveLength: 1.35,
     handleForces: [100, 200, 450, 300, 100],
     ...overrides,

@@ -17,6 +17,7 @@ export interface ISessionRecord {
 
 export interface ISessionStroke extends ISessionRecord {
     peakForce: number;
+    peakForcePositionNorm: number;
     driveLength: number;
     handleForces: Array<number>;
 }
@@ -36,6 +37,7 @@ export interface ISessionAverages {
     speed: number;
     strokePower: number;
     strokeRate: number;
+    peakForcePositionNorm: number;
     distPerStroke: number;
     driveLength: number;
     driveDuration: number;

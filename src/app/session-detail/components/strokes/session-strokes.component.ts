@@ -32,20 +32,14 @@ interface IContinuousForceCurveData {
     strokeOffsets: Array<number>;
 }
 
-const findPeakForceIndex = (forces: Array<number>): number =>
-    forces.reduce(
-        (maxIndex: number, force: number, index: number): number =>
-            force > (forces[maxIndex] ?? 0) ? index : maxIndex,
-        0,
-    );
-
 const buildSingleStrokeForceCurve = (stroke: ISessionStroke, chartMaxY: number): ChartData => {
     const forcePoints = stroke.handleForces.map(
         (force: number, index: number): Point => ({ x: index, y: force }),
     );
 
-    const peakIndex = findPeakForceIndex(stroke.handleForces);
-    const peakForce = stroke.handleForces[peakIndex] ?? 0;
+    const peakIndex = Math.round(
+        (stroke.peakForcePositionNorm / 100) * Math.max(0, stroke.handleForces.length - 1),
+    );
 
     return {
         datasets: [
@@ -58,7 +52,7 @@ const buildSingleStrokeForceCurve = (stroke: ISessionStroke, chartMaxY: number):
             {
                 data: [
                     { x: peakIndex, y: 0 },
-                    { x: peakIndex, y: peakForce },
+                    { x: peakIndex, y: stroke.peakForce },
                     { x: peakIndex, y: chartMaxY },
                 ],
                 borderColor: PEAK_MARKER_COLOR,
@@ -72,7 +66,8 @@ const buildSingleStrokeForceCurve = (stroke: ISessionStroke, chartMaxY: number):
                     anchor: "end",
                     align: -45,
                     offset: 8,
-                    formatter: (): string => `Peak: ${Math.round(peakForce)}N`,
+                    formatter: (): string =>
+                        `Peak: ${Math.round(stroke.peakForce)}N @ ${Math.round(stroke.peakForcePositionNorm)}%`,
                     color: PEAK_MARKER_COLOR,
                     font: { size: 12, weight: "bold" },
                 },
