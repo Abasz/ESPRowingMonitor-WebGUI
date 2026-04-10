@@ -15,18 +15,21 @@ jobs:
 
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: 🔧 Set up NodeJs
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
 
       - name: 🚧 Npm install & Build
         run: |
           npm install
           npm run build -- --base-href=/ESPRowingMonitor-WebGUI/
 
+      - name: 📄 Create 404 fallback
+        run: cp dist/esp-rowing-monitor-client/browser/index.html dist/esp-rowing-monitor-client/browser/404.html
+
       - name: 📎 Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: "dist/esp-rowing-monitor-client/browser/"
 
@@ -42,4 +45,4 @@ jobs:
     steps:
       - name: 🌐 Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
