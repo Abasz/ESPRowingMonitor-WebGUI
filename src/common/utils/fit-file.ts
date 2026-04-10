@@ -214,6 +214,30 @@ export class FitFileBuilder {
             { field_num: DevFieldId.DriveLength, value: Math.round(handleForces.driveLength * 100) },
             ...avgForceField,
             ...peakForceFields,
+            ...this.buildCurveFields(handleForces),
+        ];
+    }
+
+    private buildCurveFields(handleForces: IExportHandleForces): Array<FitDevInfo> {
+        const pointCount = Math.min(handleForces.handleForces.length, 127);
+
+        if (pointCount === 0 || this.maxCurvePointCount === 0) {
+            return [];
+        }
+
+        const paddedCurve = handleForces.handleForces
+            .slice(0, pointCount)
+            .map((force: number): number => Math.round(force * 10))
+            .concat(new Array<number>(this.maxCurvePointCount - pointCount).fill(0));
+
+        return [
+            { field_num: DevFieldId.HandleForceCurve, value: paddedCurve },
+            { field_num: DevFieldId.InstrokeAbscissaType, value: 2 },
+            {
+                field_num: DevFieldId.InstrokeSampleInterval,
+                value: (handleForces.driveLength / handleForces.handleForces.length) * 10000,
+            },
+            { field_num: DevFieldId.InstrokePointCount, value: pointCount },
         ];
     }
 

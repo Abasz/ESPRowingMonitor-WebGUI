@@ -864,5 +864,189 @@ describe("createSessionFitFile function", (): void => {
                 expect(devFields["DragFactor"]).toBe(112);
             });
         });
+
+        describe("on Record force curves", (): void => {
+            it("should include HandleForceCurve with scaled values padded to maxCurvePointCount", (): void => {
+                testSession = createTestSession({
+                    handleForces: {
+                        1: {
+                            peakForce: 250,
+                            peakForcePositionNorm: 35,
+                            driveLength: 1.2,
+                            handleForces: [100, 200, 250, 200, 100],
+                        },
+                        2: {
+                            peakForce: 300,
+                            peakForcePositionNorm: 40,
+                            driveLength: 1.3,
+                            handleForces: [150, 300, 150],
+                        },
+                        3: {
+                            peakForce: 280,
+                            peakForcePositionNorm: 38,
+                            driveLength: 1.25,
+                            handleForces: [120, 220, 280, 120],
+                        },
+                    },
+                });
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+
+                const devFields0 = mapDevFieldsByName(messages, "recordMesgs", 0);
+                expect(devFields0["HandleForceCurve"]).toEqual([
+                    100 * 10,
+                    200 * 10,
+                    250 * 10,
+                    200 * 10,
+                    100 * 10,
+                ]);
+
+                const devFields1 = mapDevFieldsByName(messages, "recordMesgs", 1);
+                expect(devFields1["HandleForceCurve"]).toEqual([150 * 10, 300 * 10, 150 * 10, 0, 0]);
+
+                const devFields2 = mapDevFieldsByName(messages, "recordMesgs", 2);
+                expect(devFields2["HandleForceCurve"]).toEqual([120 * 10, 220 * 10, 280 * 10, 120 * 10, 0]);
+            });
+
+            it("should include abscissa metadata for each record with curve data", (): void => {
+                testSession = createTestSession({
+                    handleForces: {
+                        1: {
+                            peakForce: 250,
+                            peakForcePositionNorm: 35,
+                            driveLength: 1.2,
+                            handleForces: [100, 200, 250, 200, 100],
+                        },
+                        2: {
+                            peakForce: 300,
+                            peakForcePositionNorm: 40,
+                            driveLength: 1.3,
+                            handleForces: [150, 300, 150],
+                        },
+                    },
+                });
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+
+                const devFields0 = mapDevFieldsByName(messages, "recordMesgs", 0);
+                expect(devFields0["InstrokeAbscissaType"]).toBe(2);
+                expect(devFields0["InstrokeSampleInterval"]).toBe(2400);
+                expect(devFields0["InstrokePointCount"]).toBe(5);
+
+                const devFields1 = mapDevFieldsByName(messages, "recordMesgs", 1);
+                expect(devFields1["InstrokeAbscissaType"]).toBe(2);
+                expect(devFields1["InstrokeSampleInterval"]).toBe(4333);
+                expect(devFields1["InstrokePointCount"]).toBe(3);
+            });
+
+            it("should omit curve fields when handle forces array is empty", (): void => {
+                testSession = createTestSession({
+                    handleForces: {
+                        1: {
+                            peakForce: 250,
+                            peakForcePositionNorm: 35,
+                            driveLength: 1.2,
+                            handleForces: [],
+                        },
+                        2: {
+                            peakForce: 300,
+                            peakForcePositionNorm: 40,
+                            driveLength: 1.3,
+                            handleForces: [],
+                        },
+                        3: {
+                            peakForce: 280,
+                            peakForcePositionNorm: 38,
+                            driveLength: 1.25,
+                            handleForces: [],
+                        },
+                    },
+                });
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+                const devFields = mapDevFieldsByName(messages, "recordMesgs", 0);
+
+                expect(devFields["HandleForceCurve"]).toBeUndefined();
+                expect(devFields["InstrokeAbscissaType"]).toBeUndefined();
+                expect(devFields["InstrokeSampleInterval"]).toBeUndefined();
+                expect(devFields["InstrokePointCount"]).toBeUndefined();
+            });
+
+            it("should truncate curve to 127 points when stroke has 128 or more points", (): void => {
+                const longCurve = Array.from({ length: 130 }, (_: undefined, i: number): number => i * 2);
+                testSession = createTestSession({
+                    handleForces: {
+                        1: {
+                            peakForce: 250,
+                            peakForcePositionNorm: 35,
+                            driveLength: 1.5,
+                            handleForces: longCurve,
+                        },
+                        2: {
+                            peakForce: 300,
+                            peakForcePositionNorm: 40,
+                            driveLength: 1.5,
+                            handleForces: longCurve,
+                        },
+                        3: {
+                            peakForce: 280,
+                            peakForcePositionNorm: 38,
+                            driveLength: 1.5,
+                            handleForces: longCurve,
+                        },
+                    },
+                });
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+                const devFields = mapDevFieldsByName(messages, "recordMesgs", 0);
+
+                expect(devFields["AverageDriveForceN"]).toBeDefined();
+                expect(devFields["HandleForceCurve"]).toEqual(
+                    longCurve.slice(0, 127).map((force: number): number => force * 10),
+                );
+                expect(devFields["InstrokePointCount"]).toBe(127);
+                expect(devFields["InstrokeSampleInterval"]).toBe(Math.round((1.5 / 130) * 10000));
+            });
+
+            it("should handle mixed curves where some strokes have data and others are empty", (): void => {
+                testSession = createTestSession({
+                    handleForces: {
+                        1: {
+                            peakForce: 250,
+                            peakForcePositionNorm: 35,
+                            driveLength: 1.2,
+                            handleForces: [100, 200, 250, 200, 100],
+                        },
+                        2: {
+                            peakForce: 300,
+                            peakForcePositionNorm: 40,
+                            driveLength: 1.3,
+                            handleForces: [],
+                        },
+                        3: {
+                            peakForce: 280,
+                            peakForcePositionNorm: 38,
+                            driveLength: 1.25,
+                            handleForces: [120, 220, 280],
+                        },
+                    },
+                });
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+
+                const devFields0 = mapDevFieldsByName(messages, "recordMesgs", 0);
+                expect(devFields0["HandleForceCurve"]).toEqual([
+                    100 * 10,
+                    200 * 10,
+                    250 * 10,
+                    200 * 10,
+                    100 * 10,
+                ]);
+                expect(devFields0["InstrokePointCount"]).toBe(5);
+
+                const devFields1 = mapDevFieldsByName(messages, "recordMesgs", 1);
+                expect(devFields1["HandleForceCurve"]).toBeUndefined();
+                expect(devFields1["InstrokeAbscissaType"]).toBeUndefined();
+
+                const devFields2 = mapDevFieldsByName(messages, "recordMesgs", 2);
+                expect(devFields2["HandleForceCurve"]).toEqual([120 * 10, 220 * 10, 280 * 10, 0, 0]);
+                expect(devFields2["InstrokePointCount"]).toBe(3);
+            });
+        });
     });
 });
