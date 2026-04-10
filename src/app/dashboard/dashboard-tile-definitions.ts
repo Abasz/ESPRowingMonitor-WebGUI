@@ -23,6 +23,7 @@ import { SpeedTileComponent } from "./tiles/speed-tile.component";
 import { StrokeRateTileComponent } from "./tiles/stroke-rate-tile.component";
 import { TimerTileComponent } from "./tiles/timer-tile.component";
 import { TotalStrokesTileComponent } from "./tiles/total-strokes-tile.component";
+import { TotalWorkTileComponent } from "./tiles/total-work-tile.component";
 
 export interface DashboardContext {
     rowingData: ICalculatedMetrics;
@@ -236,6 +237,17 @@ const TILE_REGISTRY = {
         minColumnSpan: 1,
         component: SpeedTileComponent,
         context: ["rowingData", "displayConfig"],
+    },
+    TotalWork: {
+        id: "totalWork" as const,
+        label: "Total Work",
+        icon: "local_fire_department",
+        defaultRowSpan: 1,
+        defaultColumnSpan: 1,
+        minRowSpan: 1,
+        minColumnSpan: 1,
+        component: TotalWorkTileComponent,
+        context: ["rowingData"],
     },
 } satisfies Record<string, TileRegistryEntry>;
 

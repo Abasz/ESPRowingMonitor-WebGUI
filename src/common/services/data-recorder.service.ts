@@ -370,8 +370,12 @@ export class DataRecorderService {
                     appDB.connectedDevice.where({ sessionId }).last(),
                 ]);
 
-                const records: Array<IExportRecord> = metricsEntities.map(
-                    (metric: IMetricsEntity): IExportRecord => ({
+                const records: Array<IExportRecord> = [];
+                let totalWork = 0;
+
+                for (const metric of metricsEntities) {
+                    totalWork += metric.avgStrokePower * (metric.driveDuration + metric.recoveryDuration);
+                    records.push({
                         avgStrokePower: metric.avgStrokePower,
                         distance: metric.distance,
                         distPerStroke: metric.distPerStroke,
@@ -384,8 +388,9 @@ export class DataRecorderService {
                         elapsedTime: metric.elapsedTime,
                         heartRate: metric.heartRate,
                         timeStamp: new Date(metric.timeStamp),
-                    }),
-                );
+                        totalWork,
+                    });
+                }
 
                 const handleForces: Record<number, IExportHandleForces> = {};
                 for (const entity of handleForcesEntities) {

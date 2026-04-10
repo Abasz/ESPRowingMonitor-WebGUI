@@ -173,11 +173,15 @@ export interface ICalculatedMetrics extends Omit<IExtendedMetrics & IBaseMetrics
     distPerStroke: number;
     driveLength: number;
     handleForces: Array<number>;
+    totalWork: number;
 }
 
 export type SessionState = "running" | "paused" | "stopped";
 
-export interface IRawCalculatedMetrics extends Omit<ICalculatedMetrics, "distance" | "strokeCount"> {
+export interface IRawCalculatedMetrics extends Omit<
+    ICalculatedMetrics,
+    "distance" | "strokeCount" | "totalWork"
+> {
     rawDistance: number;
     rawStrokeCount: number;
 }

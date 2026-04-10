@@ -469,6 +469,7 @@ describe("SessionAnalysisService", (): void => {
                     driveDuration: 0.8,
                     recoveryDuration: 1.2,
                     dragFactor: 110,
+                    totalWork: 0,
                 },
             ],
             handleForces: {
@@ -505,6 +506,7 @@ describe("SessionAnalysisService", (): void => {
                         driveDuration: 0.8,
                         recoveryDuration: 1.2,
                         dragFactor: 110,
+                        totalWork: 0,
                     },
                     {
                         timeStamp: new Date(mockSessionId + 2000),
@@ -518,6 +520,7 @@ describe("SessionAnalysisService", (): void => {
                         driveDuration: 0.8,
                         recoveryDuration: 1.2,
                         dragFactor: 110,
+                        totalWork: 0,
                     },
                 ],
                 handleForces: {
@@ -584,6 +587,7 @@ describe("SessionAnalysisService", (): void => {
                         driveDuration: 0.8,
                         recoveryDuration: 1.2,
                         dragFactor: 110,
+                        totalWork: 0,
                     },
                 ],
             });
@@ -616,6 +620,7 @@ describe("SessionAnalysisService", (): void => {
                         driveDuration: 0.8,
                         recoveryDuration: 1.2,
                         dragFactor: 110,
+                        totalWork: 0,
                     },
                     {
                         timeStamp: new Date(mockSessionId + 2000),
@@ -629,6 +634,7 @@ describe("SessionAnalysisService", (): void => {
                         driveDuration: 0.8,
                         recoveryDuration: 1.2,
                         dragFactor: 110,
+                        totalWork: 0,
                     },
                     {
                         timeStamp: new Date(mockSessionId + 3000),
@@ -642,6 +648,7 @@ describe("SessionAnalysisService", (): void => {
                         driveDuration: 0.8,
                         recoveryDuration: 1.2,
                         dragFactor: 110,
+                        totalWork: 0,
                     },
                 ],
                 handleForces: {

@@ -93,6 +93,7 @@ describe("AppComponent", (): void => {
                 speed: 0,
                 distPerStroke: 0,
                 driveLength: 0,
+                totalWork: 0,
             } as ICalculatedMetrics),
             ergConnectionStatus$: of({ status: "connected" } as IErgConnectionStatus),
             ergBatteryLevel$: of(80),

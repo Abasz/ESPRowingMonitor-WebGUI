@@ -56,6 +56,7 @@ describe("SessionManagerService", (): void => {
         speed: 0,
         distPerStroke: 0,
         driveLength: 0,
+        totalWork: 0,
     };
 
     const mockHeartRate: IHeartRate = {

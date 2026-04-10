@@ -116,7 +116,7 @@ export class SessionManagerService {
             withLatestFrom(this.sessionSeed),
             map(
                 ([, seedRaw]: [SessionState, IRawCalculatedMetrics]): SessionAccumulator => ({
-                    sessionMetrics: { ...seedRaw, distance: 0, strokeCount: 0 },
+                    sessionMetrics: { ...seedRaw, distance: 0, strokeCount: 0, totalWork: 0 },
                     previousRawMetrics: seedRaw,
                 }),
             ),
@@ -289,6 +289,12 @@ export class SessionManagerService {
                 strokeCount:
                     sessionMetrics.sessionMetrics.strokeCount +
                     Math.max(0, currentRawStrokeCount - prevStrokeCount),
+                totalWork:
+                    sessionMetrics.sessionMetrics.totalWork +
+                    (currentRawStrokeCount > prevStrokeCount
+                        ? currentMetrics.avgStrokePower *
+                          (currentMetrics.driveDuration + currentMetrics.recoveryDuration)
+                        : 0),
             },
             previousRawMetrics: currentMetrics,
         };
