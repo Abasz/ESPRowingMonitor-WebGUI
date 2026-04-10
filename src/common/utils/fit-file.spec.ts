@@ -707,4 +707,162 @@ describe("createSessionFitFile function", (): void => {
             expect(messages["fieldDescriptionMesgs"]).toHaveLength(7);
         });
     });
+
+    describe("as part of developer field values", (): void => {
+        const mapDevFieldsByName = (
+            messages: DecodedMessages,
+            mesgKey: keyof DecodedMessages,
+            index: number,
+        ): Record<string, unknown> => {
+            const fieldDescs = messages["fieldDescriptionMesgs"];
+            const mesg = rawFields(messages[mesgKey][index]);
+            const devFields = mesg["developerFields"] as Record<string, unknown>;
+            const result: Record<string, unknown> = {};
+            for (const [key, value] of Object.entries(devFields)) {
+                const fd = fieldDescs[Number(key)];
+                result[fd["fieldName"] as string] = value;
+            }
+
+            return result;
+        };
+
+        describe("on Record messages", (): void => {
+            it("should include StrokeDriveTime, DragFactor, and StrokeRecoveryTime on every record", (): void => {
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+
+                const devFields0 = mapDevFieldsByName(messages, "recordMesgs", 0);
+                expect(devFields0["StrokeDriveTime"]).toBe(800);
+                expect(devFields0["DragFactor"]).toBe(110);
+                expect(devFields0["StrokeRecoveryTime"]).toBe(1700);
+
+                const devFields2 = mapDevFieldsByName(messages, "recordMesgs", 2);
+                expect(devFields2["StrokeDriveTime"]).toBe(700);
+                expect(devFields2["DragFactor"]).toBe(115);
+                expect(devFields2["StrokeRecoveryTime"]).toBe(1400);
+            });
+
+            it("should not include handle-force-dependent fields when no handle forces exist", (): void => {
+                testSession = createTestSession({ handleForces: {} });
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+                const devFields = mapDevFieldsByName(messages, "recordMesgs", 0);
+
+                expect(devFields["DriveLength"]).toBeUndefined();
+                expect(devFields["AverageDriveForceN"]).toBeUndefined();
+                expect(devFields["PeakDriveForceN"]).toBeUndefined();
+                expect(devFields["PeakForcePositionNorm"]).toBeUndefined();
+            });
+
+            it("should include all scalar developer fields when handle forces exist", (): void => {
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+                const devFields = mapDevFieldsByName(messages, "recordMesgs", 0);
+
+                // record 0: strokeCount=1, handleForces[1] = {forces: [100, 200], peak: 200, pos: 0.6, drive: 1.2}
+                expect(devFields["DriveLength"]).toBe(120);
+                expect(devFields["StrokeDriveTime"]).toBe(800);
+                expect(devFields["DragFactor"]).toBe(110);
+                expect(devFields["StrokeRecoveryTime"]).toBe(1700);
+                expect(devFields["AverageDriveForceN"]).toBe(150 * 10);
+                expect(devFields["PeakDriveForceN"]).toBe(200 * 10);
+                expect(devFields["PeakForcePositionNorm"]).toBe(600 * 10);
+            });
+
+            it("should include zero PeakDriveForceN and PeakForcePositionNorm when peakForce is 0", (): void => {
+                testSession = createTestSession({
+                    handleForces: {
+                        1: {
+                            peakForce: 0,
+                            peakForcePositionNorm: 0,
+                            driveLength: 1.2,
+                            handleForces: [100, 200, 100],
+                        },
+                        2: {
+                            peakForce: 0,
+                            peakForcePositionNorm: 0,
+                            driveLength: 1.3,
+                            handleForces: [150, 250, 150],
+                        },
+                        3: {
+                            peakForce: 0,
+                            peakForcePositionNorm: 0,
+                            driveLength: 1.25,
+                            handleForces: [120, 220, 120],
+                        },
+                    },
+                });
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+                const devFields = mapDevFieldsByName(messages, "recordMesgs", 0);
+
+                expect(devFields["DriveLength"]).toBe(120);
+                expect(devFields["AverageDriveForceN"]).toBeDefined();
+                expect(devFields["PeakDriveForceN"]).toBe(0);
+                expect(devFields["PeakForcePositionNorm"]).toBe(0);
+            });
+
+            it("should include zero AverageDriveForceN when handle forces array is empty", (): void => {
+                testSession = createTestSession({
+                    handleForces: {
+                        1: {
+                            peakForce: 250,
+                            peakForcePositionNorm: 35,
+                            driveLength: 1.2,
+                            handleForces: [],
+                        },
+                        2: {
+                            peakForce: 300,
+                            peakForcePositionNorm: 40,
+                            driveLength: 1.3,
+                            handleForces: [],
+                        },
+                        3: {
+                            peakForce: 280,
+                            peakForcePositionNorm: 38,
+                            driveLength: 1.25,
+                            handleForces: [],
+                        },
+                    },
+                });
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+                const devFields = mapDevFieldsByName(messages, "recordMesgs", 0);
+
+                expect(devFields["DriveLength"]).toBe(120);
+                expect(devFields["PeakDriveForceN"]).toBe(250 * 10);
+                expect(devFields["PeakForcePositionNorm"]).toBe(350 * 10);
+                expect(devFields["AverageDriveForceN"]).toBe(0);
+            });
+
+            it("should include DragFactor developer field even when native resistance is omitted", (): void => {
+                testSession = createTestSession({
+                    records: testSession.records.map(
+                        (record: IExportRecord): IExportRecord => ({
+                            ...record,
+                            dragFactor: 255,
+                        }),
+                    ),
+                });
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+                const devFields = mapDevFieldsByName(messages, "recordMesgs", 0);
+
+                expect(messages["recordMesgs"][0]["resistance"]).toBeUndefined();
+                expect(devFields["DragFactor"]).toBe(255);
+            });
+        });
+
+        describe("on Lap and Session messages", (): void => {
+            it("should include average DragFactor on Lap", (): void => {
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+                const devFields = mapDevFieldsByName(messages, "lapMesgs", 0);
+
+                // mean of 110, 112, 115 = 112.33 → rounded to 112
+                expect(devFields["DragFactor"]).toBe(112);
+            });
+
+            it("should include average DragFactor on Session", (): void => {
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+                const devFields = mapDevFieldsByName(messages, "sessionMesgs", 0);
+
+                // mean of 110, 112, 115 = 112.33 → rounded to 112
+                expect(devFields["DragFactor"]).toBe(112);
+            });
+        });
+    });
 });
