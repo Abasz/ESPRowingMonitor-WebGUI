@@ -2,7 +2,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { IExportHandleForces, IExportRecord } from "../database.interfaces";
 
-import { computeForceStats, computeMeanForce, computeStats, getSportConfig } from "./fit-file.utils";
+import {
+    computeForceStats,
+    computeMaxCurvePointCount,
+    computeMeanForce,
+    computeStats,
+    getSportConfig,
+} from "./fit-file.utils";
 
 describe("getSportConfig function", (): void => {
     describe("when device is a kayak", (): void => {
@@ -249,5 +255,49 @@ describe("computeStats function", (): void => {
 
             expect(stats.totalWork).toBe(743);
         });
+    });
+
+    describe("as part of drag factor stats", (): void => {
+        it("should compute average drag factor", (): void => {
+            const stats = computeStats(records, emptyForces);
+
+            expect(stats.avgDragFactor).toBe(111);
+        });
+
+        it("should return 0 when all dragFactors are 0", (): void => {
+            records = records.map((record: IExportRecord): IExportRecord => ({ ...record, dragFactor: 0 }));
+            const stats = computeStats(records, emptyForces);
+
+            expect(stats.avgDragFactor).toBe(0);
+        });
+    });
+});
+
+describe("computeMaxCurvePointCount function", (): void => {
+    it("should return 0 when handleForces is empty", (): void => {
+        expect(computeMaxCurvePointCount({})).toBe(0);
+    });
+
+    it("should return the max curve length across entries", (): void => {
+        const handleForces: Record<number, IExportHandleForces> = {
+            1: { handleForces: [100, 200], peakForce: 200, peakForcePositionNorm: 0.5, driveLength: 1.2 },
+            2: {
+                handleForces: [100, 200, 300],
+                peakForce: 300,
+                peakForcePositionNorm: 0.5,
+                driveLength: 1.3,
+            },
+        };
+
+        expect(computeMaxCurvePointCount(handleForces)).toBe(3);
+    });
+
+    it("should cap at 127", (): void => {
+        const longForces = Array.from({ length: 200 }, (_: unknown, i: number): number => i);
+        const handleForces: Record<number, IExportHandleForces> = {
+            1: { handleForces: longForces, peakForce: 200, peakForcePositionNorm: 0.5, driveLength: 1.2 },
+        };
+
+        expect(computeMaxCurvePointCount(handleForces)).toBe(127);
     });
 });

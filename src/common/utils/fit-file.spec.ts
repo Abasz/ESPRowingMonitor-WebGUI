@@ -685,4 +685,26 @@ describe("createSessionFitFile function", (): void => {
             expect(messages["recordMesgs"][0]["resistance"]).toBeUndefined();
         });
     });
+
+    describe("developer fields", (): void => {
+        it("should include developer_data_id message", (): void => {
+            const messages = decodeValidMessages(createSessionFitFile(testSession));
+
+            expect(messages["developerDataIdMesgs"]).toHaveLength(1);
+            expect(messages["developerDataIdMesgs"][0]["developerDataIndex"]).toBe(0);
+        });
+
+        it("should include all 11 field descriptions when handle forces have curves", (): void => {
+            const messages = decodeValidMessages(createSessionFitFile(testSession));
+
+            expect(messages["fieldDescriptionMesgs"]).toHaveLength(11);
+        });
+
+        it("should include only 7 field descriptions when no handle forces exist", (): void => {
+            testSession = createTestSession({ handleForces: {} });
+            const messages = decodeValidMessages(createSessionFitFile(testSession));
+
+            expect(messages["fieldDescriptionMesgs"]).toHaveLength(7);
+        });
+    });
 });

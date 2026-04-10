@@ -2,7 +2,17 @@ import { FitWriter } from "@markw65/fit-file-writer";
 
 import { IExportRecord, IExportSession } from "../database.interfaces";
 
-import { computeMeanForce, computeStats, getSportConfig, SessionStats, SportConfig } from "./fit-file.utils";
+import {
+    APPLICATION_UUID,
+    computeMaxCurvePointCount,
+    computeMeanForce,
+    computeStats,
+    DEVELOPER_FIELD_DEFS,
+    DevFieldId,
+    getSportConfig,
+    SessionStats,
+    SportConfig,
+} from "./fit-file.utils";
 
 export class FitFileBuilder {
     private readonly fitWriter: FitWriter = new FitWriter();
@@ -14,6 +24,7 @@ export class FitFileBuilder {
     private readonly elapsedTimeTotal: number;
     private readonly stats: SessionStats;
     private readonly sportConfig: SportConfig;
+    private readonly maxCurvePointCount: number;
 
     constructor(private readonly exportSession: IExportSession) {
         const { records }: { records: Array<IExportRecord> } = exportSession;
@@ -30,10 +41,12 @@ export class FitFileBuilder {
         this.elapsedTimeTotal = records[records.length - 1].elapsedTime;
         this.stats = computeStats(records, exportSession.handleForces);
         this.sportConfig = getSportConfig(exportSession.deviceName);
+        this.maxCurvePointCount = computeMaxCurvePointCount(exportSession.handleForces);
     }
 
     build(): ArrayBufferLike {
         this.writeFileHeader();
+        this.writeDeveloperFieldDescriptions();
         this.writeRecords();
         this.writeHRMessages();
         this.writeEventStop();
@@ -103,6 +116,32 @@ export class FitFileBuilder {
                 ...(record.heartRate !== undefined && { heart_rate: record.heartRate.heartRate }),
                 ...(meanForce !== undefined && { force: meanForce }),
                 ...(dragFactor > 0 && dragFactor < 255 && { resistance: dragFactor }),
+            });
+        }
+    }
+
+    private writeDeveloperFieldDescriptions(): void {
+        this.fitWriter.writeMessage("developer_data_id", {
+            application_id: APPLICATION_UUID,
+            developer_data_index: 0,
+            application_version: 720,
+        });
+
+        for (const field of DEVELOPER_FIELD_DEFS) {
+            if (field.isCurveField && this.maxCurvePointCount === 0) {
+                continue;
+            }
+
+            this.fitWriter.writeMessage("field_description", {
+                developer_data_index: 0,
+                field_definition_number: field.fieldDefinitionNumber,
+                fit_base_type_id: field.fitBaseTypeId,
+                field_name: field.fieldName,
+                scale: field.scale,
+                units: field.units,
+                ...(field.fieldDefinitionNumber === DevFieldId.HandleForceCurve && {
+                    array: this.maxCurvePointCount,
+                }),
             });
         }
     }
