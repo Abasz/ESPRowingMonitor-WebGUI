@@ -39,7 +39,10 @@ describe("SettingsBarComponent", (): void => {
     let fixture: ComponentFixture<SettingsBarComponent>;
     let loader: HarnessLoader;
 
-    let mockSessionManagerService: Pick<SessionManagerService, "start" | "stop" | "pause" | "sessionState">;
+    let mockSessionManagerService: Pick<
+        SessionManagerService,
+        "start" | "stop" | "pause" | "addLap" | "sessionState"
+    >;
     let mockSessionState: WritableSignal<SessionState>;
     let mockMetricsService: Pick<MetricsService, "hrConnectionStatus$">;
     let mockDataRecorderService: Pick<DataRecorderService, "getSessionSummaries$">;
@@ -132,6 +135,7 @@ describe("SettingsBarComponent", (): void => {
             start: vi.fn(),
             stop: vi.fn(),
             pause: vi.fn(),
+            addLap: vi.fn(),
             sessionState: mockSessionState,
         };
 
@@ -595,6 +599,13 @@ describe("SettingsBarComponent", (): void => {
         });
     });
 
+    describe("addLap method", (): void => {
+        it("should call sessionManager addLap", (): void => {
+            component.addLap();
+            expect(mockSessionManagerService.addLap).toHaveBeenCalled();
+        });
+    });
+
     describe("as part of user interactions", (): void => {
         describe("logbook button click", (): void => {
             it("should trigger openLogbook method", async (): Promise<void> => {
@@ -661,6 +672,40 @@ describe("SettingsBarComponent", (): void => {
                 const tooltip = await button.host();
                 const tooltipText = await tooltip.getAttribute("matTooltip");
                 expect(tooltipText).toBe("Stop");
+            });
+        });
+
+        describe("lap button click", (): void => {
+            beforeEach((): void => {
+                mockSessionState.set("running");
+                fixture.detectChanges();
+            });
+
+            it("should trigger addLap method", async (): Promise<void> => {
+                vi.spyOn(component, "addLap");
+
+                const button = await loader.getHarness(MatButtonHarness.with({ text: "laps" }));
+                expect(button).not.toBeNull();
+
+                await button.click();
+                expect(component.addLap).toHaveBeenCalled();
+            });
+
+            it("should have correct tooltip", async (): Promise<void> => {
+                const button = await loader.getHarness(MatButtonHarness.with({ text: "laps" }));
+                expect(button).not.toBeNull();
+
+                const tooltip = await button.host();
+                const tooltipText = await tooltip.getAttribute("matTooltip");
+                expect(tooltipText).toBe("Lap");
+            });
+
+            it("should not show lap button when stopped", async (): Promise<void> => {
+                mockSessionState.set("stopped");
+                fixture.detectChanges();
+
+                const buttons = await loader.getAllHarnesses(MatButtonHarness.with({ text: "laps" }));
+                expect(buttons.length).toBe(0);
             });
         });
 

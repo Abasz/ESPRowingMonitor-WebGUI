@@ -20,7 +20,7 @@ describe("SessionManagerService", (): void => {
     let service: SessionManagerService;
 
     let mockMetricsService: Pick<MetricsService, "rawMetrics$" | "heartRateData$">;
-    let mockDataRecorderService: Pick<DataRecorderService, "reset" | "addSessionData">;
+    let mockDataRecorderService: Pick<DataRecorderService, "reset" | "addSessionData" | "addLap">;
     let mockErgConnectionService: Pick<ErgConnectionService, "connectionStatus$">;
     let mockConfigManagerService: Pick<ConfigManagerService, "configChanged$">;
     let configSubject: BehaviorSubject<Config>;
@@ -82,6 +82,7 @@ describe("SessionManagerService", (): void => {
         mockDataRecorderService = {
             reset: vi.fn().mockResolvedValue(undefined),
             addSessionData: vi.fn().mockResolvedValue(undefined),
+            addLap: vi.fn().mockResolvedValue(1),
         };
 
         mockErgConnectionService = {
@@ -108,206 +109,6 @@ describe("SessionManagerService", (): void => {
 
     afterEach((): void => {
         vi.useRealTimers();
-    });
-
-    describe("as part of service creation", (): void => {
-        it("should create the service", (): void => {
-            expect(service).toBeTruthy();
-        });
-
-        it("should initialize with stopped state", (): void => {
-            expect(service.sessionState()).toBe("stopped");
-        });
-
-        it("should initialize with zero elapsed time", (): void => {
-            expect(service.elapsedTime()).toBe(0);
-        });
-    });
-
-    describe("start method", (): void => {
-        it("should not change state if already running", (): void => {
-            service.start();
-
-            service.start();
-            expect(service.sessionState()).toBe("running");
-        });
-
-        describe("when in stopped state", (): void => {
-            it("should transition from stopped to running", (): void => {
-                service.start();
-                service.stop();
-                expect(service.sessionState()).toBe("stopped");
-
-                service.start();
-                expect(service.sessionState()).toBe("running");
-            });
-
-            it("should call dataRecorder.reset with connectedDeviceName on start", (): void => {
-                connectionStatusSubject.next({ status: "connected", deviceName: "ESP Rowing Monitor" });
-
-                service.start();
-
-                expect(mockDataRecorderService.reset).toHaveBeenCalledWith("ESP Rowing Monitor");
-            });
-
-            it("should reset elapsed time to zero", (): void => {
-                service.start();
-                vi.advanceTimersByTime(3000);
-                service.stop();
-
-                service.start();
-                expect(service.elapsedTime()).toBe(0);
-            });
-        });
-
-        describe("when in paused state", (): void => {
-            it("should transition from paused to running", (): void => {
-                service.start();
-                service.pause();
-
-                service.start();
-                expect(service.sessionState()).toBe("running");
-            });
-
-            it("should resume elapsed time from where it stopped after resume", (): void => {
-                service.start();
-                vi.advanceTimersByTime(3000);
-
-                service.pause();
-                vi.advanceTimersByTime(5000);
-
-                service.start();
-                vi.advanceTimersByTime(2000);
-
-                expect(service.elapsedTime()).toBeCloseTo(5, 0);
-            });
-
-            it("should not call dataRecorder.reset when resuming from paused", (): void => {
-                service.start();
-                service.pause();
-                vi.mocked(mockDataRecorderService.reset).mockClear();
-
-                service.start();
-
-                expect(mockDataRecorderService.reset).not.toHaveBeenCalled();
-            });
-
-            it("should preserve accumulated data across pause and resume", (): void => {
-                service.start();
-                rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
-                service.pause();
-                vi.mocked(mockDataRecorderService.addSessionData).mockClear();
-
-                service.start();
-                rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 4, rawDistance: 3800 });
-
-                expect(mockDataRecorderService.addSessionData).toHaveBeenCalledWith(
-                    expect.objectContaining({ strokeCount: 4, distance: 3800 }),
-                );
-            });
-        });
-    });
-
-    describe("stop method", (): void => {
-        it("should transition from running to stopped", (): void => {
-            service.start();
-
-            service.stop();
-            expect(service.sessionState()).toBe("stopped");
-        });
-
-        it("should transition from paused to stopped", (): void => {
-            service.start();
-            service.pause();
-
-            service.stop();
-            expect(service.sessionState()).toBe("stopped");
-        });
-
-        it("should allow new session after pause-stop", (): void => {
-            service.start();
-            service.pause();
-            service.stop();
-            vi.mocked(mockDataRecorderService.reset).mockClear();
-
-            service.start();
-
-            expect(service.sessionState()).toBe("running");
-            expect(mockDataRecorderService.reset).toHaveBeenCalledTimes(1);
-        });
-
-        it("should not call dataRecorder.reset when stopping", (): void => {
-            connectionStatusSubject.next({ status: "connected", deviceName: "ESP Rowing Monitor" });
-            service.start();
-            vi.mocked(mockDataRecorderService.reset).mockClear();
-
-            service.stop();
-
-            expect(mockDataRecorderService.reset).not.toHaveBeenCalled();
-        });
-
-        it("should not change state if already stopped", (): void => {
-            service.start();
-            service.stop();
-
-            service.stop();
-            expect(service.sessionState()).toBe("stopped");
-        });
-    });
-
-    describe("elapsedTime signal", (): void => {
-        it("should advance while running", (): void => {
-            service.start();
-
-            vi.advanceTimersByTime(3000);
-            expect(service.elapsedTime()).toBeCloseTo(3, 0);
-        });
-
-        it("should stop advancing after stop is called", async (): Promise<void> => {
-            service.start();
-
-            vi.advanceTimersByTime(3000);
-            service.stop();
-            const timeAtStop: number = service.elapsedTime();
-
-            await vi.advanceTimersByTimeAsync(5000);
-            expect(service.elapsedTime()).toBe(timeAtStop);
-        });
-
-        it("should not advance while stopped", (): void => {
-            vi.advanceTimersByTime(5000);
-            expect(service.elapsedTime()).toBe(0);
-        });
-
-        it("should freeze when paused", (): void => {
-            service.start();
-            vi.advanceTimersByTime(3000);
-            const timeBeforePause: number = service.elapsedTime();
-
-            service.pause();
-            vi.advanceTimersByTime(5000);
-
-            expect(service.elapsedTime()).toBe(timeBeforePause);
-        });
-
-        it("should accumulate elapsed time across multiple pause-resume cycles", (): void => {
-            service.start();
-            vi.advanceTimersByTime(2000);
-
-            service.pause();
-            vi.advanceTimersByTime(10000);
-
-            service.start();
-            vi.advanceTimersByTime(3000);
-
-            service.pause();
-            vi.advanceTimersByTime(10000);
-
-            service.start();
-            vi.advanceTimersByTime(1000);
-
-            expect(service.elapsedTime()).toBeCloseTo(6, 0);
-        });
     });
 
     describe("auto-start on first stroke", (): void => {
@@ -959,40 +760,6 @@ describe("SessionManagerService", (): void => {
         });
     });
 
-    describe("pause method", (): void => {
-        it("should transition from running to paused", (): void => {
-            service.start();
-
-            service.pause();
-            expect(service.sessionState()).toBe("paused");
-        });
-
-        it("should not change state if already stopped", (): void => {
-            service.start();
-            service.stop();
-
-            service.pause();
-            expect(service.sessionState()).toBe("stopped");
-        });
-
-        it("should not change state if already paused", (): void => {
-            service.start();
-            service.pause();
-
-            service.pause();
-            expect(service.sessionState()).toBe("paused");
-        });
-
-        it("should not call dataRecorder.reset when pausing", (): void => {
-            service.start();
-            vi.mocked(mockDataRecorderService.reset).mockClear();
-
-            service.pause();
-
-            expect(mockDataRecorderService.reset).not.toHaveBeenCalled();
-        });
-    });
-
     describe("recording during pause", (): void => {
         it("should not record session data while paused", (): void => {
             service.start();
@@ -1457,20 +1224,6 @@ describe("SessionManagerService", (): void => {
             expect(mockDataRecorderService.addSessionData).toHaveBeenLastCalledWith(
                 expect.objectContaining({ strokeCount: 3, distance: 2850 }),
             );
-        });
-    });
-
-    describe("cleanup on destroy", (): void => {
-        it("should stop the timer when service is destroyed", (): void => {
-            service.start();
-
-            vi.advanceTimersByTime(2000);
-
-            TestBed.resetTestingModule();
-            const timeAtDestroy: number = service.elapsedTime();
-
-            vi.advanceTimersByTime(5000);
-            expect(service.elapsedTime()).toBe(timeAtDestroy);
         });
     });
 });

@@ -67,6 +67,7 @@ export class SessionManagerService {
 
     private sessionState$: BehaviorSubject<SessionState> = new BehaviorSubject<SessionState>("stopped");
     private _elapsedTime: WritableSignal<number> = signal<number>(0);
+    private readonly currentStrokeCount: Signal<number>;
 
     private readonly autoStartSeed$: Subject<IRawCalculatedMetrics> = new Subject<IRawCalculatedMetrics>();
     private readonly sessionSeed: Observable<IRawCalculatedMetrics> = merge(
@@ -153,6 +154,11 @@ export class SessionManagerService {
             shareReplay({ bufferSize: 1, refCount: true }),
         );
 
+        this.currentStrokeCount = toSignal(
+            this.sessionMetrics$.pipe(map((metrics: ICalculatedMetrics): number => metrics.strokeCount)),
+            { initialValue: 0 },
+        );
+
         this.sessionState$
             .pipe(
                 switchMap((state: SessionState): typeof EMPTY | ReturnType<typeof interval> =>
@@ -166,6 +172,13 @@ export class SessionManagerService {
 
         this.setupAutoStart();
         this.setupRecording();
+    }
+
+    addLap(): void {
+        if (this.sessionState() !== "running") {
+            return;
+        }
+        void this.dataRecorder.addLap(this.currentStrokeCount(), "manual");
     }
 
     start(timeOffset: number = 0): void {
@@ -192,6 +205,7 @@ export class SessionManagerService {
             return;
         }
 
+        void this.dataRecorder.addLap(this.currentStrokeCount(), "manual", true);
         this.stopwatch.pause();
         this.sessionState$.next("paused");
     }

@@ -39,6 +39,10 @@ mat-toolbar {
 
     > .time-of-day {
         justify-self: center;
+
+        @media (max-width: 399px) {
+            display: none;
+        }
     }
 
     > .title {

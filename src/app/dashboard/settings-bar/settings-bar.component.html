@@ -23,6 +23,9 @@
             <button matTooltipShowDelay="1000" matTooltip="Pause" (click)="pauseSession()" mat-icon-button>
                 <mat-icon>pause_circle</mat-icon>
             </button>
+            <button matTooltipShowDelay="1000" matTooltip="Lap" (click)="addLap()" mat-icon-button>
+                <mat-icon>laps</mat-icon>
+            </button>
         }
         @if (sessionState() === "running" || sessionState() === "paused") {
             <button matTooltipShowDelay="1000" matTooltip="Stop" (click)="stopSession()" mat-icon-button>
