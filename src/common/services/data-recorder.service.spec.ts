@@ -3,7 +3,7 @@ import { firstValueFrom } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import { ISessionData, ISessionSummary } from "../common.interfaces";
-import { IExportSession } from "../database.interfaces";
+import { IExportSession, ILapEntity } from "../database.interfaces";
 import { appDB } from "../utils/app-database";
 
 import { DataRecorderService } from "./data-recorder.service";
@@ -50,6 +50,8 @@ describe("DataRecorderService", (): void => {
     let connectedDeviceWhereSpy: Mock;
     let deltaTimesPutSpy: Mock;
     let deltaTimesWhereSpy: Mock;
+    let lapsAddSpy: Mock;
+    let lapsWhereSpy: Mock;
     let sessionDataAddSpy: Mock;
     let sessionDataWhereSpy: Mock;
     let handleForcesPutSpy: Mock;
@@ -85,6 +87,8 @@ describe("DataRecorderService", (): void => {
         connectedDeviceWhereSpy = vi.spyOn(appDB.connectedDevice, "where");
         deltaTimesPutSpy = vi.spyOn(appDB.deltaTimes, "put");
         deltaTimesWhereSpy = vi.spyOn(appDB.deltaTimes, "where");
+        lapsAddSpy = vi.spyOn(appDB.laps, "add");
+        lapsWhereSpy = vi.spyOn(appDB.laps, "where");
         sessionDataAddSpy = vi.spyOn(appDB.sessionData, "add");
         sessionDataWhereSpy = vi.spyOn(appDB.sessionData, "where");
         vi.spyOn(appDB.sessionData, "orderBy");
@@ -108,6 +112,7 @@ describe("DataRecorderService", (): void => {
         await appDB.deltaTimes.clear();
         await appDB.sessionData.clear();
         await appDB.handleForces.clear();
+        await appDB.laps.clear();
     });
 
     describe("addConnectedDevice method", (): void => {
@@ -255,6 +260,99 @@ describe("DataRecorderService", (): void => {
         });
     });
 
+    describe("addLap method", (): void => {
+        it("should call appDB.laps.add with correct arguments", async (): Promise<void> => {
+            await service.addLap(10, "manual");
+
+            expect(lapsAddSpy).toHaveBeenCalledTimes(1);
+            expect(lapsAddSpy).toHaveBeenCalledWith({
+                sessionId: mockTimeStamp,
+                timeStamp: mockTimeStamp,
+                strokeIndex: 10,
+                type: "manual",
+                isPause: false,
+            });
+        });
+
+        it("should pass isPause flag when provided", async (): Promise<void> => {
+            await service.addLap(5, "manual", true);
+
+            expect(lapsAddSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    isPause: true,
+                }),
+            );
+        });
+
+        it("should store the lap in the database", async (): Promise<void> => {
+            await service.addLap(10, "manual");
+
+            const storedLaps: Array<ILapEntity> = await appDB.laps
+                .where({ sessionId: mockTimeStamp })
+                .toArray();
+            expect(storedLaps).toHaveLength(1);
+            expect(storedLaps[0].strokeIndex).toBe(10);
+            expect(storedLaps[0].type).toBe("manual");
+            expect(storedLaps[0].isPause).toBe(false);
+        });
+    });
+
+    describe("getLaps method", (): void => {
+        const sessionId = 1700000000000;
+
+        it("should return laps sorted by timeStamp", async (): Promise<void> => {
+            await appDB.laps.add({
+                sessionId,
+                timeStamp: sessionId + 2000,
+                strokeIndex: 20,
+                type: "manual",
+                isPause: false,
+            });
+            await appDB.laps.add({
+                sessionId,
+                timeStamp: sessionId + 1000,
+                strokeIndex: 10,
+                type: "manual",
+                isPause: true,
+            });
+
+            const laps = await service.getLaps(sessionId);
+
+            expect(laps).toHaveLength(2);
+            expect(laps[0].strokeIndex).toBe(10);
+            expect(laps[1].strokeIndex).toBe(20);
+        });
+
+        it("should return empty array when no laps exist", async (): Promise<void> => {
+            const laps = await service.getLaps(sessionId);
+
+            expect(laps).toHaveLength(0);
+        });
+
+        it("should only return laps for the given session", async (): Promise<void> => {
+            const otherSessionId = sessionId + 100000;
+            await appDB.laps.add({
+                sessionId,
+                timeStamp: sessionId + 1000,
+                strokeIndex: 10,
+                type: "manual",
+                isPause: false,
+            });
+            await appDB.laps.add({
+                sessionId: otherSessionId,
+                timeStamp: otherSessionId + 1000,
+                strokeIndex: 5,
+                type: "manual",
+                isPause: false,
+            });
+
+            const laps = await service.getLaps(sessionId);
+
+            expect(laps).toHaveLength(1);
+            expect(laps[0].strokeIndex).toBe(10);
+        });
+    });
+
     describe("deleteSession method", (): void => {
         const sessionId = 1700000000000;
 
@@ -271,10 +369,18 @@ describe("DataRecorderService", (): void => {
                 driveLength: 1.0,
                 handleForces: [100],
             });
+            await appDB.laps.add({
+                sessionId,
+                timeStamp: sessionId,
+                strokeIndex: 10,
+                type: "manual",
+                isPause: false,
+            });
 
             // clear spies after setup
             connectedDeviceWhereSpy.mockClear();
             deltaTimesWhereSpy.mockClear();
+            lapsWhereSpy.mockClear();
             sessionDataWhereSpy.mockClear();
             handleForcesWhereSpy.mockClear();
             transactionSpy.mockClear();
@@ -285,10 +391,7 @@ describe("DataRecorderService", (): void => {
 
             expect(transactionSpy).toHaveBeenCalledWith(
                 "rw",
-                appDB.sessionData,
-                appDB.deltaTimes,
-                appDB.handleForces,
-                appDB.connectedDevice,
+                [appDB.sessionData, appDB.deltaTimes, appDB.handleForces, appDB.connectedDevice, appDB.laps],
                 expect.any(Function),
             );
         });
@@ -317,6 +420,12 @@ describe("DataRecorderService", (): void => {
             expect(connectedDeviceWhereSpy).toHaveBeenCalledWith({ sessionId });
         });
 
+        it("should call laps.where with correct sessionId", async (): Promise<void> => {
+            await service.deleteSession(sessionId);
+
+            expect(lapsWhereSpy).toHaveBeenCalledWith({ sessionId });
+        });
+
         it("should delete session data from all tables", async (): Promise<void> => {
             await service.deleteSession(sessionId);
 
@@ -324,17 +433,17 @@ describe("DataRecorderService", (): void => {
             const deltaTimes = await appDB.deltaTimes.where({ sessionId }).toArray();
             const sessionData = await appDB.sessionData.where({ sessionId }).toArray();
             const handleForces = await appDB.handleForces.where({ sessionId }).toArray();
+            const laps = await appDB.laps.where({ sessionId }).toArray();
 
             expect(connectedDevices).toHaveLength(0);
             expect(deltaTimes).toHaveLength(0);
             expect(sessionData).toHaveLength(0);
             expect(handleForces).toHaveLength(0);
+            expect(laps).toHaveLength(0);
         });
 
-        it("should return delete counts from all tables", async (): Promise<void> => {
-            const result = await service.deleteSession(sessionId);
-
-            expect(result).toEqual([1, 1, 1, 1]);
+        it("should resolve when all tables are cleared", async (): Promise<void> => {
+            await expect(service.deleteSession(sessionId)).resolves.toBeUndefined();
         });
     });
 

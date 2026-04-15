@@ -74,7 +74,7 @@ describe("LogbookDialogComponent", (): void => {
             import: vi.fn(),
         };
         vi.mocked(dataRecorderSpy.getSessionSummaries$).mockReturnValue(summaries$.asObservable());
-        vi.mocked(dataRecorderSpy.deleteSession).mockResolvedValue([1, 1, 1, 1]);
+        vi.mocked(dataRecorderSpy.deleteSession).mockResolvedValue(undefined);
 
         snackBarSpy = {
             open: vi.fn(),
@@ -478,7 +478,7 @@ describe("LogbookDialogComponent", (): void => {
         it("should call dataRecorder.deleteSession after user confirms", async (): Promise<void> => {
             summaries$.next(SESSIONS);
             await fixture.whenStable();
-            vi.mocked(dataRecorderSpy.deleteSession).mockResolvedValue([1, 1, 1, 1]);
+            vi.mocked(dataRecorderSpy.deleteSession).mockResolvedValue(undefined);
 
             const deleteButton = fixture.nativeElement.querySelector("mat-row .delete-button");
             deleteButton.click();
@@ -496,9 +496,7 @@ describe("LogbookDialogComponent", (): void => {
         it("should show success snackbar after successful deletion", async (): Promise<void> => {
             summaries$.next(SESSIONS);
             await fixture.whenStable();
-            vi.mocked(dataRecorderSpy.deleteSession).mockReturnValue(
-                Promise.resolve([1, 1, 1, 1] as [number, number, number, number]),
-            );
+            vi.mocked(dataRecorderSpy.deleteSession).mockResolvedValue(undefined);
 
             const deleteButton = fixture.nativeElement.querySelector("mat-row .delete-button");
             deleteButton.click();

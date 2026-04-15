@@ -143,10 +143,8 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
         this.confirmSnackBarRef
             .onAction()
             .pipe(
-                switchMap(
-                    (): Observable<[number, number, number, number]> =>
-                        from(this.dataRecorder.deleteSession(sessionId)),
-                ),
+                switchMap((): Observable<void> => from(this.dataRecorder.deleteSession(sessionId))),
+
                 finalize((): undefined => (this.confirmSnackBarRef = undefined)),
                 takeUntilDestroyed(this.destroyRef),
             )

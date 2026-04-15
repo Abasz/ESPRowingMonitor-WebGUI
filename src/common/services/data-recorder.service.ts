@@ -12,7 +12,9 @@ import {
     IExportRecord,
     IExportSession,
     IHandleForcesEntity,
+    ILapEntity,
     IMetricsEntity,
+    LapType,
 } from "../database.interfaces";
 import { appDB } from "../utils/app-database";
 import { createSessionFitFile } from "../utils/fit-file";
@@ -28,6 +30,16 @@ export class DataRecorderService {
         const sessionId = this.currentSessionId;
 
         return appDB.connectedDevice.put({ deviceName, sessionId });
+    }
+
+    addLap(strokeIndex: number, type: LapType, isPause: boolean = false): Promise<number> {
+        return appDB.laps.add({
+            sessionId: this.currentSessionId,
+            timeStamp: Date.now(),
+            strokeIndex,
+            type,
+            isPause,
+        });
     }
 
     addDeltaTimes(deltaTimes: Array<number>): Promise<number> {
@@ -80,20 +92,19 @@ export class DataRecorderService {
         });
     }
 
-    deleteSession(sessionId: number): Promise<[number, number, number, number]> {
+    deleteSession(sessionId: number): Promise<void> {
         return appDB.transaction(
             "rw",
-            appDB.sessionData,
-            appDB.deltaTimes,
-            appDB.handleForces,
-            appDB.connectedDevice,
-            (): Promise<[number, number, number, number]> =>
-                Promise.all([
+            [appDB.sessionData, appDB.deltaTimes, appDB.handleForces, appDB.connectedDevice, appDB.laps],
+            async (): Promise<void> => {
+                await Promise.all([
                     appDB.sessionData.where({ sessionId }).delete(),
                     appDB.deltaTimes.where({ sessionId }).delete(),
                     appDB.handleForces.where({ sessionId }).delete(),
                     appDB.connectedDevice.where({ sessionId }).delete(),
-                ]),
+                    appDB.laps.where({ sessionId }).delete(),
+                ]);
+            },
         );
     }
 
@@ -220,6 +231,10 @@ export class DataRecorderService {
                     value !== undefined,
             ),
         );
+    }
+
+    getLaps(sessionId: number): Promise<Array<ILapEntity>> {
+        return appDB.laps.where({ sessionId }).sortBy("timeStamp");
     }
 
     async import(blob: Blob, progressCallback?: (progress: ImportProgress) => boolean): Promise<void> {
