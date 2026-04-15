@@ -3,9 +3,8 @@ import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
 import { signal, WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ReactiveFormsModule } from "@angular/forms";
-import { MatOptionHarness } from "@angular/material/core/testing";
+import { MatButtonToggleGroupHarness, MatButtonToggleHarness } from "@angular/material/button-toggle/testing";
 import { MatDialog } from "@angular/material/dialog";
-import { MatSelectHarness } from "@angular/material/select/testing";
 import { MatTooltipHarness } from "@angular/material/tooltip/testing";
 import { SwUpdate } from "@angular/service-worker";
 import { of } from "rxjs";
@@ -588,7 +587,7 @@ describe("GeneralSettingsComponent", (): void => {
             });
         });
 
-        describe("heart rate monitor select options", (): void => {
+        describe("heart rate monitor toggle options", (): void => {
             describe("when USB is available in navigator", (): void => {
                 let localFixture: ComponentFixture<GeneralSettingsComponent>;
                 let localLoader: HarnessLoader;
@@ -608,33 +607,39 @@ describe("GeneralSettingsComponent", (): void => {
                     expect(localFixture.componentInstance.isAntSupported).toBe(true);
                 });
 
-                it("should display ant option in heart rate monitor select", async (): Promise<void> => {
-                    const select = await localLoader.getHarness(
-                        MatSelectHarness.with({ selector: '[formControlName="heartRateMonitor"]' }),
-                    );
-                    await select.open();
-
-                    const options = await select.getOptions();
-                    const optionTexts = await Promise.all(
-                        options.map(async (opt: MatOptionHarness): Promise<string> => await opt.getText()),
+                it("should display ANT option in heart rate monitor toggle group", async (): Promise<void> => {
+                    const toggleGroup = await localLoader.getHarness(
+                        MatButtonToggleGroupHarness.with({
+                            selector: '[formControlName="heartRateMonitor"]',
+                        }),
                     );
 
-                    expect(optionTexts).toContain("ant");
+                    const toggles = await toggleGroup.getToggles();
+                    const texts = await Promise.all(
+                        toggles.map(
+                            async (t: MatButtonToggleHarness): Promise<string> => (await t.getText()).trim(),
+                        ),
+                    );
+
+                    expect(texts).toContain("ANT");
                 });
 
-                it("should have three options in heart rate monitor select", async (): Promise<void> => {
-                    const select = await localLoader.getHarness(
-                        MatSelectHarness.with({ selector: '[formControlName="heartRateMonitor"]' }),
+                it("should have three options in heart rate monitor toggle group", async (): Promise<void> => {
+                    const toggleGroup = await localLoader.getHarness(
+                        MatButtonToggleGroupHarness.with({
+                            selector: '[formControlName="heartRateMonitor"]',
+                        }),
                     );
-                    await select.open();
 
-                    const options = await select.getOptions();
-                    expect(options.length).toBe(3);
+                    const toggles = await toggleGroup.getToggles();
+                    expect(toggles.length).toBe(3);
 
-                    const optionTexts = await Promise.all(
-                        options.map(async (opt: MatOptionHarness): Promise<string> => await opt.getText()),
+                    const texts = await Promise.all(
+                        toggles.map(
+                            async (t: MatButtonToggleHarness): Promise<string> => (await t.getText()).trim(),
+                        ),
                     );
-                    expect(optionTexts).toEqual(["off", "ble", "ant"]);
+                    expect(texts).toEqual(["Off", "BLE", "ANT"]);
                 });
             });
 
@@ -643,10 +648,8 @@ describe("GeneralSettingsComponent", (): void => {
                 let localLoader: HarnessLoader;
 
                 beforeEach(async (): Promise<void> => {
-                    // mock navigator to not have USB support
                     vi.spyOn(navigator, "usb", "get").mockReturnValue(undefined as unknown as USB);
 
-                    // create new component instance with mocked navigator
                     localFixture = TestBed.createComponent(GeneralSettingsComponent);
                     localLoader = TestbedHarnessEnvironment.loader(localFixture);
                     localFixture.componentRef.setInput("rowerSettings", mockRowerSettings);
@@ -659,33 +662,39 @@ describe("GeneralSettingsComponent", (): void => {
                     expect(localFixture.componentInstance.isAntSupported).toBe(false);
                 });
 
-                it("should not display ant option in heart rate monitor select", async (): Promise<void> => {
-                    const select = await localLoader.getHarness(
-                        MatSelectHarness.with({ selector: '[formControlName="heartRateMonitor"]' }),
-                    );
-                    await select.open();
-
-                    const options = await select.getOptions();
-                    const optionTexts = await Promise.all(
-                        options.map(async (opt: MatOptionHarness): Promise<string> => await opt.getText()),
+                it("should not display ANT option in heart rate monitor toggle group", async (): Promise<void> => {
+                    const toggleGroup = await localLoader.getHarness(
+                        MatButtonToggleGroupHarness.with({
+                            selector: '[formControlName="heartRateMonitor"]',
+                        }),
                     );
 
-                    expect(optionTexts).not.toContain("ant");
+                    const toggles = await toggleGroup.getToggles();
+                    const texts = await Promise.all(
+                        toggles.map(
+                            async (t: MatButtonToggleHarness): Promise<string> => (await t.getText()).trim(),
+                        ),
+                    );
+
+                    expect(texts).not.toContain("ANT");
                 });
 
-                it("should have only two options in heart rate monitor select", async (): Promise<void> => {
-                    const select = await localLoader.getHarness(
-                        MatSelectHarness.with({ selector: '[formControlName="heartRateMonitor"]' }),
+                it("should have only two options in heart rate monitor toggle group", async (): Promise<void> => {
+                    const toggleGroup = await localLoader.getHarness(
+                        MatButtonToggleGroupHarness.with({
+                            selector: '[formControlName="heartRateMonitor"]',
+                        }),
                     );
-                    await select.open();
 
-                    const options = await select.getOptions();
-                    expect(options.length).toBe(2);
+                    const toggles = await toggleGroup.getToggles();
+                    expect(toggles.length).toBe(2);
 
-                    const optionTexts = await Promise.all(
-                        options.map(async (opt: MatOptionHarness): Promise<string> => await opt.getText()),
+                    const texts = await Promise.all(
+                        toggles.map(
+                            async (t: MatButtonToggleHarness): Promise<string> => (await t.getText()).trim(),
+                        ),
                     );
-                    expect(optionTexts).toEqual(["off", "ble"]);
+                    expect(texts).toEqual(["Off", "BLE"]);
                 });
             });
         });

@@ -23,6 +23,7 @@ import {
     Validators,
 } from "@angular/forms";
 import { MatIconButton } from "@angular/material/button";
+import { MatButtonToggle, MatButtonToggleGroup } from "@angular/material/button-toggle";
 import { MatCheckbox } from "@angular/material/checkbox";
 import { MatOption } from "@angular/material/core";
 import { MatDialog } from "@angular/material/dialog";
@@ -76,6 +77,8 @@ type GeneralSettingsFormGroup = FormGroup<{
         MatIconButton,
         MatIcon,
         MatTooltip,
+        MatButtonToggle,
+        MatButtonToggleGroup,
         DatePipe,
         EnumToArrayPipe,
     ],

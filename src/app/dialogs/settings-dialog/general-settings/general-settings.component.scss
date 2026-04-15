@@ -3,6 +3,25 @@ form mat-slide-toggle {
     display: block;
 }
 
+.general-container {
+    display: grid;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 12px;
+
+    @media (min-width: 400px) {
+        grid-template-columns: max-content auto;
+    }
+
+    mat-button-toggle-group {
+        max-width: fit-content;
+    }
+
+    label {
+        font-weight: 500;
+    }
+}
+
 div.erg-info > span {
     flex: 1;
     display: flex;
@@ -44,6 +63,5 @@ mat-form-field[subscriptSizing="dynamic"] {
 }
 
 h4 {
-    margin-top: 8px;
-    margin-bottom: 0px;
+    margin: 8px 0;
 }

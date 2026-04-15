@@ -1,50 +1,38 @@
 <div class="tab-content">
     <form [formGroup]="settingsForm" novalidate class="flex-col">
-        <mat-form-field subscriptSizing="dynamic">
-            <mat-label>BLE Mode</mat-label>
-            <mat-select
-                name="bleMode"
-                placeholder="Select heart rate monitor mode"
-                formControlName="bleMode"
-                required
-            >
-                @for (flag of BleServiceFlag | enumToArray; track $index) {
-                    <mat-option [value]="flag.key">{{ BleServiceNames[flag.value] }}</mat-option>
+        <div class="general-container">
+            <label>BLE Mode:</label>
+            <mat-button-toggle-group formControlName="bleMode" hideSingleSelectionIndicator aria-label="BLE Mode">
+                @for (
+                    flag of [
+                        BleServiceFlag.CpsService,
+                        BleServiceFlag.CscService,
+                        BleServiceFlag.FtmsService,
+                    ];
+                    track flag
+                ) {
+                    <mat-button-toggle
+                        [value]="flag"
+                        [matTooltip]="BleServiceNames[BleServiceFlag[flag]]"
+                        matTooltipShowDelay="500"
+                    >
+                        {{ BleServiceFlag[flag].replace("Service", "") }}
+                    </mat-button-toggle>
                 }
-            </mat-select>
-            @if (settingsFormErrors()?.bleMode) {
-                <mat-error>
-                    @if (settingsFormErrors()?.bleMode?.required) {
-                        BLE mode is required
-                    }
-                </mat-error>
-            }
-        </mat-form-field>
-        <mat-form-field subscriptSizing="dynamic">
-            <mat-label>Heart Rate Monitor</mat-label>
-            <mat-select
-                name="heartRateMonitor"
-                placeholder="Select heart rate monitor mode"
-                formControlName="heartRateMonitor"
-                required
-            >
-                <mat-option value="off">off</mat-option>
-                <mat-option value="ble">ble</mat-option>
+            </mat-button-toggle-group>
+            <label>Heart Rate Monitor:</label>
+            <mat-button-toggle-group formControlName="heartRateMonitor" hideSingleSelectionIndicator aria-label="Heart Rate Monitor">
+                <mat-button-toggle value="off">Off</mat-button-toggle>
+                <mat-button-toggle value="ble">BLE</mat-button-toggle>
                 @if (isAntSupported) {
-                    <mat-option value="ant">ant</mat-option>
+                    <mat-button-toggle value="ant">ANT</mat-button-toggle>
                 }
-            </mat-select>
-            @if (settingsFormErrors()?.heartRateMonitor) {
-                <mat-error>
-                    @if (settingsFormErrors()?.heartRateMonitor?.required) {
-                        Heart rate monitor mode is required
-                    }
-                    @if (settingsFormErrors()?.heartRateMonitor?.pattern) {
-                        Invalid value
-                    }
-                </mat-error>
-            }
-        </mat-form-field>
+            </mat-button-toggle-group>
+        </div>
+        <mat-checkbox formControlName="autoStartTimer" labelPosition="before"
+            >Auto-start session on new stroke</mat-checkbox
+        >
+        <h4>Logging</h4>
         <mat-form-field subscriptSizing="dynamic">
             <mat-label>Log Level</mat-label>
             <mat-select name="logLevel" placeholder="Select log level" formControlName="logLevel" required>
@@ -63,8 +51,7 @@
                 </mat-error>
             }
         </mat-form-field>
-        <mat-checkbox formControlName="autoStartTimer">Auto-start session on new stroke</mat-checkbox>
-        <h4>Delta Time Logging</h4>
+        <i>Delta Times:</i>
         <mat-checkbox formControlName="deltaTimeLogging">Bluetooth</mat-checkbox>
         <mat-checkbox formControlName="logToSdCard">SdCard</mat-checkbox>
     </form>
