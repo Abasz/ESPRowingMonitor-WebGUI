@@ -74,6 +74,8 @@ describe("BLEHeartRateService", (): void => {
             ergoMonitorBleId: "",
             heartRateMonitor: "off",
             autoSession: "autoStart",
+            autoLap: "off",
+            autoLapValue: 500,
         });
         vi.mocked(mockBluetoothDevice.gatt!.connect).mockResolvedValue(
             mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
@@ -404,6 +406,8 @@ describe("BLEHeartRateService", (): void => {
                     heartRateBleId: "test-device-id",
                     heartRateMonitor: "ble",
                     autoSession: "autoStart",
+                    autoLap: "off",
+                    autoLapValue: 500,
                 });
             });
 
@@ -470,6 +474,8 @@ describe("BLEHeartRateService", (): void => {
                     heartRateBleId: "",
                     heartRateMonitor: "ble",
                     autoSession: "autoStart",
+                    autoLap: "off",
+                    autoLapValue: 500,
                 });
             });
 
@@ -514,6 +520,8 @@ describe("BLEHeartRateService", (): void => {
                     heartRateBleId: "test-device-id",
                     heartRateMonitor: "ble",
                     autoSession: "autoStart",
+                    autoLap: "off",
+                    autoLapValue: 500,
                 });
                 vi.mocked(navigator.bluetooth.getDevices).mockResolvedValue([mockBluetoothDevice]);
                 vi.mocked(mockBluetoothDevice.watchAdvertisements).mockRejectedValueOnce(
@@ -541,6 +549,8 @@ describe("BLEHeartRateService", (): void => {
                     heartRateBleId: "test-device-id",
                     heartRateMonitor: "ble",
                     autoSession: "autoStart",
+                    autoLap: "off",
+                    autoLapValue: 500,
                 });
                 vi.mocked(navigator.bluetooth.getDevices).mockResolvedValue([mockBluetoothDevice]);
                 vi.mocked(mockBluetoothDevice.watchAdvertisements).mockResolvedValue(undefined);

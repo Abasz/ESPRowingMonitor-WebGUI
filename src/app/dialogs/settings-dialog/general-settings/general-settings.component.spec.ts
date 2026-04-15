@@ -4,7 +4,9 @@ import { signal, WritableSignal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ReactiveFormsModule } from "@angular/forms";
 import { MatButtonToggleGroupHarness, MatButtonToggleHarness } from "@angular/material/button-toggle/testing";
+import { MatOptionHarness } from "@angular/material/core/testing";
 import { MatDialog } from "@angular/material/dialog";
+import { MatSelectHarness } from "@angular/material/select/testing";
 import { MatTooltipHarness } from "@angular/material/tooltip/testing";
 import { SwUpdate } from "@angular/service-worker";
 import { of } from "rxjs";
@@ -88,6 +90,8 @@ describe("GeneralSettingsComponent", (): void => {
             ergoMonitorBleId: "",
             heartRateBleId: "",
             autoSession: "autoStart",
+            autoLap: "off",
+            autoLapValue: 500,
         });
 
         mockSwUpdate = {
@@ -717,6 +721,75 @@ describe("GeneralSettingsComponent", (): void => {
             );
             expect(texts).toEqual(["Off", "On Start"]);
         });
+
+        it("should render auto-lap toggle group", async (): Promise<void> => {
+            await fixture.whenStable();
+            fixture.detectChanges();
+            const loader = TestbedHarnessEnvironment.loader(fixture);
+            const toggleGroup = await loader.getHarness(
+                MatButtonToggleGroupHarness.with({
+                    selector: '[formControlName="autoLap"]',
+                }),
+            );
+            const toggles = await toggleGroup.getToggles();
+            const texts = await Promise.all(
+                toggles.map(
+                    async (toggle: MatButtonToggleHarness): Promise<string> =>
+                        (await toggle.getText()).trim(),
+                ),
+            );
+            expect(texts).toEqual(["Off", "Distance", "Time"]);
+        });
+
+        it("should show distance preset select when autoLap is distance", async (): Promise<void> => {
+            await fixture.whenStable();
+            component.settingsForm.controls.autoLap.setValue("distance");
+            fixture.detectChanges();
+
+            const loader = TestbedHarnessEnvironment.loader(fixture);
+            const select = await loader.getHarness(
+                MatSelectHarness.with({ selector: '[formControlName="autoLapValue"]' }),
+            );
+            await select.open();
+            const options = await select.getOptions();
+            const texts = await Promise.all(
+                options.map(
+                    async (option: MatOptionHarness): Promise<string> => (await option.getText()).trim(),
+                ),
+            );
+            expect(texts).toEqual(["200 m", "500 m", "1000 m", "2000 m", "5000 m", "10000 m"]);
+        });
+
+        it("should show time preset select when autoLap is time", async (): Promise<void> => {
+            await fixture.whenStable();
+            component.settingsForm.controls.autoLap.setValue("time");
+            fixture.detectChanges();
+
+            const loader = TestbedHarnessEnvironment.loader(fixture);
+            const select = await loader.getHarness(
+                MatSelectHarness.with({ selector: '[formControlName="autoLapValue"]' }),
+            );
+            await select.open();
+            const options = await select.getOptions();
+            const texts = await Promise.all(
+                options.map(
+                    async (option: MatOptionHarness): Promise<string> => (await option.getText()).trim(),
+                ),
+            );
+            expect(texts).toEqual(["1 min", "2 min", "5 min", "10 min", "15 min", "30 min"]);
+        });
+
+        it("should not show autoLapValue select when autoLap is off", async (): Promise<void> => {
+            await fixture.whenStable();
+            component.settingsForm.controls.autoLap.setValue("off");
+            fixture.detectChanges();
+
+            const loader = TestbedHarnessEnvironment.loader(fixture);
+            const selects = await loader.getAllHarnesses(
+                MatSelectHarness.with({ selector: '[formControlName="autoLapValue"]' }),
+            );
+            expect(selects).toHaveLength(0);
+        });
     });
 
     describe("as part of form initialization", (): void => {
@@ -729,6 +802,8 @@ describe("GeneralSettingsComponent", (): void => {
             expect(component.settingsForm.value.logToSdCard).toBe(true);
             expect(component.settingsForm.value.heartRateMonitor).toBe("off");
             expect(component.settingsForm.value.autoSession).toBe("autoStart");
+            expect(component.settingsForm.value.autoLap).toBe("off");
+            expect(component.settingsForm.value.autoLapValue).toBe(500);
         });
 
         it("should emit form validity on initialization", async (): Promise<void> => {
@@ -744,6 +819,8 @@ describe("GeneralSettingsComponent", (): void => {
                 heartRateBleId: "",
                 heartRateMonitor: "ble",
                 autoSession: "autoStart",
+                autoLap: "off",
+                autoLapValue: 500,
             });
 
             component.ngOnInit();
@@ -758,6 +835,8 @@ describe("GeneralSettingsComponent", (): void => {
                 heartRateBleId: "",
                 heartRateMonitor: "off",
                 autoSession: "off",
+                autoLap: "off",
+                autoLapValue: 500,
             });
 
             component.ngOnInit();

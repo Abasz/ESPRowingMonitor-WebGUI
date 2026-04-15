@@ -50,6 +50,40 @@
                     >On Start</mat-button-toggle
                 >
             </mat-button-toggle-group>
+            <label>Auto Lap:</label>
+            <div class="grid items-center gap-16 auto-lap-settings">
+                <mat-button-toggle-group
+                    formControlName="autoLap"
+                    hideSingleSelectionIndicator
+                    aria-label="Auto Lap"
+                    (change)="onAutoLapModeChange($event.value)"
+                >
+                    <mat-button-toggle value="off">Off</mat-button-toggle>
+                    <mat-button-toggle value="distance">Distance</mat-button-toggle>
+                    <mat-button-toggle value="time">Time</mat-button-toggle>
+                </mat-button-toggle-group>
+                @if (settingsForm.controls.autoLap.value !== "off") {
+                    <mat-form-field subscriptSizing="dynamic">
+                        <mat-select formControlName="autoLapValue" required>
+                            @if (settingsForm.controls.autoLap.value === "distance") {
+                                <mat-option [value]="200">200 m</mat-option>
+                                <mat-option [value]="500">500 m</mat-option>
+                                <mat-option [value]="1000">1000 m</mat-option>
+                                <mat-option [value]="2000">2000 m</mat-option>
+                                <mat-option [value]="5000">5000 m</mat-option>
+                                <mat-option [value]="10000">10000 m</mat-option>
+                            } @else {
+                                <mat-option [value]="1">1 min</mat-option>
+                                <mat-option [value]="2">2 min</mat-option>
+                                <mat-option [value]="5">5 min</mat-option>
+                                <mat-option [value]="10">10 min</mat-option>
+                                <mat-option [value]="15">15 min</mat-option>
+                                <mat-option [value]="30">30 min</mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+                }
+            </div>
         </div>
         <h4>Logging</h4>
         <mat-form-field subscriptSizing="dynamic">

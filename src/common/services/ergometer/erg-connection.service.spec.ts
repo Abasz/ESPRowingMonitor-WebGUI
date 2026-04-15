@@ -93,6 +93,8 @@ describe("ErgConnectionService", (): void => {
             heartRateBleId: "",
             heartRateMonitor: "off",
             autoSession: "autoStart",
+            autoLap: "off",
+            autoLapValue: 500,
         });
 
         vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");

@@ -41,6 +41,7 @@ import {
     LogLevel,
 } from "../../../../common/ble.interfaces";
 import {
+    AutoLapMode,
     AutoSessionMode,
     HeartRateMonitorMode,
     IRowerSettings,
@@ -58,6 +59,8 @@ type GeneralSettingsFormGroup = FormGroup<{
     logLevel: FormControl<LogLevel>;
     heartRateMonitor: FormControl<HeartRateMonitorMode>;
     autoSession: FormControl<AutoSessionMode>;
+    autoLap: FormControl<AutoLapMode>;
+    autoLapValue: FormControl<number>;
     deltaTimeLogging: FormControl<boolean>;
     logToSdCard: FormControl<boolean>;
 }>;
@@ -134,6 +137,8 @@ export class GeneralSettingsComponent implements OnInit {
                 Validators.pattern(/^(off|ble|ant)$/),
             ],
             autoSession: [this.configManager.getGroup("general").autoSession],
+            autoLap: [this.configManager.getGroup("general").autoLap],
+            autoLapValue: [this.configManager.getGroup("general").autoLapValue],
             deltaTimeLogging: [
                 {
                     value: false,
@@ -178,6 +183,8 @@ export class GeneralSettingsComponent implements OnInit {
             logLevel: rowerSettings.generalSettings.logLevel,
             heartRateMonitor: this.configManager.getGroup("general").heartRateMonitor,
             autoSession: this.configManager.getGroup("general").autoSession,
+            autoLap: this.configManager.getGroup("general").autoLap,
+            autoLapValue: this.configManager.getGroup("general").autoLapValue,
             deltaTimeLogging: rowerSettings.generalSettings.logDeltaTimes,
             logToSdCard: rowerSettings.generalSettings.logToSdCard,
         });
@@ -233,6 +240,19 @@ export class GeneralSettingsComponent implements OnInit {
         }
 
         await this.firmwareUpdateManagerService.openFirmwareSelector(hardwareRevision);
+    }
+
+    onAutoLapModeChange(mode: AutoLapMode): void {
+        switch (mode) {
+            case "distance":
+                this.settingsForm.controls.autoLapValue.setValue(500);
+                break;
+            case "time":
+                this.settingsForm.controls.autoLapValue.setValue(5);
+                break;
+            default:
+                break;
+        }
     }
 
     getForm(): GeneralSettingsFormGroup {

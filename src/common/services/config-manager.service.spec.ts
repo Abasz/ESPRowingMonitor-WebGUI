@@ -36,6 +36,8 @@ describe("ConfigManagerService", (): void => {
                 heartRateBleId: merged.heartRateBleId,
                 ergoMonitorBleId: merged.ergoMonitorBleId,
                 autoSession: "autoStart",
+                autoLap: "off",
+                autoLapValue: 500,
             },
             display: {
                 general: {

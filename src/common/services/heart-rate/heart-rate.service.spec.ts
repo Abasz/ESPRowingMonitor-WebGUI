@@ -53,6 +53,8 @@ describe("HeartRateService", (): void => {
             heartRateBleId: "",
             heartRateMonitor,
             autoSession: "autoStart",
+            autoLap: "off",
+            autoLapValue: 500,
         },
         display: {
             general: {

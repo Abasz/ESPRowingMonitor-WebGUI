@@ -22,6 +22,7 @@ import {
 } from "rxjs";
 
 import {
+    AutoLapMode,
     Config,
     ICalculatedMetrics,
     IErgConnectionStatus,
@@ -94,6 +95,8 @@ export class SessionManagerService {
         ),
         { initialValue: true },
     );
+
+    private readonly resetAutoLap$: Subject<void> = new Subject<void>();
 
     private indicateStop$: Observable<SessionState> = this.sessionState$.pipe(
         filter((sessionState: SessionState): boolean => sessionState === "stopped"),
@@ -172,12 +175,14 @@ export class SessionManagerService {
 
         this.setupAutoStart();
         this.setupRecording();
+        this.setupAutoLap();
     }
 
     addLap(): void {
         if (this.sessionState() !== "running") {
             return;
         }
+        this.resetAutoLap$.next();
         void this.dataRecorder.addLap(this.currentStrokeCount(), "manual");
     }
 
@@ -273,6 +278,61 @@ export class SessionManagerService {
                     elapsedTime: this.stopwatch.elapsedSeconds(),
                     heartRate,
                 });
+            });
+    }
+
+    private setupAutoLap(): void {
+        let lastLapValue = 0;
+
+        merge(
+            this.resetAutoLap$,
+            this.configManager.configChanged$.pipe(
+                map((config: Config): AutoLapMode => config.general.autoLap),
+                distinctUntilChanged(),
+            ),
+        )
+            .pipe(
+                withLatestFrom(this.sessionMetrics$, this.configManager.configChanged$),
+                takeUntilDestroyed(),
+            )
+            .subscribe(([, metrics, config]: [unknown, ICalculatedMetrics, Config]): void => {
+                lastLapValue =
+                    config.general.autoLap === "distance"
+                        ? metrics.distance / 100
+                        : this.stopwatch.elapsedSeconds() / 60;
+            });
+
+        this.sessionMetrics$
+            .pipe(
+                withLatestFrom(this.configManager.configChanged$),
+                filter(
+                    ([, config]: [ICalculatedMetrics, Config]): boolean => config.general.autoLap !== "off",
+                ),
+                filter(([metrics, config]: [ICalculatedMetrics, Config]): boolean => {
+                    const currentValue =
+                        config.general.autoLap === "distance"
+                            ? metrics.distance / 100
+                            : this.stopwatch.elapsedSeconds() / 60;
+
+                    if (currentValue < lastLapValue) {
+                        lastLapValue = currentValue;
+                    }
+
+                    if (currentValue - lastLapValue >= config.general.autoLapValue) {
+                        lastLapValue += config.general.autoLapValue;
+
+                        return true;
+                    }
+
+                    return false;
+                }),
+                takeUntilDestroyed(),
+            )
+            .subscribe(([metrics, config]: [ICalculatedMetrics, Config]): void => {
+                void this.dataRecorder.addLap(
+                    metrics.strokeCount,
+                    config.general.autoLap as Exclude<AutoLapMode, "off">,
+                );
             });
     }
 

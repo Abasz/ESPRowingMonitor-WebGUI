@@ -49,6 +49,8 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
                 bleMode: { dirty: true, value: 1 },
                 heartRateMonitor: { dirty: true, value: "ant" },
                 autoSession: { dirty: true, value: "off" },
+                autoLap: { dirty: false, value: "off" },
+                autoLapValue: { dirty: false, value: 500 },
             },
             value: {
                 heartRateMonitor: "ant",
@@ -107,6 +109,59 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
                 autoSession: "off",
             }),
         );
+        expect(mockMatDialogRef.close).toHaveBeenCalled();
+    });
+
+    it("should save autoLap settings when autoLap or autoLapValue is dirty", async (): Promise<void> => {
+        const mockGeneralForm = {
+            dirty: true,
+            controls: {
+                logLevel: { dirty: false, value: 1 },
+                deltaTimeLogging: { dirty: false, value: false },
+                logToSdCard: { dirty: false, value: false },
+                bleMode: { dirty: false, value: 0 },
+                heartRateMonitor: { dirty: false, value: "off" },
+                autoSession: { dirty: false, value: "autoStart" },
+                autoLap: { dirty: true, value: "distance" },
+                autoLapValue: { dirty: true, value: 1000 },
+            },
+            value: {
+                heartRateMonitor: "off",
+            },
+        };
+        const mockRowingForm = createMockRowingForm(false);
+        const mockDisplayForm = createMockDisplayForm(false);
+
+        vi.spyOn(component, "generalSettings").mockReturnValue({
+            getForm: vi.fn().mockReturnValue(mockGeneralForm),
+        } as unknown as ReturnType<typeof component.generalSettings>);
+        vi.spyOn(component, "displaySettings").mockReturnValue({
+            getForm: vi.fn().mockReturnValue(mockDisplayForm),
+            isLayoutDirty: signal(false),
+            getLayoutConfig: vi.fn().mockReturnValue({
+                landscape: DEFAULT_LANDSCAPE_LAYOUT,
+                portrait: DEFAULT_PORTRAIT_LAYOUT,
+                orientationLock: "auto",
+            }),
+            getAveragingConfig: vi.fn().mockReturnValue({ mode: "off", windowSize: 3 }),
+        } as unknown as ReturnType<typeof component.displaySettings>);
+        vi.spyOn(component, "rowingSettings").mockReturnValue({
+            getForm: vi.fn().mockReturnValue(mockRowingForm),
+            saveAsCustomProfile: vi.fn(),
+        } as unknown as ReturnType<typeof component.rowingSettings>);
+
+        component.onGeneralFormValidityChange(true);
+        component.onDisplayFormValidityChange(true);
+        component.onRowingFormValidityChange(true);
+
+        component.currentTabIndex.set(0);
+
+        await component.saveSettings();
+
+        expect(mockConfigManagerService.setGroup).toHaveBeenCalledWith("general", {
+            autoLap: "distance",
+            autoLapValue: 1000,
+        });
         expect(mockMatDialogRef.close).toHaveBeenCalled();
     });
 
@@ -666,6 +721,8 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
                 bleMode: { dirty: false, value: 0 },
                 heartRateMonitor: { dirty: false, value: "none" },
                 autoSession: { dirty: false, value: "autoStart" },
+                autoLap: { dirty: false, value: "off" },
+                autoLapValue: { dirty: false, value: 500 },
             },
         };
         const mockRowingForm = {

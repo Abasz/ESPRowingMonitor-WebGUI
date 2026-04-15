@@ -108,6 +108,8 @@ export const createMockConfig: (overrides?: DeepPartial<Config>) => Config = (
             heartRateBleId: "",
             heartRateMonitor: "off",
             autoSession: "autoStart",
+            autoLap: "off",
+            autoLapValue: 500,
         },
         display: {
             general: {
@@ -193,6 +195,8 @@ export const createMockGeneralForm: (
         bleMode: 0,
         heartRateMonitor: "none",
         autoSession: "autoStart",
+        autoLap: "off",
+        autoLapValue: 500,
         ...controlValues,
     };
 

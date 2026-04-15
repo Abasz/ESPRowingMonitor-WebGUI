@@ -1,3 +1,5 @@
+@use "../../../../flex-layout";
+
 form mat-slide-toggle {
     margin: 8px 0;
     display: block;
@@ -15,6 +17,32 @@ form mat-slide-toggle {
 
     mat-button-toggle-group {
         max-width: fit-content;
+    }
+
+    .auto-lap-settings {
+        --mat-form-field-container-vertical-padding: 8px;
+        --mat-form-field-container-height: 100%;
+        grid-template-columns: repeat(2, max-content);
+
+        @include flex-layout.xs {
+            grid-template-columns: 180px;
+        }
+
+        div.mat-mdc-form-field-infix {
+            width: 100%;
+        }
+
+        mat-form-field {
+            height: 100%;
+            margin-bottom: 0;
+            @include flex-layout.gt-xs {
+                max-width: 145px;
+            }
+        }
+
+        mat-slider {
+            margin-right: 24px;
+        }
     }
 
     label {

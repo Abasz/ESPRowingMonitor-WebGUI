@@ -273,6 +273,13 @@ export class SettingsDialogComponent {
                 autoSession: settingsForm.controls.autoSession.value,
             });
         }
+
+        if (settingsForm.controls.autoLap.dirty || settingsForm.controls.autoLapValue.dirty) {
+            this.configManager.setGroup("general", {
+                autoLap: settingsForm.controls.autoLap.value,
+                autoLapValue: settingsForm.controls.autoLapValue.value,
+            });
+        }
     }
 
     private async saveRowingSettings(): Promise<void> {
