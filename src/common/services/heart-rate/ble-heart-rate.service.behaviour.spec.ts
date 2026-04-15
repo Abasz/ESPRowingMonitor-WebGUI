@@ -61,7 +61,7 @@ describe("BLEHeartRateService", (): void => {
             heartRateBleId: "test-device-id",
             ergoMonitorBleId: "",
             heartRateMonitor: "off",
-            autoStartTimer: true,
+            autoSession: "autoStart",
         });
         vi.mocked(mockBluetoothDevice.gatt!.connect).mockResolvedValue(
             mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,

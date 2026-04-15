@@ -87,7 +87,7 @@ describe("GeneralSettingsComponent", (): void => {
             heartRateMonitor: "off",
             ergoMonitorBleId: "",
             heartRateBleId: "",
-            autoStartTimer: true,
+            autoSession: "autoStart",
         });
 
         mockSwUpdate = {
@@ -699,17 +699,23 @@ describe("GeneralSettingsComponent", (): void => {
             });
         });
 
-        it("should render auto-start timer checkbox", async (): Promise<void> => {
+        it("should render auto-session toggle group", async (): Promise<void> => {
             await fixture.whenStable();
             fixture.detectChanges();
-            const checkboxes = fixture.nativeElement.querySelectorAll(
-                "mat-checkbox",
-            ) as NodeListOf<HTMLElement>;
-            const autoStartCheckbox = Array.from(checkboxes).find(
-                (el: HTMLElement): boolean =>
-                    !!el.textContent && el.textContent.includes("Auto-start session"),
+            const loader = TestbedHarnessEnvironment.loader(fixture);
+            const toggleGroup = await loader.getHarness(
+                MatButtonToggleGroupHarness.with({
+                    selector: '[formControlName="autoSession"]',
+                }),
             );
-            expect(autoStartCheckbox).toBeDefined();
+            const toggles = await toggleGroup.getToggles();
+            const texts = await Promise.all(
+                toggles.map(
+                    async (toggle: MatButtonToggleHarness): Promise<string> =>
+                        (await toggle.getText()).trim(),
+                ),
+            );
+            expect(texts).toEqual(["Off", "On Start"]);
         });
     });
 
@@ -722,7 +728,7 @@ describe("GeneralSettingsComponent", (): void => {
             expect(component.settingsForm.value.deltaTimeLogging).toBe(false);
             expect(component.settingsForm.value.logToSdCard).toBe(true);
             expect(component.settingsForm.value.heartRateMonitor).toBe("off");
-            expect(component.settingsForm.value.autoStartTimer).toBe(true);
+            expect(component.settingsForm.value.autoSession).toBe("autoStart");
         });
 
         it("should emit form validity on initialization", async (): Promise<void> => {
@@ -737,7 +743,7 @@ describe("GeneralSettingsComponent", (): void => {
                 ergoMonitorBleId: "",
                 heartRateBleId: "",
                 heartRateMonitor: "ble",
-                autoStartTimer: true,
+                autoSession: "autoStart",
             });
 
             component.ngOnInit();
@@ -746,17 +752,17 @@ describe("GeneralSettingsComponent", (): void => {
             expect(component.settingsForm.value.heartRateMonitor).toBe("ble");
         });
 
-        it("should retrieve autoStartTimer setting from ConfigManager", (): void => {
+        it("should retrieve autoSession setting from ConfigManager", (): void => {
             vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
                 ergoMonitorBleId: "",
                 heartRateBleId: "",
                 heartRateMonitor: "off",
-                autoStartTimer: false,
+                autoSession: "off",
             });
 
             component.ngOnInit();
 
-            expect(component.settingsForm.value.autoStartTimer).toBe(false);
+            expect(component.settingsForm.value.autoSession).toBe("off");
         });
     });
 

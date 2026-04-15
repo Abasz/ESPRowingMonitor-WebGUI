@@ -268,9 +268,9 @@ export class SettingsDialogComponent {
             });
         }
 
-        if (settingsForm.controls.autoStartTimer.dirty) {
+        if (settingsForm.controls.autoSession.dirty) {
             this.configManager.setGroup("general", {
-                autoStartTimer: settingsForm.controls.autoStartTimer.value,
+                autoSession: settingsForm.controls.autoSession.value,
             });
         }
     }

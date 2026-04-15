@@ -107,7 +107,7 @@ export const createMockConfig: (overrides?: DeepPartial<Config>) => Config = (
             ergoMonitorBleId: "",
             heartRateBleId: "",
             heartRateMonitor: "off",
-            autoStartTimer: true,
+            autoSession: "autoStart",
         },
         display: {
             general: {
@@ -192,7 +192,7 @@ export const createMockGeneralForm: (
         logToSdCard: false,
         bleMode: 0,
         heartRateMonitor: "none",
-        autoStartTimer: true,
+        autoSession: "autoStart",
         ...controlValues,
     };
 

@@ -2,7 +2,11 @@
     <form [formGroup]="settingsForm" novalidate class="flex-col">
         <div class="general-container">
             <label>BLE Mode:</label>
-            <mat-button-toggle-group formControlName="bleMode" hideSingleSelectionIndicator aria-label="BLE Mode">
+            <mat-button-toggle-group
+                formControlName="bleMode"
+                hideSingleSelectionIndicator
+                aria-label="BLE Mode"
+            >
                 @for (
                     flag of [
                         BleServiceFlag.CpsService,
@@ -21,17 +25,32 @@
                 }
             </mat-button-toggle-group>
             <label>Heart Rate Monitor:</label>
-            <mat-button-toggle-group formControlName="heartRateMonitor" hideSingleSelectionIndicator aria-label="Heart Rate Monitor">
+            <mat-button-toggle-group
+                formControlName="heartRateMonitor"
+                hideSingleSelectionIndicator
+                aria-label="Heart Rate Monitor"
+            >
                 <mat-button-toggle value="off">Off</mat-button-toggle>
                 <mat-button-toggle value="ble">BLE</mat-button-toggle>
                 @if (isAntSupported) {
                     <mat-button-toggle value="ant">ANT</mat-button-toggle>
                 }
             </mat-button-toggle-group>
+            <label>Auto Session:</label>
+            <mat-button-toggle-group
+                formControlName="autoSession"
+                hideSingleSelectionIndicator
+                aria-label="Auto Session"
+            >
+                <mat-button-toggle value="off">Off</mat-button-toggle>
+                <mat-button-toggle
+                    matTooltip="Start session on new stroke"
+                    matTooltipShowDelay="500"
+                    value="autoStart"
+                    >On Start</mat-button-toggle
+                >
+            </mat-button-toggle-group>
         </div>
-        <mat-checkbox formControlName="autoStartTimer" labelPosition="before"
-            >Auto-start session on new stroke</mat-checkbox
-        >
         <h4>Logging</h4>
         <mat-form-field subscriptSizing="dynamic">
             <mat-label>Log Level</mat-label>

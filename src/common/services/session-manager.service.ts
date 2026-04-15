@@ -89,7 +89,7 @@ export class SessionManagerService {
 
     private readonly autoStartEnabled: Signal<boolean> = toSignal(
         this.configManager.configChanged$.pipe(
-            map((config: Config): boolean => config.general.autoStartTimer),
+            map((config: Config): boolean => config.general.autoSession !== "off"),
         ),
         { initialValue: true },
     );

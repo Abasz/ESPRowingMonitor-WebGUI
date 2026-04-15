@@ -73,7 +73,7 @@ describe("BLEHeartRateService", (): void => {
             heartRateBleId: "test-device-id",
             ergoMonitorBleId: "",
             heartRateMonitor: "off",
-            autoStartTimer: true,
+            autoSession: "autoStart",
         });
         vi.mocked(mockBluetoothDevice.gatt!.connect).mockResolvedValue(
             mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
@@ -403,7 +403,7 @@ describe("BLEHeartRateService", (): void => {
                     ergoMonitorBleId: "",
                     heartRateBleId: "test-device-id",
                     heartRateMonitor: "ble",
-                    autoStartTimer: true,
+                    autoSession: "autoStart",
                 });
             });
 
@@ -469,7 +469,7 @@ describe("BLEHeartRateService", (): void => {
                     ergoMonitorBleId: "",
                     heartRateBleId: "",
                     heartRateMonitor: "ble",
-                    autoStartTimer: true,
+                    autoSession: "autoStart",
                 });
             });
 
@@ -513,7 +513,7 @@ describe("BLEHeartRateService", (): void => {
                     ergoMonitorBleId: "",
                     heartRateBleId: "test-device-id",
                     heartRateMonitor: "ble",
-                    autoStartTimer: true,
+                    autoSession: "autoStart",
                 });
                 vi.mocked(navigator.bluetooth.getDevices).mockResolvedValue([mockBluetoothDevice]);
                 vi.mocked(mockBluetoothDevice.watchAdvertisements).mockRejectedValueOnce(
@@ -540,7 +540,7 @@ describe("BLEHeartRateService", (): void => {
                     ergoMonitorBleId: "",
                     heartRateBleId: "test-device-id",
                     heartRateMonitor: "ble",
-                    autoStartTimer: true,
+                    autoSession: "autoStart",
                 });
                 vi.mocked(navigator.bluetooth.getDevices).mockResolvedValue([mockBluetoothDevice]);
                 vi.mocked(mockBluetoothDevice.watchAdvertisements).mockResolvedValue(undefined);

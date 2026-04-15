@@ -41,6 +41,7 @@ import {
     LogLevel,
 } from "../../../../common/ble.interfaces";
 import {
+    AutoSessionMode,
     HeartRateMonitorMode,
     IRowerSettings,
     IValidationErrors,
@@ -56,7 +57,7 @@ type GeneralSettingsFormGroup = FormGroup<{
     bleMode: FormControl<BleServiceFlag>;
     logLevel: FormControl<LogLevel>;
     heartRateMonitor: FormControl<HeartRateMonitorMode>;
-    autoStartTimer: FormControl<boolean>;
+    autoSession: FormControl<AutoSessionMode>;
     deltaTimeLogging: FormControl<boolean>;
     logToSdCard: FormControl<boolean>;
 }>;
@@ -132,7 +133,7 @@ export class GeneralSettingsComponent implements OnInit {
                 this.configManager.getGroup("general").heartRateMonitor,
                 Validators.pattern(/^(off|ble|ant)$/),
             ],
-            autoStartTimer: [this.configManager.getGroup("general").autoStartTimer],
+            autoSession: [this.configManager.getGroup("general").autoSession],
             deltaTimeLogging: [
                 {
                     value: false,
@@ -176,7 +177,7 @@ export class GeneralSettingsComponent implements OnInit {
             bleMode: rowerSettings.generalSettings.bleServiceFlag,
             logLevel: rowerSettings.generalSettings.logLevel,
             heartRateMonitor: this.configManager.getGroup("general").heartRateMonitor,
-            autoStartTimer: this.configManager.getGroup("general").autoStartTimer,
+            autoSession: this.configManager.getGroup("general").autoSession,
             deltaTimeLogging: rowerSettings.generalSettings.logDeltaTimes,
             logToSdCard: rowerSettings.generalSettings.logToSdCard,
         });

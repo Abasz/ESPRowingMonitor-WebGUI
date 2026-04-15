@@ -1084,11 +1084,11 @@ describe("SessionManagerService", (): void => {
         });
     });
 
-    describe("when autoStartTimer config is disabled", (): void => {
+    describe("when autoSession config is disabled", (): void => {
         it("should not auto-start when a new stroke appears in stopped state", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoStartTimer: false },
+                general: { ...new Config().general, autoSession: "off" },
             });
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, driveDuration: 0.5 });
@@ -1104,7 +1104,7 @@ describe("SessionManagerService", (): void => {
 
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoStartTimer: false },
+                general: { ...new Config().general, autoSession: "off" },
             });
 
             rawMetricsSubject.next({
@@ -1120,7 +1120,7 @@ describe("SessionManagerService", (): void => {
         it("should auto-start again after re-enabling the config", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoStartTimer: false },
+                general: { ...new Config().general, autoSession: "off" },
             });
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, driveDuration: 0.5 });
@@ -1128,7 +1128,7 @@ describe("SessionManagerService", (): void => {
 
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoStartTimer: true },
+                general: { ...new Config().general, autoSession: "autoStart" },
             });
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, driveDuration: 0.5 });
@@ -1138,10 +1138,21 @@ describe("SessionManagerService", (): void => {
         it("should still allow manual start when auto-start is disabled", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoStartTimer: false },
+                general: { ...new Config().general, autoSession: "off" },
             });
 
             service.start();
+
+            expect(service.sessionState()).toBe("running");
+        });
+
+        it("should auto-start when autoSession is autoStartAndPause", (): void => {
+            configSubject.next({
+                ...new Config(),
+                general: { ...new Config().general, autoSession: "autoStartAndPause" },
+            });
+
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, driveDuration: 0.5 });
 
             expect(service.sessionState()).toBe("running");
         });

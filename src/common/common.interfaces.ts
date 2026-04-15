@@ -59,12 +59,13 @@ export interface IMediaQuery {
 
 export type HeartRateMonitorMode = "ant" | "ble" | "off";
 export type UnitSystem = "metric" | "imperial";
+export type AutoSessionMode = "off" | "autoStart" | "autoStartAndPause";
 
 export interface IGeneralConfig {
     ergoMonitorBleId: string;
     heartRateBleId: string;
     heartRateMonitor: HeartRateMonitorMode;
-    autoStartTimer: boolean;
+    autoSession: AutoSessionMode;
 }
 
 export interface IDisplayGeneralConfig {
@@ -114,7 +115,7 @@ export class Config {
         ergoMonitorBleId: "",
         heartRateBleId: "",
         heartRateMonitor: "off",
-        autoStartTimer: true,
+        autoSession: "autoStart",
     };
 
     display: IDisplayConfig = {

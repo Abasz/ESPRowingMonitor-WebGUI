@@ -48,7 +48,7 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
                 logToSdCard: { dirty: true, value: true },
                 bleMode: { dirty: true, value: 1 },
                 heartRateMonitor: { dirty: true, value: "ant" },
-                autoStartTimer: { dirty: true, value: false },
+                autoSession: { dirty: true, value: "off" },
             },
             value: {
                 heartRateMonitor: "ant",
@@ -104,7 +104,7 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
         expect(mockConfigManagerService.setGroup).toHaveBeenCalledWith(
             "general",
             expect.objectContaining({
-                autoStartTimer: false,
+                autoSession: "off",
             }),
         );
         expect(mockMatDialogRef.close).toHaveBeenCalled();
@@ -665,7 +665,7 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
                 logToSdCard: { dirty: false, value: false },
                 bleMode: { dirty: false, value: 0 },
                 heartRateMonitor: { dirty: false, value: "none" },
-                autoStartTimer: { dirty: false, value: true },
+                autoSession: { dirty: false, value: "autoStart" },
             },
         };
         const mockRowingForm = {

@@ -5,7 +5,7 @@ import {
     DEFAULT_LANDSCAPE_LAYOUT,
     DEFAULT_PORTRAIT_LAYOUT,
 } from "../../app/dashboard/dashboard-tile-definitions";
-import { Config, HeartRateMonitorMode } from "../common.interfaces";
+import { AutoSessionMode, Config, HeartRateMonitorMode } from "../common.interfaces";
 
 @Injectable({
     providedIn: "root",
@@ -68,7 +68,7 @@ export class ConfigManagerService {
             try {
                 const parsedConfig = JSON.parse(storedConfig);
 
-                return {
+                const config: Config = {
                     general: { ...defaultConfig.general, ...parsedConfig.general },
                     display: {
                         general: { ...defaultConfig.display.general, ...parsedConfig.display?.general },
@@ -87,12 +87,26 @@ export class ConfigManagerService {
                         },
                     },
                 };
+
+                return this.migrateAutoStartTimer(config, parsedConfig);
             } catch {
                 console.warn(`Failed to parse localStorage config. Using default value.`, { storedConfig });
             }
         }
 
         return defaultConfig;
+    }
+
+    private migrateAutoStartTimer(config: Config, parsedConfig: Record<string, unknown>): Config {
+        const generalParsed = parsedConfig.general as Record<string, unknown> | undefined;
+        if (generalParsed && "autoStartTimer" in generalParsed && !("autoSession" in generalParsed)) {
+            const autoSession: AutoSessionMode = generalParsed.autoStartTimer ? "autoStart" : "off";
+            config.general.autoSession = autoSession;
+            delete (config.general as unknown as Record<string, unknown>)["autoStartTimer"];
+            this.saveConfig(config);
+        }
+
+        return config;
     }
 
     private migrateOldConfig(): void {

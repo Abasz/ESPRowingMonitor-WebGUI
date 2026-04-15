@@ -35,7 +35,7 @@ describe("ConfigManagerService", (): void => {
                 heartRateMonitor: merged.heartRateMonitor,
                 heartRateBleId: merged.heartRateBleId,
                 ergoMonitorBleId: merged.ergoMonitorBleId,
-                autoStartTimer: true,
+                autoSession: "autoStart",
             },
             display: {
                 general: {
@@ -259,6 +259,122 @@ describe("ConfigManagerService", (): void => {
                 portrait: DEFAULT_PORTRAIT_LAYOUT,
                 orientationLock: "auto",
             });
+        });
+    });
+
+    describe("autoStartTimer to autoSession migration", (): void => {
+        it("should migrate autoStartTimer true to autoSession autoStart", (): void => {
+            withSecureContextAndBluetooth();
+
+            const storedConfig = {
+                general: {
+                    ergoMonitorBleId: "",
+                    heartRateBleId: "",
+                    heartRateMonitor: "off",
+                    autoStartTimer: true,
+                },
+            };
+
+            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
+                return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
+            });
+            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            const config = configManagerService.getConfig();
+            expect(config.general.autoSession).toBe("autoStart");
+            expect((config.general as unknown as Record<string, unknown>)["autoStartTimer"]).toBeUndefined();
+            expect(setItemSpy).toHaveBeenCalledWith(
+                ConfigManagerService.CONFIG_STORAGE_KEY,
+                expect.stringContaining('"autoSession":"autoStart"'),
+            );
+        });
+
+        it("should migrate autoStartTimer false to autoSession off", (): void => {
+            withSecureContextAndBluetooth();
+
+            const storedConfig = {
+                general: {
+                    ergoMonitorBleId: "",
+                    heartRateBleId: "",
+                    heartRateMonitor: "off",
+                    autoStartTimer: false,
+                },
+            };
+
+            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
+                return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
+            });
+            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            const config = configManagerService.getConfig();
+            expect(config.general.autoSession).toBe("off");
+            expect((config.general as unknown as Record<string, unknown>)["autoStartTimer"]).toBeUndefined();
+            expect(setItemSpy).toHaveBeenCalledWith(
+                ConfigManagerService.CONFIG_STORAGE_KEY,
+                expect.stringContaining('"autoSession":"off"'),
+            );
+        });
+
+        it("should not migrate when autoSession is already set", (): void => {
+            withSecureContextAndBluetooth();
+
+            const storedConfig = {
+                general: {
+                    ergoMonitorBleId: "",
+                    heartRateBleId: "",
+                    heartRateMonitor: "off",
+                    autoSession: "autoStartAndPause",
+                },
+            };
+
+            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
+                return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
+            });
+            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            const config = configManagerService.getConfig();
+            expect(config.general.autoSession).toBe("autoStartAndPause");
+            expect(setItemSpy).not.toHaveBeenCalled();
+        });
+
+        it("should preserve autoSession when both autoStartTimer and autoSession exist", (): void => {
+            withSecureContextAndBluetooth();
+
+            const storedConfig = {
+                general: {
+                    ergoMonitorBleId: "",
+                    heartRateBleId: "",
+                    heartRateMonitor: "off",
+                    autoStartTimer: true,
+                    autoSession: "autoStartAndPause",
+                },
+            };
+
+            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
+                return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
+            });
+            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            const config = configManagerService.getConfig();
+            expect(config.general.autoSession).toBe("autoStartAndPause");
+            expect(setItemSpy).not.toHaveBeenCalled();
+        });
+
+        it("should default autoSession to autoStart for fresh installs with no stored config", (): void => {
+            withSecureContextAndBluetooth();
+            vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            expect(configManagerService.getConfig().general.autoSession).toBe("autoStart");
         });
     });
 

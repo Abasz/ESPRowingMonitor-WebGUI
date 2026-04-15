@@ -92,7 +92,7 @@ describe("ErgConnectionService", (): void => {
             ergoMonitorBleId: "mock-device-id",
             heartRateBleId: "",
             heartRateMonitor: "off",
-            autoStartTimer: true,
+            autoSession: "autoStart",
         });
 
         vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
