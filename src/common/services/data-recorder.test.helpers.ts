@@ -5,12 +5,13 @@ export const mockImportData = {
     formatVersion: 1,
     data: {
         databaseName: "ESPRowingMonitorDB",
-        databaseVersion: 3,
+        databaseVersion: 4,
         tables: [
             { name: "deltaTimes", schema: "timeStamp,sessionId", rowCount: 1 },
             { name: "handleForces", schema: "timeStamp,sessionId,[sessionId+strokeId]", rowCount: 1 },
             { name: "sessionData", schema: "timeStamp,sessionId", rowCount: 2 },
             { name: "connectedDevice", schema: "sessionId", rowCount: 1 },
+            { name: "laps", schema: "timeStamp,sessionId", rowCount: 0 },
         ],
         data: [
             {
@@ -85,6 +86,11 @@ export const mockImportData = {
                         deviceName: "TestDevice",
                     },
                 ],
+            },
+            {
+                tableName: "laps",
+                inbound: true,
+                rows: [],
             },
         ],
     },

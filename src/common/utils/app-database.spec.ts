@@ -1,7 +1,7 @@
-import { Dexie } from "dexie";
+import { Dexie, IndexSpec, Table } from "dexie";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { IHandleForcesEntity, IMetricsEntity } from "../database.interfaces";
+import { IHandleForcesEntity, ILapEntity, IMetricsEntity } from "../database.interfaces";
 
 import { AppDB } from "./app-database";
 
@@ -252,6 +252,75 @@ describe("AppDB", (): void => {
             await appDb.open();
 
             expect(callback).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("version 4 laps table", (): void => {
+        it("should include laps table in schema", async (): Promise<void> => {
+            await appDb.open();
+
+            expect(appDb.tables.map((table: Table): string => table.name)).toContain("laps");
+        });
+
+        it("should have correct indexes on laps table", async (): Promise<void> => {
+            await appDb.open();
+
+            const lapsTable = appDb.table("laps");
+            const schema = lapsTable.schema;
+
+            expect(schema.primKey.name).toBe("timeStamp");
+            expect(schema.indexes.map((index: IndexSpec): string => index.name)).toContain("sessionId");
+        });
+
+        it("should store and retrieve lap entities", async (): Promise<void> => {
+            await appDb.open();
+
+            const lap: ILapEntity = {
+                sessionId: 1000,
+                timeStamp: 2000,
+                strokeIndex: 5,
+                type: "manual",
+                isPause: false,
+            };
+
+            await appDb.laps.add(lap);
+            const stored = await appDb.laps.get(2000);
+
+            expect(stored).toEqual(lap);
+        });
+
+        it("should query laps by sessionId", async (): Promise<void> => {
+            await appDb.open();
+
+            await appDb.laps.bulkAdd([
+                { sessionId: 1000, timeStamp: 2000, strokeIndex: 5, type: "manual", isPause: false },
+                { sessionId: 1000, timeStamp: 3000, strokeIndex: 10, type: "distance", isPause: false },
+                { sessionId: 2000, timeStamp: 4000, strokeIndex: 3, type: "time", isPause: false },
+            ]);
+
+            const session1Laps = await appDb.laps.where({ sessionId: 1000 }).toArray();
+            const session2Laps = await appDb.laps.where({ sessionId: 2000 }).toArray();
+
+            expect(session1Laps).toHaveLength(2);
+            expect(session2Laps).toHaveLength(1);
+        });
+
+        it("should store pause laps correctly", async (): Promise<void> => {
+            await appDb.open();
+
+            const pauseLap: ILapEntity = {
+                sessionId: 1000,
+                timeStamp: 5000,
+                strokeIndex: 15,
+                type: "manual",
+                isPause: true,
+            };
+
+            await appDb.laps.add(pauseLap);
+            const stored = await appDb.laps.get(5000);
+
+            expect(stored?.isPause).toBe(true);
+            expect(stored?.type).toBe("manual");
         });
     });
 });

@@ -27,6 +27,16 @@ export interface IConnectedDeviceEntity {
     deviceName: string;
 }
 
+export type LapType = "manual" | "distance" | "time";
+
+export interface ILapEntity {
+    sessionId: number;
+    timeStamp: number;
+    strokeIndex: number;
+    type: LapType;
+    isPause: boolean;
+}
+
 export type IExportRecord = Omit<
     ISessionData,
     "peakForce" | "peakForcePositionNorm" | "handleForces" | "driveLength"

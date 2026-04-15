@@ -4,15 +4,17 @@ import {
     IConnectedDeviceEntity,
     IDeltaTimesEntity,
     IHandleForcesEntity,
+    ILapEntity,
     IMetricsEntity,
 } from "../database.interfaces";
 
 export class AppDB extends Dexie {
-    static dbVersion: number = 3;
+    static dbVersion: number = 4;
 
     connectedDevice!: Table<IConnectedDeviceEntity, number>;
     deltaTimes!: Table<IDeltaTimesEntity, number>;
     handleForces!: Table<IHandleForcesEntity, number>;
+    laps!: Table<ILapEntity, number>;
     sessionData!: Table<IMetricsEntity, number>;
 
     private upgradeProgressCallback: ((processed: number, total: number) => void) | undefined;
@@ -27,7 +29,7 @@ export class AppDB extends Dexie {
             connectedDevice: "&sessionId",
         });
 
-        this.version(AppDB.dbVersion)
+        this.version(3)
             .stores({
                 deltaTimes: "&timeStamp, sessionId",
                 handleForces: "&timeStamp, sessionId, [sessionId+strokeId]",
@@ -77,6 +79,14 @@ export class AppDB extends Dexie {
 
                 console.log("Version 3 migration completed");
             });
+
+        this.version(AppDB.dbVersion).stores({
+            deltaTimes: "&timeStamp, sessionId",
+            handleForces: "&timeStamp, sessionId, [sessionId+strokeId]",
+            sessionData: "&timeStamp, sessionId",
+            connectedDevice: "&sessionId",
+            laps: "&timeStamp, sessionId",
+        });
     }
 
     setUpgradeProgressCallback(fn: ((processed: number, total: number) => void) | undefined): void {

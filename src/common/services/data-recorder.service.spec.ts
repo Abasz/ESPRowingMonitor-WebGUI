@@ -469,7 +469,7 @@ describe("DataRecorderService", (): void => {
             const exportedData = JSON.parse(await createdBlobs[0].text());
             expect(exportedData.formatName).toBe("dexie");
             expect(exportedData.data.databaseName).toBe("ESPRowingMonitorDB");
-            expect(exportedData.data.tables).toHaveLength(4);
+            expect(exportedData.data.tables).toHaveLength(5);
         });
 
         it("should include test data with correct sessionId in exported JSON", async (): Promise<void> => {

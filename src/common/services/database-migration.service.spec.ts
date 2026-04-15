@@ -56,9 +56,9 @@ describe("DatabaseMigrationService", (): void => {
 
         describe("when the database is already at the current version", (): void => {
             beforeEach((): void => {
-                // dexie version 3 is stored as IDB version 30
+                // dexie version 4 is stored as IDB version 40
                 vi.spyOn(globalThis.indexedDB, "databases").mockResolvedValue([
-                    { name: DB_NAME, version: 30 },
+                    { name: DB_NAME, version: 40 },
                 ]);
             });
 
