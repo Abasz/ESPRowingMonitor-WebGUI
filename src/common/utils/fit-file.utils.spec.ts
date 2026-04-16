@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { IExportHandleForces, IExportRecord } from "../database.interfaces";
+import { IExportHandleForces, IExportRecord, ILapExport } from "../database.interfaces";
 
 import {
+    buildLapSegments,
     computeForceStats,
     computeMaxCurvePointCount,
     computeMeanForce,
@@ -238,22 +239,49 @@ describe("computeStats function", (): void => {
     });
 
     describe("as part of derived totals", (): void => {
-        it("should derive totalDistance from last record in meters", (): void => {
+        it("should derive totalDistance as delta between first and last record in meters", (): void => {
             const stats = computeStats(records, emptyForces);
 
-            expect(stats.totalDistance).toBe(4.5);
+            expect(stats.totalDistance).toBe(2.5);
         });
 
-        it("should derive totalCycles from last record strokeCount", (): void => {
+        it("should derive totalCycles as delta between first and last record strokeCount", (): void => {
             const stats = computeStats(records, emptyForces);
 
-            expect(stats.totalCycles).toBe(2);
+            expect(stats.totalCycles).toBe(1);
         });
 
-        it("should derive totalWork from last record rounded", (): void => {
+        it("should derive totalWork as delta between first and last record rounded", (): void => {
             const stats = computeStats(records, emptyForces);
 
-            expect(stats.totalWork).toBe(743);
+            expect(stats.totalWork).toBe(368);
+        });
+
+        it("should derive totalElapsedTime as delta between first and last record", (): void => {
+            const stats = computeStats(records, emptyForces);
+
+            expect(stats.totalElapsedTime).toBe(1);
+        });
+    });
+
+    describe("as part of empty records handling", (): void => {
+        it("should return zero stats when records array is empty", (): void => {
+            const stats = computeStats([], {});
+
+            expect(stats.totalDistance).toBe(0);
+            expect(stats.totalElapsedTime).toBe(0);
+            expect(stats.totalCycles).toBe(0);
+            expect(stats.totalWork).toBe(0);
+            expect(stats.avgCadence).toBe(0);
+            expect(stats.maxCadence).toBe(0);
+            expect(stats.avgPower).toBe(0);
+            expect(stats.maxPower).toBe(0);
+            expect(stats.avgSpeed).toBe(0);
+            expect(stats.maxSpeed).toBe(0);
+            expect(stats.heartRate).toBeUndefined();
+            expect(stats.force).toBeUndefined();
+            expect(stats.avgDragFactor).toBe(0);
+            expect(stats.avgStrokeDistance).toBe(0);
         });
     });
 
@@ -293,11 +321,148 @@ describe("computeMaxCurvePointCount function", (): void => {
     });
 
     it("should cap at 127", (): void => {
-        const longForces = Array.from({ length: 200 }, (_: unknown, i: number): number => i);
+        const longForces = Array.from({ length: 200 }, (_: unknown, index: number): number => index);
         const handleForces: Record<number, IExportHandleForces> = {
             1: { handleForces: longForces, peakForce: 200, peakForcePositionNorm: 0.5, driveLength: 1.2 },
         };
 
         expect(computeMaxCurvePointCount(handleForces)).toBe(127);
+    });
+});
+
+describe("buildLapSegments function", (): void => {
+    const sessionStartMs = new Date("2026-01-15T10:00:00Z").getTime();
+    const baseTime = new Date("2026-01-15T10:00:01Z");
+
+    const createRecord = (timeOffsetMs: number): IExportRecord => ({
+        timeStamp: new Date(baseTime.getTime() + timeOffsetMs),
+        elapsedTime: timeOffsetMs / 1000 + 1,
+        distance: (timeOffsetMs / 1000 + 1) * 200,
+        speed: 2.0,
+        strokeRate: 24,
+        strokeCount: timeOffsetMs / 1000 + 1,
+        avgStrokePower: 150,
+        distPerStroke: 8.0,
+        driveDuration: 0.8,
+        recoveryDuration: 1.7,
+        dragFactor: 110,
+        totalWork: 375 * (timeOffsetMs / 1000 + 1),
+    });
+
+    describe("as part of basic segmentation", (): void => {
+        it("should create single segment when laps array is empty", (): void => {
+            const records = [createRecord(0), createRecord(1000), createRecord(2000)];
+            const segments = buildLapSegments(records, [], sessionStartMs);
+
+            expect(segments).toHaveLength(1);
+            expect(segments[0].lapTrigger).toBe("sessionEnd");
+            expect(segments[0].isPause).toBe(false);
+            expect(segments[0].records).toEqual(records);
+            expect(segments[0].startTimeMs).toBe(sessionStartMs);
+        });
+
+        it("should split into two segments for a single active marker", (): void => {
+            const records = [createRecord(0), createRecord(1000), createRecord(2000)];
+            const laps: Array<ILapExport> = [
+                { timeStamp: baseTime.getTime() + 1000, strokeIndex: 2, type: "distance", isPause: false },
+            ];
+            const segments = buildLapSegments(records, laps, sessionStartMs);
+
+            expect(segments).toHaveLength(2);
+            expect(segments[0].lapTrigger).toBe("distance");
+            expect(segments[0].isPause).toBe(false);
+            expect(segments[1].lapTrigger).toBe("sessionEnd");
+            expect(segments[1].isPause).toBe(false);
+        });
+
+        it("should create three segments for pause and resume markers", (): void => {
+            const records = [createRecord(0), createRecord(1000), createRecord(2000)];
+            const laps: Array<ILapExport> = [
+                { timeStamp: baseTime.getTime() + 500, strokeIndex: 1, type: "manual", isPause: true },
+                { timeStamp: baseTime.getTime() + 1500, strokeIndex: 2, type: "manual", isPause: false },
+            ];
+            const segments = buildLapSegments(records, laps, sessionStartMs);
+
+            expect(segments).toHaveLength(3);
+            expect(segments[0].isPause).toBe(false);
+            expect(segments[1].isPause).toBe(true);
+            expect(segments[2].isPause).toBe(false);
+        });
+    });
+
+    describe("as part of record overlap", (): void => {
+        it("should share boundary record between adjacent segments", (): void => {
+            const records = [createRecord(0), createRecord(1000), createRecord(2000)];
+            const laps: Array<ILapExport> = [
+                { timeStamp: baseTime.getTime() + 1000, strokeIndex: 2, type: "distance", isPause: false },
+            ];
+            const segments = buildLapSegments(records, laps, sessionStartMs);
+
+            const lastOfFirst = segments[0].records[segments[0].records.length - 1];
+            const firstOfSecond = segments[1].records[0];
+
+            expect(lastOfFirst).toBe(firstOfSecond);
+        });
+    });
+
+    describe("as part of segment timing", (): void => {
+        it("should use sessionStartMs for first segment startTimeMs", (): void => {
+            const records = [createRecord(0), createRecord(1000)];
+            const laps: Array<ILapExport> = [
+                { timeStamp: baseTime.getTime() + 500, strokeIndex: 1, type: "manual", isPause: false },
+            ];
+            const segments = buildLapSegments(records, laps, sessionStartMs);
+
+            expect(segments[0].startTimeMs).toBe(sessionStartMs);
+        });
+
+        it("should use marker timestamp for segment endTimeMs", (): void => {
+            const records = [createRecord(0), createRecord(1000), createRecord(2000)];
+            const laps: Array<ILapExport> = [
+                { timeStamp: baseTime.getTime() + 1000, strokeIndex: 2, type: "distance", isPause: false },
+            ];
+            const segments = buildLapSegments(records, laps, sessionStartMs);
+
+            expect(segments[0].endTimeMs).toBe(baseTime.getTime() + 1000);
+        });
+
+        it("should set trailing segment isPause from last marker", (): void => {
+            const records = [createRecord(0), createRecord(1000), createRecord(2000)];
+            const laps: Array<ILapExport> = [
+                { timeStamp: baseTime.getTime() + 1500, strokeIndex: 2, type: "manual", isPause: true },
+            ];
+            const segments = buildLapSegments(records, laps, sessionStartMs);
+
+            expect(segments).toHaveLength(2);
+            expect(segments[0].isPause).toBe(false);
+            expect(segments[1].isPause).toBe(true);
+        });
+
+        it("should clamp trailing endTimeMs to at least the last marker timestamp", (): void => {
+            const records = [createRecord(0)];
+            const laps: Array<ILapExport> = [
+                { timeStamp: baseTime.getTime() + 5000, strokeIndex: 1, type: "manual", isPause: true },
+            ];
+            const segments = buildLapSegments(records, laps, sessionStartMs);
+
+            expect(segments[1].endTimeMs).toBeGreaterThanOrEqual(laps[0].timeStamp);
+        });
+    });
+
+    describe("as part of lap trigger mapping", (): void => {
+        it("should map marker types to correct lap triggers", (): void => {
+            const records = [createRecord(0), createRecord(1000), createRecord(2000), createRecord(3000)];
+            const laps: Array<ILapExport> = [
+                { timeStamp: baseTime.getTime() + 1000, strokeIndex: 2, type: "distance", isPause: false },
+                { timeStamp: baseTime.getTime() + 2000, strokeIndex: 3, type: "time", isPause: false },
+                { timeStamp: baseTime.getTime() + 3000, strokeIndex: 4, type: "manual", isPause: false },
+            ];
+            const segments = buildLapSegments(records, laps, sessionStartMs);
+
+            expect(segments[0].lapTrigger).toBe("distance");
+            expect(segments[1].lapTrigger).toBe("time");
+            expect(segments[2].lapTrigger).toBe("manual");
+            expect(segments[3].lapTrigger).toBe("sessionEnd");
+        });
     });
 });

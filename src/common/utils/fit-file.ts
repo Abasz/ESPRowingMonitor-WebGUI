@@ -4,12 +4,15 @@ import { IExportHandleForces, IExportRecord, IExportSession } from "../database.
 
 import {
     APPLICATION_UUID,
+    buildLapSegments,
     computeMaxCurvePointCount,
     computeMeanForce,
     computeStats,
     DEVELOPER_FIELD_DEFS,
     DevFieldId,
+    FitEventType,
     getSportConfig,
+    LapSegment,
     SessionStats,
     SportConfig,
 } from "./fit-file.utils";
@@ -25,6 +28,8 @@ export class FitFileBuilder {
     private readonly stats: SessionStats;
     private readonly sportConfig: SportConfig;
     private readonly maxCurvePointCount: number;
+    private readonly segments: Array<LapSegment>;
+    private readonly segmentStats: Array<SessionStats>;
 
     constructor(private readonly exportSession: IExportSession) {
         const { records }: { records: Array<IExportRecord> } = exportSession;
@@ -33,15 +38,42 @@ export class FitFileBuilder {
         }
         this.records = records;
 
-        const startTime = records[0].timeStamp;
+        const startTime = new Date(exportSession.sessionId);
+        const zeroRecord: IExportRecord = {
+            timeStamp: startTime,
+            distance: 0,
+            strokeCount: 0,
+            avgStrokePower: 0,
+            driveDuration: 0,
+            recoveryDuration: 0,
+            dragFactor: 0,
+            speed: 0,
+            strokeRate: 0,
+            distPerStroke: 0,
+            totalWork: 0,
+            elapsedTime: 0,
+        };
+        const recordsWithZero = [zeroRecord, ...records];
+
         this.endTime = records[records.length - 1].timeStamp;
         this.startDateTime = this.fitWriter.time(startTime);
         this.endDateTime = this.fitWriter.time(this.endTime);
         this.wallClockTotal = (this.endTime.getTime() - startTime.getTime()) / 1000;
         this.elapsedTimeTotal = records[records.length - 1].elapsedTime;
-        this.stats = computeStats(records, exportSession.handleForces);
+        this.stats = computeStats(recordsWithZero, exportSession.handleForces);
         this.sportConfig = getSportConfig(exportSession.deviceName);
         this.maxCurvePointCount = computeMaxCurvePointCount(exportSession.handleForces);
+        this.segments = buildLapSegments(
+            recordsWithZero,
+            exportSession.laps,
+            startTime.getTime(),
+            exportSession.handleForces,
+        );
+        this.segmentStats = this.segments.map((segment: LapSegment): SessionStats => {
+            const records = segment.isPause ? segment.records.slice(1, -1) : segment.records;
+
+            return computeStats(records, segment.handleForces);
+        });
     }
 
     build(): ArrayBufferLike {
@@ -49,8 +81,8 @@ export class FitFileBuilder {
         this.writeDeveloperFieldDescriptions();
         this.writeRecords();
         this.writeHRMessages();
-        this.writeEventStop();
-        this.writeLap();
+        this.writeEvents();
+        this.writeLaps();
         this.writeSession();
         this.writeActivity();
 
@@ -235,60 +267,82 @@ export class FitFileBuilder {
             { field_num: DevFieldId.InstrokeAbscissaType, value: 2 },
             {
                 field_num: DevFieldId.InstrokeSampleInterval,
-                value: (handleForces.driveLength / handleForces.handleForces.length) * 10000,
+                value: Math.round((handleForces.driveLength / handleForces.handleForces.length) * 10000),
             },
             { field_num: DevFieldId.InstrokePointCount, value: pointCount },
         ];
     }
 
-    private writeEventStop(): void {
-        this.fitWriter.writeMessage("event", {
-            event: "timer",
-            event_type: "stopAll",
-            event_group: 0,
-            timestamp: this.endDateTime,
-        });
+    private writeEvents(): void {
+        const pauseSegments = this.segments.filter((segment: LapSegment): boolean => segment.isPause);
+        const lastSegment = this.segments[this.segments.length - 1];
+
+        const writeTimerEvent = (eventType: FitEventType, timestamp: number): void => {
+            this.fitWriter.writeMessage("event", {
+                event: "timer",
+                event_type: eventType,
+                event_group: 0,
+                timestamp,
+            });
+        };
+
+        for (const segment of pauseSegments) {
+            writeTimerEvent("stop", this.fitWriter.time(segment.startTimeMs));
+
+            if (segment !== lastSegment) {
+                writeTimerEvent("start", this.fitWriter.time(segment.endTimeMs));
+            }
+        }
+
+        writeTimerEvent("stopAll", this.fitWriter.time(this.endTime));
     }
 
-    private writeLap(): void {
-        this.fitWriter.writeMessage(
-            "lap",
-            {
-                message_index: { value: 0 },
-                timestamp: this.startDateTime,
-                start_time: this.startDateTime,
-                event: "session",
-                event_type: "stop",
-                intensity: "active",
-                lap_trigger: "sessionEnd",
-                sport: this.sportConfig.sport,
-                sub_sport: this.sportConfig.subSport,
-                total_elapsed_time: this.wallClockTotal,
-                total_timer_time: this.wallClockTotal,
-                total_moving_time: this.elapsedTimeTotal,
-                total_distance: this.stats.totalDistance,
-                avg_cadence: this.stats.avgCadence,
-                max_cadence: this.stats.maxCadence,
-                avg_power: this.stats.avgPower,
-                max_power: this.stats.maxPower,
-                enhanced_avg_speed: this.stats.avgSpeed,
-                enhanced_max_speed: this.stats.maxSpeed,
-                total_cycles: this.stats.totalCycles,
-                avg_stroke_distance: this.stats.avgStrokeDistance,
-                total_work: this.stats.totalWork,
-                ...(this.stats.heartRate !== undefined && {
-                    avg_heart_rate: this.stats.heartRate.avg,
-                    max_heart_rate: this.stats.heartRate.max,
-                }),
-                ...(this.stats.force !== undefined && {
-                    avg_force: this.stats.force.avg,
-                    max_force: this.stats.force.max,
-                }),
-            },
-            this.stats.avgDragFactor > 0
-                ? [{ field_num: DevFieldId.DragFactor, value: this.stats.avgDragFactor }]
-                : [],
-        );
+    private writeLaps(): void {
+        for (const [lapIndex, segment] of this.segments.entries()) {
+            const isLast = lapIndex === this.segments.length - 1;
+            const stats = this.segmentStats[lapIndex];
+            const elapsedTime = (segment.endTimeMs - segment.startTimeMs) / 1000;
+            const startTimestamp = this.fitWriter.time(new Date(segment.startTimeMs));
+
+            this.fitWriter.writeMessage(
+                "lap",
+                {
+                    message_index: { value: lapIndex },
+                    timestamp: this.startDateTime,
+                    start_time: startTimestamp,
+                    event: isLast ? "session" : "lap",
+                    event_type: "stop",
+                    intensity: segment.isPause ? "rest" : "active",
+                    lap_trigger: isLast ? "sessionEnd" : segment.lapTrigger,
+                    sport: this.sportConfig.sport,
+                    sub_sport: this.sportConfig.subSport,
+                    total_elapsed_time: elapsedTime,
+                    total_timer_time: elapsedTime,
+                    total_moving_time: stats.totalElapsedTime,
+                    total_distance: stats.totalDistance,
+                    avg_cadence: stats.avgCadence,
+                    max_cadence: stats.maxCadence,
+                    avg_power: stats.avgPower,
+                    max_power: stats.maxPower,
+                    enhanced_avg_speed: stats.avgSpeed,
+                    enhanced_max_speed: stats.maxSpeed,
+                    total_cycles: stats.totalCycles,
+                    avg_stroke_distance: stats.avgStrokeDistance,
+                    total_work: stats.totalWork,
+                    ...(stats.heartRate !== undefined && {
+                        avg_heart_rate: stats.heartRate.avg,
+                        max_heart_rate: stats.heartRate.max,
+                    }),
+                    ...(stats.force !== undefined && {
+                        avg_force: stats.force.avg,
+                        max_force: stats.force.max,
+                    }),
+                },
+                stats.avgDragFactor > 0
+                    ? [{ field_num: DevFieldId.DragFactor, value: stats.avgDragFactor }]
+                    : [],
+            );
+        }
     }
 
     private writeSession(): void {
@@ -299,7 +353,7 @@ export class FitFileBuilder {
                 timestamp: this.startDateTime,
                 start_time: this.startDateTime,
                 first_lap_index: 0,
-                num_laps: 1,
+                num_laps: this.segments.length,
                 event: "session",
                 event_type: "stop",
                 trigger: "activityEnd",

@@ -1,4 +1,4 @@
-import { IExportHandleForces, IExportRecord } from "../database.interfaces";
+import { IExportHandleForces, IExportRecord, ILapExport, LapType } from "../database.interfaces";
 
 export const enum DevFieldId {
     DriveLength = 0,
@@ -15,6 +15,9 @@ export const enum DevFieldId {
 }
 
 type FitBaseTypeString = "uint8" | "uint16";
+
+export type FitLapTrigger = "manual" | "distance" | "time" | "sessionEnd";
+export type FitEventType = "start" | "stopAll" | "stop";
 
 export interface DeveloperFieldDef {
     fieldDefinitionNumber: DevFieldId;
@@ -42,10 +45,20 @@ export interface SessionStats {
     heartRate: { avg: number; max: number } | undefined;
     avgStrokeDistance: number;
     totalDistance: number;
+    totalElapsedTime: number;
     totalCycles: number;
     totalWork: number;
     avgDragFactor: number;
     force: { avg: number; max: number } | undefined;
+}
+
+export interface LapSegment {
+    records: Array<IExportRecord>;
+    handleForces: Record<number, IExportHandleForces>;
+    lapTrigger: FitLapTrigger;
+    isPause: boolean;
+    startTimeMs: number;
+    endTimeMs: number;
 }
 
 // random UUID: 395542c3-ad4b-4369-8913-2c3af6d234e1
@@ -135,6 +148,12 @@ export const DEVELOPER_FIELD_DEFS: ReadonlyArray<DeveloperFieldDef> = [
     },
 ];
 
+const LAP_TRIGGER_MAP: Record<LapType, FitLapTrigger> = {
+    manual: "manual",
+    distance: "distance",
+    time: "time",
+};
+
 const KAYAK_DEVICE_PATTERNS: Array<string> = ["kayak", "olddanube"];
 
 const isKayakDevice = (deviceName: string | undefined): boolean => {
@@ -172,8 +191,28 @@ export function getSportConfig(deviceName: string | undefined): SportConfig {
 
 export function computeStats(
     records: Array<IExportRecord>,
-    handleForces: Record<number, IExportHandleForces>,
+    handleForces: Record<number, IExportHandleForces> = {},
 ): SessionStats {
+    if (records.length === 0) {
+        return {
+            avgCadence: 0,
+            maxCadence: 0,
+            avgPower: 0,
+            maxPower: 0,
+            avgSpeed: 0,
+            maxSpeed: 0,
+            heartRate: undefined,
+            avgStrokeDistance: 0,
+            totalDistance: 0,
+            totalElapsedTime: 0,
+            totalCycles: 0,
+            totalWork: 0,
+            avgDragFactor: 0,
+            force: undefined,
+        };
+    }
+
+    const firstRecord = records[0];
     const lastRecord = records[records.length - 1];
 
     // cadence (strokes/min)
@@ -252,9 +291,10 @@ export function computeStats(
                 ? { avg: Math.round(heartRateSum / heartRateCount), max: maxHeartRate }
                 : undefined,
         avgStrokeDistance: strokeDistanceCount > 0 ? strokeDistanceSum / strokeDistanceCount : 0,
-        totalDistance: lastRecord.distance / 100,
-        totalCycles: lastRecord.strokeCount,
-        totalWork: Math.round(lastRecord.totalWork),
+        totalDistance: (lastRecord.distance - firstRecord.distance) / 100,
+        totalElapsedTime: lastRecord.elapsedTime - firstRecord.elapsedTime,
+        totalCycles: lastRecord.strokeCount - firstRecord.strokeCount,
+        totalWork: Math.round(lastRecord.totalWork - firstRecord.totalWork),
         avgDragFactor: dragFactorCount > 0 ? Math.round(dragFactorSum / dragFactorCount) : 0,
         force: computeForceStats(handleForces),
     };
@@ -297,4 +337,69 @@ export function computeForceStats(
         avg: Math.round(forceSum / forceCount),
         max: Math.round(maxForce),
     };
+}
+
+function findRecordBoundary(records: Array<IExportRecord>, timeMs: number): number {
+    const index = records.findIndex((record: IExportRecord): boolean => record.timeStamp.getTime() >= timeMs);
+
+    return index === -1 ? records.length : index;
+}
+
+function collectSegmentHandleForces(
+    records: Array<IExportRecord>,
+    allHandleForces: Record<number, IExportHandleForces>,
+): Record<number, IExportHandleForces> {
+    const result: Record<number, IExportHandleForces> = {};
+    for (const record of records) {
+        const forces = allHandleForces[record.strokeCount];
+        if (forces !== undefined) {
+            result[record.strokeCount] = forces;
+        }
+    }
+
+    return result;
+}
+
+export function buildLapSegments(
+    records: Array<IExportRecord>,
+    laps: Array<ILapExport>,
+    sessionStartMs: number,
+    allHandleForces: Record<number, IExportHandleForces> = {},
+): Array<LapSegment> {
+    const segments: Array<LapSegment> = laps.map((marker: ILapExport, index: number): LapSegment => {
+        const isFirst = index === 0;
+        const startTimeMs = isFirst ? sessionStartMs : laps[index - 1].timeStamp;
+        const isPause = isFirst ? false : laps[index - 1].isPause;
+        const startIndex = findRecordBoundary(records, startTimeMs);
+        const endIndex = findRecordBoundary(records, marker.timeStamp);
+        const segmentRecords = records.slice(startIndex, endIndex + 1);
+
+        return {
+            records: segmentRecords,
+            handleForces: collectSegmentHandleForces(segmentRecords, allHandleForces),
+            lapTrigger: LAP_TRIGGER_MAP[marker.type],
+            isPause,
+            startTimeMs,
+            endTimeMs: marker.timeStamp,
+        };
+    });
+
+    const lastMarker = laps[laps.length - 1] as ILapExport | undefined;
+    const trailingRecords = records.slice(
+        lastMarker !== undefined ? findRecordBoundary(records, lastMarker.timeStamp) : 0,
+    );
+
+    segments.push({
+        records: trailingRecords,
+        handleForces: collectSegmentHandleForces(trailingRecords, allHandleForces),
+        lapTrigger: "sessionEnd",
+        isPause: lastMarker?.isPause ?? false,
+        startTimeMs: lastMarker?.timeStamp ?? sessionStartMs,
+        endTimeMs: Math.max(
+            records[records.length - 1].timeStamp.getTime(),
+            lastMarker?.timeStamp ?? sessionStartMs,
+        ),
+    });
+
+    return segments;
 }
