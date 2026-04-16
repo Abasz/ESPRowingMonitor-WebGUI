@@ -2,80 +2,30 @@ import { TestBed } from "@angular/core/testing";
 import { BehaviorSubject } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Config, IErgConnectionStatus, IHeartRate, IRawCalculatedMetrics } from "../common.interfaces";
+import { IErgConnectionStatus, IRawCalculatedMetrics } from "../common.interfaces";
 
-import { ConfigManagerService } from "./config-manager.service";
 import { DataRecorderService } from "./data-recorder.service";
-import { ErgConnectionService } from "./ergometer/erg-connection.service";
-import { MetricsService } from "./metrics.service";
 import { SessionManagerService } from "./session-manager.service";
+import {
+    mockRawMetrics,
+    SessionManagerTestContext,
+    setupSessionManagerTestBed,
+} from "./session-manager.test.helpers";
 
 describe("SessionManagerService", (): void => {
     let service: SessionManagerService;
-
-    let mockMetricsService: Pick<MetricsService, "rawMetrics$" | "heartRateData$">;
-    let mockDataRecorderService: Pick<DataRecorderService, "reset" | "addSessionData" | "addLap">;
-    let mockErgConnectionService: Pick<ErgConnectionService, "connectionStatus$">;
-    let mockConfigManagerService: Pick<ConfigManagerService, "configChanged$">;
-    let configSubject: BehaviorSubject<Config>;
     let rawMetricsSubject: BehaviorSubject<IRawCalculatedMetrics>;
-    let heartRateSubject: BehaviorSubject<IHeartRate | undefined>;
     let connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
-
-    const mockRawMetrics: IRawCalculatedMetrics = {
-        avgStrokePower: 0,
-        driveDuration: 0,
-        recoveryDuration: 0,
-        dragFactor: 0,
-        rawDistance: 0,
-        rawStrokeCount: 0,
-        handleForces: [],
-        peakForce: 0,
-        peakForcePositionNorm: 0,
-        strokeRate: 0,
-        speed: 0,
-        distPerStroke: 0,
-        driveLength: 0,
-    };
+    let mockDataRecorderService: Pick<DataRecorderService, "reset" | "addSessionData" | "addLap">;
 
     beforeEach((): void => {
         vi.useFakeTimers();
 
-        rawMetricsSubject = new BehaviorSubject<IRawCalculatedMetrics>(mockRawMetrics);
-        heartRateSubject = new BehaviorSubject<IHeartRate | undefined>(undefined);
-        connectionStatusSubject = new BehaviorSubject<IErgConnectionStatus>({ status: "disconnected" });
-
-        mockMetricsService = {
-            rawMetrics$: rawMetricsSubject.asObservable(),
-            heartRateData$: heartRateSubject.asObservable(),
-        };
-
-        mockDataRecorderService = {
-            reset: vi.fn().mockResolvedValue(undefined),
-            addSessionData: vi.fn().mockResolvedValue(undefined),
-            addLap: vi.fn().mockResolvedValue(1),
-        };
-
-        mockErgConnectionService = {
-            connectionStatus$: vi.fn().mockReturnValue(connectionStatusSubject.asObservable()),
-        };
-
-        configSubject = new BehaviorSubject<Config>(new Config());
-        mockConfigManagerService = {
-            configChanged$: configSubject.asObservable(),
-        };
-
-        TestBed.configureTestingModule({
-            providers: [
-                SessionManagerService,
-                { provide: MetricsService, useValue: mockMetricsService },
-                { provide: DataRecorderService, useValue: mockDataRecorderService },
-                { provide: ErgConnectionService, useValue: mockErgConnectionService },
-                { provide: ConfigManagerService, useValue: mockConfigManagerService },
-            ],
-        });
-
-        service = TestBed.inject(SessionManagerService);
+        const context: SessionManagerTestContext = setupSessionManagerTestBed();
+        service = context.service;
+        rawMetricsSubject = context.rawMetricsSubject;
+        connectionStatusSubject = context.connectionStatusSubject;
+        mockDataRecorderService = context.mockDataRecorderService;
     });
 
     afterEach((): void => {

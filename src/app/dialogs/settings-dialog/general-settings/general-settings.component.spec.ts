@@ -719,7 +719,7 @@ describe("GeneralSettingsComponent", (): void => {
                         (await toggle.getText()).trim(),
                 ),
             );
-            expect(texts).toEqual(["Off", "On Start"]);
+            expect(texts).toEqual(["Off", "On Start", "On Start & Pause"]);
         });
 
         it("should render auto-lap toggle group", async (): Promise<void> => {

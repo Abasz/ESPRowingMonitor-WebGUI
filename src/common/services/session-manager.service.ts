@@ -96,6 +96,14 @@ export class SessionManagerService {
         { initialValue: true },
     );
 
+    private readonly autoPauseEnabled: Signal<boolean> = toSignal(
+        this.configManager.configChanged$.pipe(
+            map((config: Config): boolean => config.general.autoSession === "autoStartAndPause"),
+        ),
+        { initialValue: false },
+    );
+
+    private hasSeenNonZeroSpeed: boolean = false;
     private readonly resetAutoLap$: Subject<void> = new Subject<void>();
 
     private indicateStop$: Observable<SessionState> = this.sessionState$.pipe(
@@ -176,6 +184,7 @@ export class SessionManagerService {
         this.setupAutoStart();
         this.setupRecording();
         this.setupAutoLap();
+        this.setupAutoPause();
     }
 
     addLap(): void {
@@ -220,6 +229,7 @@ export class SessionManagerService {
             return;
         }
 
+        this.hasSeenNonZeroSpeed = false;
         this.stopwatch.stop();
         this.sessionState$.next("stopped");
     }
@@ -333,6 +343,27 @@ export class SessionManagerService {
                     metrics.strokeCount,
                     config.general.autoLap as Exclude<AutoLapMode, "off">,
                 );
+            });
+    }
+
+    private setupAutoPause(): void {
+        this.metricsService.rawMetrics$
+            .pipe(
+                filter((): boolean => this.autoPauseEnabled() && this.sessionState() === "running"),
+                takeUntilDestroyed(),
+            )
+            .subscribe((metrics: IRawCalculatedMetrics): void => {
+                if (metrics.speed > 0) {
+                    this.hasSeenNonZeroSpeed = true;
+
+                    return;
+                }
+
+                if (!this.hasSeenNonZeroSpeed) {
+                    return;
+                }
+
+                this.pause();
             });
     }
 
