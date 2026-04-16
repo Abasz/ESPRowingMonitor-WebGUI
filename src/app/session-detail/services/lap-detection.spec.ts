@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { ILapEntity } from "../../../common/database.interfaces";
 import { ISessionStroke } from "../models/session-analysis.interfaces";
 
-import { detectLaps } from "./lap-detection";
+import { buildLapsFromMarkers, detectLaps } from "./lap-detection";
 
 const createStroke = (
     strokeIndex: number,
@@ -284,6 +285,172 @@ describe("detectLaps", (): void => {
             expect(laps[0].avgStrokeRate).toBe(20);
             expect(laps[1].avgPower).toBe(200);
             expect(laps[1].avgStrokeRate).toBe(30);
+        });
+    });
+});
+
+const createMarker = (
+    strokeIndex: number,
+    type: "manual" | "distance" | "time" = "manual",
+    isPause: boolean = false,
+): ILapEntity => ({
+    sessionId: 1,
+    timeStamp: 1700000000000 + strokeIndex * 2500,
+    strokeIndex,
+    type,
+    isPause,
+});
+
+describe("buildLapsFromMarkers", (): void => {
+    describe("as part of edge case handling", (): void => {
+        it("should return empty array for empty strokes", (): void => {
+            expect(buildLapsFromMarkers([], [createMarker(5)])).toEqual([]);
+        });
+
+        it("should return empty array for empty markers", (): void => {
+            expect(buildLapsFromMarkers(createActiveStrokes(10), [])).toEqual([]);
+        });
+    });
+
+    describe("as part of single marker splitting", (): void => {
+        it("should split strokes into two laps at marker position", (): void => {
+            const strokes = createActiveStrokes(10);
+            const markers = [createMarker(5, "distance")];
+
+            const laps = buildLapsFromMarkers(strokes, markers);
+
+            expect(laps).toHaveLength(2);
+            expect(laps[0].lapNumber).toBe(1);
+            expect(laps[0].startIndex).toBe(0);
+            expect(laps[0].endIndex).toBe(5);
+            expect(laps[1].lapNumber).toBe(2);
+            expect(laps[1].startIndex).toBe(6);
+            expect(laps[1].endIndex).toBe(9);
+        });
+
+        it("should compute correct averages for each split lap", (): void => {
+            const strokes = [
+                createStroke(0, 0, 20, { avgStrokePower: 100 }),
+                createStroke(1, 2.5, 20, { avgStrokePower: 100 }),
+                createStroke(2, 5, 20, { avgStrokePower: 100 }),
+                createStroke(3, 7.5, 30, { avgStrokePower: 200 }),
+                createStroke(4, 10, 30, { avgStrokePower: 200 }),
+                createStroke(5, 12.5, 30, { avgStrokePower: 200 }),
+            ];
+            const markers = [createMarker(2)];
+
+            const laps = buildLapsFromMarkers(strokes, markers);
+
+            expect(laps).toHaveLength(2);
+            expect(laps[0].avgPower).toBe(100);
+            expect(laps[0].avgStrokeRate).toBe(20);
+            expect(laps[1].avgPower).toBe(200);
+            expect(laps[1].avgStrokeRate).toBe(30);
+        });
+    });
+
+    describe("as part of multiple marker splitting", (): void => {
+        it("should split strokes into multiple laps", (): void => {
+            const strokes = createActiveStrokes(12);
+            const markers = [createMarker(3), createMarker(7)];
+
+            const laps = buildLapsFromMarkers(strokes, markers);
+
+            expect(laps).toHaveLength(3);
+            expect(laps[0].startIndex).toBe(0);
+            expect(laps[0].endIndex).toBe(3);
+            expect(laps[1].startIndex).toBe(4);
+            expect(laps[1].endIndex).toBe(7);
+            expect(laps[2].startIndex).toBe(8);
+            expect(laps[2].endIndex).toBe(11);
+        });
+
+        it("should number laps sequentially", (): void => {
+            const strokes = createActiveStrokes(12);
+            const markers = [createMarker(3), createMarker(7)];
+
+            const laps = buildLapsFromMarkers(strokes, markers);
+
+            expect(laps[0].lapNumber).toBe(1);
+            expect(laps[1].lapNumber).toBe(2);
+            expect(laps[2].lapNumber).toBe(3);
+        });
+    });
+
+    describe("as part of marker at session boundary handling", (): void => {
+        it("should handle marker at last stroke", (): void => {
+            const strokes = createActiveStrokes(5);
+            const markers = [createMarker(4)];
+
+            const laps = buildLapsFromMarkers(strokes, markers);
+
+            expect(laps).toHaveLength(1);
+            expect(laps[0].startIndex).toBe(0);
+            expect(laps[0].endIndex).toBe(4);
+        });
+
+        it("should handle marker at first stroke", (): void => {
+            const strokes = createActiveStrokes(5);
+            const markers = [createMarker(0)];
+
+            const laps = buildLapsFromMarkers(strokes, markers);
+
+            expect(laps).toHaveLength(2);
+            expect(laps[0].startIndex).toBe(0);
+            expect(laps[0].endIndex).toBe(0);
+            expect(laps[1].startIndex).toBe(1);
+            expect(laps[1].endIndex).toBe(4);
+        });
+
+        it("should skip marker beyond last stroke", (): void => {
+            const strokes = createActiveStrokes(5);
+            const markers = [createMarker(2), createMarker(99)];
+
+            const laps = buildLapsFromMarkers(strokes, markers);
+
+            expect(laps).toHaveLength(2);
+            expect(laps[0].endIndex).toBe(2);
+            expect(laps[1].startIndex).toBe(3);
+            expect(laps[1].endIndex).toBe(4);
+        });
+
+        it("should ignore duplicate markers at the same strokeIndex", (): void => {
+            const strokes = createActiveStrokes(10);
+            const markers = [createMarker(4), createMarker(4)];
+
+            const laps = buildLapsFromMarkers(strokes, markers);
+
+            expect(laps).toHaveLength(2);
+            expect(laps[0].startIndex).toBe(0);
+            expect(laps[0].endIndex).toBe(4);
+            expect(laps[1].startIndex).toBe(5);
+            expect(laps[1].endIndex).toBe(9);
+        });
+
+        it("should not produce overlapping segments for out-of-order markers", (): void => {
+            const strokes = createActiveStrokes(10);
+            const markers = [createMarker(7), createMarker(3)];
+
+            const laps = buildLapsFromMarkers(strokes, markers);
+
+            expect(laps).toHaveLength(2);
+            expect(laps[0].startIndex).toBe(0);
+            expect(laps[0].endIndex).toBe(7);
+            expect(laps[1].startIndex).toBe(8);
+            expect(laps[1].endIndex).toBe(9);
+        });
+    });
+
+    describe("as part of pause marker handling", (): void => {
+        it("should treat pause markers the same as regular markers for splitting", (): void => {
+            const strokes = createActiveStrokes(10);
+            const markers = [createMarker(4, "manual", true)];
+
+            const laps = buildLapsFromMarkers(strokes, markers);
+
+            expect(laps).toHaveLength(2);
+            expect(laps[0].endIndex).toBe(4);
+            expect(laps[1].startIndex).toBe(5);
         });
     });
 });

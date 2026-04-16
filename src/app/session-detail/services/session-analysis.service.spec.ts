@@ -60,6 +60,7 @@ describe("SessionAnalysisService", (): void => {
         await appDB.handleForces.clear();
         await appDB.connectedDevice.clear();
         await appDB.deltaTimes.clear();
+        await appDB.laps.clear();
     });
 
     describe("loadSession method", (): void => {
@@ -117,6 +118,110 @@ describe("SessionAnalysisService", (): void => {
 
             expect(result.laps).toHaveLength(1);
             expect(result.laps[0].lapNumber).toBe(1);
+        });
+
+        it("should use stored laps instead of detectLaps when lap entities exist", async (): Promise<void> => {
+            const metrics = [
+                createMetricsEntity({
+                    strokeCount: 1,
+                    timeStamp: mockSessionId + 1000,
+                    elapsedTime: 1,
+                    strokeRate: 24,
+                }),
+                createMetricsEntity({
+                    strokeCount: 2,
+                    timeStamp: mockSessionId + 3000,
+                    elapsedTime: 3,
+                    strokeRate: 24,
+                }),
+                createMetricsEntity({
+                    strokeCount: 3,
+                    timeStamp: mockSessionId + 5000,
+                    elapsedTime: 5,
+                    strokeRate: 24,
+                }),
+                createMetricsEntity({
+                    strokeCount: 4,
+                    timeStamp: mockSessionId + 7000,
+                    elapsedTime: 7,
+                    strokeRate: 24,
+                }),
+                createMetricsEntity({
+                    strokeCount: 5,
+                    timeStamp: mockSessionId + 9000,
+                    elapsedTime: 9,
+                    strokeRate: 24,
+                }),
+                createMetricsEntity({
+                    strokeCount: 6,
+                    timeStamp: mockSessionId + 11000,
+                    elapsedTime: 11,
+                    strokeRate: 24,
+                }),
+            ];
+            await seedSession(metrics, []);
+            await appDB.laps.add({
+                sessionId: mockSessionId,
+                timeStamp: mockSessionId + 5000,
+                strokeIndex: 3,
+                type: "distance",
+                isPause: false,
+            });
+
+            const result = await service.loadSession(mockSessionId);
+
+            expect(result.laps).toHaveLength(2);
+            expect(result.laps[0].startIndex).toBe(0);
+            expect(result.laps[0].endIndex).toBe(2);
+            expect(result.laps[1].startIndex).toBe(3);
+            expect(result.laps[1].endIndex).toBe(5);
+        });
+
+        it("should fallback to detectLaps when no stored laps exist", async (): Promise<void> => {
+            const metrics = [
+                createMetricsEntity({
+                    strokeCount: 1,
+                    timeStamp: mockSessionId + 1000,
+                    elapsedTime: 1,
+                    strokeRate: 24,
+                }),
+                createMetricsEntity({
+                    strokeCount: 2,
+                    timeStamp: mockSessionId + 3000,
+                    elapsedTime: 3,
+                    strokeRate: 24,
+                }),
+                createMetricsEntity({
+                    strokeCount: 3,
+                    timeStamp: mockSessionId + 5000,
+                    elapsedTime: 5,
+                    strokeRate: 24,
+                }),
+                createMetricsEntity({
+                    strokeCount: 4,
+                    timeStamp: mockSessionId + 20000,
+                    elapsedTime: 20,
+                    strokeRate: 24,
+                }),
+                createMetricsEntity({
+                    strokeCount: 5,
+                    timeStamp: mockSessionId + 22000,
+                    elapsedTime: 22,
+                    strokeRate: 24,
+                }),
+                createMetricsEntity({
+                    strokeCount: 6,
+                    timeStamp: mockSessionId + 24000,
+                    elapsedTime: 24,
+                    strokeRate: 24,
+                }),
+            ];
+            await seedSession(metrics, []);
+
+            const result = await service.loadSession(mockSessionId);
+
+            // detectLaps should detect two laps from the time gap
+            expect(result.laps).toHaveLength(2);
         });
     });
 
@@ -540,6 +645,7 @@ describe("SessionAnalysisService", (): void => {
                     handleForces: [20, 60, 100, 80, 40],
                 },
             },
+            laps: [],
             ...overrides,
         });
 
@@ -608,6 +714,107 @@ describe("SessionAnalysisService", (): void => {
 
             expect(result.laps).toBeDefined();
             expect(result.laps.length).toBeGreaterThanOrEqual(0);
+        });
+
+        it("should use stored laps from export when laps array is non-empty", (): void => {
+            const exportSession = createExportSession({
+                records: [
+                    {
+                        timeStamp: new Date(mockSessionId + 1000),
+                        elapsedTime: 1,
+                        speed: 4.2,
+                        strokeRate: 24,
+                        avgStrokePower: 150,
+                        distance: 500,
+                        strokeCount: 1,
+                        distPerStroke: 8,
+                        driveDuration: 0.8,
+                        recoveryDuration: 1.2,
+                        dragFactor: 110,
+                        totalWork: 0,
+                    },
+                    {
+                        timeStamp: new Date(mockSessionId + 3000),
+                        elapsedTime: 3,
+                        speed: 4.0,
+                        strokeRate: 22,
+                        avgStrokePower: 140,
+                        distance: 1000,
+                        strokeCount: 2,
+                        distPerStroke: 8,
+                        driveDuration: 0.8,
+                        recoveryDuration: 1.2,
+                        dragFactor: 110,
+                        totalWork: 0,
+                    },
+                    {
+                        timeStamp: new Date(mockSessionId + 5000),
+                        elapsedTime: 5,
+                        speed: 4.5,
+                        strokeRate: 26,
+                        avgStrokePower: 160,
+                        distance: 1500,
+                        strokeCount: 3,
+                        distPerStroke: 8,
+                        driveDuration: 0.8,
+                        recoveryDuration: 1.2,
+                        dragFactor: 110,
+                        totalWork: 0,
+                    },
+                ],
+                laps: [
+                    {
+                        timeStamp: mockSessionId + 3000,
+                        strokeIndex: 2,
+                        type: "distance",
+                        isPause: false,
+                    },
+                ],
+            });
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.laps).toHaveLength(2);
+            expect(result.laps[0].startIndex).toBe(0);
+            expect(result.laps[0].endIndex).toBe(1);
+            expect(result.laps[1].startIndex).toBe(2);
+            expect(result.laps[1].endIndex).toBe(2);
+        });
+
+        it("should fallback to detectLaps when exported laps array is empty", (): void => {
+            const exportSession = createExportSession({ laps: [] });
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.laps).toBeDefined();
+        });
+
+        it("should handle legacy exports without laps field", (): void => {
+            const legacyExport = {
+                sessionId: mockSessionId,
+                deviceName: undefined,
+                records: [
+                    {
+                        timeStamp: new Date(mockSessionId + 1000),
+                        elapsedTime: 1,
+                        speed: 4.2,
+                        strokeRate: 24,
+                        avgStrokePower: 150,
+                        distance: 500,
+                        strokeCount: 1,
+                        distPerStroke: 8,
+                        driveDuration: 0.8,
+                        recoveryDuration: 1.2,
+                        dragFactor: 110,
+                        totalWork: 0,
+                    },
+                ],
+                handleForces: {},
+            } as unknown as IExportSession;
+
+            const result = service.loadFromJson(legacyExport);
+
+            expect(result.laps).toBeDefined();
         });
 
         it("should handle missing handle forces gracefully", (): void => {

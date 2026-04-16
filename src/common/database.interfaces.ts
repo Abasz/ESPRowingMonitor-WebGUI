@@ -51,9 +51,12 @@ export interface IExportHandleForces {
     handleForces: Array<number>;
 }
 
+export type ILapExport = Omit<ILapEntity, "sessionId">;
+
 export interface IExportSession {
     sessionId: number;
     deviceName?: string;
     records: Array<IExportRecord>;
     handleForces: Record<number, IExportHandleForces>;
+    laps: Array<ILapExport>;
 }

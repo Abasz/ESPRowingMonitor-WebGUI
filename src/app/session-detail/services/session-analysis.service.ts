@@ -5,6 +5,7 @@ import {
     IExportRecord,
     IExportSession,
     IHandleForcesEntity,
+    ILapEntity,
     IMetricsEntity,
 } from "../../../common/database.interfaces";
 import { appDB } from "../../../common/utils/app-database";
@@ -17,7 +18,7 @@ import {
     ISessionStroke,
 } from "../models/session-analysis.interfaces";
 
-import { detectLaps } from "./lap-detection";
+import { buildLapsFromMarkers, detectLaps } from "./lap-detection";
 
 const findPeakForce = (forces: Array<number>): { peakForce: number; peakForceIndex: number } =>
     forces.reduce(
@@ -40,15 +41,18 @@ export class SessionAnalysisService {
             appDB.sessionData,
             appDB.handleForces,
             appDB.connectedDevice,
+            appDB.laps,
             async (): Promise<ISessionAnalysis> => {
-                const [metricsEntities, handleForcesEntities, connectedDevice]: [
+                const [metricsEntities, handleForcesEntities, connectedDevice, lapEntities]: [
                     Array<IMetricsEntity>,
                     Array<IHandleForcesEntity>,
                     { sessionId: number; deviceName: string } | undefined,
+                    Array<ILapEntity>,
                 ] = await Promise.all([
                     appDB.sessionData.where({ sessionId }).sortBy("timeStamp"),
                     appDB.handleForces.where({ sessionId }).toArray(),
                     appDB.connectedDevice.where({ sessionId }).last(),
+                    appDB.laps.where({ sessionId }).sortBy("timeStamp"),
                 ]);
 
                 const handleForcesMap = this.buildHandleForcesMap(handleForcesEntities);
@@ -62,7 +66,10 @@ export class SessionAnalysisService {
                     records,
                     strokes,
                     statistics,
-                    laps: detectLaps(strokes),
+                    laps:
+                        lapEntities.length > 0
+                            ? buildLapsFromMarkers(strokes, lapEntities)
+                            : detectLaps(strokes),
                 };
             },
         );
@@ -114,6 +121,7 @@ export class SessionAnalysisService {
 
         const sessionId = exportSession.sessionId;
         const statistics = this.computeStatistics(strokes);
+        const exportedLaps = exportSession.laps ?? [];
 
         return {
             sessionId,
@@ -121,7 +129,7 @@ export class SessionAnalysisService {
             records,
             strokes,
             statistics,
-            laps: detectLaps(strokes),
+            laps: exportedLaps.length > 0 ? buildLapsFromMarkers(strokes, exportedLaps) : detectLaps(strokes),
         };
     }
 

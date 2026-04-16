@@ -430,6 +430,7 @@ export class DataRecorderService {
                     deviceName: connectedDevice?.deviceName,
                     records,
                     handleForces,
+                    laps: [],
                 };
             },
         );

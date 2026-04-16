@@ -1,3 +1,4 @@
+import { ILapEntity } from "../../../common/database.interfaces";
 import { ILap, ISessionStroke } from "../models/session-analysis.interfaces";
 
 const STROKE_RATE_THRESHOLD = 2;
@@ -95,4 +96,35 @@ export const detectLaps = (strokes: Array<ISessionStroke>): Array<ILap> => {
             (range: { startIndex: number; endIndex: number }, lapIndex: number): ILap =>
                 computeLapMetrics(strokes, lapIndex + 1, range.startIndex, range.endIndex),
         );
+};
+
+export const buildLapsFromMarkers = (
+    strokes: Array<ISessionStroke>,
+    markers: Array<Pick<ILapEntity, "strokeIndex">>,
+): Array<ILap> => {
+    if (strokes.length === 0 || markers.length === 0) {
+        return [];
+    }
+
+    const laps: Array<ILap> = [];
+    let segmentStart = 0;
+
+    for (const marker of markers) {
+        const endIndex = strokes.findIndex(
+            (stroke: ISessionStroke): boolean => stroke.strokeIndex >= marker.strokeIndex,
+        );
+
+        if (endIndex === -1 || endIndex < segmentStart) {
+            continue;
+        }
+
+        laps.push(computeLapMetrics(strokes, laps.length + 1, segmentStart, endIndex));
+        segmentStart = endIndex + 1;
+    }
+
+    if (segmentStart < strokes.length) {
+        laps.push(computeLapMetrics(strokes, laps.length + 1, segmentStart, strokes.length - 1));
+    }
+
+    return laps;
 };

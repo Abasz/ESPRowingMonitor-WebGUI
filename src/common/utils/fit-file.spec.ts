@@ -90,6 +90,7 @@ function createTestSession(overrides?: Partial<IExportSession>): IExportSession 
             2: { handleForces: [150, 250], peakForce: 250, peakForcePositionNorm: 55, driveLength: 1.3 },
             3: { handleForces: [200, 300], peakForce: 300, peakForcePositionNorm: 50, driveLength: 1.4 },
         },
+        laps: [],
         ...overrides,
     };
 }
