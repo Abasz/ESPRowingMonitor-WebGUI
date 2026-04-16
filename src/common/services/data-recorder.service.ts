@@ -13,6 +13,7 @@ import {
     IExportSession,
     IHandleForcesEntity,
     ILapEntity,
+    ILapExport,
     IMetricsEntity,
     LapType,
 } from "../database.interfaces";
@@ -366,15 +367,18 @@ export class DataRecorderService {
             appDB.sessionData,
             appDB.handleForces,
             appDB.connectedDevice,
+            appDB.laps,
             async (): Promise<IExportSession> => {
-                const [metricsEntities, handleForcesEntities, connectedDevice]: [
+                const [metricsEntities, handleForcesEntities, connectedDevice, lapEntities]: [
                     Array<IMetricsEntity>,
                     Array<IHandleForcesEntity>,
                     { sessionId: number; deviceName: string } | undefined,
+                    Array<ILapEntity>,
                 ] = await Promise.all([
                     appDB.sessionData.where({ sessionId }).toArray(),
                     appDB.handleForces.where({ sessionId }).toArray(),
                     appDB.connectedDevice.where({ sessionId }).last(),
+                    appDB.laps.where({ sessionId }).sortBy("timeStamp"),
                 ]);
 
                 const records: Array<IExportRecord> = [];
@@ -430,7 +434,14 @@ export class DataRecorderService {
                     deviceName: connectedDevice?.deviceName,
                     records,
                     handleForces,
-                    laps: [],
+                    laps: lapEntities.map(
+                        (lap: ILapEntity): ILapExport => ({
+                            timeStamp: lap.timeStamp,
+                            strokeIndex: lap.strokeIndex,
+                            type: lap.type,
+                            isPause: lap.isPause,
+                        }),
+                    ),
                 };
             },
         );

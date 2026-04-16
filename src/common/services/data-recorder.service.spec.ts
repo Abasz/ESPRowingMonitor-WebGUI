@@ -803,6 +803,66 @@ describe("DataRecorderService", (): void => {
             expect(sessionData["deviceName"]).toBe("ESP Rowing Monitor");
         });
 
+        it("should include laps in exported JSON", async (): Promise<void> => {
+            const createdBlobs: Array<Blob> = [];
+            createObjectURLSpy.mockImplementation((blob: Blob): string => {
+                createdBlobs.push(blob);
+
+                return "blob:test-url";
+            });
+
+            await appDB.laps.bulkAdd([
+                {
+                    sessionId: testSessionId,
+                    timeStamp: testSessionId + 4000,
+                    strokeIndex: 2,
+                    type: "time",
+                    isPause: false,
+                },
+                {
+                    sessionId: testSessionId,
+                    timeStamp: testSessionId + 2000,
+                    strokeIndex: 1,
+                    type: "distance",
+                    isPause: false,
+                },
+            ]);
+
+            await service.exportSessionToJson(testSessionId);
+
+            const sessionContent = await createdBlobs[0].text();
+            const exportData = JSON.parse(sessionContent) as IExportSession;
+            expect(exportData.laps).toHaveLength(2);
+            expect(exportData.laps[0]).toEqual({
+                timeStamp: testSessionId + 2000,
+                strokeIndex: 1,
+                type: "distance",
+                isPause: false,
+            });
+            expect(exportData.laps[1]).toEqual({
+                timeStamp: testSessionId + 4000,
+                strokeIndex: 2,
+                type: "time",
+                isPause: false,
+            });
+            expect(exportData.laps[0]).not.toHaveProperty("sessionId");
+        });
+
+        it("should export empty laps array when no laps exist", async (): Promise<void> => {
+            const createdBlobs: Array<Blob> = [];
+            createObjectURLSpy.mockImplementation((blob: Blob): string => {
+                createdBlobs.push(blob);
+
+                return "blob:test-url";
+            });
+
+            await service.exportSessionToJson(testSessionId);
+
+            const sessionContent = await createdBlobs[0].text();
+            const exportData = JSON.parse(sessionContent) as IExportSession;
+            expect(exportData.laps).toEqual([]);
+        });
+
         describe("when Web Share API is available", (): void => {
             let shareSpy: Mock;
 
