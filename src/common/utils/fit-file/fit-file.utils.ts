@@ -1,4 +1,4 @@
-import { IExportHandleForces, IExportRecord, ILapExport, LapType } from "../database.interfaces";
+import { IExportHandleForces, IExportRecord, ILapExport, LapType } from "../../database.interfaces";
 
 export const enum DevFieldId {
     DriveLength = 0,

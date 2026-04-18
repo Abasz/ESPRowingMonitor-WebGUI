@@ -1,6 +1,6 @@
 import { FitDevInfo, FitWriter } from "@markw65/fit-file-writer";
 
-import { IExportHandleForces, IExportRecord, IExportSession } from "../database.interfaces";
+import { IExportHandleForces, IExportRecord, IExportSession } from "../../database.interfaces";
 
 import {
     APPLICATION_UUID,

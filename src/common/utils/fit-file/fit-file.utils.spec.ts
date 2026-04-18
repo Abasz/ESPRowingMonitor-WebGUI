@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { IExportHandleForces, IExportRecord, ILapExport } from "../database.interfaces";
+import { IExportHandleForces, IExportRecord, ILapExport } from "../../database.interfaces";
 
 import {
     buildLapSegments,

@@ -18,7 +18,7 @@ import {
     LapType,
 } from "../database.interfaces";
 import { appDB } from "../utils/app-database";
-import { createSessionFitFile } from "../utils/fit-file";
+import { createSessionFitFile } from "../utils/fit-file/fit-file";
 import { downloadFiles } from "../utils/utility.functions";
 
 @Injectable({
