@@ -1,4 +1,56 @@
+import { fit_messages } from "@markw65/fit-file-writer";
+
 import { IExportHandleForces, IExportRecord, ILapExport, LapType } from "../../database.interfaces";
+
+// undocumented Garmin fields for split and split_summary messages
+// TODO: we may remove these once they are included in the fit-file-writer library
+export const SPLIT_USER_MESSAGES = {
+    split: {
+        fields: {
+            lap_index: {
+                ...fit_messages.session.fields.first_lap_index,
+                name: "lap_index" as const,
+                num: 67 as const,
+            },
+            avg_cadence: {
+                ...fit_messages.session.fields.first_lap_index,
+                name: "avg_cadence" as const,
+                num: 29 as const,
+                scale: 128,
+                offset: 0,
+                units: "rpm",
+            },
+            max_cadence: {
+                ...fit_messages.session.fields.first_lap_index,
+                name: "max_cadence" as const,
+                num: 30 as const,
+                scale: 128,
+                offset: 0,
+                units: "rpm",
+            },
+        },
+    },
+    split_summary: {
+        fields: {
+            avg_cadence: {
+                ...fit_messages.session.fields.first_lap_index,
+                name: "avg_cadence" as const,
+                num: 14 as const,
+                scale: 128,
+                offset: 0,
+                units: "rpm",
+            },
+            max_cadence: {
+                ...fit_messages.session.fields.first_lap_index,
+                name: "max_cadence" as const,
+                num: 15 as const,
+                scale: 128,
+                offset: 0,
+                units: "rpm",
+            },
+        },
+    },
+};
 
 export const enum DevFieldId {
     DriveLength = 0,
@@ -18,6 +70,7 @@ type FitBaseTypeString = "uint8" | "uint16";
 
 export type FitLapTrigger = "manual" | "distance" | "time" | "sessionEnd";
 export type FitEventType = "start" | "stopAll" | "stop";
+export type SplitType = "interval_active" | "interval_rest";
 
 export interface DeveloperFieldDef {
     fieldDefinitionNumber: DevFieldId;
@@ -402,4 +455,12 @@ export function buildLapSegments(
     });
 
     return segments;
+}
+
+export function getSegmentStartDistance(segment: LapSegment): number {
+    if (segment.records.length === 0) {
+        return 0;
+    }
+
+    return segment.records[0].distance / 100;
 }

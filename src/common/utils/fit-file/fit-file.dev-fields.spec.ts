@@ -221,6 +221,14 @@ describe("createSessionFitFile developer fields", (): void => {
                 // mean of 110, 112, 115 = 112.33 → rounded to 112
                 expect(devFields["DragFactor"]).toBe(112);
             });
+
+            it("should include average DragFactor on Split", (): void => {
+                const messages = decodeValidMessages(createSessionFitFile(testSession));
+                const devFields = mapDevFieldsByName(messages, "splitMesgs", 0);
+
+                // mean of 110, 112, 115 = 112.33 → rounded to 112
+                expect(devFields["DragFactor"]).toBe(112);
+            });
         });
 
         describe("on Record force curves", (): void => {

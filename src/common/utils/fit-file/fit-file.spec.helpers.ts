@@ -92,3 +92,33 @@ export function createTestSession(overrides?: Partial<IExportSession>): IExportS
         ...overrides,
     };
 }
+
+export function createSplitSession(overrides?: Partial<IExportSession>): IExportSession {
+    const base = createTestSession();
+
+    return {
+        ...base,
+        records: [
+            ...base.records,
+            {
+                timeStamp: new Date(base.records[base.records.length - 1].timeStamp.getTime() + 1000),
+                elapsedTime: 4,
+                distance: 1100,
+                speed: 3.5,
+                strokeRate: 30,
+                strokeCount: 4,
+                avgStrokePower: 180,
+                distPerStroke: 9.5,
+                driveDuration: 0.65,
+                recoveryDuration: 1.35,
+                dragFactor: 118,
+                totalWork: 1500,
+                heartRate: {
+                    heartRate: 150,
+                    contactDetected: true,
+                },
+            },
+        ],
+        ...overrides,
+    };
+}

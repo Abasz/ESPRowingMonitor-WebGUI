@@ -11,9 +11,12 @@ import {
     DEVELOPER_FIELD_DEFS,
     DevFieldId,
     FitEventType,
+    getSegmentStartDistance,
     getSportConfig,
     LapSegment,
     SessionStats,
+    SPLIT_USER_MESSAGES,
+    SplitType,
     SportConfig,
 } from "./fit-file.utils";
 
@@ -83,6 +86,8 @@ export class FitFileBuilder {
         this.writeHRMessages();
         this.writeEvents();
         this.writeLaps();
+        this.writeSplitSummaries();
+        this.writeSplits();
         this.writeSession();
         this.writeActivity();
 
@@ -340,6 +345,140 @@ export class FitFileBuilder {
                 },
                 stats.avgDragFactor > 0
                     ? [{ field_num: DevFieldId.DragFactor, value: stats.avgDragFactor }]
+                    : [],
+            );
+        }
+    }
+
+    private writeSplitSummaries(): void {
+        const indexesBySplitType = new Map<SplitType, Array<number>>();
+        for (const [index, segment] of this.segments.entries()) {
+            const splitType: SplitType = segment.isPause ? "interval_rest" : "interval_active";
+            const indices = indexesBySplitType.get(splitType) ?? [];
+            indices.push(index);
+            indexesBySplitType.set(splitType, indices);
+        }
+
+        for (const [messageIndex, [splitType, segmentIndices]] of [...indexesBySplitType].entries()) {
+            const totalTimerTime = segmentIndices.reduce((sum: number, segmentIndex: number): number => {
+                const segment = this.segments[segmentIndex];
+
+                return sum + (segment.endTimeMs - segment.startTimeMs) / 1000;
+            }, 0);
+            const totalDistance = segmentIndices.reduce(
+                (sum: number, segmentIndex: number): number =>
+                    sum + this.segmentStats[segmentIndex].totalDistance,
+                0,
+            );
+
+            const heartRate = segmentIndices.reduce(
+                (
+                    acc: { sum: number; max: number; count: number },
+                    segmentIndex: number,
+                ): { sum: number; max: number; count: number } => {
+                    const stats = this.segmentStats[segmentIndex];
+                    if (stats.heartRate !== undefined) {
+                        return {
+                            sum: acc.sum + stats.heartRate.avg,
+                            max: Math.max(acc.max, stats.heartRate.max),
+                            count: acc.count + 1,
+                        };
+                    }
+
+                    return acc;
+                },
+                { sum: 0, max: 0, count: 0 },
+            );
+
+            const cadence = segmentIndices.reduce(
+                (
+                    acc: { sum: number; max: number; count: number },
+                    segmentIndex: number,
+                ): { sum: number; max: number; count: number } => {
+                    const stats = this.segmentStats[segmentIndex];
+                    if (stats.avgCadence > 0) {
+                        return {
+                            sum: acc.sum + stats.avgCadence,
+                            max: Math.max(acc.max, stats.maxCadence),
+                            count: acc.count + 1,
+                        };
+                    }
+
+                    return acc;
+                },
+                { sum: 0, max: 0, count: 0 },
+            );
+
+            this.fitWriter.writeCustomMessage(
+                SPLIT_USER_MESSAGES,
+                "split_summary",
+                {
+                    timestamp: this.startDateTime,
+                    message_index: { value: messageIndex },
+                    split_type: splitType,
+                    num_splits: segmentIndices.length,
+                    total_timer_time: totalTimerTime,
+                    total_distance: totalDistance,
+                    avg_speed: totalTimerTime > 0 ? totalDistance / totalTimerTime : 0,
+                    max_speed: Math.max(
+                        ...segmentIndices.map(
+                            (segmentIndex: number): number => this.segmentStats[segmentIndex].maxSpeed,
+                        ),
+                        0,
+                    ),
+                    ...(heartRate.count > 0 && {
+                        avg_heart_rate: Math.round(heartRate.sum / heartRate.count),
+                        max_heart_rate: heartRate.max,
+                    }),
+                    ...(cadence.count > 0 && {
+                        avg_cadence: Math.round(cadence.sum / cadence.count),
+                        max_cadence: cadence.max,
+                    }),
+                },
+                [],
+            );
+        }
+    }
+
+    private writeSplits(): void {
+        for (const [lapIndex, segment] of this.segments.entries()) {
+            const segmentStats = this.segmentStats[lapIndex];
+            const elapsedTime = (segment.endTimeMs - segment.startTimeMs) / 1000;
+            const startTimestamp = this.fitWriter.time(new Date(segment.startTimeMs));
+            const endTimestamp = this.fitWriter.time(new Date(segment.endTimeMs));
+
+            this.fitWriter.writeCustomMessage(
+                SPLIT_USER_MESSAGES,
+                "split",
+                {
+                    timestamp: this.startDateTime,
+                    message_index: { value: lapIndex },
+                    lap_index: lapIndex,
+                    sport: this.sportConfig.sport,
+                    sub_sport: this.sportConfig.subSport,
+                    split_type: segment.isPause ? "interval_rest" : "interval_active",
+                    total_elapsed_time: elapsedTime,
+                    total_timer_time: elapsedTime,
+                    total_moving_time: segmentStats.totalElapsedTime,
+                    total_distance: segmentStats.totalDistance,
+                    avg_speed: segmentStats.avgSpeed,
+                    max_speed: segmentStats.maxSpeed,
+                    avg_power: segmentStats.avgPower,
+                    max_power: segmentStats.maxPower,
+                    start_time: startTimestamp,
+                    start_distance: getSegmentStartDistance(segment),
+                    end_time: endTimestamp,
+                    ...(segmentStats.heartRate !== undefined && {
+                        avg_heart_rate: segmentStats.heartRate.avg,
+                        max_heart_rate: segmentStats.heartRate.max,
+                    }),
+                    ...(segmentStats.avgCadence > 0 && {
+                        avg_cadence: segmentStats.avgCadence,
+                        max_cadence: segmentStats.maxCadence,
+                    }),
+                },
+                segmentStats.avgDragFactor > 0
+                    ? [{ field_num: DevFieldId.DragFactor, value: segmentStats.avgDragFactor }]
                     : [],
             );
         }

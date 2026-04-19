@@ -8,6 +8,7 @@ import {
     computeMaxCurvePointCount,
     computeMeanForce,
     computeStats,
+    getSegmentStartDistance,
     getSportConfig,
 } from "./fit-file.utils";
 
@@ -464,5 +465,50 @@ describe("buildLapSegments function", (): void => {
             expect(segments[2].lapTrigger).toBe("manual");
             expect(segments[3].lapTrigger).toBe("sessionEnd");
         });
+    });
+});
+
+describe("getSegmentStartDistance function", (): void => {
+    const baseTime = new Date("2026-01-15T10:00:01Z");
+
+    it("should return first record distance in meters", (): void => {
+        const segment = {
+            records: [
+                {
+                    timeStamp: new Date(baseTime.getTime()),
+                    elapsedTime: 1,
+                    distance: 500,
+                    speed: 2.0,
+                    strokeRate: 24,
+                    strokeCount: 1,
+                    avgStrokePower: 150,
+                    distPerStroke: 8.0,
+                    driveDuration: 0.8,
+                    recoveryDuration: 1.7,
+                    dragFactor: 110,
+                    totalWork: 375,
+                },
+            ] as Array<IExportRecord>,
+            handleForces: {},
+            lapTrigger: "manual" as const,
+            isPause: false,
+            startTimeMs: baseTime.getTime(),
+            endTimeMs: baseTime.getTime() + 1000,
+        };
+
+        expect(getSegmentStartDistance(segment)).toBe(5);
+    });
+
+    it("should return 0 for segment with no records", (): void => {
+        const segment = {
+            records: [] as Array<IExportRecord>,
+            handleForces: {},
+            lapTrigger: "manual" as const,
+            isPause: true,
+            startTimeMs: baseTime.getTime(),
+            endTimeMs: baseTime.getTime() + 1000,
+        };
+
+        expect(getSegmentStartDistance(segment)).toBe(0);
     });
 });
