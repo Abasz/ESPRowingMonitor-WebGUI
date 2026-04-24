@@ -60,113 +60,187 @@ export class ConfigManagerService {
     }
 
     private loadConfig(defaultConfig: Config): Config {
-        this.migrateOldConfig();
+        this.migrateToV2();
+        this.migrateToV3();
+        this.migrateToV4();
+        this.migrateToV5();
 
         const storedConfig = localStorage.getItem(ConfigManagerService.CONFIG_STORAGE_KEY);
 
-        if (storedConfig !== null) {
-            try {
-                const parsedConfig = JSON.parse(storedConfig);
+        if (storedConfig === null) {
+            return defaultConfig;
+        }
 
-                const config: Config = {
-                    general: { ...defaultConfig.general, ...parsedConfig.general },
-                    display: {
-                        general: { ...defaultConfig.display.general, ...parsedConfig.display?.general },
-                        forceCurve: {
-                            ...defaultConfig.display.forceCurve,
-                            ...parsedConfig.display?.forceCurve,
-                        },
-                        layout: {
-                            landscape: parsedConfig.display?.layout?.landscape ?? DEFAULT_LANDSCAPE_LAYOUT,
-                            portrait: parsedConfig.display?.layout?.portrait ?? DEFAULT_PORTRAIT_LAYOUT,
-                            orientationLock: parsedConfig.display?.layout?.orientationLock ?? "auto",
-                        },
-                        averaging: {
-                            ...defaultConfig.display.averaging,
-                            ...parsedConfig.display?.averaging,
-                        },
+        try {
+            const parsedConfig = JSON.parse(storedConfig) as Partial<Config>;
+
+            return {
+                general: { ...defaultConfig.general, ...parsedConfig.general },
+                display: {
+                    general: { ...defaultConfig.display.general, ...parsedConfig.display?.general },
+                    forceCurve: {
+                        ...defaultConfig.display.forceCurve,
+                        ...parsedConfig.display?.forceCurve,
                     },
-                };
-
-                return this.migrateAutoStartTimer(config, parsedConfig);
-            } catch {
-                console.warn(`Failed to parse localStorage config. Using default value.`, { storedConfig });
-            }
+                    layout: {
+                        landscape: parsedConfig.display?.layout?.landscape ?? DEFAULT_LANDSCAPE_LAYOUT,
+                        portrait: parsedConfig.display?.layout?.portrait ?? DEFAULT_PORTRAIT_LAYOUT,
+                        orientationLock: parsedConfig.display?.layout?.orientationLock ?? "auto",
+                    },
+                    averaging: {
+                        ...defaultConfig.display.averaging,
+                        ...parsedConfig.display?.averaging,
+                    },
+                },
+            };
+        } catch {
+            console.warn(`Failed to parse localStorage config. Using default value.`, { storedConfig });
         }
 
         return defaultConfig;
     }
 
-    private migrateAutoStartTimer(config: Config, parsedConfig: Record<string, unknown>): Config {
-        const generalParsed = parsedConfig.general as Record<string, unknown> | undefined;
-        if (generalParsed && "autoStartTimer" in generalParsed && !("autoSession" in generalParsed)) {
-            const autoSession: AutoSessionMode = generalParsed.autoStartTimer ? "autoStart" : "off";
-            config.general.autoSession = autoSession;
-            delete (config.general as unknown as Record<string, unknown>)["autoStartTimer"];
-            this.saveConfig(config);
-        }
-
-        return config;
-    }
-
-    private migrateOldConfig(): void {
-        const oldKeys = [
+    private migrateToV2(): void {
+        const configKeys = [
             "ergoMonitorBleId",
             "heartRateBleId",
             "heartRateMonitor",
             "displayShowPeakForceInTitle",
         ];
-        const foundOldKeys = oldKeys.filter((key: string): boolean => localStorage.getItem(key) !== null);
+        const hasKeys = configKeys.some((key: string): boolean => localStorage.getItem(key) !== null);
 
-        if (foundOldKeys.length === 0) {
+        if (!hasKeys) {
             return;
         }
 
-        const migratedConfig = new Config();
+        const ergoMonitorBleId = localStorage.getItem("ergoMonitorBleId") ?? "";
+        const heartRateBleId = localStorage.getItem("heartRateBleId") ?? "";
+        const heartRateMonitor = (localStorage.getItem("heartRateMonitor") ?? "off") as HeartRateMonitorMode;
+        let isPeakForceInTitle = true;
 
-        const ergoMonitorBleId = localStorage.getItem("ergoMonitorBleId");
-        const heartRateBleId = localStorage.getItem("heartRateBleId");
-        const heartRateMonitor = localStorage.getItem("heartRateMonitor");
-        const displayShowPeakForceInTitle = localStorage.getItem("displayShowPeakForceInTitle");
-
-        if (ergoMonitorBleId !== null) {
-            try {
-                migratedConfig.general.ergoMonitorBleId = ergoMonitorBleId;
-            } catch {
-                console.warn(`Failed to parse old ergoMonitorBleId value`);
+        try {
+            const rawShowPeak = localStorage.getItem("displayShowPeakForceInTitle");
+            if (rawShowPeak !== null) {
+                isPeakForceInTitle = JSON.parse(rawShowPeak) as boolean;
             }
-            localStorage.removeItem("ergoMonitorBleId");
+        } catch {
+            console.warn(`Failed to parse old displayShowPeakForceInTitle value`);
         }
 
-        if (heartRateBleId !== null) {
-            try {
-                migratedConfig.general.heartRateBleId = heartRateBleId;
-            } catch {
-                console.warn(`Failed to parse old heartRateBleId value`);
-            }
-            localStorage.removeItem("heartRateBleId");
+        localStorage.setItem(
+            "config",
+            JSON.stringify({
+                general: { ergoMonitorBleId, heartRateBleId, heartRateMonitor },
+                display: { showPeakForceInTitle: isPeakForceInTitle },
+            }),
+        );
+        configKeys.forEach((key: string): void => localStorage.removeItem(key));
+    }
+
+    private migrateToV3(): void {
+        const config = localStorage.getItem("config");
+
+        if (config === null) {
+            return;
         }
 
-        if (heartRateMonitor !== null) {
-            try {
-                migratedConfig.general.heartRateMonitor = heartRateMonitor as HeartRateMonitorMode;
-            } catch {
-                console.warn(`Failed to parse old heartRateMonitor value`);
-            }
-            localStorage.removeItem("heartRateMonitor");
+        try {
+            const parsed = JSON.parse(config) as Partial<Config> | undefined;
+            const parsedGeneral = parsed?.general as Record<string, unknown> | undefined;
+            const parsedDisplay = parsed?.display as Record<string, unknown> | undefined;
+
+            const isPeakForceInTitle =
+                typeof parsedDisplay?.showPeakForceInTitle === "boolean"
+                    ? parsedDisplay.showPeakForceInTitle
+                    : true;
+            const unitSystem = parsedDisplay?.unitSystem ?? "metric";
+
+            localStorage.setItem(
+                ConfigManagerService.CONFIG_STORAGE_KEY,
+                JSON.stringify({
+                    general: {
+                        ergoMonitorBleId: parsedGeneral?.ergoMonitorBleId ?? "",
+                        heartRateBleId: parsedGeneral?.heartRateBleId ?? "",
+                        heartRateMonitor: parsedGeneral?.heartRateMonitor ?? "off",
+                    },
+                    display: {
+                        general: { unitSystem },
+                        forceCurve: { showPeakForceInTitle: isPeakForceInTitle },
+                    },
+                }),
+            );
+        } catch {
+            console.warn(`Failed to migrate V2 config to V3.`);
         }
 
-        if (displayShowPeakForceInTitle !== null) {
-            try {
-                migratedConfig.display.forceCurve.showPeakForceInTitle =
-                    JSON.parse(displayShowPeakForceInTitle);
-            } catch {
-                console.warn(`Failed to parse old displayShowPeakForceInTitle value`);
-            }
-            localStorage.removeItem("displayShowPeakForceInTitle");
+        localStorage.removeItem("config");
+    }
+
+    private migrateToV4(): void {
+        const config = localStorage.getItem(ConfigManagerService.CONFIG_STORAGE_KEY);
+
+        if (config === null) {
+            return;
         }
 
-        this.saveConfig(migratedConfig);
+        try {
+            const parsed = JSON.parse(config) as Partial<Config> | undefined;
+
+            if (!parsed) {
+                return;
+            }
+
+            if (!parsed.display) {
+                return;
+            }
+
+            if (!("layout" in parsed.display)) {
+                return;
+            }
+
+            if (!parsed.display.layout) {
+                return;
+            }
+
+            if ("landscape" in parsed.display.layout || "portrait" in parsed.display.layout) {
+                return;
+            }
+
+            parsed.display.layout = {
+                landscape: structuredClone(parsed.display.layout),
+                portrait: structuredClone(parsed.display.layout),
+                orientationLock: "auto",
+            };
+
+            localStorage.setItem(ConfigManagerService.CONFIG_STORAGE_KEY, JSON.stringify(parsed));
+        } catch {
+            console.warn(`Failed to migrate V3 config to V4.`);
+        }
+    }
+
+    private migrateToV5(): void {
+        const config = localStorage.getItem(ConfigManagerService.CONFIG_STORAGE_KEY);
+
+        if (config === null) {
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(config) as Partial<Config> | undefined;
+            const parsedGeneral = parsed?.general as Record<string, unknown> | undefined;
+
+            if (!parsedGeneral || !("autoStartTimer" in parsedGeneral) || "autoSession" in parsedGeneral) {
+                return;
+            }
+
+            const autoSession: AutoSessionMode = parsedGeneral.autoStartTimer ? "autoStart" : "off";
+            parsedGeneral.autoSession = autoSession;
+            delete parsedGeneral.autoStartTimer;
+
+            localStorage.setItem(ConfigManagerService.CONFIG_STORAGE_KEY, JSON.stringify(parsed));
+        } catch {
+            console.warn(`Failed to migrate V4 config to V5.`);
+        }
     }
 
     private saveConfig(config: Config): void {
