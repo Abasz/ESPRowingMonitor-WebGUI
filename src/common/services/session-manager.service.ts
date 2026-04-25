@@ -91,14 +91,14 @@ export class SessionManagerService {
 
     private readonly autoStartEnabled: Signal<boolean> = toSignal(
         this.configManager.configChanged$.pipe(
-            map((config: Config): boolean => config.general.autoSession !== "off"),
+            map((config: Config): boolean => config.general.session.autoSession !== "off"),
         ),
         { initialValue: true },
     );
 
     private readonly autoPauseEnabled: Signal<boolean> = toSignal(
         this.configManager.configChanged$.pipe(
-            map((config: Config): boolean => config.general.autoSession === "autoStartAndPause"),
+            map((config: Config): boolean => config.general.session.autoSession === "autoStartAndPause"),
         ),
         { initialValue: false },
     );
@@ -297,7 +297,7 @@ export class SessionManagerService {
         merge(
             this.resetAutoLap$,
             this.configManager.configChanged$.pipe(
-                map((config: Config): AutoLapMode => config.general.autoLap),
+                map((config: Config): AutoLapMode => config.general.session.autoLap),
                 distinctUntilChanged(),
             ),
         )
@@ -307,7 +307,7 @@ export class SessionManagerService {
             )
             .subscribe(([, metrics, config]: [unknown, ICalculatedMetrics, Config]): void => {
                 lastLapValue =
-                    config.general.autoLap === "distance"
+                    config.general.session.autoLap === "distance"
                         ? metrics.distance / 100
                         : this.stopwatch.elapsedSeconds() / 60;
             });
@@ -316,11 +316,12 @@ export class SessionManagerService {
             .pipe(
                 withLatestFrom(this.configManager.configChanged$),
                 filter(
-                    ([, config]: [ICalculatedMetrics, Config]): boolean => config.general.autoLap !== "off",
+                    ([, config]: [ICalculatedMetrics, Config]): boolean =>
+                        config.general.session.autoLap !== "off",
                 ),
                 filter(([metrics, config]: [ICalculatedMetrics, Config]): boolean => {
                     const currentValue =
-                        config.general.autoLap === "distance"
+                        config.general.session.autoLap === "distance"
                             ? metrics.distance / 100
                             : this.stopwatch.elapsedSeconds() / 60;
 
@@ -328,8 +329,8 @@ export class SessionManagerService {
                         lastLapValue = currentValue;
                     }
 
-                    if (currentValue - lastLapValue >= config.general.autoLapValue) {
-                        lastLapValue += config.general.autoLapValue;
+                    if (currentValue - lastLapValue >= config.general.session.autoLapValue) {
+                        lastLapValue += config.general.session.autoLapValue;
 
                         return true;
                     }
@@ -341,7 +342,7 @@ export class SessionManagerService {
             .subscribe(([metrics, config]: [ICalculatedMetrics, Config]): void => {
                 void this.dataRecorder.addLap(
                     metrics.strokeCount,
-                    config.general.autoLap as Exclude<AutoLapMode, "off">,
+                    config.general.session.autoLap as Exclude<AutoLapMode, "off">,
                 );
             });
     }

@@ -26,9 +26,12 @@ export class ConfigManagerService {
                 ...config,
                 general: {
                     ...config.general,
-                    heartRateMonitor: "off",
-                    heartRateBleId: "",
-                    ergoMonitorBleId: "",
+                    device: {
+                        ...config.general.device,
+                        heartRateMonitor: "off",
+                        heartRateBleId: "",
+                        ergoMonitorBleId: "",
+                    },
                 },
             };
             this.saveConfig(config);
@@ -64,6 +67,7 @@ export class ConfigManagerService {
         this.migrateToV3();
         this.migrateToV4();
         this.migrateToV5();
+        this.migrateToV6();
 
         const storedConfig = localStorage.getItem(ConfigManagerService.CONFIG_STORAGE_KEY);
 
@@ -75,7 +79,16 @@ export class ConfigManagerService {
             const parsedConfig = JSON.parse(storedConfig) as Partial<Config>;
 
             return {
-                general: { ...defaultConfig.general, ...parsedConfig.general },
+                general: {
+                    device: {
+                        ...defaultConfig.general.device,
+                        ...parsedConfig.general?.device,
+                    },
+                    session: {
+                        ...defaultConfig.general.session,
+                        ...parsedConfig.general?.session,
+                    },
+                },
                 display: {
                     general: { ...defaultConfig.display.general, ...parsedConfig.display?.general },
                     forceCurve: {
@@ -240,6 +253,41 @@ export class ConfigManagerService {
             localStorage.setItem(ConfigManagerService.CONFIG_STORAGE_KEY, JSON.stringify(parsed));
         } catch {
             console.warn(`Failed to migrate V4 config to V5.`);
+        }
+    }
+
+    private migrateToV6(): void {
+        const config = localStorage.getItem(ConfigManagerService.CONFIG_STORAGE_KEY);
+
+        if (config === null) {
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(config) as Partial<Config> | undefined;
+            const general = parsed?.general as Record<string, unknown> | undefined;
+
+            if (!general || "device" in general || "session" in general) {
+                return;
+            }
+
+            const autoSession: AutoSessionMode =
+                "autoSession" in general ? (general.autoSession as AutoSessionMode) : "autoStart";
+
+            general.device = {
+                ergoMonitorBleId: general.ergoMonitorBleId ?? "",
+                heartRateBleId: general.heartRateBleId ?? "",
+                heartRateMonitor: general.heartRateMonitor ?? "off",
+            };
+            general.session = {
+                autoSession,
+                autoLap: general.autoLap ?? "off",
+                autoLapValue: general.autoLapValue ?? 500,
+            };
+
+            localStorage.setItem(ConfigManagerService.CONFIG_STORAGE_KEY, JSON.stringify(parsed));
+        } catch {
+            console.warn(`Failed to migrate V5 config to V6.`);
         }
     }
 

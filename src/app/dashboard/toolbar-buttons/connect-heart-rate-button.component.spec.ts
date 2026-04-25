@@ -128,7 +128,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
             it("and heart rate monitor mode is off should not render button", (): void => {
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "off" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "off" },
+                    },
                 });
 
                 const button = fixture.nativeElement.querySelector("button[mat-icon-button]");
@@ -139,7 +142,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
                 beforeEach(async (): Promise<void> => {
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ant" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                        },
                     });
                     hrConnectionStatusSubject.next({ status: "disconnected", deviceName: undefined });
                     await fixture.whenStable();
@@ -270,7 +276,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ant" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                    },
                 });
             });
 
@@ -314,7 +323,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ant" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                    },
                 });
                 hrConnectionStatusSubject.next({ status: "disconnected", deviceName: undefined });
                 await fixture.whenStable();
@@ -343,7 +355,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ant" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                    },
                 });
 
                 expect(component.heartRateMonitorMode()).toBe("ant");
@@ -359,7 +374,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ant" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                    },
                 });
                 await fixture.whenStable();
 
@@ -368,7 +386,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "off" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "off" },
+                    },
                 });
                 await fixture.whenStable();
 
@@ -386,7 +407,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "off" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "off" },
+                    },
                 });
 
                 let button = fixture.nativeElement.querySelector("button[mat-icon-button]");
@@ -394,7 +418,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ant" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                    },
                 });
                 await fixture.whenStable();
 
@@ -414,7 +441,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ant" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                    },
                 });
             });
 
@@ -475,7 +505,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
             it("should set display to contents when heart rate monitor is off", async (): Promise<void> => {
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "off" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "off" },
+                    },
                 });
                 await fixture.whenStable();
 
@@ -487,7 +520,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
             it("should set display to block when heart rate monitor is not off", (): void => {
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ant" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                    },
                 });
 
                 const hostElement = fixture.nativeElement;
@@ -509,7 +545,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ant" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                    },
                 });
             });
 
@@ -542,7 +581,10 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ant" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                    },
                 });
             });
 

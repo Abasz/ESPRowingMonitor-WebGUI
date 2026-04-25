@@ -100,13 +100,13 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
         expect(mockConfigManagerService.setGroup).toHaveBeenCalledWith(
             "general",
             expect.objectContaining({
-                heartRateMonitor: "ant",
+                device: expect.objectContaining({ heartRateMonitor: "ant" }),
             }),
         );
         expect(mockConfigManagerService.setGroup).toHaveBeenCalledWith(
             "general",
             expect.objectContaining({
-                autoSession: "off",
+                session: expect.objectContaining({ autoSession: "off" }),
             }),
         );
         expect(mockMatDialogRef.close).toHaveBeenCalled();
@@ -159,8 +159,10 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
         await component.saveSettings();
 
         expect(mockConfigManagerService.setGroup).toHaveBeenCalledWith("general", {
-            autoLap: "distance",
-            autoLapValue: 1000,
+            session: expect.objectContaining({
+                autoLap: "distance",
+                autoLapValue: 1000,
+            }),
         });
         expect(mockMatDialogRef.close).toHaveBeenCalled();
     });

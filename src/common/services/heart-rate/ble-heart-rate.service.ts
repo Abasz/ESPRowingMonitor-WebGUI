@@ -110,7 +110,7 @@ export class BLEHeartRateService implements IHeartRateService {
 
         const device = (await navigator.bluetooth.getDevices()).filter(
             (device: BluetoothDevice): boolean =>
-                device.id === this.configManager.getGroup("general").heartRateBleId,
+                device.id === this.configManager.getGroup("general").device.heartRateBleId,
         )?.[0];
 
         if (device === undefined) {
@@ -255,8 +255,10 @@ export class BLEHeartRateService implements IHeartRateService {
             await this.connectToBattery(gatt);
 
             this.configManager.setGroup("general", {
-                ...this.configManager.getGroup("general"),
-                heartRateBleId: device.id,
+                device: {
+                    ...this.configManager.getGroup("general").device,
+                    heartRateBleId: device.id,
+                },
             });
 
             fromEvent(device, "gattserverdisconnected")

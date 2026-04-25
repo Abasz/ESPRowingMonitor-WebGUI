@@ -133,12 +133,12 @@ export class GeneralSettingsComponent implements OnInit {
             bleMode: [{ value: BleServiceFlag.CpsService, disabled: true }],
             logLevel: [{ value: LogLevel.Silent, disabled: true }, [Validators.min(0), Validators.max(6)]],
             heartRateMonitor: [
-                this.configManager.getGroup("general").heartRateMonitor,
+                this.configManager.getGroup("general").device.heartRateMonitor,
                 Validators.pattern(/^(off|ble|ant)$/),
             ],
-            autoSession: [this.configManager.getGroup("general").autoSession],
-            autoLap: [this.configManager.getGroup("general").autoLap],
-            autoLapValue: [this.configManager.getGroup("general").autoLapValue],
+            autoSession: [this.configManager.getGroup("general").session.autoSession],
+            autoLap: [this.configManager.getGroup("general").session.autoLap],
+            autoLapValue: [this.configManager.getGroup("general").session.autoLapValue],
             deltaTimeLogging: [
                 {
                     value: false,
@@ -181,10 +181,10 @@ export class GeneralSettingsComponent implements OnInit {
         this.settingsForm.patchValue({
             bleMode: rowerSettings.generalSettings.bleServiceFlag,
             logLevel: rowerSettings.generalSettings.logLevel,
-            heartRateMonitor: this.configManager.getGroup("general").heartRateMonitor,
-            autoSession: this.configManager.getGroup("general").autoSession,
-            autoLap: this.configManager.getGroup("general").autoLap,
-            autoLapValue: this.configManager.getGroup("general").autoLapValue,
+            heartRateMonitor: this.configManager.getGroup("general").device.heartRateMonitor,
+            autoSession: this.configManager.getGroup("general").session.autoSession,
+            autoLap: this.configManager.getGroup("general").session.autoLap,
+            autoLapValue: this.configManager.getGroup("general").session.autoLapValue,
             deltaTimeLogging: rowerSettings.generalSettings.logDeltaTimes,
             logToSdCard: rowerSettings.generalSettings.logToSdCard,
         });

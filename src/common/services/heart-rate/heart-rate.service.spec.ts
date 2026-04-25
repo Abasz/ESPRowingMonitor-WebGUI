@@ -49,12 +49,16 @@ describe("HeartRateService", (): void => {
 
     const createMockHeartRateConfig = (heartRateMonitor: HeartRateMonitorMode = "off"): Config => ({
         general: {
-            ergoMonitorBleId: "",
-            heartRateBleId: "",
-            heartRateMonitor,
-            autoSession: "autoStart",
-            autoLap: "off",
-            autoLapValue: 500,
+            device: {
+                ergoMonitorBleId: "",
+                heartRateBleId: "",
+                heartRateMonitor,
+            },
+            session: {
+                autoSession: "autoStart",
+                autoLap: "off",
+                autoLapValue: 500,
+            },
         },
         display: {
             general: {
@@ -212,7 +216,10 @@ describe("HeartRateService", (): void => {
                 it("should delegate to BLE heart rate service", (): void => {
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
 
                     service.connectionStatus$().pipe(take(2)).subscribe();
@@ -234,7 +241,10 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -266,7 +276,10 @@ describe("HeartRateService", (): void => {
                 it("should share replay the observable", (): void => {
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
 
                     vi.mocked(mockBleHeartRateService.connectionStatus$).mockClear();
@@ -284,7 +297,10 @@ describe("HeartRateService", (): void => {
                 it("should delegate to ANT heart rate service", (): void => {
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ant" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                        },
                     });
 
                     service.connectionStatus$().pipe(take(2)).subscribe();
@@ -306,7 +322,10 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ant" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -330,7 +349,10 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "off" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "off" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -355,11 +377,17 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "off" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "off" },
+                        },
                     });
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -385,11 +413,17 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "off" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "off" },
+                        },
                     });
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ant" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -415,11 +449,17 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "off" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "off" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -556,7 +596,10 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
@@ -570,7 +613,10 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
@@ -584,7 +630,10 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
@@ -605,7 +654,10 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -638,7 +690,10 @@ describe("HeartRateService", (): void => {
 
                         configSubject.next({
                             ...new Config(),
-                            general: { ...new Config().general, heartRateMonitor: "ble" },
+                            general: {
+                                ...new Config().general,
+                                device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                            },
                         });
 
                         expect(results).toHaveLength(1);
@@ -655,7 +710,10 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ant" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                        },
                     });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
@@ -669,7 +727,10 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ant" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                        },
                     });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
@@ -683,7 +744,10 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ant" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                        },
                     });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
@@ -704,7 +768,10 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ant" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -718,7 +785,10 @@ describe("HeartRateService", (): void => {
                 it("should disconnect ANT device", (): void => {
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "off" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "off" },
+                        },
                     });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
@@ -728,7 +798,10 @@ describe("HeartRateService", (): void => {
                 it("should disconnect BLE device", (): void => {
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "off" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "off" },
+                        },
                     });
                     service.streamHeartRate$().pipe(take(2)).subscribe();
 
@@ -745,7 +818,10 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "off" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "off" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -773,11 +849,17 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ant" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -807,11 +889,17 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ant" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                        },
                     });
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -840,11 +928,17 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "off" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "off" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -870,11 +964,17 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "off" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "off" },
+                        },
                     });
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -899,11 +999,17 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "off" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "off" },
+                        },
                     });
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ant" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -931,7 +1037,10 @@ describe("HeartRateService", (): void => {
                 it("should share replay the observable", (): void => {
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
 
                     vi.mocked(mockBleHeartRateService.streamHeartRate$).mockClear();
@@ -961,11 +1070,17 @@ describe("HeartRateService", (): void => {
 
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ble" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                        },
                     });
                     configSubject.next({
                         ...new Config(),
-                        general: { ...new Config().general, heartRateMonitor: "ant" },
+                        general: {
+                            ...new Config().general,
+                            device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                        },
                     });
                     subscription.unsubscribe();
 
@@ -1034,7 +1149,10 @@ describe("HeartRateService", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ble" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                    },
                 });
 
                 await expect(firstValueFrom(service.connectionStatus$().pipe(toArray()))).rejects.toThrow(
@@ -1049,7 +1167,10 @@ describe("HeartRateService", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ant" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                    },
                 });
 
                 await expect(firstValueFrom(service.connectionStatus$().pipe(toArray()))).rejects.toThrow(
@@ -1064,7 +1185,10 @@ describe("HeartRateService", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ble" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                    },
                 });
 
                 await expect(firstValueFrom(service.streamHeartRate$().pipe(toArray()))).rejects.toThrow(
@@ -1079,7 +1203,10 @@ describe("HeartRateService", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ant" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                    },
                 });
 
                 await expect(firstValueFrom(service.streamHeartRate$().pipe(toArray()))).rejects.toThrow(
@@ -1134,15 +1261,24 @@ describe("HeartRateService", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ble" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                    },
                 });
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ant" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                    },
                 });
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "off" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "off" },
+                    },
                 });
                 subscription.unsubscribe();
 
@@ -1175,11 +1311,17 @@ describe("HeartRateService", (): void => {
 
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ble" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ble" },
+                    },
                 });
                 configSubject.next({
                     ...new Config(),
-                    general: { ...new Config().general, heartRateMonitor: "ant" },
+                    general: {
+                        ...new Config().general,
+                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
+                    },
                 });
                 subscription.unsubscribe();
 

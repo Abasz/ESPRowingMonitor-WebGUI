@@ -89,12 +89,16 @@ describe("ErgConnectionService", (): void => {
         };
 
         vi.mocked(configManagerServiceSpy.getGroup).mockReturnValue({
-            ergoMonitorBleId: "mock-device-id",
-            heartRateBleId: "",
-            heartRateMonitor: "off",
-            autoSession: "autoStart",
-            autoLap: "off",
-            autoLapValue: 500,
+            device: {
+                ergoMonitorBleId: "mock-device-id",
+                heartRateBleId: "",
+                heartRateMonitor: "off",
+            },
+            session: {
+                autoSession: "autoStart",
+                autoLap: "off",
+                autoLapValue: 500,
+            },
         });
 
         vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
@@ -439,7 +443,7 @@ describe("ErgConnectionService", (): void => {
                 expect(configManagerServiceSpy.setGroup).toHaveBeenCalledWith(
                     "general",
                     expect.objectContaining({
-                        ergoMonitorBleId: mockBluetoothDevice.id,
+                        device: expect.objectContaining({ ergoMonitorBleId: mockBluetoothDevice.id }),
                     }),
                 );
             });

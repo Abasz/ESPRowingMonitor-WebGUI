@@ -364,7 +364,10 @@ describe("SessionManagerService", (): void => {
         it("should not auto-start when a new stroke appears in stopped state", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoSession: "off" },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoSession: "off" },
+                },
             });
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, driveDuration: 0.5 });
@@ -380,7 +383,10 @@ describe("SessionManagerService", (): void => {
 
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoSession: "off" },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoSession: "off" },
+                },
             });
 
             rawMetricsSubject.next({
@@ -396,7 +402,10 @@ describe("SessionManagerService", (): void => {
         it("should auto-start again after re-enabling the config", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoSession: "off" },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoSession: "off" },
+                },
             });
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, driveDuration: 0.5 });
@@ -404,7 +413,10 @@ describe("SessionManagerService", (): void => {
 
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoSession: "autoStart" },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoSession: "autoStart" },
+                },
             });
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, driveDuration: 0.5 });
@@ -414,7 +426,10 @@ describe("SessionManagerService", (): void => {
         it("should still allow manual start when auto-start is disabled", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoSession: "off" },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoSession: "off" },
+                },
             });
 
             service.start();
@@ -425,7 +440,10 @@ describe("SessionManagerService", (): void => {
         it("should auto-start when autoSession is autoStartAndPause", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoSession: "autoStartAndPause" },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoSession: "autoStartAndPause" },
+                },
             });
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, driveDuration: 0.5 });
@@ -438,7 +456,10 @@ describe("SessionManagerService", (): void => {
         beforeEach((): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoSession: "autoStartAndPause" },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoSession: "autoStartAndPause" },
+                },
             });
         });
 
@@ -474,7 +495,10 @@ describe("SessionManagerService", (): void => {
         it("should not pause when autoSession is autoStart (not autoStartAndPause)", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoSession: "autoStart" },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoSession: "autoStart" },
+                },
             });
 
             service.start();
@@ -488,7 +512,10 @@ describe("SessionManagerService", (): void => {
         it("should not pause when autoSession is off", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoSession: "off" },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoSession: "off" },
+                },
             });
 
             service.start();
@@ -554,7 +581,10 @@ describe("SessionManagerService", (): void => {
         it("should not pause on first speed drop after enabling autoStartAndPause mid-session", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoSession: "autoStart" },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoSession: "autoStart" },
+                },
             });
 
             service.start();
@@ -562,7 +592,10 @@ describe("SessionManagerService", (): void => {
 
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoSession: "autoStartAndPause" },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoSession: "autoStartAndPause" },
+                },
             });
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 500, speed: 0 });

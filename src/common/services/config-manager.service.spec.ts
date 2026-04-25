@@ -32,12 +32,16 @@ describe("ConfigManagerService", (): void => {
 
         return {
             general: {
-                heartRateMonitor: merged.heartRateMonitor,
-                heartRateBleId: merged.heartRateBleId,
-                ergoMonitorBleId: merged.ergoMonitorBleId,
-                autoSession: "autoStart",
-                autoLap: "off",
-                autoLapValue: 500,
+                device: {
+                    heartRateMonitor: merged.heartRateMonitor,
+                    heartRateBleId: merged.heartRateBleId,
+                    ergoMonitorBleId: merged.ergoMonitorBleId,
+                },
+                session: {
+                    autoSession: "autoStart",
+                    autoLap: "off",
+                    autoLapValue: 500,
+                },
             },
             display: {
                 general: {
@@ -94,6 +98,7 @@ describe("ConfigManagerService", (): void => {
 
     it("should be created", (): void => {
         withSecureContextAndBluetooth();
+        vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
         configManagerService = TestBed.inject(ConfigManagerService);
 
         expect(configManagerService).toBeTruthy();
@@ -125,9 +130,9 @@ describe("ConfigManagerService", (): void => {
 
             expect(getItemSpy).toHaveBeenCalled();
             expect(setItemSpy).not.toHaveBeenCalled();
-            expect(cfg.general.heartRateMonitor).toBe("ble" as HeartRateMonitorMode);
-            expect(cfg.general.heartRateBleId).toBe("hr-123");
-            expect(cfg.general.ergoMonitorBleId).toBe("erg-456");
+            expect(cfg.general.device.heartRateMonitor).toBe("ble" as HeartRateMonitorMode);
+            expect(cfg.general.device.heartRateBleId).toBe("hr-123");
+            expect(cfg.general.device.ergoMonitorBleId).toBe("erg-456");
             expect(cfg.display.forceCurve.showPeakForceInTitle).toBe(false);
         });
 
@@ -140,9 +145,9 @@ describe("ConfigManagerService", (): void => {
 
             const cfg = configManagerService.getConfig();
 
-            expect(cfg.general.heartRateMonitor).toBe("off");
-            expect(cfg.general.heartRateBleId).toBe("");
-            expect(cfg.general.ergoMonitorBleId).toBe("");
+            expect(cfg.general.device.heartRateMonitor).toBe("off");
+            expect(cfg.general.device.heartRateBleId).toBe("");
+            expect(cfg.general.device.ergoMonitorBleId).toBe("");
             expect(setItemSpy).toHaveBeenCalledWith(
                 ConfigManagerService.CONFIG_STORAGE_KEY,
                 expect.stringContaining('"heartRateMonitor":"off"'),
@@ -159,9 +164,9 @@ describe("ConfigManagerService", (): void => {
 
             const cfg = configManagerService.getConfig();
 
-            expect(cfg.general.heartRateMonitor).toBe("off");
-            expect(cfg.general.heartRateBleId).toBe("");
-            expect(cfg.general.ergoMonitorBleId).toBe("");
+            expect(cfg.general.device.heartRateMonitor).toBe("off");
+            expect(cfg.general.device.heartRateBleId).toBe("");
+            expect(cfg.general.device.ergoMonitorBleId).toBe("");
             expect(setItemSpy).toHaveBeenCalledWith(
                 ConfigManagerService.CONFIG_STORAGE_KEY,
                 expect.stringContaining('"heartRateMonitor":"off"'),
@@ -182,9 +187,9 @@ describe("ConfigManagerService", (): void => {
             configManagerService = TestBed.inject(ConfigManagerService);
 
             const cfg = configManagerService.getConfig();
-            expect(cfg.general.heartRateMonitor).toBe("ant" as HeartRateMonitorMode);
-            expect(cfg.general.heartRateBleId).toBe("hr-999");
-            expect(cfg.general.ergoMonitorBleId).toBe("erg-888");
+            expect(cfg.general.device.heartRateMonitor).toBe("ant" as HeartRateMonitorMode);
+            expect(cfg.general.device.heartRateBleId).toBe("hr-999");
+            expect(cfg.general.device.ergoMonitorBleId).toBe("erg-888");
             expect(cfg.display.forceCurve.showPeakForceInTitle).toBe(true);
 
             expect(setItemSpy).toHaveBeenCalledWith(
@@ -212,7 +217,7 @@ describe("ConfigManagerService", (): void => {
 
             const storedConfig = {
                 general: {
-                    ergoMonitorBleId: "erg-123",
+                    device: { ergoMonitorBleId: "erg-123" },
                 },
                 display: {
                     forceCurve: {
@@ -230,9 +235,9 @@ describe("ConfigManagerService", (): void => {
             const cfg = configManagerService.getConfig();
             const defaultConfig = new Config();
 
-            expect(cfg.general.ergoMonitorBleId).toBe("erg-123");
-            expect(cfg.general.heartRateMonitor).toBe(defaultConfig.general.heartRateMonitor);
-            expect(cfg.general.heartRateBleId).toBe(defaultConfig.general.heartRateBleId);
+            expect(cfg.general.device.ergoMonitorBleId).toBe("erg-123");
+            expect(cfg.general.device.heartRateMonitor).toBe(defaultConfig.general.device.heartRateMonitor);
+            expect(cfg.general.device.heartRateBleId).toBe(defaultConfig.general.device.heartRateBleId);
             expect(cfg.display.forceCurve.showPeakForceInTitle).toBe(false);
             expect(cfg.display.layout).toEqual({
                 landscape: DEFAULT_LANDSCAPE_LAYOUT,
@@ -262,7 +267,7 @@ describe("ConfigManagerService", (): void => {
             configManagerService = TestBed.inject(ConfigManagerService);
 
             const config = configManagerService.getConfig();
-            expect(config.general.autoSession).toBe("autoStart");
+            expect(config.general.session.autoSession).toBe("autoStart");
             expect((config.general as unknown as Record<string, unknown>)["autoStartTimer"]).toBeUndefined();
             expect(setItemSpy).toHaveBeenCalledWith(
                 ConfigManagerService.CONFIG_STORAGE_KEY,
@@ -289,7 +294,7 @@ describe("ConfigManagerService", (): void => {
             configManagerService = TestBed.inject(ConfigManagerService);
 
             const config = configManagerService.getConfig();
-            expect(config.general.autoSession).toBe("off");
+            expect(config.general.session.autoSession).toBe("off");
             expect((config.general as unknown as Record<string, unknown>)["autoStartTimer"]).toBeUndefined();
             expect(setItemSpy).toHaveBeenCalledWith(
                 ConfigManagerService.CONFIG_STORAGE_KEY,
@@ -297,53 +302,47 @@ describe("ConfigManagerService", (): void => {
             );
         });
 
-        it("should not migrate when autoSession is already set", (): void => {
+        it("should preserve autoSession value when migrating flat config without autoStartTimer", (): void => {
             withSecureContextAndBluetooth();
 
-            const storedConfig = {
-                general: {
-                    ergoMonitorBleId: "",
-                    heartRateBleId: "",
-                    heartRateMonitor: "off",
-                    autoSession: "autoStartAndPause",
-                },
-            };
-
-            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
-                return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
-            });
-            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+            localStorage.setItem(
+                ConfigManagerService.CONFIG_STORAGE_KEY,
+                JSON.stringify({
+                    general: {
+                        ergoMonitorBleId: "",
+                        heartRateBleId: "",
+                        heartRateMonitor: "off",
+                        autoSession: "autoStartAndPause",
+                    },
+                }),
+            );
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
             const config = configManagerService.getConfig();
-            expect(config.general.autoSession).toBe("autoStartAndPause");
-            expect(setItemSpy).not.toHaveBeenCalled();
+            expect(config.general.session.autoSession).toBe("autoStartAndPause");
         });
 
-        it("should preserve autoSession when both autoStartTimer and autoSession exist", (): void => {
+        it("should prefer autoSession over autoStartTimer when both exist in legacy flat config", (): void => {
             withSecureContextAndBluetooth();
 
-            const storedConfig = {
-                general: {
-                    ergoMonitorBleId: "",
-                    heartRateBleId: "",
-                    heartRateMonitor: "off",
-                    autoStartTimer: true,
-                    autoSession: "autoStartAndPause",
-                },
-            };
-
-            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
-                return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
-            });
-            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+            localStorage.setItem(
+                ConfigManagerService.CONFIG_STORAGE_KEY,
+                JSON.stringify({
+                    general: {
+                        ergoMonitorBleId: "",
+                        heartRateBleId: "",
+                        heartRateMonitor: "off",
+                        autoStartTimer: true,
+                        autoSession: "autoStartAndPause",
+                    },
+                }),
+            );
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
             const config = configManagerService.getConfig();
-            expect(config.general.autoSession).toBe("autoStartAndPause");
-            expect(setItemSpy).not.toHaveBeenCalled();
+            expect(config.general.session.autoSession).toBe("autoStartAndPause");
         });
 
         it("should default autoSession to autoStart for fresh installs with no stored config", (): void => {
@@ -352,7 +351,52 @@ describe("ConfigManagerService", (): void => {
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
-            expect(configManagerService.getConfig().general.autoSession).toBe("autoStart");
+            expect(configManagerService.getConfig().general.session.autoSession).toBe("autoStart");
+        });
+    });
+
+    describe("V6 flat-to-nested general config migration", (): void => {
+        it("should migrate flat general config to nested device and session sub-groups on load", (): void => {
+            withSecureContextAndBluetooth();
+
+            localStorage.setItem(
+                ConfigManagerService.CONFIG_STORAGE_KEY,
+                JSON.stringify({
+                    general: {
+                        ergoMonitorBleId: "erg-123",
+                        heartRateBleId: "hr-456",
+                        heartRateMonitor: "ble",
+                        autoSession: "autoStart",
+                        autoLap: "distance",
+                        autoLapValue: 1000,
+                    },
+                }),
+            );
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            const cfg = configManagerService.getConfig();
+            expect(cfg.general.device.ergoMonitorBleId).toBe("erg-123");
+            expect(cfg.general.device.heartRateBleId).toBe("hr-456");
+            expect(cfg.general.device.heartRateMonitor).toBe("ble");
+            expect(cfg.general.session.autoSession).toBe("autoStart");
+            expect(cfg.general.session.autoLap).toBe("distance");
+            expect(cfg.general.session.autoLapValue).toBe(1000);
+        });
+
+        it("should not trigger a migration save when general config is already in nested format", (): void => {
+            withSecureContextAndBluetooth();
+
+            const storedConfig = createMockConfig({ heartRateMonitor: "ble", ergoMonitorBleId: "erg-123" });
+            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
+                return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
+            });
+            const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            expect(setItemSpy).not.toHaveBeenCalled();
+            expect(configManagerService.getConfig().general.device.ergoMonitorBleId).toBe("erg-123");
         });
     });
 
@@ -509,9 +553,9 @@ describe("ConfigManagerService", (): void => {
             configManagerService = TestBed.inject(ConfigManagerService);
 
             const cfg = configManagerService.getConfig();
-            cfg.general.heartRateMonitor = "ble";
+            cfg.general.device.heartRateMonitor = "ble";
 
-            expect(configManagerService.getGroup("general").heartRateMonitor).toBe("off");
+            expect(configManagerService.getGroup("general").device.heartRateMonitor).toBe("off");
         });
     });
 
@@ -525,7 +569,7 @@ describe("ConfigManagerService", (): void => {
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
-            expect(configManagerService.getGroup("general").heartRateMonitor).toBe("ant");
+            expect(configManagerService.getGroup("general").device.heartRateMonitor).toBe("ant");
             expect(configManagerService.getGroup("display").forceCurve.showPeakForceInTitle).toBe(true);
         });
     });
@@ -539,19 +583,19 @@ describe("ConfigManagerService", (): void => {
             configManagerService = TestBed.inject(ConfigManagerService);
 
             const generalConfig = configManagerService.getGroup("general");
-            generalConfig.heartRateMonitor = "ble";
+            generalConfig.device.heartRateMonitor = "ble";
             configManagerService.setGroup("general", generalConfig);
 
             expect(setItemSpy).toHaveBeenCalledWith(
                 ConfigManagerService.CONFIG_STORAGE_KEY,
                 expect.stringContaining('"heartRateMonitor":"ble"'),
             );
-            expect(configManagerService.getGroup("general").heartRateMonitor).toBe("ble");
+            expect(configManagerService.getGroup("general").device.heartRateMonitor).toBe("ble");
 
             const generalConfig2 = configManagerService.getGroup("general");
-            generalConfig2.heartRateMonitor = "ant";
+            generalConfig2.device.heartRateMonitor = "ant";
             configManagerService.setGroup("general", generalConfig2);
-            expect(configManagerService.getGroup("general").heartRateMonitor).toBe("ant");
+            expect(configManagerService.getGroup("general").device.heartRateMonitor).toBe("ant");
         });
 
         it("should update display settings correctly", (): void => {
@@ -602,8 +646,6 @@ describe("ConfigManagerService", (): void => {
 
             configManagerService = TestBed.inject(ConfigManagerService);
 
-            const displayConfig = configManagerService.getGroup("display");
-            displayConfig.general.unitSystem = "imperial";
             configManagerService.setGroup("display", { general: { unitSystem: "imperial" } });
 
             expect(setItemSpy).toHaveBeenCalledWith(
@@ -627,14 +669,14 @@ describe("ConfigManagerService", (): void => {
             });
 
             expect(events).toHaveLength(1);
-            expect(events[0].general.ergoMonitorBleId).toBe("");
+            expect(events[0].general.device.ergoMonitorBleId).toBe("");
 
             const generalConfig = configManagerService.getGroup("general");
-            generalConfig.ergoMonitorBleId = "foo";
+            generalConfig.device.ergoMonitorBleId = "foo";
             configManagerService.setGroup("general", generalConfig);
 
             expect(events).toHaveLength(2);
-            expect(events[1].general.ergoMonitorBleId).toBe("foo");
+            expect(events[1].general.device.ergoMonitorBleId).toBe("foo");
         });
     });
 });

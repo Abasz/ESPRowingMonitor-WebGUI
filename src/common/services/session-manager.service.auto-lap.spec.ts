@@ -35,7 +35,10 @@ describe("SessionManagerService", (): void => {
         beforeEach((): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoLap: "distance", autoLapValue: 500 },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoLap: "distance", autoLapValue: 500 },
+                },
             });
         });
 
@@ -117,7 +120,10 @@ describe("SessionManagerService", (): void => {
         it("should not record a lap when autoLap is off", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoLap: "off", autoLapValue: 500 },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoLap: "off", autoLapValue: 500 },
+                },
             });
 
             service.start();
@@ -174,7 +180,10 @@ describe("SessionManagerService", (): void => {
         beforeEach((): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoLap: "time", autoLapValue: 1 },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoLap: "time", autoLapValue: 1 },
+                },
             });
         });
 
@@ -233,7 +242,10 @@ describe("SessionManagerService", (): void => {
         it("should reset threshold and switch to time laps when mode changes from distance to time", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoLap: "distance", autoLapValue: 500 },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoLap: "distance", autoLapValue: 500 },
+                },
             });
 
             service.start();
@@ -252,7 +264,10 @@ describe("SessionManagerService", (): void => {
             // switch to time mode with 1 minute threshold
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoLap: "time", autoLapValue: 1 },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoLap: "time", autoLapValue: 1 },
+                },
             });
 
             // advance past 1 minute and emit a stroke
@@ -265,7 +280,10 @@ describe("SessionManagerService", (): void => {
         it("should reset threshold and switch to distance laps when mode changes from time to distance", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoLap: "time", autoLapValue: 1 },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoLap: "time", autoLapValue: 1 },
+                },
             });
 
             service.start();
@@ -282,7 +300,10 @@ describe("SessionManagerService", (): void => {
             // reset sets lastLapValue to current distance (19m)
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoLap: "distance", autoLapValue: 500 },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoLap: "distance", autoLapValue: 500 },
+                },
             });
 
             // emit a stroke at 28.5m — should NOT trigger a lap (well below 500m from switch point)
@@ -307,7 +328,10 @@ describe("SessionManagerService", (): void => {
         it("should reset distance auto-lap threshold when manual lap is added", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoLap: "distance", autoLapValue: 500 },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoLap: "distance", autoLapValue: 500 },
+                },
             });
 
             service.start();
@@ -343,7 +367,10 @@ describe("SessionManagerService", (): void => {
         it("should reset time auto-lap threshold when manual lap is added", (): void => {
             configSubject.next({
                 ...new Config(),
-                general: { ...new Config().general, autoLap: "time", autoLapValue: 1 },
+                general: {
+                    ...new Config().general,
+                    session: { ...new Config().general.session, autoLap: "time", autoLapValue: 1 },
+                },
             });
 
             service.start();

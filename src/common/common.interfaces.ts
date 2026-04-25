@@ -62,13 +62,21 @@ export type UnitSystem = "metric" | "imperial";
 export type AutoSessionMode = "off" | "autoStart" | "autoStartAndPause";
 export type AutoLapMode = "off" | "distance" | "time";
 
-export interface IGeneralConfig {
+export interface IGeneralDeviceConfig {
     ergoMonitorBleId: string;
     heartRateBleId: string;
     heartRateMonitor: HeartRateMonitorMode;
+}
+
+export interface IGeneralSessionConfig {
     autoSession: AutoSessionMode;
     autoLap: AutoLapMode;
     autoLapValue: number;
+}
+
+export interface IGeneralConfig {
+    device: IGeneralDeviceConfig;
+    session: IGeneralSessionConfig;
 }
 
 export interface IDisplayGeneralConfig {
@@ -115,12 +123,16 @@ export interface IDisplayConfig {
 
 export class Config {
     general: IGeneralConfig = {
-        ergoMonitorBleId: "",
-        heartRateBleId: "",
-        heartRateMonitor: "off",
-        autoSession: "autoStart",
-        autoLap: "off",
-        autoLapValue: 500,
+        device: {
+            ergoMonitorBleId: "",
+            heartRateBleId: "",
+            heartRateMonitor: "off",
+        },
+        session: {
+            autoSession: "autoStart",
+            autoLap: "off",
+            autoLapValue: 500,
+        },
     };
 
     display: IDisplayConfig = {

@@ -104,12 +104,16 @@ export const createMockConfig: (overrides?: DeepPartial<Config>) => Config = (
 ): Config => {
     const defaultConfig: Config = {
         general: {
-            ergoMonitorBleId: "",
-            heartRateBleId: "",
-            heartRateMonitor: "off",
-            autoSession: "autoStart",
-            autoLap: "off",
-            autoLapValue: 500,
+            device: {
+                ergoMonitorBleId: "",
+                heartRateBleId: "",
+                heartRateMonitor: "off",
+            },
+            session: {
+                autoSession: "autoStart",
+                autoLap: "off",
+                autoLapValue: 500,
+            },
         },
         display: {
             general: {
@@ -134,8 +138,14 @@ export const createMockConfig: (overrides?: DeepPartial<Config>) => Config = (
 
     return {
         general: {
-            ...defaultConfig.general,
-            ...(overrides.general ?? {}),
+            device: {
+                ...defaultConfig.general.device,
+                ...(overrides.general?.device ?? {}),
+            },
+            session: {
+                ...defaultConfig.general.session,
+                ...(overrides.general?.session ?? {}),
+            },
         },
         display: {
             general: {

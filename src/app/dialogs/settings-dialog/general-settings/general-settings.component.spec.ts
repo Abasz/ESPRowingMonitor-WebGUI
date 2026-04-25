@@ -86,12 +86,16 @@ describe("GeneralSettingsComponent", (): void => {
             getGroup: vi.fn(),
         };
         vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
-            heartRateMonitor: "off",
-            ergoMonitorBleId: "",
-            heartRateBleId: "",
-            autoSession: "autoStart",
-            autoLap: "off",
-            autoLapValue: 500,
+            device: {
+                heartRateMonitor: "off",
+                ergoMonitorBleId: "",
+                heartRateBleId: "",
+            },
+            session: {
+                autoSession: "autoStart",
+                autoLap: "off",
+                autoLapValue: 500,
+            },
         });
 
         mockSwUpdate = {
@@ -815,12 +819,16 @@ describe("GeneralSettingsComponent", (): void => {
 
         it("should retrieve heart rate monitor setting from ConfigManager", (): void => {
             vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
-                ergoMonitorBleId: "",
-                heartRateBleId: "",
-                heartRateMonitor: "ble",
-                autoSession: "autoStart",
-                autoLap: "off",
-                autoLapValue: 500,
+                device: {
+                    ergoMonitorBleId: "",
+                    heartRateBleId: "",
+                    heartRateMonitor: "ble",
+                },
+                session: {
+                    autoSession: "autoStart",
+                    autoLap: "off",
+                    autoLapValue: 500,
+                },
             });
 
             component.ngOnInit();
@@ -831,12 +839,16 @@ describe("GeneralSettingsComponent", (): void => {
 
         it("should retrieve autoSession setting from ConfigManager", (): void => {
             vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
-                ergoMonitorBleId: "",
-                heartRateBleId: "",
-                heartRateMonitor: "off",
-                autoSession: "off",
-                autoLap: "off",
-                autoLapValue: 500,
+                device: {
+                    ergoMonitorBleId: "",
+                    heartRateBleId: "",
+                    heartRateMonitor: "off",
+                },
+                session: {
+                    autoSession: "off",
+                    autoLap: "off",
+                    autoLapValue: 500,
+                },
             });
 
             component.ngOnInit();

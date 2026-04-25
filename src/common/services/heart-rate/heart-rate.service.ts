@@ -16,7 +16,7 @@ export class HeartRateService {
 
     private readonly heartRateMonitorMode$: Observable<HeartRateMonitorMode> =
         this.configManager.configChanged$.pipe(
-            map((config: Config): HeartRateMonitorMode => config.general.heartRateMonitor),
+            map((config: Config): HeartRateMonitorMode => config.general.device.heartRateMonitor),
             distinctUntilChanged(),
             shareReplay(1),
         );
@@ -52,7 +52,7 @@ export class HeartRateService {
     }
 
     async discover(): Promise<void> {
-        switch (this.configManager.getConfig().general.heartRateMonitor) {
+        switch (this.configManager.getConfig().general.device.heartRateMonitor) {
             case "ble":
                 return await this.ble.discover();
             case "ant":

@@ -58,12 +58,16 @@ describe("BLEHeartRateService", (): void => {
 
         // setup default mock returns
         vi.mocked(mockConfigManager.getGroup).mockReturnValue({
-            heartRateBleId: "test-device-id",
-            ergoMonitorBleId: "",
-            heartRateMonitor: "off",
-            autoSession: "autoStart",
-            autoLap: "off",
-            autoLapValue: 500,
+            device: {
+                heartRateBleId: "test-device-id",
+                ergoMonitorBleId: "",
+                heartRateMonitor: "off",
+            },
+            session: {
+                autoSession: "autoStart",
+                autoLap: "off",
+                autoLapValue: 500,
+            },
         });
         vi.mocked(mockBluetoothDevice.gatt!.connect).mockResolvedValue(
             mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
@@ -202,7 +206,7 @@ describe("BLEHeartRateService", (): void => {
                 expect(mockConfigManager.setGroup).toHaveBeenCalledWith(
                     "general",
                     expect.objectContaining({
-                        heartRateBleId: mockBluetoothDevice.id,
+                        device: expect.objectContaining({ heartRateBleId: mockBluetoothDevice.id }),
                     }),
                 );
             });
@@ -261,7 +265,7 @@ describe("BLEHeartRateService", (): void => {
                         expect(mockConfigManager.setGroup).toHaveBeenCalledWith(
                             "general",
                             expect.objectContaining({
-                                heartRateBleId: mockBluetoothDevice.id,
+                                device: expect.objectContaining({ heartRateBleId: mockBluetoothDevice.id }),
                             }),
                         );
                     });
@@ -362,7 +366,7 @@ describe("BLEHeartRateService", (): void => {
                         expect(mockConfigManager.setGroup).toHaveBeenCalledWith(
                             "general",
                             expect.objectContaining({
-                                heartRateBleId: mockBluetoothDevice.id,
+                                device: expect.objectContaining({ heartRateBleId: mockBluetoothDevice.id }),
                             }),
                         );
                     });
@@ -486,7 +490,7 @@ describe("BLEHeartRateService", (): void => {
                 expect(mockConfigManager.setGroup).toHaveBeenCalledWith(
                     "general",
                     expect.objectContaining({
-                        heartRateBleId: mockBluetoothDevice.id,
+                        device: expect.objectContaining({ heartRateBleId: mockBluetoothDevice.id }),
                     }),
                 );
 

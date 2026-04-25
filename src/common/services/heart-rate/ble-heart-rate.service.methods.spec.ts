@@ -70,12 +70,16 @@ describe("BLEHeartRateService", (): void => {
 
         // setup default mock returns
         vi.mocked(mockConfigManager.getGroup).mockReturnValue({
-            heartRateBleId: "test-device-id",
-            ergoMonitorBleId: "",
-            heartRateMonitor: "off",
-            autoSession: "autoStart",
-            autoLap: "off",
-            autoLapValue: 500,
+            device: {
+                heartRateBleId: "test-device-id",
+                ergoMonitorBleId: "",
+                heartRateMonitor: "off",
+            },
+            session: {
+                autoSession: "autoStart",
+                autoLap: "off",
+                autoLapValue: 500,
+            },
         });
         vi.mocked(mockBluetoothDevice.gatt!.connect).mockResolvedValue(
             mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
@@ -402,12 +406,16 @@ describe("BLEHeartRateService", (): void => {
         describe("when paired device exists", (): void => {
             beforeEach((): void => {
                 vi.mocked(mockConfigManager.getGroup).mockReturnValue({
-                    ergoMonitorBleId: "",
-                    heartRateBleId: "test-device-id",
-                    heartRateMonitor: "ble",
-                    autoSession: "autoStart",
-                    autoLap: "off",
-                    autoLapValue: 500,
+                    device: {
+                        ergoMonitorBleId: "",
+                        heartRateBleId: "test-device-id",
+                        heartRateMonitor: "ble",
+                    },
+                    session: {
+                        autoSession: "autoStart",
+                        autoLap: "off",
+                        autoLapValue: 500,
+                    },
                 });
             });
 
@@ -470,12 +478,16 @@ describe("BLEHeartRateService", (): void => {
         describe("when no paired device exists", (): void => {
             beforeEach((): void => {
                 vi.mocked(mockConfigManager.getGroup).mockReturnValue({
-                    ergoMonitorBleId: "",
-                    heartRateBleId: "",
-                    heartRateMonitor: "ble",
-                    autoSession: "autoStart",
-                    autoLap: "off",
-                    autoLapValue: 500,
+                    device: {
+                        ergoMonitorBleId: "",
+                        heartRateBleId: "",
+                        heartRateMonitor: "ble",
+                    },
+                    session: {
+                        autoSession: "autoStart",
+                        autoLap: "off",
+                        autoLapValue: 500,
+                    },
                 });
             });
 
@@ -516,12 +528,16 @@ describe("BLEHeartRateService", (): void => {
         describe("when watchAdvertisements fails", (): void => {
             beforeEach((): void => {
                 vi.mocked(mockConfigManager.getGroup).mockReturnValue({
-                    ergoMonitorBleId: "",
-                    heartRateBleId: "test-device-id",
-                    heartRateMonitor: "ble",
-                    autoSession: "autoStart",
-                    autoLap: "off",
-                    autoLapValue: 500,
+                    device: {
+                        ergoMonitorBleId: "",
+                        heartRateBleId: "test-device-id",
+                        heartRateMonitor: "ble",
+                    },
+                    session: {
+                        autoSession: "autoStart",
+                        autoLap: "off",
+                        autoLapValue: 500,
+                    },
                 });
                 vi.mocked(navigator.bluetooth.getDevices).mockResolvedValue([mockBluetoothDevice]);
                 vi.mocked(mockBluetoothDevice.watchAdvertisements).mockRejectedValueOnce(
@@ -545,12 +561,16 @@ describe("BLEHeartRateService", (): void => {
         describe("when document visibility changes", (): void => {
             beforeEach((): void => {
                 vi.mocked(mockConfigManager.getGroup).mockReturnValue({
-                    ergoMonitorBleId: "",
-                    heartRateBleId: "test-device-id",
-                    heartRateMonitor: "ble",
-                    autoSession: "autoStart",
-                    autoLap: "off",
-                    autoLapValue: 500,
+                    device: {
+                        ergoMonitorBleId: "",
+                        heartRateBleId: "test-device-id",
+                        heartRateMonitor: "ble",
+                    },
+                    session: {
+                        autoSession: "autoStart",
+                        autoLap: "off",
+                        autoLapValue: 500,
+                    },
                 });
                 vi.mocked(navigator.bluetooth.getDevices).mockResolvedValue([mockBluetoothDevice]);
                 vi.mocked(mockBluetoothDevice.watchAdvertisements).mockResolvedValue(undefined);

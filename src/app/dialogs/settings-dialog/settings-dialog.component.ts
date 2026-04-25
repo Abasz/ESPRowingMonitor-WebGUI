@@ -264,20 +264,29 @@ export class SettingsDialogComponent {
 
         if (settingsForm.controls.heartRateMonitor.dirty) {
             this.configManager.setGroup("general", {
-                heartRateMonitor: settingsForm.controls.heartRateMonitor.value,
+                device: {
+                    ...this.configManager.getGroup("general").device,
+                    heartRateMonitor: settingsForm.controls.heartRateMonitor.value,
+                },
             });
         }
 
         if (settingsForm.controls.autoSession.dirty) {
             this.configManager.setGroup("general", {
-                autoSession: settingsForm.controls.autoSession.value,
+                session: {
+                    ...this.configManager.getGroup("general").session,
+                    autoSession: settingsForm.controls.autoSession.value,
+                },
             });
         }
 
         if (settingsForm.controls.autoLap.dirty || settingsForm.controls.autoLapValue.dirty) {
             this.configManager.setGroup("general", {
-                autoLap: settingsForm.controls.autoLap.value,
-                autoLapValue: settingsForm.controls.autoLapValue.value,
+                session: {
+                    ...this.configManager.getGroup("general").session,
+                    autoLap: settingsForm.controls.autoLap.value,
+                    autoLapValue: settingsForm.controls.autoLapValue.value,
+                },
             });
         }
     }
