@@ -25,7 +25,11 @@ import { downloadFiles } from "../utils/utility.functions";
     providedIn: "root",
 })
 export class DataRecorderService {
-    private currentSessionId: number = Date.now();
+    private _sessionId: number = Date.now();
+
+    get currentSessionId(): number {
+        return this._sessionId;
+    }
 
     addConnectedDevice(deviceName: string): Promise<number> {
         const sessionId = this.currentSessionId;
@@ -96,7 +100,14 @@ export class DataRecorderService {
     deleteSession(sessionId: number): Promise<void> {
         return appDB.transaction(
             "rw",
-            [appDB.sessionData, appDB.deltaTimes, appDB.handleForces, appDB.connectedDevice, appDB.laps],
+            [
+                appDB.sessionData,
+                appDB.deltaTimes,
+                appDB.handleForces,
+                appDB.connectedDevice,
+                appDB.laps,
+                appDB.sessionUploads,
+            ],
             async (): Promise<void> => {
                 await Promise.all([
                     appDB.sessionData.where({ sessionId }).delete(),
@@ -104,6 +115,7 @@ export class DataRecorderService {
                     appDB.handleForces.where({ sessionId }).delete(),
                     appDB.connectedDevice.where({ sessionId }).delete(),
                     appDB.laps.where({ sessionId }).delete(),
+                    appDB.sessionUploads.where({ sessionId }).delete(),
                 ]);
             },
         );
@@ -138,10 +150,15 @@ export class DataRecorderService {
         downloadFiles(files);
     }
 
-    async exportSessionToFit(sessionId: number): Promise<void> {
+    async generateFitFile(sessionId: number): Promise<Blob> {
         const exportSession = await this.buildExportSession(sessionId);
         const fitData = createSessionFitFile(exportSession);
-        const blob = new Blob([fitData as ArrayBuffer], { type: "application/vnd.ant.fit" });
+
+        return new Blob([fitData as ArrayBuffer], { type: "application/vnd.ant.fit" });
+    }
+
+    async exportSessionToFit(sessionId: number): Promise<void> {
+        const blob = await this.generateFitFile(sessionId);
         const name = `${new Date(sessionId).toDateTimeStringFormat()} - session.fit`;
         downloadFiles([{ blob, name }]);
     }
@@ -259,7 +276,7 @@ export class DataRecorderService {
     }
 
     async reset(connectedDeviceName?: string): Promise<void> {
-        this.currentSessionId = Date.now();
+        this._sessionId = Date.now();
 
         if (connectedDeviceName) {
             await this.addConnectedDevice(connectedDeviceName);

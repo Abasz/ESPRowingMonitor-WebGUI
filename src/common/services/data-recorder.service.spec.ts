@@ -82,7 +82,6 @@ describe("DataRecorderService", (): void => {
         vi.useFakeTimers();
         vi.setSystemTime(mockTimeStamp);
 
-        // setup spies on appDB methods
         connectedDevicePutSpy = vi.spyOn(appDB.connectedDevice, "put");
         connectedDeviceWhereSpy = vi.spyOn(appDB.connectedDevice, "where");
         deltaTimesPutSpy = vi.spyOn(appDB.deltaTimes, "put");
@@ -107,7 +106,6 @@ describe("DataRecorderService", (): void => {
         vi.restoreAllMocks();
         vi.useRealTimers();
 
-        // clean up database after each test
         await appDB.connectedDevice.clear();
         await appDB.deltaTimes.clear();
         await appDB.sessionData.clear();
@@ -376,8 +374,8 @@ describe("DataRecorderService", (): void => {
                 type: "manual",
                 isPause: false,
             });
+            await appDB.sessionUploads.put({ sessionId, uploadedAt: sessionId + 1000 });
 
-            // clear spies after setup
             connectedDeviceWhereSpy.mockClear();
             deltaTimesWhereSpy.mockClear();
             lapsWhereSpy.mockClear();
@@ -391,7 +389,14 @@ describe("DataRecorderService", (): void => {
 
             expect(transactionSpy).toHaveBeenCalledWith(
                 "rw",
-                [appDB.sessionData, appDB.deltaTimes, appDB.handleForces, appDB.connectedDevice, appDB.laps],
+                [
+                    appDB.sessionData,
+                    appDB.deltaTimes,
+                    appDB.handleForces,
+                    appDB.connectedDevice,
+                    appDB.laps,
+                    appDB.sessionUploads,
+                ],
                 expect.any(Function),
             );
         });
@@ -434,12 +439,14 @@ describe("DataRecorderService", (): void => {
             const sessionData = await appDB.sessionData.where({ sessionId }).toArray();
             const handleForces = await appDB.handleForces.where({ sessionId }).toArray();
             const laps = await appDB.laps.where({ sessionId }).toArray();
+            const sessionUploads = await appDB.sessionUploads.where({ sessionId }).toArray();
 
             expect(connectedDevices).toHaveLength(0);
             expect(deltaTimes).toHaveLength(0);
             expect(sessionData).toHaveLength(0);
             expect(handleForces).toHaveLength(0);
             expect(laps).toHaveLength(0);
+            expect(sessionUploads).toHaveLength(0);
         });
 
         it("should resolve when all tables are cleared", async (): Promise<void> => {
@@ -578,7 +585,7 @@ describe("DataRecorderService", (): void => {
             const exportedData = JSON.parse(await createdBlobs[0].text());
             expect(exportedData.formatName).toBe("dexie");
             expect(exportedData.data.databaseName).toBe("ESPRowingMonitorDB");
-            expect(exportedData.data.tables).toHaveLength(5);
+            expect(exportedData.data.tables).toHaveLength(6);
         });
 
         it("should include test data with correct sessionId in exported JSON", async (): Promise<void> => {
@@ -969,6 +976,49 @@ describe("DataRecorderService", (): void => {
         });
     });
 
+    describe("generateFitFile method", (): void => {
+        const testSessionId = 1700000000000;
+
+        beforeEach(async (): Promise<void> => {
+            await appDB.transaction("rw", appDB.sessionData, appDB.handleForces, (): void => {
+                appDB.sessionData.add({
+                    sessionId: testSessionId,
+                    timeStamp: testSessionId + 1000,
+                    avgStrokePower: 150,
+                    distance: 5000,
+                    distPerStroke: 8,
+                    dragFactor: 110,
+                    driveDuration: 0.8,
+                    recoveryDuration: 1.2,
+                    speed: 4.2,
+                    strokeCount: 50,
+                    strokeRate: 24,
+                    elapsedTime: 1,
+                });
+                appDB.handleForces.put({
+                    sessionId: testSessionId,
+                    timeStamp: testSessionId + 1000,
+                    strokeId: 50,
+                    handleForces: [100, 200, 300],
+                    driveLength: 1.5,
+                });
+            });
+        });
+
+        it("should return a Blob with the FIT MIME type", async (): Promise<void> => {
+            const blob = await service.generateFitFile(testSessionId);
+
+            expect(blob).toBeInstanceOf(Blob);
+            expect(blob.type).toBe("application/vnd.ant.fit");
+        });
+
+        it("should return a non-empty Blob", async (): Promise<void> => {
+            const blob = await service.generateFitFile(testSessionId);
+
+            expect(blob.size).toBeGreaterThan(0);
+        });
+    });
+
     describe("exportSessionToCsv method", (): void => {
         const testSessionId = 1700000000000;
         let createObjectURLSpy: Mock;
@@ -1281,7 +1331,6 @@ describe("DataRecorderService", (): void => {
         it("should import data successfully without progress callback", async (): Promise<void> => {
             await service.import(mockBlob);
 
-            // verify data was imported
             const sessionData = await appDB.sessionData.where({ sessionId: 123456789 }).toArray();
             expect(sessionData).toHaveLength(2);
         });

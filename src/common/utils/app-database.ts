@@ -6,6 +6,7 @@ import {
     IHandleForcesEntity,
     ILapEntity,
     IMetricsEntity,
+    ISessionUploadEntity,
 } from "../database.interfaces";
 
 export class AppDB extends Dexie {
@@ -16,6 +17,7 @@ export class AppDB extends Dexie {
     handleForces!: Table<IHandleForcesEntity, number>;
     laps!: Table<ILapEntity, number>;
     sessionData!: Table<IMetricsEntity, number>;
+    sessionUploads!: Table<ISessionUploadEntity, number>;
 
     private upgradeProgressCallback: ((processed: number, total: number) => void) | undefined;
 
@@ -86,6 +88,7 @@ export class AppDB extends Dexie {
             sessionData: "&timeStamp, sessionId",
             connectedDevice: "&sessionId",
             laps: "&timeStamp, sessionId",
+            sessionUploads: "&sessionId",
         });
     }
 

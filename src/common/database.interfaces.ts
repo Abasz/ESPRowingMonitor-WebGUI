@@ -1,5 +1,10 @@
 import { ISessionData } from "./common.interfaces";
 
+export interface ISessionUploadEntity {
+    sessionId: number;
+    uploadedAt?: number;
+}
+
 export interface IMetricsEntity extends Omit<
     ISessionData,
     "peakForce" | "peakForcePositionNorm" | "handleForces" | "driveLength" | "totalWork"

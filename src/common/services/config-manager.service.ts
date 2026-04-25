@@ -88,6 +88,10 @@ export class ConfigManagerService {
                         ...defaultConfig.general.session,
                         ...parsedConfig.general?.session,
                     },
+                    intervalsIcu: {
+                        ...defaultConfig.general.intervalsIcu,
+                        ...parsedConfig.general?.intervalsIcu,
+                    },
                 },
                 display: {
                     general: { ...defaultConfig.display.general, ...parsedConfig.display?.general },

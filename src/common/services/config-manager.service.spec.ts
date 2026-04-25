@@ -168,6 +168,50 @@ describe("ConfigManagerService", (): void => {
             expect(removeItemSpy).toHaveBeenCalledWith("config");
         });
 
+        it("should load stored intervalsIcu config and apply defaults for missing fields", (): void => {
+            withSecureContextAndBluetooth();
+
+            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
+                return key === ConfigManagerService.CONFIG_STORAGE_KEY
+                    ? JSON.stringify({
+                          general: { intervalsIcu: { apiKey: "key-abc", athleteId: "athlete-123" } },
+                      })
+                    : null;
+            });
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            const cfg = configManagerService.getConfig();
+            const defaultConfig = new Config();
+
+            expect(cfg.general.intervalsIcu.apiKey).toBe("key-abc");
+            expect(cfg.general.intervalsIcu.athleteId).toBe("athlete-123");
+            expect(cfg.general.intervalsIcu.autoUploadEnabled).toBe(
+                defaultConfig.general.intervalsIcu.autoUploadEnabled,
+            );
+        });
+
+        it("should apply intervalsIcu defaults when loading a config that predates the field", (): void => {
+            withSecureContextAndBluetooth();
+
+            vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
+                return key === ConfigManagerService.CONFIG_STORAGE_KEY
+                    ? JSON.stringify({ general: { device: { heartRateMonitor: "ble" } } })
+                    : null;
+            });
+
+            configManagerService = TestBed.inject(ConfigManagerService);
+
+            const cfg = configManagerService.getConfig();
+            const defaultConfig = new Config();
+
+            expect(cfg.general.intervalsIcu.apiKey).toBe(defaultConfig.general.intervalsIcu.apiKey);
+            expect(cfg.general.intervalsIcu.athleteId).toBe(defaultConfig.general.intervalsIcu.athleteId);
+            expect(cfg.general.intervalsIcu.autoUploadEnabled).toBe(
+                defaultConfig.general.intervalsIcu.autoUploadEnabled,
+            );
+        });
+
         it("should deep merge stored config with defaults so new nested properties get default values", (): void => {
             withSecureContextAndBluetooth();
 

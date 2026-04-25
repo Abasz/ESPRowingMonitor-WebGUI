@@ -74,9 +74,16 @@ export interface IGeneralSessionConfig {
     autoLapValue: number;
 }
 
+export interface IIntervalsIcuConfig {
+    apiKey: string;
+    athleteId: string;
+    autoUploadEnabled: boolean;
+}
+
 export interface IGeneralConfig {
     device: IGeneralDeviceConfig;
     session: IGeneralSessionConfig;
+    intervalsIcu: IIntervalsIcuConfig;
 }
 
 export interface IDisplayGeneralConfig {
@@ -132,6 +139,11 @@ export class Config {
             autoSession: "autoStart",
             autoLap: "off",
             autoLapValue: 500,
+        },
+        intervalsIcu: {
+            apiKey: "",
+            athleteId: "",
+            autoUploadEnabled: false,
         },
     };
 
