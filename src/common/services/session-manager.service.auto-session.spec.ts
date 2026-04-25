@@ -19,6 +19,7 @@ import {
     mockRawMetrics,
     SessionManagerTestContext,
     setupSessionManagerTestBed,
+    withSessionConfig,
 } from "./session-manager.test.helpers";
 
 describe("SessionManagerService", (): void => {
@@ -28,7 +29,6 @@ describe("SessionManagerService", (): void => {
     let heartRateSubject: BehaviorSubject<IHeartRate | undefined>;
     let connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
     let mockDataRecorderService: Pick<DataRecorderService, "reset" | "addSessionData" | "addLap">;
-    let mockMetricsService: Pick<MetricsService, "rawMetrics$" | "heartRateData$">;
     let mockErgConnectionService: Pick<ErgConnectionService, "connectionStatus$">;
     let mockConfigManagerService: Pick<ConfigManagerService, "configChanged$">;
 
@@ -65,7 +65,6 @@ describe("SessionManagerService", (): void => {
         heartRateSubject = context.heartRateSubject;
         connectionStatusSubject = context.connectionStatusSubject;
         mockDataRecorderService = context.mockDataRecorderService;
-        mockMetricsService = context.mockMetricsService;
         mockErgConnectionService = context.mockErgConnectionService;
         mockConfigManagerService = context.mockConfigManagerService;
     });
@@ -362,13 +361,7 @@ describe("SessionManagerService", (): void => {
 
     describe("when autoSession config is disabled", (): void => {
         it("should not auto-start when a new stroke appears in stopped state", (): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoSession: "off" },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoSession: "off" }));
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, driveDuration: 0.5 });
 
@@ -381,13 +374,7 @@ describe("SessionManagerService", (): void => {
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 950 });
             service.pause();
 
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoSession: "off" },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoSession: "off" }));
 
             rawMetricsSubject.next({
                 ...mockRawMetrics,
@@ -400,37 +387,19 @@ describe("SessionManagerService", (): void => {
         });
 
         it("should auto-start again after re-enabling the config", (): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoSession: "off" },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoSession: "off" }));
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, driveDuration: 0.5 });
             expect(service.sessionState()).toBe("stopped");
 
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoSession: "autoStart" },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoSession: "autoStart" }));
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, driveDuration: 0.5 });
             expect(service.sessionState()).toBe("running");
         });
 
         it("should still allow manual start when auto-start is disabled", (): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoSession: "off" },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoSession: "off" }));
 
             service.start();
 
@@ -438,13 +407,7 @@ describe("SessionManagerService", (): void => {
         });
 
         it("should auto-start when autoSession is autoStartAndPause", (): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoSession: "autoStartAndPause" },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoSession: "autoStartAndPause" }));
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, driveDuration: 0.5 });
 
@@ -454,13 +417,7 @@ describe("SessionManagerService", (): void => {
 
     describe("auto-pause behaviour", (): void => {
         beforeEach((): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoSession: "autoStartAndPause" },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoSession: "autoStartAndPause" }));
         });
 
         it("should pause when speed drops to zero after non-zero speed", (): void => {
@@ -493,13 +450,7 @@ describe("SessionManagerService", (): void => {
         });
 
         it("should not pause when autoSession is autoStart (not autoStartAndPause)", (): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoSession: "autoStart" },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoSession: "autoStart" }));
 
             service.start();
 
@@ -510,13 +461,7 @@ describe("SessionManagerService", (): void => {
         });
 
         it("should not pause when autoSession is off", (): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoSession: "off" },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoSession: "off" }));
 
             service.start();
 
@@ -579,24 +524,12 @@ describe("SessionManagerService", (): void => {
         });
 
         it("should not pause on first speed drop after enabling autoStartAndPause mid-session", (): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoSession: "autoStart" },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoSession: "autoStart" }));
 
             service.start();
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 500, speed: 3.5 });
 
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoSession: "autoStartAndPause" },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoSession: "autoStartAndPause" }));
 
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 500, speed: 0 });
 

@@ -6,64 +6,16 @@ import {
     DEFAULT_LANDSCAPE_LAYOUT,
     DEFAULT_PORTRAIT_LAYOUT,
 } from "../../app/dashboard/dashboard-tile-definitions";
-import { Config, HeartRateMonitorMode, UnitSystem } from "../common.interfaces";
+import { Config, HeartRateMonitorMode } from "../common.interfaces";
+import { deepMerge, DeepPartial } from "../utils/utility.functions";
 
 import { ConfigManagerService } from "./config-manager.service";
 
 describe("ConfigManagerService", (): void => {
     let configManagerService: ConfigManagerService;
 
-    const createMockConfig = (overrides?: {
-        heartRateMonitor?: HeartRateMonitorMode;
-        heartRateBleId?: string;
-        ergoMonitorBleId?: string;
-        showPeakForceInTitle?: boolean;
-        unitSystem?: UnitSystem;
-    }): Config => {
-        const defaults = {
-            heartRateMonitor: "off" as HeartRateMonitorMode,
-            heartRateBleId: "",
-            ergoMonitorBleId: "",
-            showPeakForceInTitle: true,
-            unitSystem: "metric" as UnitSystem,
-        };
-
-        const merged = { ...defaults, ...overrides };
-
-        return {
-            general: {
-                device: {
-                    heartRateMonitor: merged.heartRateMonitor,
-                    heartRateBleId: merged.heartRateBleId,
-                    ergoMonitorBleId: merged.ergoMonitorBleId,
-                },
-                session: {
-                    autoSession: "autoStart",
-                    autoLap: "off",
-                    autoLapValue: 500,
-                },
-            },
-            display: {
-                general: {
-                    unitSystem: merged.unitSystem,
-                },
-                forceCurve: {
-                    showPeakForceInTitle: merged.showPeakForceInTitle,
-                    showGridLines: true,
-                    showAxisLabels: true,
-                },
-                layout: {
-                    landscape: DEFAULT_LANDSCAPE_LAYOUT,
-                    portrait: DEFAULT_PORTRAIT_LAYOUT,
-                    orientationLock: "auto" as const,
-                },
-                averaging: {
-                    mode: "off" as const,
-                    windowSize: 3,
-                },
-            },
-        };
-    };
+    const createMockConfig = (overrides?: DeepPartial<Config>): Config =>
+        deepMerge(new Config(), overrides ?? {});
 
     const withSecureContextAndBluetooth = (): void => {
         vi.spyOn(globalThis, "isSecureContext", "get").mockReturnValue(true);
@@ -109,10 +61,14 @@ describe("ConfigManagerService", (): void => {
             withSecureContextAndBluetooth();
 
             const storedConfig: Config = createMockConfig({
-                heartRateMonitor: "ble",
-                heartRateBleId: "hr-123",
-                ergoMonitorBleId: "erg-456",
-                showPeakForceInTitle: false,
+                general: {
+                    device: {
+                        heartRateMonitor: "ble",
+                        heartRateBleId: "hr-123",
+                        ergoMonitorBleId: "erg-456",
+                    },
+                },
+                display: { forceCurve: { showPeakForceInTitle: false } },
             });
 
             const getItemSpy = vi
@@ -387,7 +343,9 @@ describe("ConfigManagerService", (): void => {
         it("should not trigger a migration save when general config is already in nested format", (): void => {
             withSecureContextAndBluetooth();
 
-            const storedConfig = createMockConfig({ heartRateMonitor: "ble", ergoMonitorBleId: "erg-123" });
+            const storedConfig = createMockConfig({
+                general: { device: { heartRateMonitor: "ble", ergoMonitorBleId: "erg-123" } },
+            });
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
                 return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
             });
@@ -490,7 +448,7 @@ describe("ConfigManagerService", (): void => {
 
         it("should preserve stored unitSystem value via deep merge", (): void => {
             withSecureContextAndBluetooth();
-            const storedConfig = createMockConfig({ unitSystem: "imperial" });
+            const storedConfig = createMockConfig({ display: { general: { unitSystem: "imperial" } } });
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
                 return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
             });
@@ -502,7 +460,9 @@ describe("ConfigManagerService", (): void => {
 
         it("should return stored boolean false value", (): void => {
             withSecureContextAndBluetooth();
-            const storedConfig: Config = createMockConfig({ showPeakForceInTitle: false });
+            const storedConfig: Config = createMockConfig({
+                display: { forceCurve: { showPeakForceInTitle: false } },
+            });
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
                 return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
             });
@@ -562,7 +522,9 @@ describe("ConfigManagerService", (): void => {
     describe("getGroup method", (): void => {
         it("should return the value for a given group", (): void => {
             withSecureContextAndBluetooth();
-            const storedConfig: Config = createMockConfig({ heartRateMonitor: "ant" });
+            const storedConfig: Config = createMockConfig({
+                general: { device: { heartRateMonitor: "ant" } },
+            });
             vi.spyOn(Storage.prototype, "getItem").mockImplementation((key: string): string | null => {
                 return key === ConfigManagerService.CONFIG_STORAGE_KEY ? JSON.stringify(storedConfig) : null;
             });

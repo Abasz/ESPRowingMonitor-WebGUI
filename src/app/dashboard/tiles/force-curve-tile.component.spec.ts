@@ -19,9 +19,9 @@ import ChartDataLabels from "chartjs-plugin-datalabels";
 import { BaseChartDirective, provideCharts } from "ng2-charts";
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
-import { ICalculatedMetrics, IDisplayConfig } from "../../../common/common.interfaces";
+import { Config, ICalculatedMetrics, IDisplayConfig } from "../../../common/common.interfaces";
 
-import { createMockDisplayConfig, createMockMetrics } from "./dashboard-tile.test.helpers";
+import { createMockMetrics } from "./dashboard-tile.test.helpers";
 import { ForceCurveTileComponent } from "./force-curve-tile.component";
 
 describe("ForceCurveTileComponent", (): void => {
@@ -30,7 +30,7 @@ describe("ForceCurveTileComponent", (): void => {
     let loader: HarnessLoader;
 
     const mockInitialMetrics: ICalculatedMetrics = createMockMetrics();
-    const mockInitialDisplayConfig: IDisplayConfig = createMockDisplayConfig();
+    const mockInitialDisplayConfig: IDisplayConfig = new Config().display;
 
     beforeEach(async (): Promise<void> => {
         await TestBed.configureTestingModule({

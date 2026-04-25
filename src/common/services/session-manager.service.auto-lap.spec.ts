@@ -9,6 +9,7 @@ import {
     mockRawMetrics,
     SessionManagerTestContext,
     setupSessionManagerTestBed,
+    withSessionConfig,
 } from "./session-manager.test.helpers";
 
 describe("SessionManagerService", (): void => {
@@ -33,13 +34,7 @@ describe("SessionManagerService", (): void => {
 
     describe("auto-lap distance mode", (): void => {
         beforeEach((): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoLap: "distance", autoLapValue: 500 },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoLap: "distance", autoLapValue: 500 }));
         });
 
         it("should record a distance lap when session distance reaches threshold", (): void => {
@@ -118,13 +113,7 @@ describe("SessionManagerService", (): void => {
         });
 
         it("should not record a lap when autoLap is off", (): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoLap: "off", autoLapValue: 500 },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoLap: "off", autoLapValue: 500 }));
 
             service.start();
             vi.mocked(mockDataRecorderService.addLap).mockClear();
@@ -178,13 +167,7 @@ describe("SessionManagerService", (): void => {
 
     describe("auto-lap time mode", (): void => {
         beforeEach((): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoLap: "time", autoLapValue: 1 },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoLap: "time", autoLapValue: 1 }));
         });
 
         it("should record a time lap when elapsed time reaches threshold", (): void => {
@@ -240,13 +223,7 @@ describe("SessionManagerService", (): void => {
 
     describe("auto-lap mode switching mid-session", (): void => {
         it("should reset threshold and switch to time laps when mode changes from distance to time", (): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoLap: "distance", autoLapValue: 500 },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoLap: "distance", autoLapValue: 500 }));
 
             service.start();
             vi.mocked(mockDataRecorderService.addLap).mockClear();
@@ -262,13 +239,7 @@ describe("SessionManagerService", (): void => {
             expect(mockDataRecorderService.addLap).not.toHaveBeenCalled();
 
             // switch to time mode with 1 minute threshold
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoLap: "time", autoLapValue: 1 },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoLap: "time", autoLapValue: 1 }));
 
             // advance past 1 minute and emit a stroke
             vi.advanceTimersByTime(61000);
@@ -278,13 +249,7 @@ describe("SessionManagerService", (): void => {
         });
 
         it("should reset threshold and switch to distance laps when mode changes from time to distance", (): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoLap: "time", autoLapValue: 1 },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoLap: "time", autoLapValue: 1 }));
 
             service.start();
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 950 });
@@ -298,13 +263,7 @@ describe("SessionManagerService", (): void => {
 
             // switch to distance mode with 500m threshold
             // reset sets lastLapValue to current distance (19m)
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoLap: "distance", autoLapValue: 500 },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoLap: "distance", autoLapValue: 500 }));
 
             // emit a stroke at 28.5m — should NOT trigger a lap (well below 500m from switch point)
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 3, rawDistance: 2850 });
@@ -326,13 +285,7 @@ describe("SessionManagerService", (): void => {
 
     describe("manual lap resets auto-lap threshold", (): void => {
         it("should reset distance auto-lap threshold when manual lap is added", (): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoLap: "distance", autoLapValue: 500 },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoLap: "distance", autoLapValue: 500 }));
 
             service.start();
 
@@ -365,13 +318,7 @@ describe("SessionManagerService", (): void => {
         });
 
         it("should reset time auto-lap threshold when manual lap is added", (): void => {
-            configSubject.next({
-                ...new Config(),
-                general: {
-                    ...new Config().general,
-                    session: { ...new Config().general.session, autoLap: "time", autoLapValue: 1 },
-                },
-            });
+            configSubject.next(withSessionConfig({ autoLap: "time", autoLapValue: 1 }));
 
             service.start();
             rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 950 });

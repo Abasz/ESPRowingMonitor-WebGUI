@@ -2,7 +2,15 @@ import { TestBed } from "@angular/core/testing";
 import { BehaviorSubject } from "rxjs";
 import { vi } from "vitest";
 
-import { Config, IErgConnectionStatus, IHeartRate, IRawCalculatedMetrics } from "../common.interfaces";
+import {
+    Config,
+    IErgConnectionStatus,
+    IGeneralDeviceConfig,
+    IGeneralSessionConfig,
+    IHeartRate,
+    IRawCalculatedMetrics,
+} from "../common.interfaces";
+import { deepMerge } from "../utils/utility.functions";
 
 import { ConfigManagerService } from "./config-manager.service";
 import { DataRecorderService } from "./data-recorder.service";
@@ -87,3 +95,9 @@ export function setupSessionManagerTestBed(): SessionManagerTestContext {
         mockConfigManagerService,
     };
 }
+
+export const withSessionConfig = (overrides: Partial<IGeneralSessionConfig>): Config =>
+    deepMerge(new Config(), { general: { session: overrides } });
+
+export const withDeviceConfig = (overrides: Partial<IGeneralDeviceConfig>): Config =>
+    deepMerge(new Config(), { general: { device: overrides } });

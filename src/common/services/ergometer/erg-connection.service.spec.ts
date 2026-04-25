@@ -19,7 +19,8 @@ import {
     SETTINGS_SERVICE,
     STROKE_SETTINGS_CHARACTERISTIC,
 } from "../../ble.interfaces";
-import { IErgConnectionStatus } from "../../common.interfaces";
+import { Config, IErgConnectionStatus } from "../../common.interfaces";
+import { deepMerge } from "../../utils/utility.functions";
 import {
     changedListenerReadyFactory,
     createMockBluetooth,
@@ -88,18 +89,9 @@ describe("ErgConnectionService", (): void => {
             setGroup: vi.fn(),
         };
 
-        vi.mocked(configManagerServiceSpy.getGroup).mockReturnValue({
-            device: {
-                ergoMonitorBleId: "mock-device-id",
-                heartRateBleId: "",
-                heartRateMonitor: "off",
-            },
-            session: {
-                autoSession: "autoStart",
-                autoLap: "off",
-                autoLapValue: 500,
-            },
-        });
+        vi.mocked(configManagerServiceSpy.getGroup).mockReturnValue(
+            deepMerge(new Config().general, { device: { ergoMonitorBleId: "mock-device-id" } }),
+        );
 
         vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
 

@@ -7,10 +7,11 @@ import { BehaviorSubject } from "rxjs";
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import { BleServiceNames } from "../../../common/ble.interfaces";
-import { Config, IHRConnectionStatus } from "../../../common/common.interfaces";
+import { Config, HeartRateMonitorMode, IHRConnectionStatus } from "../../../common/common.interfaces";
 import { ConfigManagerService } from "../../../common/services/config-manager.service";
 import { HeartRateService } from "../../../common/services/heart-rate/heart-rate.service";
 import { MetricsService } from "../../../common/services/metrics.service";
+import { deepMerge } from "../../../common/utils/utility.functions";
 
 import { ConnectHeartRateButtonComponent } from "./connect-heart-rate-button.component";
 
@@ -30,6 +31,9 @@ describe("ConnectHeartRateButtonComponent", (): void => {
         status: "disconnected",
         deviceName: undefined,
     };
+
+    const withHeartRateMode = (mode: HeartRateMonitorMode): Config =>
+        deepMerge(new Config(), { general: { device: { heartRateMonitor: mode } } });
 
     beforeEach(async (): Promise<void> => {
         configSubject = new BehaviorSubject<Config>(new Config());
@@ -126,13 +130,7 @@ describe("ConnectHeartRateButtonComponent", (): void => {
             });
 
             it("and heart rate monitor mode is off should not render button", (): void => {
-                configSubject.next({
-                    ...new Config(),
-                    general: {
-                        ...new Config().general,
-                        device: { ...new Config().general.device, heartRateMonitor: "off" },
-                    },
-                });
+                configSubject.next(withHeartRateMode("off"));
 
                 const button = fixture.nativeElement.querySelector("button[mat-icon-button]");
                 expect(button).toBeNull();
@@ -140,13 +138,7 @@ describe("ConnectHeartRateButtonComponent", (): void => {
 
             describe("and heart rate monitor mode is not off", (): void => {
                 beforeEach(async (): Promise<void> => {
-                    configSubject.next({
-                        ...new Config(),
-                        general: {
-                            ...new Config().general,
-                            device: { ...new Config().general.device, heartRateMonitor: "ant" },
-                        },
-                    });
+                    configSubject.next(withHeartRateMode("ant"));
                     hrConnectionStatusSubject.next({ status: "disconnected", deviceName: undefined });
                     await fixture.whenStable();
                 });
@@ -274,13 +266,7 @@ describe("ConnectHeartRateButtonComponent", (): void => {
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
 
-                configSubject.next({
-                    ...new Config(),
-                    general: {
-                        ...new Config().general,
-                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
-                    },
-                });
+                configSubject.next(withHeartRateMode("ant"));
             });
 
             it("should not render any content", (): void => {
@@ -321,13 +307,7 @@ describe("ConnectHeartRateButtonComponent", (): void => {
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
 
-                configSubject.next({
-                    ...new Config(),
-                    general: {
-                        ...new Config().general,
-                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
-                    },
-                });
+                configSubject.next(withHeartRateMode("ant"));
                 hrConnectionStatusSubject.next({ status: "disconnected", deviceName: undefined });
                 await fixture.whenStable();
             });
@@ -353,13 +333,7 @@ describe("ConnectHeartRateButtonComponent", (): void => {
             it("should update when ConfigManagerService emits new value", (): void => {
                 expect(component.heartRateMonitorMode()).toBe("off");
 
-                configSubject.next({
-                    ...new Config(),
-                    general: {
-                        ...new Config().general,
-                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
-                    },
-                });
+                configSubject.next(withHeartRateMode("ant"));
 
                 expect(component.heartRateMonitorMode()).toBe("ant");
             });
@@ -372,25 +346,13 @@ describe("ConnectHeartRateButtonComponent", (): void => {
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
 
-                configSubject.next({
-                    ...new Config(),
-                    general: {
-                        ...new Config().general,
-                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
-                    },
-                });
+                configSubject.next(withHeartRateMode("ant"));
                 await fixture.whenStable();
 
                 let button = fixture.nativeElement.querySelector("button[mat-icon-button]");
                 expect(button).toBeTruthy();
 
-                configSubject.next({
-                    ...new Config(),
-                    general: {
-                        ...new Config().general,
-                        device: { ...new Config().general.device, heartRateMonitor: "off" },
-                    },
-                });
+                configSubject.next(withHeartRateMode("off"));
                 await fixture.whenStable();
 
                 button = fixture.nativeElement.querySelector("button[mat-icon-button]");
@@ -405,24 +367,12 @@ describe("ConnectHeartRateButtonComponent", (): void => {
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
 
-                configSubject.next({
-                    ...new Config(),
-                    general: {
-                        ...new Config().general,
-                        device: { ...new Config().general.device, heartRateMonitor: "off" },
-                    },
-                });
+                configSubject.next(withHeartRateMode("off"));
 
                 let button = fixture.nativeElement.querySelector("button[mat-icon-button]");
                 expect(button).toBeNull();
 
-                configSubject.next({
-                    ...new Config(),
-                    general: {
-                        ...new Config().general,
-                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
-                    },
-                });
+                configSubject.next(withHeartRateMode("ant"));
                 await fixture.whenStable();
 
                 button = fixture.nativeElement.querySelector("button[mat-icon-button]");
@@ -439,13 +389,7 @@ describe("ConnectHeartRateButtonComponent", (): void => {
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
 
-                configSubject.next({
-                    ...new Config(),
-                    general: {
-                        ...new Config().general,
-                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
-                    },
-                });
+                configSubject.next(withHeartRateMode("ant"));
             });
 
             it("should update when MetricsService emits new status", (): void => {
@@ -503,13 +447,7 @@ describe("ConnectHeartRateButtonComponent", (): void => {
     describe("as part of host binding behavior", (): void => {
         describe("display style binding", (): void => {
             it("should set display to contents when heart rate monitor is off", async (): Promise<void> => {
-                configSubject.next({
-                    ...new Config(),
-                    general: {
-                        ...new Config().general,
-                        device: { ...new Config().general.device, heartRateMonitor: "off" },
-                    },
-                });
+                configSubject.next(withHeartRateMode("off"));
                 await fixture.whenStable();
 
                 const hostElement = fixture.nativeElement;
@@ -518,13 +456,7 @@ describe("ConnectHeartRateButtonComponent", (): void => {
             });
 
             it("should set display to block when heart rate monitor is not off", (): void => {
-                configSubject.next({
-                    ...new Config(),
-                    general: {
-                        ...new Config().general,
-                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
-                    },
-                });
+                configSubject.next(withHeartRateMode("ant"));
 
                 const hostElement = fixture.nativeElement;
                 const computedStyle = getComputedStyle(hostElement);
@@ -543,13 +475,7 @@ describe("ConnectHeartRateButtonComponent", (): void => {
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
 
-                configSubject.next({
-                    ...new Config(),
-                    general: {
-                        ...new Config().general,
-                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
-                    },
-                });
+                configSubject.next(withHeartRateMode("ant"));
             });
 
             it("should handle null device name gracefully", async (): Promise<void> => {
@@ -579,13 +505,7 @@ describe("ConnectHeartRateButtonComponent", (): void => {
                 component = fixture.componentInstance;
                 loader = TestbedHarnessEnvironment.loader(fixture);
 
-                configSubject.next({
-                    ...new Config(),
-                    general: {
-                        ...new Config().general,
-                        device: { ...new Config().general.device, heartRateMonitor: "ant" },
-                    },
-                });
+                configSubject.next(withHeartRateMode("ant"));
             });
 
             it("should handle multiple rapid status changes", async (): Promise<void> => {

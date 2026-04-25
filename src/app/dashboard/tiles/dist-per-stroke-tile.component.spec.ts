@@ -1,9 +1,9 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { ICalculatedMetrics, IDisplayConfig } from "../../../common/common.interfaces";
+import { Config, ICalculatedMetrics, IDisplayConfig } from "../../../common/common.interfaces";
 
-import { createMockDisplayConfig, createMockMetrics } from "./dashboard-tile.test.helpers";
+import { createMockMetrics } from "./dashboard-tile.test.helpers";
 import { DistPerStrokeTileComponent } from "./dist-per-stroke-tile.component";
 
 describe("DistPerStrokeTileComponent", (): void => {
@@ -11,7 +11,7 @@ describe("DistPerStrokeTileComponent", (): void => {
     let fixture: ComponentFixture<DistPerStrokeTileComponent>;
 
     const mockInitialMetrics: ICalculatedMetrics = createMockMetrics();
-    const mockInitialDisplayConfig: IDisplayConfig = createMockDisplayConfig();
+    const mockInitialDisplayConfig: IDisplayConfig = new Config().display;
 
     beforeEach(async (): Promise<void> => {
         await TestBed.configureTestingModule({

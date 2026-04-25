@@ -4,7 +4,8 @@ import { BehaviorSubject, firstValueFrom, skip, Subject, takeUntil } from "rxjs"
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import { BATTERY_LEVEL_SERVICE, HEART_RATE_SERVICE } from "../../ble.interfaces";
-import { IHeartRate, IHRConnectionStatus } from "../../common.interfaces";
+import { Config, IHeartRate, IHRConnectionStatus } from "../../common.interfaces";
+import { deepMerge } from "../../utils/utility.functions";
 import {
     changedListenerReadyFactory,
     createBatteryDataView,
@@ -69,18 +70,9 @@ describe("BLEHeartRateService", (): void => {
         );
 
         // setup default mock returns
-        vi.mocked(mockConfigManager.getGroup).mockReturnValue({
-            device: {
-                heartRateBleId: "test-device-id",
-                ergoMonitorBleId: "",
-                heartRateMonitor: "off",
-            },
-            session: {
-                autoSession: "autoStart",
-                autoLap: "off",
-                autoLapValue: 500,
-            },
-        });
+        vi.mocked(mockConfigManager.getGroup).mockReturnValue(
+            deepMerge(new Config().general, { device: { heartRateBleId: "test-device-id" } }),
+        );
         vi.mocked(mockBluetoothDevice.gatt!.connect).mockResolvedValue(
             mockBluetoothDevice.gatt as BluetoothRemoteGATTServer,
         );
@@ -405,18 +397,11 @@ describe("BLEHeartRateService", (): void => {
     describe("reconnect method", (): void => {
         describe("when paired device exists", (): void => {
             beforeEach((): void => {
-                vi.mocked(mockConfigManager.getGroup).mockReturnValue({
-                    device: {
-                        ergoMonitorBleId: "",
-                        heartRateBleId: "test-device-id",
-                        heartRateMonitor: "ble",
-                    },
-                    session: {
-                        autoSession: "autoStart",
-                        autoLap: "off",
-                        autoLapValue: 500,
-                    },
-                });
+                vi.mocked(mockConfigManager.getGroup).mockReturnValue(
+                    deepMerge(new Config().general, {
+                        device: { heartRateBleId: "test-device-id", heartRateMonitor: "ble" },
+                    }),
+                );
             });
 
             it("should call disconnectDevice first", async (): Promise<void> => {
@@ -477,18 +462,9 @@ describe("BLEHeartRateService", (): void => {
 
         describe("when no paired device exists", (): void => {
             beforeEach((): void => {
-                vi.mocked(mockConfigManager.getGroup).mockReturnValue({
-                    device: {
-                        ergoMonitorBleId: "",
-                        heartRateBleId: "",
-                        heartRateMonitor: "ble",
-                    },
-                    session: {
-                        autoSession: "autoStart",
-                        autoLap: "off",
-                        autoLapValue: 500,
-                    },
-                });
+                vi.mocked(mockConfigManager.getGroup).mockReturnValue(
+                    deepMerge(new Config().general, { device: { heartRateMonitor: "ble" } }),
+                );
             });
 
             it("should return early without further action", async (): Promise<void> => {
@@ -527,18 +503,11 @@ describe("BLEHeartRateService", (): void => {
 
         describe("when watchAdvertisements fails", (): void => {
             beforeEach((): void => {
-                vi.mocked(mockConfigManager.getGroup).mockReturnValue({
-                    device: {
-                        ergoMonitorBleId: "",
-                        heartRateBleId: "test-device-id",
-                        heartRateMonitor: "ble",
-                    },
-                    session: {
-                        autoSession: "autoStart",
-                        autoLap: "off",
-                        autoLapValue: 500,
-                    },
-                });
+                vi.mocked(mockConfigManager.getGroup).mockReturnValue(
+                    deepMerge(new Config().general, {
+                        device: { heartRateBleId: "test-device-id", heartRateMonitor: "ble" },
+                    }),
+                );
                 vi.mocked(navigator.bluetooth.getDevices).mockResolvedValue([mockBluetoothDevice]);
                 vi.mocked(mockBluetoothDevice.watchAdvertisements).mockRejectedValueOnce(
                     new Error("Advertisement failed"),
@@ -560,18 +529,11 @@ describe("BLEHeartRateService", (): void => {
 
         describe("when document visibility changes", (): void => {
             beforeEach((): void => {
-                vi.mocked(mockConfigManager.getGroup).mockReturnValue({
-                    device: {
-                        ergoMonitorBleId: "",
-                        heartRateBleId: "test-device-id",
-                        heartRateMonitor: "ble",
-                    },
-                    session: {
-                        autoSession: "autoStart",
-                        autoLap: "off",
-                        autoLapValue: 500,
-                    },
-                });
+                vi.mocked(mockConfigManager.getGroup).mockReturnValue(
+                    deepMerge(new Config().general, {
+                        device: { heartRateBleId: "test-device-id", heartRateMonitor: "ble" },
+                    }),
+                );
                 vi.mocked(navigator.bluetooth.getDevices).mockResolvedValue([mockBluetoothDevice]);
                 vi.mocked(mockBluetoothDevice.watchAdvertisements).mockResolvedValue(undefined);
             });

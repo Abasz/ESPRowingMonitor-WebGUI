@@ -1,9 +1,9 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { ICalculatedMetrics, IDisplayConfig } from "../../../common/common.interfaces";
+import { Config, ICalculatedMetrics, IDisplayConfig } from "../../../common/common.interfaces";
 
-import { createMockDisplayConfig, createMockMetrics } from "./dashboard-tile.test.helpers";
+import { createMockMetrics } from "./dashboard-tile.test.helpers";
 import { SpeedTileComponent } from "./speed-tile.component";
 
 const msToKmh = 3.6;
@@ -14,7 +14,7 @@ describe("SpeedTileComponent", (): void => {
     let fixture: ComponentFixture<SpeedTileComponent>;
 
     const mockInitialMetrics: ICalculatedMetrics = createMockMetrics();
-    const mockInitialDisplayConfig: IDisplayConfig = createMockDisplayConfig();
+    const mockInitialDisplayConfig: IDisplayConfig = new Config().display;
 
     beforeEach(async (): Promise<void> => {
         await TestBed.configureTestingModule({

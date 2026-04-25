@@ -12,27 +12,19 @@ import { BehaviorSubject, EMPTY, of } from "rxjs";
 import { vi } from "vitest";
 
 import { IDeviceInformation } from "../../../common/ble.interfaces";
-import {
-    Config,
-    IDisplayLayoutConfig,
-    IErgConnectionStatus,
-    IRowerSettings,
-} from "../../../common/common.interfaces";
+import { Config, IErgConnectionStatus, IRowerSettings } from "../../../common/common.interfaces";
 import { SpinnerOverlay } from "../../../common/overlay/spinner-overlay.service";
 import { ConfigManagerService } from "../../../common/services/config-manager.service";
 import { ErgConnectionService } from "../../../common/services/ergometer/erg-connection.service";
 import { ErgSettingsService } from "../../../common/services/ergometer/erg-settings.service";
 import { UtilsService } from "../../../common/services/utils.service";
+import { deepMerge, DeepPartial } from "../../../common/utils/utility.functions";
 import {
     DEFAULT_LANDSCAPE_LAYOUT,
     DEFAULT_PORTRAIT_LAYOUT,
 } from "../../dashboard/dashboard-tile-definitions";
 
 import { SettingsDialogComponent } from "./settings-dialog.component";
-
-type DeepPartial<T> = {
-    [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
-};
 
 export interface IMockGeneralForm {
     dirty: boolean;
@@ -101,69 +93,7 @@ export interface IMockDisplayForm {
  */
 export const createMockConfig: (overrides?: DeepPartial<Config>) => Config = (
     overrides: DeepPartial<Config> = {},
-): Config => {
-    const defaultConfig: Config = {
-        general: {
-            device: {
-                ergoMonitorBleId: "",
-                heartRateBleId: "",
-                heartRateMonitor: "off",
-            },
-            session: {
-                autoSession: "autoStart",
-                autoLap: "off",
-                autoLapValue: 500,
-            },
-        },
-        display: {
-            general: {
-                unitSystem: "metric",
-            },
-            forceCurve: {
-                showPeakForceInTitle: true,
-                showGridLines: true,
-                showAxisLabels: true,
-            },
-            layout: {
-                landscape: DEFAULT_LANDSCAPE_LAYOUT,
-                portrait: DEFAULT_PORTRAIT_LAYOUT,
-                orientationLock: "auto" as const,
-            },
-            averaging: {
-                mode: "off" as const,
-                windowSize: 3,
-            },
-        },
-    };
-
-    return {
-        general: {
-            device: {
-                ...defaultConfig.general.device,
-                ...(overrides.general?.device ?? {}),
-            },
-            session: {
-                ...defaultConfig.general.session,
-                ...(overrides.general?.session ?? {}),
-            },
-        },
-        display: {
-            general: {
-                ...defaultConfig.display.general,
-                ...(overrides.display?.general ?? {}),
-            },
-            forceCurve: {
-                ...defaultConfig.display.forceCurve,
-                ...(overrides.display?.forceCurve ?? {}),
-            },
-            layout: (overrides.display?.layout as IDisplayLayoutConfig) ?? defaultConfig.display.layout,
-            averaging: {
-                ...defaultConfig.display.averaging,
-                ...(overrides.display?.averaging ?? {}),
-            },
-        },
-    };
-};
+): Config => deepMerge(new Config(), overrides);
 
 /**
  * Creates a mock ConfigManagerService with getConfig, getGroup, and setGroup methods

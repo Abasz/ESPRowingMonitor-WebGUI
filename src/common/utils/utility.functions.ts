@@ -123,12 +123,13 @@ export function withDelay<T>(ms: number, value?: Promise<T>): Promise<T> {
     );
 }
 
-export function deepMerge(
-    target: Record<string, unknown>,
-    source: Record<string, unknown>,
-): Record<string, unknown> {
-    const result: Record<string, unknown> = { ...target };
-    for (const key of Object.keys(source)) {
+export type DeepPartial<T> = {
+    [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+export function deepMerge<T extends object>(target: T, source: DeepPartial<T>): T {
+    const result = { ...target };
+    for (const key of Object.keys(source) as Array<keyof T & string>) {
         const sourceValue = source[key];
         if (sourceValue === undefined) {
             continue;
@@ -146,9 +147,9 @@ export function deepMerge(
             result[key] = deepMerge(
                 targetValue as Record<string, unknown>,
                 sourceValue as Record<string, unknown>,
-            );
+            ) as T[keyof T & string];
         } else {
-            result[key] = sourceValue;
+            result[key] = sourceValue as T[keyof T & string];
         }
     }
 

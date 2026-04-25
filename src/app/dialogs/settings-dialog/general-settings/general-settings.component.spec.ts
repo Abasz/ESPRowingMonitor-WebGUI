@@ -13,9 +13,10 @@ import { of } from "rxjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BleServiceFlag, IDeviceInformation, LogLevel } from "../../../../common/ble.interfaces";
-import { IRowerSettings } from "../../../../common/common.interfaces";
+import { Config, IRowerSettings } from "../../../../common/common.interfaces";
 import { ConfigManagerService } from "../../../../common/services/config-manager.service";
 import { FirmwareUpdateManagerService } from "../../../../common/services/ergometer/firmware-update-manager.service";
+import { deepMerge } from "../../../../common/utils/utility.functions";
 import { OtaDialogComponent } from "../../ota-settings-dialog/ota-dialog.component";
 
 import { GeneralSettingsComponent } from "./general-settings.component";
@@ -85,18 +86,7 @@ describe("GeneralSettingsComponent", (): void => {
         mockConfigManagerService = {
             getGroup: vi.fn(),
         };
-        vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
-            device: {
-                heartRateMonitor: "off",
-                ergoMonitorBleId: "",
-                heartRateBleId: "",
-            },
-            session: {
-                autoSession: "autoStart",
-                autoLap: "off",
-                autoLapValue: 500,
-            },
-        });
+        vi.mocked(mockConfigManagerService.getGroup).mockReturnValue(new Config().general);
 
         mockSwUpdate = {
             checkForUpdate: vi.fn(),
@@ -818,18 +808,9 @@ describe("GeneralSettingsComponent", (): void => {
         });
 
         it("should retrieve heart rate monitor setting from ConfigManager", (): void => {
-            vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
-                device: {
-                    ergoMonitorBleId: "",
-                    heartRateBleId: "",
-                    heartRateMonitor: "ble",
-                },
-                session: {
-                    autoSession: "autoStart",
-                    autoLap: "off",
-                    autoLapValue: 500,
-                },
-            });
+            vi.mocked(mockConfigManagerService.getGroup).mockReturnValue(
+                deepMerge(new Config().general, { device: { heartRateMonitor: "ble" } }),
+            );
 
             component.ngOnInit();
 
@@ -838,18 +819,9 @@ describe("GeneralSettingsComponent", (): void => {
         });
 
         it("should retrieve autoSession setting from ConfigManager", (): void => {
-            vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
-                device: {
-                    ergoMonitorBleId: "",
-                    heartRateBleId: "",
-                    heartRateMonitor: "off",
-                },
-                session: {
-                    autoSession: "off",
-                    autoLap: "off",
-                    autoLapValue: 500,
-                },
-            });
+            vi.mocked(mockConfigManagerService.getGroup).mockReturnValue(
+                deepMerge(new Config().general, { session: { autoSession: "off" } }),
+            );
 
             component.ngOnInit();
 
