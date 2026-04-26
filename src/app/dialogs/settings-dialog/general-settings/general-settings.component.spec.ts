@@ -10,7 +10,7 @@ import { MatSelectHarness } from "@angular/material/select/testing";
 import { MatTooltipHarness } from "@angular/material/tooltip/testing";
 import { SwUpdate } from "@angular/service-worker";
 import { of } from "rxjs";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BleServiceFlag, IDeviceInformation, LogLevel } from "../../../../common/ble.interfaces";
 import { Config, IRowerSettings } from "../../../../common/common.interfaces";
@@ -123,7 +123,7 @@ describe("GeneralSettingsComponent", (): void => {
         fixture.componentRef.setInput("rowerSettings", mockRowerSettings);
         fixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
         fixture.componentRef.setInput("isConnected", true);
-        // do not call whenStable here becuase some tests rely on ngOnInit not having been called yet
+        // do not call whenStable here because some tests rely on ngOnInit not having been called yet
     });
 
     describe("as part of component creation", (): void => {
@@ -196,6 +196,10 @@ describe("GeneralSettingsComponent", (): void => {
                     await localFixture.whenStable();
                 });
 
+                afterEach((): void => {
+                    vi.restoreAllMocks();
+                });
+
                 it("should not display the update button", (): void => {
                     const guiUpdateButton = localFixture.nativeElement.querySelector(
                         "div.tab-content > div[versionInfo] button mat-icon",
@@ -242,6 +246,10 @@ describe("GeneralSettingsComponent", (): void => {
                         element.textContent.includes("GUI Version:"),
                     )[0].parentElement as HTMLDivElement;
                     guiUpdateDiv.setAttribute("data-test-gui-update", "1");
+                });
+
+                afterEach((): void => {
+                    vi.restoreAllMocks();
                 });
 
                 describe("when not checking for updates", (): void => {
@@ -601,6 +609,10 @@ describe("GeneralSettingsComponent", (): void => {
                     await localFixture.whenStable();
                 });
 
+                afterEach((): void => {
+                    vi.restoreAllMocks();
+                });
+
                 it("should have isAntSupported set to true", (): void => {
                     expect(localFixture.componentInstance.isAntSupported).toBe(true);
                 });
@@ -654,6 +666,10 @@ describe("GeneralSettingsComponent", (): void => {
                     localFixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
                     localFixture.componentRef.setInput("isConnected", true);
                     await localFixture.whenStable();
+                });
+
+                afterEach((): void => {
+                    vi.restoreAllMocks();
                 });
 
                 it("should have isAntSupported set to false", (): void => {
@@ -1066,14 +1082,14 @@ describe("GeneralSettingsComponent", (): void => {
             return input;
         };
 
-        it("should open OTA dialog when file is provided", async (): Promise<void> => {
+        it("should open OTA dialog when file is provided", (): void => {
             const mockFile = new File(["test content"], "firmware.bin", {
                 type: "application/octet-stream",
             });
             const input = createInputWithFiles([mockFile]);
             const mockEvent = { currentTarget: input } as unknown as Event;
 
-            await component.otaUpdate(mockEvent);
+            component.otaUpdate(mockEvent);
 
             expect(mockMatDialog.open).toHaveBeenCalledWith(OtaDialogComponent, {
                 autoFocus: false,
@@ -1085,21 +1101,21 @@ describe("GeneralSettingsComponent", (): void => {
             });
         });
 
-        it("should return early when no files provided", async (): Promise<void> => {
+        it("should return early when no files provided", (): void => {
             const input = createInputWithFiles(null);
             const mockEvent = { currentTarget: input } as unknown as Event;
 
-            await component.otaUpdate(mockEvent);
+            component.otaUpdate(mockEvent);
 
             expect(mockMatDialog.open).not.toHaveBeenCalled();
         });
 
-        it("should handle large file sizes correctly", async (): Promise<void> => {
+        it("should handle large file sizes correctly", (): void => {
             const largeFile = new File(["x".repeat(2000000)], "large-firmware.bin");
             const input = createInputWithFiles([largeFile]);
             const mockEvent = { currentTarget: input } as unknown as Event;
 
-            await component.otaUpdate(mockEvent);
+            component.otaUpdate(mockEvent);
 
             expect(mockMatDialog.open).toHaveBeenCalledWith(OtaDialogComponent, {
                 autoFocus: false,
@@ -1185,7 +1201,7 @@ describe("GeneralSettingsComponent", (): void => {
             expect(component.isSupportedDevice()).toBe(false);
         });
 
-        it("should return true for mixed case custom hardware", async (): Promise<void> => {
+        it("should return false for mixed case 'Custom' hardware", async (): Promise<void> => {
             fixture.componentRef.setInput("deviceInfo", {
                 ...mockDeviceInfo,
                 hardwareRevision: "Custom",
@@ -1197,22 +1213,22 @@ describe("GeneralSettingsComponent", (): void => {
     });
 
     describe("as part of edge cases & robustness handling", (): void => {
-        it("should handle otaUpdate with invalid input element", async (): Promise<void> => {
+        it("should handle otaUpdate with invalid input element", (): void => {
             const mockEvent = {
                 currentTarget: null,
             } as Event;
 
-            await component.otaUpdate(mockEvent);
+            component.otaUpdate(mockEvent);
 
             expect(mockMatDialog.open).not.toHaveBeenCalled();
         });
 
-        it("should handle otaUpdate with non-HTMLInputElement", async (): Promise<void> => {
+        it("should handle otaUpdate with non-HTMLInputElement", (): void => {
             const mockEvent = {
                 currentTarget: document.createElement("div"),
             } as unknown as Event;
 
-            await component.otaUpdate(mockEvent);
+            component.otaUpdate(mockEvent);
 
             expect(mockMatDialog.open).not.toHaveBeenCalled();
         });
@@ -1233,6 +1249,241 @@ describe("GeneralSettingsComponent", (): void => {
             expect(form.controls.heartRateMonitor).toBeDefined();
             expect(form.controls.deltaTimeLogging).toBeDefined();
             expect(form.controls.logToSdCard).toBeDefined();
+            expect(form.controls.intervalsApiKey).toBeDefined();
+            expect(form.controls.intervalsAthleteId).toBeDefined();
+            expect(form.controls.intervalsAutoUpload).toBeDefined();
+        });
+    });
+
+    describe("Intervals.icu settings", (): void => {
+        describe("as part of form initialization", (): void => {
+            beforeEach(async (): Promise<void> => {
+                await fixture.whenStable();
+                fixture.detectChanges();
+            });
+
+            it("should initialize API key from config", (): void => {
+                expect(component.settingsForm.controls.intervalsApiKey.value).toBe("");
+            });
+
+            it("should initialize athlete ID from config", (): void => {
+                expect(component.settingsForm.controls.intervalsAthleteId.value).toBe("");
+            });
+
+            it("should initialize auto-upload to disabled when API key is empty", (): void => {
+                expect(component.settingsForm.controls.intervalsAutoUpload.disabled).toBe(true);
+            });
+
+            it("should initialize with non-empty API key when config has one", (): void => {
+                vi.mocked(mockConfigManagerService.getGroup).mockReturnValue(
+                    deepMerge(new Config().general, { intervalsIcu: { apiKey: "existing-key" } }),
+                );
+
+                const localFixture = TestBed.createComponent(GeneralSettingsComponent);
+                localFixture.componentRef.setInput("rowerSettings", mockRowerSettings);
+                localFixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
+                localFixture.componentRef.setInput("isConnected", true);
+
+                expect(localFixture.componentInstance.settingsForm.controls.intervalsApiKey.value).toBe(
+                    "existing-key",
+                );
+            });
+        });
+
+        describe("hasApiKeyChanged method", (): void => {
+            it("should return false when API key has not changed", (): void => {
+                expect(component.hasApiKeyChanged()).toBe(false);
+            });
+
+            it("should return true when API key value is changed", (): void => {
+                component.settingsForm.controls.intervalsApiKey.setValue("new-key");
+
+                expect(component.hasApiKeyChanged()).toBe(true);
+            });
+
+            it("should return false when API key is reverted to original value", (): void => {
+                component.settingsForm.controls.intervalsApiKey.setValue("new-key");
+                component.settingsForm.controls.intervalsApiKey.setValue("");
+
+                expect(component.hasApiKeyChanged()).toBe(false);
+            });
+        });
+
+        describe("isFirstTimeSetup method", (): void => {
+            it("should return true when initial API key is empty", (): void => {
+                expect(component.isFirstTimeSetup()).toBe(true);
+            });
+
+            it("should return false when initial API key is non-empty", (): void => {
+                vi.mocked(mockConfigManagerService.getGroup).mockReturnValue(
+                    deepMerge(new Config().general, { intervalsIcu: { apiKey: "existing-key" } }),
+                );
+
+                const localFixture = TestBed.createComponent(GeneralSettingsComponent);
+                localFixture.componentRef.setInput("rowerSettings", mockRowerSettings);
+                localFixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
+                localFixture.componentRef.setInput("isConnected", true);
+
+                expect(localFixture.componentInstance.isFirstTimeSetup()).toBe(false);
+            });
+        });
+
+        describe("API key visibility toggle", (): void => {
+            it("should start with API key hidden as password type", async (): Promise<void> => {
+                await fixture.whenStable();
+
+                const apiKeyInput: HTMLInputElement = fixture.nativeElement.querySelector(
+                    '[formControlName="intervalsApiKey"]',
+                );
+
+                expect(apiKeyInput.type).toBe("password");
+            });
+
+            it("should show API key as text after clicking visibility toggle", async (): Promise<void> => {
+                await fixture.whenStable();
+
+                const toggleButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+                    '[aria-label="Show API key"]',
+                );
+                toggleButton.click();
+                fixture.detectChanges();
+
+                const apiKeyInput: HTMLInputElement = fixture.nativeElement.querySelector(
+                    '[formControlName="intervalsApiKey"]',
+                );
+
+                expect(apiKeyInput.type).toBe("text");
+            });
+
+            it("should toggle back to password type after second click", async (): Promise<void> => {
+                await fixture.whenStable();
+
+                const showButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+                    '[aria-label="Show API key"]',
+                );
+                showButton.click();
+                fixture.detectChanges();
+
+                const hideButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+                    '[aria-label="Hide API key"]',
+                );
+                hideButton.click();
+                fixture.detectChanges();
+
+                const apiKeyInput: HTMLInputElement = fixture.nativeElement.querySelector(
+                    '[formControlName="intervalsApiKey"]',
+                );
+
+                expect(apiKeyInput.type).toBe("password");
+            });
+        });
+
+        describe("athlete ID visibility toggle", (): void => {
+            it("should start with athlete ID section hidden", async (): Promise<void> => {
+                await fixture.whenStable();
+
+                const athleteIdInput = fixture.nativeElement.querySelector(
+                    '[formControlName="intervalsAthleteId"]',
+                );
+
+                expect(athleteIdInput).toBeNull();
+            });
+
+            it("should show athlete ID section after clicking the person toggle button", async (): Promise<void> => {
+                await fixture.whenStable();
+
+                const toggleButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+                    '[aria-label="Show athlete ID field"]',
+                );
+                toggleButton.click();
+                fixture.detectChanges();
+
+                const athleteIdInput = fixture.nativeElement.querySelector(
+                    '[formControlName="intervalsAthleteId"]',
+                );
+
+                expect(athleteIdInput).toBeTruthy();
+            });
+
+            it("should hide athlete ID section after clicking the toggle button again", async (): Promise<void> => {
+                await fixture.whenStable();
+
+                const showButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+                    '[aria-label="Show athlete ID field"]',
+                );
+                showButton.click();
+                fixture.detectChanges();
+
+                const hideButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+                    '[aria-label="Hide athlete ID field"]',
+                );
+                hideButton.click();
+                fixture.detectChanges();
+
+                const athleteIdInput = fixture.nativeElement.querySelector(
+                    '[formControlName="intervalsAthleteId"]',
+                );
+
+                expect(athleteIdInput).toBeNull();
+            });
+        });
+
+        describe("auto-upload toggle disabled state", (): void => {
+            it("should be disabled when API key is empty", async (): Promise<void> => {
+                await fixture.whenStable();
+
+                expect(component.settingsForm.controls.intervalsAutoUpload.disabled).toBe(true);
+            });
+
+            it("should be enabled when API key has value", async (): Promise<void> => {
+                vi.mocked(mockConfigManagerService.getGroup).mockReturnValue(
+                    deepMerge(new Config().general, { intervalsIcu: { apiKey: "my-key" } }),
+                );
+
+                const localFixture = TestBed.createComponent(GeneralSettingsComponent);
+                localFixture.componentRef.setInput("rowerSettings", mockRowerSettings);
+                localFixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
+                localFixture.componentRef.setInput("isConnected", true);
+                await localFixture.whenStable();
+
+                expect(
+                    localFixture.componentInstance.settingsForm.controls.intervalsAutoUpload.disabled,
+                ).toBe(false);
+            });
+
+            it("should become enabled when API key is entered", async (): Promise<void> => {
+                component.settingsForm.controls.intervalsApiKey.setValue("new-key");
+                await fixture.whenStable();
+
+                expect(component.settingsForm.controls.intervalsAutoUpload.disabled).toBe(false);
+            });
+
+            it("should become disabled when API key is cleared", async (): Promise<void> => {
+                vi.mocked(mockConfigManagerService.getGroup).mockReturnValue(
+                    deepMerge(new Config().general, { intervalsIcu: { apiKey: "my-key" } }),
+                );
+
+                const localFixture = TestBed.createComponent(GeneralSettingsComponent);
+                localFixture.componentRef.setInput("rowerSettings", mockRowerSettings);
+                localFixture.componentRef.setInput("deviceInfo", mockDeviceInfo);
+                localFixture.componentRef.setInput("isConnected", true);
+                await localFixture.whenStable();
+
+                localFixture.componentInstance.settingsForm.controls.intervalsApiKey.setValue("");
+                await localFixture.whenStable();
+
+                expect(
+                    localFixture.componentInstance.settingsForm.controls.intervalsAutoUpload.disabled,
+                ).toBe(true);
+            });
+
+            it("should remain disabled after form enable when API key is empty", async (): Promise<void> => {
+                fixture.componentRef.setInput("isConnected", true);
+                fixture.componentRef.setInput("rowerSettings", mockRowerSettings);
+                await fixture.whenStable();
+
+                expect(component.settingsForm.controls.intervalsAutoUpload.disabled).toBe(true);
+            });
         });
     });
 });

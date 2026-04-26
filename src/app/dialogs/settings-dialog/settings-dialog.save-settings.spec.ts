@@ -40,22 +40,14 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
     });
 
     it("should save general settings", async (): Promise<void> => {
-        const mockGeneralForm = {
-            dirty: true,
-            controls: {
-                logLevel: { dirty: true, value: 2 },
-                deltaTimeLogging: { dirty: true, value: true },
-                logToSdCard: { dirty: true, value: true },
-                bleMode: { dirty: true, value: 1 },
-                heartRateMonitor: { dirty: true, value: "ant" },
-                autoSession: { dirty: true, value: "off" },
-                autoLap: { dirty: false, value: "off" },
-                autoLapValue: { dirty: false, value: 500 },
-            },
-            value: {
-                heartRateMonitor: "ant",
-            },
-        };
+        const mockGeneralForm = createMockGeneralForm(true, {
+            logLevel: { dirty: true, value: 2 },
+            deltaTimeLogging: { dirty: true, value: true },
+            logToSdCard: { dirty: true, value: true },
+            bleMode: { dirty: true, value: 1 },
+            heartRateMonitor: { dirty: true, value: "ant" },
+            autoSession: { dirty: true, value: "off" },
+        });
         const mockRowingForm = {
             dirty: false,
             controls: {
@@ -113,22 +105,10 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
     });
 
     it("should save autoLap settings when autoLap or autoLapValue is dirty", async (): Promise<void> => {
-        const mockGeneralForm = {
-            dirty: true,
-            controls: {
-                logLevel: { dirty: false, value: 1 },
-                deltaTimeLogging: { dirty: false, value: false },
-                logToSdCard: { dirty: false, value: false },
-                bleMode: { dirty: false, value: 0 },
-                heartRateMonitor: { dirty: false, value: "off" },
-                autoSession: { dirty: false, value: "autoStart" },
-                autoLap: { dirty: true, value: "distance" },
-                autoLapValue: { dirty: true, value: 1000 },
-            },
-            value: {
-                heartRateMonitor: "off",
-            },
-        };
+        const mockGeneralForm = createMockGeneralForm(true, {
+            autoLap: { dirty: true, value: "distance" },
+            autoLapValue: { dirty: true, value: 1000 },
+        });
         const mockRowingForm = createMockRowingForm(false);
         const mockDisplayForm = createMockDisplayForm(false);
 
@@ -714,19 +694,7 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
     });
 
     it("should handle save confirmation dialog correctly", async (): Promise<void> => {
-        const mockGeneralForm = {
-            dirty: false,
-            controls: {
-                logLevel: { dirty: false, value: 1 },
-                deltaTimeLogging: { dirty: false, value: false },
-                logToSdCard: { dirty: false, value: false },
-                bleMode: { dirty: false, value: 0 },
-                heartRateMonitor: { dirty: false, value: "none" },
-                autoSession: { dirty: false, value: "autoStart" },
-                autoLap: { dirty: false, value: "off" },
-                autoLapValue: { dirty: false, value: 500 },
-            },
-        };
+        const mockGeneralForm = createMockGeneralForm(false);
         const mockRowingForm = {
             dirty: true,
             controls: {

@@ -33,9 +33,11 @@ export interface IMockGeneralForm {
         {
             dirty: boolean;
             value: unknown;
+            getRawValue?: () => unknown;
         }
     >;
     value: Record<string, unknown>;
+    getRawValue?: () => Record<string, unknown>;
 }
 
 export interface IMockRowingForm {
@@ -128,7 +130,7 @@ export const createMockGeneralForm: (
     dirty: boolean = false,
     controlValues: Record<string, unknown> = {},
 ): IMockGeneralForm => {
-    const defaultControlValues: Record<string, unknown> = {
+    const defaultValues: Record<string, unknown> = {
         logLevel: 1,
         deltaTimeLogging: false,
         logToSdCard: false,
@@ -137,50 +139,57 @@ export const createMockGeneralForm: (
         autoSession: "autoStart",
         autoLap: "off",
         autoLapValue: 500,
-        ...controlValues,
+        intervalsApiKey: "",
+        intervalsAthleteId: "",
+        intervalsAutoUpload: false,
     };
 
-    return {
+    const controls: Record<
+        string,
+        {
+            dirty: boolean;
+            value: unknown;
+            getRawValue?: () => unknown;
+        }
+    > = {};
+
+    Object.keys(defaultValues).forEach((key: string): void => {
+        const spec = controlValues[key];
+        const isSpecObject = spec !== null && typeof spec === "object" && "value" in spec;
+        const controlValue = isSpecObject ? (spec as { value: unknown }).value : (spec ?? defaultValues[key]);
+        const isControlDirty = isSpecObject ? ((spec as { dirty?: boolean }).dirty ?? dirty) : dirty;
+
+        const control: { dirty: boolean; value: unknown; getRawValue?: () => unknown } = {
+            dirty: isControlDirty,
+            value: controlValue,
+        };
+
+        if (key.startsWith("intervals")) {
+            control.getRawValue = (): unknown => control.value;
+        }
+
+        controls[key] = control;
+    });
+
+    const defaultControlValues = Object.keys(defaultValues).reduce(
+        (acc: Record<string, unknown>, key: string): Record<string, unknown> => {
+            const spec = controlValues[key];
+            const isSpecObject = spec !== null && typeof spec === "object" && "value" in spec;
+            acc[key] = isSpecObject ? (spec as { value: unknown }).value : (spec ?? defaultValues[key]);
+
+            return acc;
+        },
+        {},
+    );
+
+    const form = {
         dirty,
-        controls: Object.keys(defaultControlValues).reduce(
-            (
-                acc: Record<
-                    string,
-                    {
-                        dirty: boolean;
-                        value: unknown;
-                    }
-                >,
-                key: string,
-            ): Record<
-                string,
-                {
-                    dirty: boolean;
-                    value: unknown;
-                }
-            > => {
-                acc[key] = {
-                    dirty:
-                        (
-                            defaultControlValues[key] as {
-                                dirty: boolean;
-                            }
-                        ).dirty ?? dirty,
-                    value: defaultControlValues[key],
-                };
-
-                return acc;
-            },
-            {} as Record<
-                string,
-                {
-                    dirty: boolean;
-                    value: unknown;
-                }
-            >,
-        ),
+        controls,
         value: defaultControlValues,
+        getRawValue: (): Record<string, unknown> => defaultControlValues,
     };
+
+    return form as IMockGeneralForm;
 };
 
 export const createMockRowingForm: (

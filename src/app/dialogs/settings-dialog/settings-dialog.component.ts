@@ -289,6 +289,20 @@ export class SettingsDialogComponent {
                 },
             });
         }
+
+        if (
+            settingsForm.controls.intervalsApiKey.dirty ||
+            settingsForm.controls.intervalsAthleteId.dirty ||
+            settingsForm.controls.intervalsAutoUpload.dirty
+        ) {
+            this.configManager.setGroup("general", {
+                intervalsIcu: {
+                    apiKey: settingsForm.controls.intervalsApiKey.value,
+                    athleteId: settingsForm.controls.intervalsAthleteId.value,
+                    autoUploadEnabled: settingsForm.controls.intervalsAutoUpload.getRawValue(),
+                },
+            });
+        }
     }
 
     private async saveRowingSettings(): Promise<void> {

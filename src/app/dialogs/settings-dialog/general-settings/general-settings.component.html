@@ -91,6 +91,43 @@
                 }
             </div>
         </div>
+        <h4>Intervals.icu</h4>
+        <mat-form-field subscriptSizing="dynamic">
+            <mat-label>API Key</mat-label>
+            <input
+                matInput
+                formControlName="intervalsApiKey"
+                [type]="showApiKey() ? 'text' : 'password'"
+                autocomplete="off"
+            />
+            <button
+                mat-icon-button
+                matSuffix
+                type="button"
+                (click)="showApiKey.set(!showApiKey())"
+                [attr.aria-label]="showApiKey() ? 'Hide API key' : 'Show API key'"
+            >
+                <mat-icon>{{ showApiKey() ? "visibility_off" : "visibility" }}</mat-icon>
+            </button>
+            <button
+                mat-icon-button
+                matSuffix
+                type="button"
+                (click)="showAthleteId.set(!showAthleteId())"
+                [attr.aria-label]="showAthleteId() ? 'Hide athlete ID field' : 'Show athlete ID field'"
+            >
+                <mat-icon>person</mat-icon>
+            </button>
+        </mat-form-field>
+        @if (showAthleteId()) {
+            <mat-form-field subscriptSizing="dynamic">
+                <mat-label>Athlete ID</mat-label>
+                <input matInput type="text" formControlName="intervalsAthleteId" />
+            </mat-form-field>
+        }
+        <mat-slide-toggle formControlName="intervalsAutoUpload"
+            >Auto upload to Intervals.icu</mat-slide-toggle
+        >
         <h4>Logging</h4>
         <mat-form-field subscriptSizing="dynamic">
             <mat-label>Log Level</mat-label>

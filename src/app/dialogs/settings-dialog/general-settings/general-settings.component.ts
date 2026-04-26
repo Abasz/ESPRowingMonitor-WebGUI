@@ -27,9 +27,11 @@ import { MatButtonToggle, MatButtonToggleGroup } from "@angular/material/button-
 import { MatCheckbox } from "@angular/material/checkbox";
 import { MatOption } from "@angular/material/core";
 import { MatDialog } from "@angular/material/dialog";
-import { MatError, MatFormField, MatLabel } from "@angular/material/form-field";
+import { MatError, MatFormField, MatLabel, MatSuffix } from "@angular/material/form-field";
 import { MatIcon } from "@angular/material/icon";
+import { MatInput } from "@angular/material/input";
 import { MatSelect } from "@angular/material/select";
+import { MatSlideToggle } from "@angular/material/slide-toggle";
 import { MatTooltip } from "@angular/material/tooltip";
 import { SwUpdate } from "@angular/service-worker";
 import { map, startWith } from "rxjs";
@@ -63,6 +65,9 @@ type GeneralSettingsFormGroup = FormGroup<{
     autoLapValue: FormControl<number>;
     deltaTimeLogging: FormControl<boolean>;
     logToSdCard: FormControl<boolean>;
+    intervalsApiKey: FormControl<string>;
+    intervalsAthleteId: FormControl<string>;
+    intervalsAutoUpload: FormControl<boolean>;
 }>;
 
 @Component({
@@ -85,6 +90,9 @@ type GeneralSettingsFormGroup = FormGroup<{
         MatButtonToggleGroup,
         DatePipe,
         EnumToArrayPipe,
+        MatInput,
+        MatSuffix,
+        MatSlideToggle,
     ],
 })
 export class GeneralSettingsComponent implements OnInit {
@@ -104,6 +112,8 @@ export class GeneralSettingsComponent implements OnInit {
     });
     readonly isConnected: InputSignal<boolean> = input.required<boolean>();
     readonly isGuiUpdateInProgress: WritableSignal<boolean> = signal<boolean>(false);
+    readonly showApiKey: WritableSignal<boolean> = signal<boolean>(false);
+    readonly showAthleteId: WritableSignal<boolean> = signal<boolean>(false);
 
     readonly isFormValidChange: OutputEmitterRef<boolean> = output<boolean>();
 
@@ -113,14 +123,9 @@ export class GeneralSettingsComponent implements OnInit {
     readonly compileDate: Date = new Date(versionInfo.timeStamp);
     readonly firmwareReleaseUrl: string = FirmwareUpdateManagerService.FIRMWARE_RELEASE_URL;
 
-    private readonly formValueChanged: Signal<
-        Partial<
-            | Omit<IRowerSettings, "isRuntimeSettingsEnabled">
-            | "machineSettings"
-            | "sensorSignalSettings"
-            | "dragFactorSettings"
-        >
-    >;
+    private readonly previousApiKey: string;
+    private readonly apiKeyValue: Signal<string>;
+    private readonly formValueChanged: Signal<Partial<GeneralSettingsFormGroup["value"]>>;
 
     constructor(
         public firmwareUpdateManagerService: FirmwareUpdateManagerService,
@@ -151,6 +156,22 @@ export class GeneralSettingsComponent implements OnInit {
                     disabled: true,
                 },
             ],
+            intervalsApiKey: [this.configManager.getGroup("general").intervalsIcu.apiKey],
+            intervalsAthleteId: [this.configManager.getGroup("general").intervalsIcu.athleteId],
+            intervalsAutoUpload: [this.configManager.getGroup("general").intervalsIcu.autoUploadEnabled],
+        });
+
+        this.previousApiKey = this.configManager.getGroup("general").intervalsIcu.apiKey;
+
+        this.apiKeyValue = toSignal(
+            this.settingsForm.controls.intervalsApiKey.valueChanges.pipe(
+                startWith(this.settingsForm.controls.intervalsApiKey.value),
+            ),
+            { initialValue: this.settingsForm.controls.intervalsApiKey.value },
+        );
+
+        effect((): void => {
+            this.settingsForm.controls.intervalsAutoUpload[this.apiKeyValue() ? "enable" : "disable"]();
         });
 
         this.settingsFormErrors = toSignal(
@@ -216,7 +237,7 @@ export class GeneralSettingsComponent implements OnInit {
         }
     }
 
-    async otaUpdate(event: Event): Promise<void> {
+    otaUpdate(event: Event): void {
         const inputElement = event.currentTarget;
         if (!(inputElement instanceof HTMLInputElement) || !inputElement?.files) {
             return;
@@ -253,6 +274,14 @@ export class GeneralSettingsComponent implements OnInit {
             default:
                 break;
         }
+    }
+
+    hasApiKeyChanged(): boolean {
+        return this.settingsForm.controls.intervalsApiKey.value !== this.previousApiKey;
+    }
+
+    isFirstTimeSetup(): boolean {
+        return this.previousApiKey === "";
     }
 
     getForm(): GeneralSettingsFormGroup {
