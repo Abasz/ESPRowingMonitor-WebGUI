@@ -15,6 +15,7 @@ import { deepMerge } from "../utils/utility.functions";
 import { ConfigManagerService } from "./config-manager.service";
 import { DataRecorderService } from "./data-recorder.service";
 import { ErgConnectionService } from "./ergometer/erg-connection.service";
+import { IntervalsIcuService } from "./intervals-icu.service";
 import { MetricsService } from "./metrics.service";
 import { SessionManagerService } from "./session-manager.service";
 
@@ -40,10 +41,14 @@ export interface SessionManagerTestContext {
     configSubject: BehaviorSubject<Config>;
     heartRateSubject: BehaviorSubject<IHeartRate | undefined>;
     connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
-    mockDataRecorderService: Pick<DataRecorderService, "reset" | "addSessionData" | "addLap">;
+    mockDataRecorderService: Pick<
+        DataRecorderService,
+        "reset" | "addSessionData" | "addLap" | "currentSessionId"
+    >;
     mockMetricsService: Pick<MetricsService, "rawMetrics$" | "heartRateData$">;
     mockErgConnectionService: Pick<ErgConnectionService, "connectionStatus$">;
-    mockConfigManagerService: Pick<ConfigManagerService, "configChanged$">;
+    mockConfigManagerService: Pick<ConfigManagerService, "configChanged$" | "getGroup">;
+    mockIntervalsIcuService: Pick<IntervalsIcuService, "uploadSession">;
 }
 
 export function setupSessionManagerTestBed(): SessionManagerTestContext {
@@ -56,10 +61,14 @@ export function setupSessionManagerTestBed(): SessionManagerTestContext {
         heartRateData$: heartRateSubject.asObservable(),
     };
 
-    const mockDataRecorderService: Pick<DataRecorderService, "reset" | "addSessionData" | "addLap"> = {
+    const mockDataRecorderService: Pick<
+        DataRecorderService,
+        "reset" | "addSessionData" | "addLap" | "currentSessionId"
+    > = {
         reset: vi.fn().mockResolvedValue(undefined),
         addSessionData: vi.fn().mockResolvedValue(undefined),
         addLap: vi.fn().mockResolvedValue(1),
+        currentSessionId: 1700000000000,
     };
 
     const mockErgConnectionService: Pick<ErgConnectionService, "connectionStatus$"> = {
@@ -67,8 +76,15 @@ export function setupSessionManagerTestBed(): SessionManagerTestContext {
     };
 
     const configSubject = new BehaviorSubject<Config>(new Config());
-    const mockConfigManagerService: Pick<ConfigManagerService, "configChanged$"> = {
+    const mockConfigManagerService: Pick<ConfigManagerService, "configChanged$" | "getGroup"> = {
         configChanged$: configSubject.asObservable(),
+        getGroup: vi.fn().mockReturnValue({
+            intervalsIcu: { apiKey: "", athleteId: "", autoUploadEnabled: false },
+        }),
+    };
+
+    const mockIntervalsIcuService: Pick<IntervalsIcuService, "uploadSession"> = {
+        uploadSession: vi.fn().mockResolvedValue(true),
     };
 
     TestBed.configureTestingModule({
@@ -78,6 +94,7 @@ export function setupSessionManagerTestBed(): SessionManagerTestContext {
             { provide: DataRecorderService, useValue: mockDataRecorderService },
             { provide: ErgConnectionService, useValue: mockErgConnectionService },
             { provide: ConfigManagerService, useValue: mockConfigManagerService },
+            { provide: IntervalsIcuService, useValue: mockIntervalsIcuService },
         ],
     });
 
@@ -93,6 +110,7 @@ export function setupSessionManagerTestBed(): SessionManagerTestContext {
         mockMetricsService,
         mockErgConnectionService,
         mockConfigManagerService,
+        mockIntervalsIcuService,
     };
 }
 

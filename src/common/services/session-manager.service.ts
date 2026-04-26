@@ -27,6 +27,7 @@ import {
     ICalculatedMetrics,
     IErgConnectionStatus,
     IHeartRate,
+    IIntervalsIcuConfig,
     IRawCalculatedMetrics,
     SessionState,
 } from "../common.interfaces";
@@ -35,6 +36,7 @@ import { Stopwatch } from "../utils/stopwatch";
 import { ConfigManagerService } from "./config-manager.service";
 import { DataRecorderService } from "./data-recorder.service";
 import { ErgConnectionService } from "./ergometer/erg-connection.service";
+import { IntervalsIcuService } from "./intervals-icu.service";
 import { MetricsService } from "./metrics.service";
 
 const ZERO_RAW_METRICS: IRawCalculatedMetrics = {
@@ -115,6 +117,7 @@ export class SessionManagerService {
         private dataRecorder: DataRecorderService,
         private ergConnectionService: ErgConnectionService,
         private configManager: ConfigManagerService,
+        private intervalsService: IntervalsIcuService,
     ) {
         this.sessionState = toSignal(this.sessionState$, { requireSync: true });
         this.elapsedTime = this._elapsedTime.asReadonly();
@@ -229,9 +232,21 @@ export class SessionManagerService {
             return;
         }
 
+        const sessionId = this.dataRecorder.currentSessionId;
         this.hasSeenNonZeroSpeed = false;
         this.stopwatch.stop();
         this.sessionState$.next("stopped");
+        void this.handleAutoUpload(sessionId);
+    }
+
+    private async handleAutoUpload(sessionId: number): Promise<void> {
+        const { intervalsIcu }: { intervalsIcu: IIntervalsIcuConfig } =
+            this.configManager.getGroup("general");
+
+        if (!intervalsIcu.autoUploadEnabled || !intervalsIcu.apiKey) {
+            return;
+        }
+        await this.intervalsService.uploadSession(sessionId, intervalsIcu);
     }
 
     private setupAutoStart(): void {

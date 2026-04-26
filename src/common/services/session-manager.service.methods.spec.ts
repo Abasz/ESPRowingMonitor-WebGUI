@@ -2,9 +2,16 @@ import { TestBed } from "@angular/core/testing";
 import { BehaviorSubject } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { IErgConnectionStatus, IRawCalculatedMetrics } from "../common.interfaces";
+import {
+    Config,
+    IErgConnectionStatus,
+    IIntervalsIcuConfig,
+    IRawCalculatedMetrics,
+} from "../common.interfaces";
 
+import { ConfigManagerService } from "./config-manager.service";
 import { DataRecorderService } from "./data-recorder.service";
+import { IntervalsIcuService } from "./intervals-icu.service";
 import { SessionManagerService } from "./session-manager.service";
 import {
     mockRawMetrics,
@@ -16,7 +23,12 @@ describe("SessionManagerService", (): void => {
     let service: SessionManagerService;
     let rawMetricsSubject: BehaviorSubject<IRawCalculatedMetrics>;
     let connectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
-    let mockDataRecorderService: Pick<DataRecorderService, "reset" | "addSessionData" | "addLap">;
+    let mockDataRecorderService: Pick<
+        DataRecorderService,
+        "currentSessionId" | "reset" | "addSessionData" | "addLap"
+    >;
+    let mockConfigManagerService: Pick<ConfigManagerService, "configChanged$" | "getGroup">;
+    let mockIntervalsIcuService: Pick<IntervalsIcuService, "uploadSession">;
 
     beforeEach((): void => {
         vi.useFakeTimers();
@@ -26,6 +38,8 @@ describe("SessionManagerService", (): void => {
         rawMetricsSubject = context.rawMetricsSubject;
         connectionStatusSubject = context.connectionStatusSubject;
         mockDataRecorderService = context.mockDataRecorderService;
+        mockConfigManagerService = context.mockConfigManagerService;
+        mockIntervalsIcuService = context.mockIntervalsIcuService;
     });
 
     afterEach((): void => {
@@ -174,6 +188,78 @@ describe("SessionManagerService", (): void => {
 
             service.stop();
             expect(service.sessionState()).toBe("stopped");
+        });
+
+        describe("auto-upload triggering", (): void => {
+            const enabledConfig: IIntervalsIcuConfig = {
+                apiKey: "secret-key",
+                athleteId: "123",
+                autoUploadEnabled: true,
+            };
+
+            it("should call uploadSession with sessionId and config when auto-upload is enabled", (): void => {
+                vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
+                    ...new Config().general,
+                    intervalsIcu: enabledConfig,
+                });
+                service.start();
+
+                service.stop();
+
+                expect(mockIntervalsIcuService.uploadSession).toHaveBeenCalledTimes(1);
+                expect(mockIntervalsIcuService.uploadSession).toHaveBeenCalledWith(
+                    mockDataRecorderService.currentSessionId,
+                    enabledConfig,
+                );
+            });
+
+            it("should not call uploadSession when autoUploadEnabled is false", (): void => {
+                service.start();
+
+                service.stop();
+
+                expect(mockIntervalsIcuService.uploadSession).not.toHaveBeenCalled();
+            });
+
+            it("should not call uploadSession when apiKey is empty", (): void => {
+                vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
+                    ...new Config().general,
+                    intervalsIcu: { ...enabledConfig, apiKey: "" },
+                });
+                service.start();
+
+                service.stop();
+
+                expect(mockIntervalsIcuService.uploadSession).not.toHaveBeenCalled();
+            });
+
+            it("should not trigger auto-upload when session is already stopped", (): void => {
+                vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
+                    ...new Config().general,
+                    intervalsIcu: enabledConfig,
+                });
+
+                service.stop();
+
+                expect(mockIntervalsIcuService.uploadSession).not.toHaveBeenCalled();
+            });
+
+            it("should call uploadSession when stopping from paused state", (): void => {
+                vi.mocked(mockConfigManagerService.getGroup).mockReturnValue({
+                    ...new Config().general,
+                    intervalsIcu: enabledConfig,
+                });
+                service.start();
+                service.pause();
+
+                service.stop();
+
+                expect(mockIntervalsIcuService.uploadSession).toHaveBeenCalledTimes(1);
+                expect(mockIntervalsIcuService.uploadSession).toHaveBeenCalledWith(
+                    mockDataRecorderService.currentSessionId,
+                    enabledConfig,
+                );
+            });
         });
     });
 
