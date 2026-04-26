@@ -1,5 +1,5 @@
 import { MediaMatcher } from "@angular/cdk/layout";
-import { HTTP_INTERCEPTORS } from "@angular/common/http";
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from "@angular/common/http";
 import { DestroyRef, importProvidersFrom, inject, isDevMode, provideAppInitializer } from "@angular/core";
 import { MAT_SNACK_BAR_DEFAULT_OPTIONS, MatSnackBar } from "@angular/material/snack-bar";
 import { bootstrapApplication } from "@angular/platform-browser";
@@ -42,6 +42,7 @@ bootstrapApplication(AppComponent, {
                 registrationStrategy: "registerWhenStable:10000",
             }),
         ),
+        provideHttpClient(withInterceptorsFromDi()),
         { provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true },
         {
             provide: AntHeartRateService,
