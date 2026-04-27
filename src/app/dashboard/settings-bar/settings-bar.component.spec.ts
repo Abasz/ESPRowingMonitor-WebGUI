@@ -8,7 +8,7 @@ import { MatDialog } from "@angular/material/dialog";
 import { MatIconHarness } from "@angular/material/icon/testing";
 import { MatToolbarHarness } from "@angular/material/toolbar/testing";
 import { MatTooltipHarness } from "@angular/material/tooltip/testing";
-import { BehaviorSubject } from "rxjs";
+import { BehaviorSubject, of } from "rxjs";
 import { map } from "rxjs/operators";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,6 +17,7 @@ import {
     Config,
     IErgConnectionStatus,
     IHRConnectionStatus,
+    ILogbookDialogData,
     IRowerSettings,
     ISessionSummary,
     SessionState,
@@ -28,6 +29,7 @@ import { ErgConnectionService } from "../../../common/services/ergometer/erg-con
 import { ErgGenericDataService } from "../../../common/services/ergometer/erg-generic-data.service";
 import { ErgSettingsService } from "../../../common/services/ergometer/erg-settings.service";
 import { HeartRateService } from "../../../common/services/heart-rate/heart-rate.service";
+import { IntervalsIcuService } from "../../../common/services/intervals-icu.service";
 import { MetricsService } from "../../../common/services/metrics.service";
 import { SessionManagerService } from "../../../common/services/session-manager.service";
 import { UtilsService } from "../../../common/services/utils.service";
@@ -53,6 +55,8 @@ describe("SettingsBarComponent", (): void => {
     let mockUtilsService: Pick<UtilsService, "mainSpinner">;
     let mockConfigManagerService: Pick<ConfigManagerService, "configChanged$">;
     let mockHeartRateService: Pick<HeartRateService, "discover">;
+
+    let mockIntervalsIcuService: Pick<IntervalsIcuService, "getUploadedSessionIds$">;
 
     let batteryLevelSubject: BehaviorSubject<number>;
     let ergConnectionStatusSubject: BehaviorSubject<IErgConnectionStatus>;
@@ -168,6 +172,9 @@ describe("SettingsBarComponent", (): void => {
         mockHeartRateService = {
             discover: vi.fn(),
         };
+        mockIntervalsIcuService = {
+            getUploadedSessionIds$: vi.fn().mockReturnValue(of([])),
+        };
 
         vi.mocked(mockDataRecorderService.getSessionSummaries$).mockReturnValue(
             sessionsSubject.asObservable(),
@@ -196,6 +203,7 @@ describe("SettingsBarComponent", (): void => {
                 { provide: UtilsService, useValue: mockUtilsService },
                 { provide: ConfigManagerService, useValue: mockConfigManagerService },
                 { provide: HeartRateService, useValue: mockHeartRateService },
+                { provide: IntervalsIcuService, useValue: mockIntervalsIcuService },
             ],
         }).compileComponents();
 
@@ -515,6 +523,11 @@ describe("SettingsBarComponent", (): void => {
             expect(mockDataRecorderService.getSessionSummaries$).toHaveBeenCalled();
         });
 
+        it("should call getUploadedSessionIds$", (): void => {
+            component.openLogbook();
+            expect(mockIntervalsIcuService.getUploadedSessionIds$).toHaveBeenCalled();
+        });
+
         it("should close main spinner on success", (): void => {
             component.openLogbook();
             expect(mockSpinner.close).toHaveBeenCalled();
@@ -525,7 +538,26 @@ describe("SettingsBarComponent", (): void => {
             expect(mockMatDialog.open).toHaveBeenCalledWith(
                 expect.any(Function),
                 expect.objectContaining({
-                    data: mockSessionSummaries,
+                    data: {
+                        summaries: mockSessionSummaries,
+                        uploadedSessionIds: [],
+                    } satisfies ILogbookDialogData,
+                }),
+            );
+        });
+
+        it("should forward non-empty uploaded session IDs to dialog data", (): void => {
+            vi.mocked(mockIntervalsIcuService.getUploadedSessionIds$).mockReturnValue(of([101, 202]));
+
+            component.openLogbook();
+
+            expect(mockMatDialog.open).toHaveBeenCalledWith(
+                expect.any(Function),
+                expect.objectContaining({
+                    data: {
+                        summaries: mockSessionSummaries,
+                        uploadedSessionIds: [101, 202],
+                    } satisfies ILogbookDialogData,
                 }),
             );
         });
@@ -547,7 +579,7 @@ describe("SettingsBarComponent", (): void => {
             expect(mockMatDialog.open).toHaveBeenCalledWith(
                 expect.any(Function),
                 expect.objectContaining({
-                    data: [],
+                    data: { summaries: [], uploadedSessionIds: [] } satisfies ILogbookDialogData,
                 }),
             );
         });
@@ -580,6 +612,22 @@ describe("SettingsBarComponent", (): void => {
 
                 component.openLogbook();
 
+                expect(mockMatDialog.open).not.toHaveBeenCalled();
+            });
+
+            it("should close spinner and not open dialog when uploaded IDs loading fails", (): void => {
+                const testError = new Error("Uploaded IDs error");
+                vi.mocked(mockIntervalsIcuService.getUploadedSessionIds$).mockReturnValue(
+                    new BehaviorSubject<Array<number>>([]).pipe(
+                        map((): Array<number> => {
+                            throw testError;
+                        }),
+                    ),
+                );
+
+                component.openLogbook();
+
+                expect(mockSpinner.close).toHaveBeenCalled();
                 expect(mockMatDialog.open).not.toHaveBeenCalled();
             });
         });
@@ -810,7 +858,7 @@ describe("SettingsBarComponent", (): void => {
                 expect(mockMatDialog.open).toHaveBeenCalledWith(
                     expect.any(Function),
                     expect.objectContaining({
-                        data: [],
+                        data: { summaries: [], uploadedSessionIds: [] } satisfies ILogbookDialogData,
                     }),
                 );
             });
@@ -861,7 +909,10 @@ describe("SettingsBarComponent", (): void => {
                 expect(mockMatDialog.open).toHaveBeenCalledWith(
                     expect.any(Function),
                     expect.objectContaining({
-                        data: largeSessions,
+                        data: {
+                            summaries: largeSessions,
+                            uploadedSessionIds: [],
+                        } satisfies ILogbookDialogData,
                     }),
                 );
             });

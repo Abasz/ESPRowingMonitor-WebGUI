@@ -232,6 +232,11 @@ export interface ISessionSummary {
     strokeCount: number;
 }
 
+export interface ILogbookDialogData {
+    summaries: Array<ISessionSummary>;
+    uploadedSessionIds: Array<number>;
+}
+
 export interface IHeartRate {
     heartRate: number;
     contactDetected: boolean;

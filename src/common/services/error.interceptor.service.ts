@@ -11,8 +11,6 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { Observable, throwError } from "rxjs";
 import { catchError } from "rxjs/operators";
 
-import { IValidationErrors } from "../common.interfaces";
-
 import { UtilsService } from "./utils.service";
 
 @Injectable()
@@ -22,16 +20,13 @@ export class ErrorInterceptor implements HttpInterceptor {
         private utils: UtilsService,
     ) {}
 
-    intercept(
-        req: HttpRequest<unknown>,
-        next: HttpHandler,
-    ): Observable<HttpEvent<HttpErrorResponse | IValidationErrors>> {
+    intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<HttpErrorResponse>> {
         return next.handle(req).pipe(
             catchError((error: HttpErrorResponse): Observable<never> => {
                 this.utils.mainSpinner().close();
 
                 if (error.status === 422 || error.status === 401) {
-                    return throwError((): IValidationErrors => error.error);
+                    return throwError((): HttpErrorResponse => error);
                 }
 
                 if ((error.status === 400 || error.status === 404 || error.status === 500) && error.error) {

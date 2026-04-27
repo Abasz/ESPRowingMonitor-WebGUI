@@ -14,8 +14,10 @@ import { Router } from "@angular/router";
 import { firstValueFrom, Observable, of, Subject } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
-import { ISessionSummary } from "../../../common/common.interfaces";
+import { ILogbookDialogData, ISessionSummary } from "../../../common/common.interfaces";
+import { ConfigManagerService } from "../../../common/services/config-manager.service";
 import { DataRecorderService } from "../../../common/services/data-recorder.service";
+import { IntervalsIcuService } from "../../../common/services/intervals-icu.service";
 import { SnackBarConfirmComponent } from "../../../common/snack-bar-confirm/snack-bar-confirm.component";
 import { SecondsToTimePipe } from "../../../common/utils/seconds-to-time.pipe";
 
@@ -26,6 +28,7 @@ describe("LogbookDialogComponent", (): void => {
     let component: LogbookDialogComponent;
 
     let summaries$: Subject<Array<ISessionSummary>>;
+    let uploadedIds$: Subject<Array<number>>;
 
     let dataRecorderSpy: Pick<
         DataRecorderService,
@@ -40,6 +43,8 @@ describe("LogbookDialogComponent", (): void => {
     let snackBarSpy: Pick<MatSnackBar, "open" | "openFromComponent">;
     let routerSpy: Pick<Router, "serializeUrl" | "createUrlTree">;
     let locationSpy: Pick<Location, "prepareExternalUrl">;
+    let intervalsIcuServiceSpy: Pick<IntervalsIcuService, "uploadSession" | "getUploadedSessionIds$">;
+    let configManagerSpy: Pick<ConfigManagerService, "getGroup">;
 
     const SESSIONS: Array<ISessionSummary> = [
         {
@@ -62,8 +67,35 @@ describe("LogbookDialogComponent", (): void => {
         },
     ];
 
+    const DEFAULT_DIALOG_DATA: ILogbookDialogData = {
+        summaries: SESSIONS,
+        uploadedSessionIds: [SESSIONS[0].sessionId],
+    };
+
+    const createComponent = (): void => {
+        fixture?.destroy();
+        fixture = TestBed.createComponent(LogbookDialogComponent);
+        component = fixture.componentInstance;
+    };
+
     beforeEach(async (): Promise<void> => {
         summaries$ = new Subject<Array<ISessionSummary>>();
+        uploadedIds$ = new Subject<Array<number>>();
+
+        intervalsIcuServiceSpy = {
+            uploadSession: vi.fn(),
+            getUploadedSessionIds$: vi.fn(),
+        };
+        vi.mocked(intervalsIcuServiceSpy.uploadSession).mockResolvedValue(true);
+        vi.mocked(intervalsIcuServiceSpy.getUploadedSessionIds$).mockReturnValue(uploadedIds$.asObservable());
+
+        configManagerSpy = {
+            getGroup: vi.fn(),
+        };
+        vi.mocked(configManagerSpy.getGroup).mockReturnValue({
+            intervalsIcu: { apiKey: "", athleteId: "", autoUploadEnabled: false },
+        } as ReturnType<ConfigManagerService["getGroup"]>);
+
         dataRecorderSpy = {
             getSessionSummaries$: vi.fn(),
             deleteSession: vi.fn(),
@@ -101,41 +133,46 @@ describe("LogbookDialogComponent", (): void => {
         await TestBed.configureTestingModule({
             imports: [LogbookDialogComponent],
             providers: [
-                { provide: MAT_DIALOG_DATA, useValue: SESSIONS },
+                { provide: MAT_DIALOG_DATA, useValue: DEFAULT_DIALOG_DATA },
                 { provide: DataRecorderService, useValue: dataRecorderSpy },
                 { provide: MatSnackBar, useValue: snackBarSpy },
                 { provide: Router, useValue: routerSpy },
                 { provide: Location, useValue: locationSpy },
+                { provide: IntervalsIcuService, useValue: intervalsIcuServiceSpy },
+                { provide: ConfigManagerService, useValue: configManagerSpy },
             ],
         }).compileComponents();
 
-        fixture = TestBed.createComponent(LogbookDialogComponent);
-        component = fixture.componentInstance;
+        createComponent();
     });
 
-    it("should create the component", (): void => {
-        expect(component).toBeTruthy();
+    describe("as part of component creation", (): void => {
+        it("should create the component", (): void => {
+            expect(component).toBeTruthy();
+        });
     });
 
-    it("should dismiss confirm snackbar on ngOnDestroy when present", (): void => {
-        component.deleteSession(SESSIONS[0].sessionId);
-        const dismissSpy = vi.fn();
-        (
-            component as unknown as {
-                confirmSnackBarRef: {
-                    dismiss: Mock;
-                };
-            }
-        ).confirmSnackBarRef = {
-            dismiss: dismissSpy,
-        };
+    describe("ngOnDestroy method", (): void => {
+        it("should dismiss confirm snackbar on ngOnDestroy when present", (): void => {
+            component.deleteSession(SESSIONS[0].sessionId);
+            const dismissSpy = vi.fn();
+            (
+                component as unknown as {
+                    confirmSnackBarRef: {
+                        dismiss: Mock;
+                    };
+                }
+            ).confirmSnackBarRef = {
+                dismiss: dismissSpy,
+            };
 
-        component.ngOnDestroy();
+            component.ngOnDestroy();
 
-        expect(dismissSpy).toHaveBeenCalled();
+            expect(dismissSpy).toHaveBeenCalled();
+        });
     });
 
-    describe("template", (): void => {
+    describe("as part of template rendering", (): void => {
         it("should render one table row per session", async (): Promise<void> => {
             summaries$.next(SESSIONS);
             await fixture.whenStable();
@@ -379,6 +416,120 @@ describe("LogbookDialogComponent", (): void => {
             await component.exportToCsv(SESSIONS[0].sessionId);
 
             expect(dataRecorderSpy.exportSessionToCsv).toHaveBeenCalledWith(SESSIONS[0].sessionId);
+        });
+
+        describe("upload button", (): void => {
+            describe("when no API key is configured", (): void => {
+                beforeEach((): void => {
+                    vi.mocked(configManagerSpy.getGroup).mockReturnValue({
+                        intervalsIcu: { apiKey: "", athleteId: "", autoUploadEnabled: false },
+                    } as ReturnType<ConfigManagerService["getGroup"]>);
+                    createComponent();
+                });
+
+                it("should not show upload button", async (): Promise<void> => {
+                    summaries$.next(SESSIONS);
+                    await fixture.whenStable();
+
+                    const uploadButtons = fixture.nativeElement.querySelectorAll(
+                        "[aria-label='Upload to Intervals.icu']",
+                    );
+                    expect(uploadButtons).toHaveLength(0);
+                });
+            });
+
+            describe("when API key is present", (): void => {
+                beforeEach((): void => {
+                    vi.mocked(configManagerSpy.getGroup).mockReturnValue({
+                        intervalsIcu: { apiKey: "my-key", athleteId: "", autoUploadEnabled: false },
+                    } as ReturnType<ConfigManagerService["getGroup"]>);
+                    createComponent();
+                });
+
+                it("should not show upload button for already-uploaded session", async (): Promise<void> => {
+                    summaries$.next(SESSIONS);
+                    uploadedIds$.next([SESSIONS[0].sessionId, SESSIONS[1].sessionId]);
+                    await fixture.whenStable();
+
+                    const uploadButtons = fixture.nativeElement.querySelectorAll(
+                        "[aria-label='Upload to Intervals.icu']",
+                    );
+                    expect(uploadButtons).toHaveLength(0);
+                });
+
+                it("should show upload button for non-uploaded sessions when API key is present", async (): Promise<void> => {
+                    summaries$.next(SESSIONS);
+                    uploadedIds$.next([]);
+                    await fixture.whenStable();
+
+                    const uploadButtons = fixture.nativeElement.querySelectorAll(
+                        "[aria-label='Upload to Intervals.icu']",
+                    );
+                    expect(uploadButtons).toHaveLength(SESSIONS.length);
+                });
+
+                it("should disable upload button while uploading that session", async (): Promise<void> => {
+                    summaries$.next(SESSIONS);
+                    uploadedIds$.next([]);
+                    await fixture.whenStable();
+
+                    component.uploadingSessionId.set(SESSIONS[0].sessionId);
+                    fixture.detectChanges();
+
+                    const uploadButton = fixture.nativeElement.querySelector(
+                        "[aria-label='Upload to Intervals.icu']",
+                    );
+                    expect(uploadButton.disabled).toBe(true);
+                });
+
+                it("should not disable upload button for a different session while uploading", async (): Promise<void> => {
+                    summaries$.next(SESSIONS);
+                    uploadedIds$.next([]);
+                    await fixture.whenStable();
+
+                    component.uploadingSessionId.set(SESSIONS[0].sessionId);
+                    fixture.detectChanges();
+
+                    const uploadButtons = fixture.nativeElement.querySelectorAll(
+                        "[aria-label='Upload to Intervals.icu']",
+                    );
+                    expect(uploadButtons[1].disabled).toBe(false);
+                });
+
+                it("should call uploadToIntervals when upload button is clicked", async (): Promise<void> => {
+                    summaries$.next(SESSIONS);
+                    uploadedIds$.next([]);
+                    await fixture.whenStable();
+                    fixture.detectChanges();
+
+                    vi.spyOn(component, "uploadToIntervals");
+                    const uploadButton = fixture.nativeElement.querySelector(
+                        "[aria-label='Upload to Intervals.icu']",
+                    );
+                    uploadButton.click();
+
+                    expect(component.uploadToIntervals).toHaveBeenCalledWith(SESSIONS[0].sessionId);
+                });
+
+                it("should hide upload button for session after it appears in uploaded IDs observable", async (): Promise<void> => {
+                    summaries$.next(SESSIONS);
+                    uploadedIds$.next([]);
+                    await fixture.whenStable();
+                    fixture.detectChanges();
+
+                    expect(
+                        fixture.nativeElement.querySelectorAll("[aria-label='Upload to Intervals.icu']"),
+                    ).toHaveLength(2);
+
+                    uploadedIds$.next([SESSIONS[0].sessionId]);
+                    await fixture.whenStable();
+                    fixture.detectChanges();
+
+                    expect(
+                        fixture.nativeElement.querySelectorAll("[aria-label='Upload to Intervals.icu']"),
+                    ).toHaveLength(1);
+                });
+            });
         });
     });
 
@@ -748,6 +899,87 @@ describe("LogbookDialogComponent", (): void => {
             fileInput.dispatchEvent(new Event("change"));
 
             expect(dataRecorderSpy.import).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("hasApiKey property", (): void => {
+        it("should be false when no API key is configured", (): void => {
+            vi.mocked(configManagerSpy.getGroup).mockReturnValue({
+                intervalsIcu: { apiKey: "", athleteId: "", autoUploadEnabled: false },
+            } as ReturnType<ConfigManagerService["getGroup"]>);
+            createComponent();
+
+            expect(component.hasApiKey).toBe(false);
+        });
+
+        it("should be true when an API key is configured", (): void => {
+            vi.mocked(configManagerSpy.getGroup).mockReturnValue({
+                intervalsIcu: { apiKey: "my-key", athleteId: "", autoUploadEnabled: false },
+            } as ReturnType<ConfigManagerService["getGroup"]>);
+            createComponent();
+
+            expect(component.hasApiKey).toBe(true);
+        });
+    });
+
+    describe("uploadedSessionIds signal", (): void => {
+        it("should start with initial IDs from dialog data before observable emits", (): void => {
+            expect(component.uploadedSessionIds().has(SESSIONS[0].sessionId)).toBe(true);
+            expect(component.uploadedSessionIds().has(SESSIONS[1].sessionId)).toBe(false);
+        });
+
+        it("should update when the observable emits new IDs", (): void => {
+            createComponent();
+            uploadedIds$.next([SESSIONS[0].sessionId]);
+
+            expect(component.uploadedSessionIds().has(SESSIONS[0].sessionId)).toBe(true);
+            expect(component.uploadedSessionIds().has(SESSIONS[1].sessionId)).toBe(false);
+        });
+    });
+
+    describe("uploadToIntervals method", (): void => {
+        it("should call intervalsIcuService.uploadSession with the given sessionId", async (): Promise<void> => {
+            await component.uploadToIntervals(SESSIONS[0].sessionId);
+
+            expect(intervalsIcuServiceSpy.uploadSession).toHaveBeenCalledWith(SESSIONS[0].sessionId);
+        });
+
+        it("should set uploadingSessionId during upload and clear it after", async (): Promise<void> => {
+            let capturedDuringUpload: number | undefined;
+            vi.mocked(intervalsIcuServiceSpy.uploadSession).mockImplementation(async (): Promise<boolean> => {
+                capturedDuringUpload = component.uploadingSessionId();
+
+                return true;
+            });
+
+            await component.uploadToIntervals(SESSIONS[0].sessionId);
+
+            expect(capturedDuringUpload).toBe(SESSIONS[0].sessionId);
+            expect(component.uploadingSessionId()).toBeUndefined();
+        });
+
+        it("should show success snackbar when upload succeeds", async (): Promise<void> => {
+            vi.mocked(intervalsIcuServiceSpy.uploadSession).mockResolvedValue(true);
+
+            await component.uploadToIntervals(SESSIONS[0].sessionId);
+
+            expect(snackBarSpy.open).toHaveBeenCalledWith("Session uploaded to Intervals.icu", "Dismiss");
+        });
+
+        it("should not show success snackbar when upload returns false", async (): Promise<void> => {
+            vi.mocked(intervalsIcuServiceSpy.uploadSession).mockResolvedValue(false);
+
+            await component.uploadToIntervals(SESSIONS[0].sessionId);
+
+            expect(snackBarSpy.open).not.toHaveBeenCalledWith("Session uploaded to Intervals.icu", "Dismiss");
+        });
+
+        it("should clear uploadingSessionId even when upload throws", async (): Promise<void> => {
+            vi.mocked(intervalsIcuServiceSpy.uploadSession).mockRejectedValue(new Error("network error"));
+
+            await component.uploadToIntervals(SESSIONS[0].sessionId).catch((): void => undefined);
+
+            expect(component.uploadingSessionId()).toBeUndefined();
         });
     });
 

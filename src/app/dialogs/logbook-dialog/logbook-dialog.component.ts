@@ -12,7 +12,7 @@ import {
     viewChild,
     WritableSignal,
 } from "@angular/core";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
 import { MatButton, MatIconButton } from "@angular/material/button";
 import {
     MAT_DIALOG_DATA,
@@ -39,14 +39,17 @@ import {
     MatTable,
     MatTableDataSource,
 } from "@angular/material/table";
+import { MatTooltip } from "@angular/material/tooltip";
 import { Router } from "@angular/router";
 import { ExportProgress } from "dexie-export-import";
 import { ImportProgress } from "dexie-export-import/dist/import";
-import { finalize, from, Observable, switchMap } from "rxjs";
+import { finalize, from, map, Observable, switchMap } from "rxjs";
 
-import { ISessionSummary } from "../../../common/common.interfaces";
+import { IIntervalsIcuConfig, ILogbookDialogData, ISessionSummary } from "../../../common/common.interfaces";
 import { DialogCloseButtonComponent } from "../../../common/dialog-close-button/dialog-close-button.component";
+import { ConfigManagerService } from "../../../common/services/config-manager.service";
 import { DataRecorderService } from "../../../common/services/data-recorder.service";
+import { IntervalsIcuService } from "../../../common/services/intervals-icu.service";
 import { SnackBarConfirmComponent } from "../../../common/snack-bar-confirm/snack-bar-confirm.component";
 import { SecondsToTimePipe } from "../../../common/utils/seconds-to-time.pipe";
 
@@ -82,13 +85,14 @@ import { SecondsToTimePipe } from "../../../common/utils/seconds-to-time.pipe";
         MatMenu,
         MatMenuContent,
         MatMenuItem,
+        MatTooltip,
         DatePipe,
         SecondsToTimePipe,
     ],
 })
 export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
     readonly dataSource: MatTableDataSource<ISessionSummary> = new MatTableDataSource<ISessionSummary>(
-        this.sessionSummary,
+        this.dialogData.summaries,
     );
 
     readonly displayedColumns: Array<string> = [
@@ -102,6 +106,15 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
 
     readonly importExportProgress: WritableSignal<number | undefined> = signal(undefined);
 
+    readonly uploadingSessionId: WritableSignal<number | undefined> = signal(undefined);
+    readonly hasApiKey: boolean;
+    readonly uploadedSessionIds: Signal<Set<number>> = toSignal(
+        this.intervalsIcuService
+            .getUploadedSessionIds$()
+            .pipe(map((ids: Array<number>): Set<number> => new Set(ids))),
+        { initialValue: new Set<number>(this.dialogData.uploadedSessionIds) },
+    );
+
     readonly sort: Signal<MatSort> = viewChild.required(MatSort);
 
     private confirmSnackBarRef: MatSnackBarRef<SnackBarConfirmComponent> | undefined;
@@ -109,17 +122,37 @@ export class LogbookDialogComponent implements AfterViewInit, OnDestroy {
     constructor(
         private dataRecorder: DataRecorderService,
         private snackBar: MatSnackBar,
-        @Inject(MAT_DIALOG_DATA) private sessionSummary: Array<ISessionSummary>,
+        @Inject(MAT_DIALOG_DATA) private dialogData: ILogbookDialogData,
         private destroyRef: DestroyRef,
         private location: Location,
         private router: Router,
+        private configManager: ConfigManagerService,
+        private intervalsIcuService: IntervalsIcuService,
     ) {
+        const { apiKey }: IIntervalsIcuConfig = this.configManager.getGroup("general").intervalsIcu;
+        this.hasApiKey = apiKey.trim().length > 0;
+
         this.dataRecorder
             .getSessionSummaries$()
             .pipe(takeUntilDestroyed())
             .subscribe((sessions: Array<ISessionSummary>): void => {
                 this.dataSource.data = sessions;
             });
+    }
+
+    async uploadToIntervals(sessionId: number): Promise<void> {
+        this.uploadingSessionId.set(sessionId);
+        try {
+            const isSuccess = await this.intervalsIcuService.uploadSession(sessionId);
+
+            if (!isSuccess) {
+                return;
+            }
+
+            this.snackBar.open("Session uploaded to Intervals.icu", "Dismiss");
+        } finally {
+            this.uploadingSessionId.set(undefined);
+        }
     }
 
     deleteSession(sessionId: number): void {

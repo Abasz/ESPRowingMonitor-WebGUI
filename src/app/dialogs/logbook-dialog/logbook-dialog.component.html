@@ -58,6 +58,18 @@
                 >
                     <mat-icon>download</mat-icon>
                 </button>
+                @if (hasApiKey && !uploadedSessionIds().has(sessionData.sessionId)) {
+                    <button
+                        mat-icon-button
+                        matTooltip="Upload to Intervals.icu"
+                        matTooltipShowDelay="1000"
+                        [disabled]="uploadingSessionId() === sessionData.sessionId"
+                        (click)="uploadToIntervals(sessionData.sessionId)"
+                        aria-label="Upload to Intervals.icu"
+                    >
+                        <mat-icon>cloud_upload</mat-icon>
+                    </button>
+                }
                 <button class="delete-button" (click)="deleteSession(sessionData.sessionId)" mat-icon-button>
                     <mat-icon>delete</mat-icon>
                 </button>
