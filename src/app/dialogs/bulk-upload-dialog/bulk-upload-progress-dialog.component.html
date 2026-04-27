@@ -1,0 +1,32 @@
+<h1 mat-dialog-title>Uploading to Intervals.icu</h1>
+<div mat-dialog-content>
+    @if (result() === undefined) {
+        <p>
+            @if (total() > 0) {
+                Uploading {{ uploaded() + failed() }} of {{ total() }}
+            } @else {
+                Preparing upload&hellip;
+            }
+        </p>
+    } @else {
+        <p>
+            @if (result()!.cancelled) {
+                Upload cancelled.
+            } @else {
+                Upload complete.
+            }
+        </p>
+    }
+    <mat-progress-bar [mode]="progressMode()" [value]="progressPercent()"></mat-progress-bar>
+    <div class="counters flex-row gap-16">
+        <span>Uploaded: {{ uploaded() }}</span>
+        <span>Failed: {{ failed() }}</span>
+    </div>
+</div>
+<div mat-dialog-actions>
+    @if (result() === undefined) {
+        <button mat-button (click)="onCancel()">Cancel</button>
+    } @else {
+        <button mat-flat-button (click)="onClose()">Close</button>
+    }
+</div>

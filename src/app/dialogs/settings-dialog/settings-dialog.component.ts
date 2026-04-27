@@ -22,15 +22,21 @@ import {
 } from "@angular/material/dialog";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { MatTab, MatTabGroup } from "@angular/material/tabs";
-import { firstValueFrom, map, Observable } from "rxjs";
+import { firstValueFrom, map, Observable, take } from "rxjs";
 
 import { IDeviceInformation } from "../../../common/ble.interfaces";
 import { IErgConnectionStatus, IRowerSettings } from "../../../common/common.interfaces";
 import { ConfigManagerService } from "../../../common/services/config-manager.service";
+import { DataRecorderService } from "../../../common/services/data-recorder.service";
 import { ErgConnectionService } from "../../../common/services/ergometer/erg-connection.service";
 import { ErgSettingsService } from "../../../common/services/ergometer/erg-settings.service";
 import { UtilsService } from "../../../common/services/utils.service";
 import { SnackBarConfirmComponent } from "../../../common/snack-bar-confirm/snack-bar-confirm.component";
+import { BulkUploadProgressDialogComponent } from "../bulk-upload-dialog/bulk-upload-progress-dialog.component";
+import {
+    BulkUploadPromptDialogComponent,
+    BulkUploadPromptResult,
+} from "../bulk-upload-dialog/bulk-upload-prompt-dialog.component";
 import {
     ExportProfileDialogComponent,
     ExportProfileDialogResult,
@@ -103,6 +109,7 @@ export class SettingsDialogComponent {
         private dialogRef: MatDialogRef<SettingsDialogComponent>,
         private utils: UtilsService,
         private configManager: ConfigManagerService,
+        private dataRecorder: DataRecorderService,
         private ergSettingsService: ErgSettingsService,
         private ergConnectionService: ErgConnectionService,
         private snackBar: MatSnackBar,
@@ -242,7 +249,8 @@ export class SettingsDialogComponent {
     }
 
     private async saveGeneralSettings(): Promise<void> {
-        const settingsForm = this.generalSettings().getForm();
+        const general = this.generalSettings();
+        const settingsForm = general.getForm();
 
         if (settingsForm.controls.logLevel.dirty) {
             await this.ergSettingsService.changeLogLevel(settingsForm.controls.logLevel.value);
@@ -295,13 +303,28 @@ export class SettingsDialogComponent {
             settingsForm.controls.intervalsAthleteId.dirty ||
             settingsForm.controls.intervalsAutoUpload.dirty
         ) {
+            const apiKey = settingsForm.controls.intervalsApiKey.value;
+            const hasApiKeyChanged = apiKey !== "" && general.hasApiKeyChanged();
+
             this.configManager.setGroup("general", {
                 intervalsIcu: {
-                    apiKey: settingsForm.controls.intervalsApiKey.value,
+                    apiKey,
                     athleteId: settingsForm.controls.intervalsAthleteId.value,
                     autoUploadEnabled: settingsForm.controls.intervalsAutoUpload.getRawValue(),
                 },
             });
+
+            if (!hasApiKeyChanged || !(await this.dataRecorder.hasSessions())) {
+                return;
+            }
+
+            this.dialogRef
+                .afterClosed()
+                .pipe(take(1))
+                // eslint-disable-next-line rxjs-angular/prefer-takeuntil -- overlayRef.dispose() fires before afterClosed() emits, so takeUntilDestroyed would unsubscribe too early take(1) takes care of completing the observable after the first emission which on close
+                .subscribe((): void => {
+                    void this.openBulkUploadFlow(general.isFirstTimeSetup());
+                });
         }
     }
 
@@ -407,6 +430,27 @@ export class SettingsDialogComponent {
         if (isSensorSettingsDirty) {
             await this.ergSettingsService.changeSensorSignalSettings(newSensorSettings);
         }
+    }
+
+    private async openBulkUploadFlow(isFirstSetup: boolean): Promise<void> {
+        const promptResult = await firstValueFrom(
+            this.dialog
+                .open<
+                    BulkUploadPromptDialogComponent,
+                    { isFirstSetup: boolean },
+                    BulkUploadPromptResult
+                >(BulkUploadPromptDialogComponent, { data: { isFirstSetup }, disableClose: true })
+                .afterClosed(),
+        );
+
+        if (!promptResult || promptResult === "skip") {
+            return;
+        }
+
+        this.dialog.open<BulkUploadProgressDialogComponent, { resetTracking: boolean }>(
+            BulkUploadProgressDialogComponent,
+            { data: { resetTracking: promptResult === "upload-all-reset" }, disableClose: true },
+        );
     }
 
     private showSaveConfirmation(tabsWithChanges: Array<string>): Promise<boolean> {

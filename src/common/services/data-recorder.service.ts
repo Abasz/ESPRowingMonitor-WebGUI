@@ -97,6 +97,10 @@ export class DataRecorderService {
         });
     }
 
+    async hasSessions(): Promise<boolean> {
+        return (await appDB.sessionData.count()) > 0;
+    }
+
     deleteSession(sessionId: number): Promise<void> {
         return appDB.transaction(
             "rw",

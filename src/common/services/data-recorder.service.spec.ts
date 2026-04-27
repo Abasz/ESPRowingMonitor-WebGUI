@@ -351,6 +351,21 @@ describe("DataRecorderService", (): void => {
         });
     });
 
+    describe("hasSessions method", (): void => {
+        it("should return false when the logbook is empty", async (): Promise<void> => {
+            expect(await service.hasSessions()).toBe(false);
+        });
+
+        it("should return true when at least one session exists", async (): Promise<void> => {
+            const sessionId = 1700000000000;
+            await appDB.sessionData.add({ sessionId, timeStamp: sessionId } as Parameters<
+                typeof appDB.sessionData.add
+            >[0]);
+
+            expect(await service.hasSessions()).toBe(true);
+        });
+    });
+
     describe("deleteSession method", (): void => {
         const sessionId = 1700000000000;
 

@@ -1,7 +1,7 @@
 import { signal } from "@angular/core";
 import { MatSnackBarRef, TextOnlySnackBar } from "@angular/material/snack-bar";
 import { EMPTY, of } from "rxjs";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IDisplayLayoutConfig } from "../../../common/common.interfaces";
 import {
@@ -39,6 +39,10 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
         } = await createSettingsDialogTestBed());
     });
 
+    afterEach((): void => {
+        vi.restoreAllMocks();
+    });
+
     it("should save general settings", async (): Promise<void> => {
         const mockGeneralForm = createMockGeneralForm(true, {
             logLevel: { dirty: true, value: 2 },
@@ -61,6 +65,8 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
 
         vi.spyOn(component, "generalSettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            hasApiKeyChanged: vi.fn().mockReturnValue(false),
+            isFirstTimeSetup: vi.fn().mockReturnValue(true),
         } as unknown as ReturnType<typeof component.generalSettings>);
         vi.spyOn(component, "displaySettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockDisplayForm),
@@ -114,6 +120,8 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
 
         vi.spyOn(component, "generalSettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            hasApiKeyChanged: vi.fn().mockReturnValue(false),
+            isFirstTimeSetup: vi.fn().mockReturnValue(true),
         } as unknown as ReturnType<typeof component.generalSettings>);
         vi.spyOn(component, "displaySettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockDisplayForm),
@@ -154,6 +162,8 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
 
         vi.spyOn(component, "generalSettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            hasApiKeyChanged: vi.fn().mockReturnValue(false),
+            isFirstTimeSetup: vi.fn().mockReturnValue(true),
         } as unknown as ReturnType<typeof component.generalSettings>);
         vi.spyOn(component, "displaySettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockDisplayForm),
@@ -215,6 +225,8 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
 
         vi.spyOn(component, "generalSettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            hasApiKeyChanged: vi.fn().mockReturnValue(false),
+            isFirstTimeSetup: vi.fn().mockReturnValue(true),
         } as unknown as ReturnType<typeof component.generalSettings>);
         vi.spyOn(component, "displaySettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockDisplayForm),
@@ -256,6 +268,8 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
 
         vi.spyOn(component, "generalSettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            hasApiKeyChanged: vi.fn().mockReturnValue(false),
+            isFirstTimeSetup: vi.fn().mockReturnValue(true),
         } as unknown as ReturnType<typeof component.generalSettings>);
         vi.spyOn(component, "displaySettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockDisplayForm),
@@ -284,7 +298,7 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
         expect(mockConfigManagerService.setGroup).not.toHaveBeenCalledWith("display", expect.anything());
     });
 
-    describe("should save rowing settings", async (): Promise<void> => {
+    describe("should save rowing settings", (): void => {
         beforeEach((): void => {
             setupCleanGeneralAndDisplayForms(component);
         });
@@ -514,6 +528,8 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
 
         vi.spyOn(component, "generalSettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            hasApiKeyChanged: vi.fn().mockReturnValue(false),
+            isFirstTimeSetup: vi.fn().mockReturnValue(true),
         } as unknown as ReturnType<typeof component.generalSettings>);
         vi.spyOn(component, "displaySettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
@@ -581,6 +597,8 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
 
         vi.spyOn(component, "generalSettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            hasApiKeyChanged: vi.fn().mockReturnValue(false),
+            isFirstTimeSetup: vi.fn().mockReturnValue(true),
         } as unknown as ReturnType<typeof component.generalSettings>);
         vi.spyOn(component, "displaySettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
@@ -648,6 +666,8 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
 
         vi.spyOn(component, "generalSettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            hasApiKeyChanged: vi.fn().mockReturnValue(false),
+            isFirstTimeSetup: vi.fn().mockReturnValue(true),
         } as unknown as ReturnType<typeof component.generalSettings>);
         vi.spyOn(component, "displaySettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
@@ -707,6 +727,8 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
 
         vi.spyOn(component, "generalSettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            hasApiKeyChanged: vi.fn().mockReturnValue(false),
+            isFirstTimeSetup: vi.fn().mockReturnValue(true),
         } as unknown as ReturnType<typeof component.generalSettings>);
         vi.spyOn(component, "displaySettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),
@@ -761,6 +783,8 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
 
         vi.spyOn(component, "generalSettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            hasApiKeyChanged: vi.fn().mockReturnValue(false),
+            isFirstTimeSetup: vi.fn().mockReturnValue(true),
         } as unknown as ReturnType<typeof component.generalSettings>);
         vi.spyOn(component, "displaySettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockDisplayForm),
@@ -824,6 +848,8 @@ describe("SettingsDialogComponent saveSettings method", (): void => {
 
         vi.spyOn(component, "generalSettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(mockGeneralForm),
+            hasApiKeyChanged: vi.fn().mockReturnValue(false),
+            isFirstTimeSetup: vi.fn().mockReturnValue(true),
         } as unknown as ReturnType<typeof component.generalSettings>);
         vi.spyOn(component, "displaySettings").mockReturnValue({
             getForm: vi.fn().mockReturnValue(createMockDisplayForm(false)),

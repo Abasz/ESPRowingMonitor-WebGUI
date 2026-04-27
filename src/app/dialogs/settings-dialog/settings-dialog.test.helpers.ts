@@ -15,6 +15,7 @@ import { IDeviceInformation } from "../../../common/ble.interfaces";
 import { Config, IErgConnectionStatus, IRowerSettings } from "../../../common/common.interfaces";
 import { SpinnerOverlay } from "../../../common/overlay/spinner-overlay.service";
 import { ConfigManagerService } from "../../../common/services/config-manager.service";
+import { DataRecorderService } from "../../../common/services/data-recorder.service";
 import { ErgConnectionService } from "../../../common/services/ergometer/erg-connection.service";
 import { ErgSettingsService } from "../../../common/services/ergometer/erg-settings.service";
 import { UtilsService } from "../../../common/services/utils.service";
@@ -374,12 +375,16 @@ export const setupMockChildComponents: (
     rowingFormDirty?: boolean,
     isProfileLoaded?: boolean,
     displayFormDirty?: boolean,
+    hasApiKeyChanged?: boolean,
+    isFirstTimeSetup?: boolean,
 ) => void = (
     component: SettingsDialogComponent,
     generalFormDirty: boolean = false,
     rowingFormDirty: boolean = false,
     isProfileLoaded: boolean = false,
     displayFormDirty: boolean = false,
+    hasApiKeyChanged: boolean = false,
+    isFirstTimeSetup: boolean = true,
 ): void => {
     const mockGeneralForm = createMockGeneralForm(generalFormDirty);
     const mockRowingForm = createMockRowingForm(rowingFormDirty);
@@ -387,6 +392,8 @@ export const setupMockChildComponents: (
 
     vi.spyOn(component, "generalSettings").mockReturnValue({
         getForm: vi.fn().mockReturnValue(mockGeneralForm),
+        hasApiKeyChanged: vi.fn().mockReturnValue(hasApiKeyChanged),
+        isFirstTimeSetup: vi.fn().mockReturnValue(isFirstTimeSetup),
     } as unknown as ReturnType<typeof component.generalSettings>);
 
     component.onGeneralFormValidityChange(true);
@@ -424,6 +431,8 @@ export const setupCleanGeneralAndDisplayForms: (component: SettingsDialogCompone
 ): void => {
     vi.spyOn(component, "generalSettings").mockReturnValue({
         getForm: vi.fn().mockReturnValue(createMockGeneralForm(false)),
+        hasApiKeyChanged: vi.fn().mockReturnValue(false),
+        isFirstTimeSetup: vi.fn().mockReturnValue(true),
     } as unknown as ReturnType<typeof component.generalSettings>);
 
     vi.spyOn(component, "displaySettings").mockReturnValue({
@@ -446,6 +455,17 @@ export const setupCleanGeneralAndDisplayForms: (component: SettingsDialogCompone
 };
 
 // ─── Shared mock factories ────────────────────────────────────────────────────
+
+/**
+ * Creates a mock DataRecorderService with hasSessions resolving to true by default.
+ */
+export const createMockDataRecorderService = (): Pick<DataRecorderService, "hasSessions"> => {
+    const mock = { hasSessions: vi.fn() };
+
+    vi.mocked(mock.hasSessions).mockResolvedValue(true);
+
+    return mock;
+};
 
 /**
  * Creates a fully mocked ErgSettingsService with all 9 methods pre-resolved.
@@ -508,17 +528,19 @@ export const createMockErgConnectionService = (
  */
 export const createMockMatDialogRef = (): Pick<
     MatDialogRef<SettingsDialogComponent>,
-    "close" | "updateSize" | "backdropClick" | "keydownEvents" | "disableClose"
+    "close" | "updateSize" | "backdropClick" | "keydownEvents" | "afterClosed" | "disableClose"
 > => {
     const mock = {
         close: vi.fn(),
         updateSize: vi.fn(),
         backdropClick: vi.fn(),
         keydownEvents: vi.fn(),
+        afterClosed: vi.fn(),
         disableClose: false,
     };
     vi.mocked(mock.backdropClick).mockReturnValue(EMPTY);
     vi.mocked(mock.keydownEvents).mockReturnValue(EMPTY);
+    vi.mocked(mock.afterClosed).mockReturnValue(EMPTY);
 
     return mock;
 };
@@ -553,6 +575,7 @@ export interface ISettingsDialogTestBedResult {
     component: SettingsDialogComponent;
     mockMatDialogRef: ReturnType<typeof createMockMatDialogRef>;
     mockConfigManagerService: ReturnType<typeof createMockConfigManagerService>;
+    mockDataRecorderService: ReturnType<typeof createMockDataRecorderService>;
     mockErgSettingsService: ReturnType<typeof createMockErgSettingsService>;
     mockErgConnectionService: ReturnType<typeof createMockErgConnectionService>;
     mockSnackBar: ReturnType<typeof createMockSnackBar>;
@@ -579,6 +602,7 @@ export const createSettingsDialogTestBed = async (
     const mockDialogData = createMockDialogData();
     const mockMatDialogRef = createMockMatDialogRef();
     const mockConfigManagerService = createMockConfigManagerService();
+    const mockDataRecorderService = createMockDataRecorderService();
     const mockErgSettingsService = createMockErgSettingsService();
     const mockErgConnectionService = createMockErgConnectionService(mockDialogData.ergConnectionStatus);
     const mockSnackBar = createMockSnackBar();
@@ -597,6 +621,7 @@ export const createSettingsDialogTestBed = async (
             { provide: MatDialogRef, useValue: mockMatDialogRef },
             { provide: MAT_DIALOG_DATA, useValue: mockDialogData },
             { provide: ConfigManagerService, useValue: mockConfigManagerService },
+            { provide: DataRecorderService, useValue: mockDataRecorderService },
             { provide: ErgSettingsService, useValue: mockErgSettingsService },
             { provide: MatSnackBar, useValue: mockSnackBar },
             { provide: SpinnerOverlay, useValue: mockSpinnerOverlay },
@@ -623,6 +648,7 @@ export const createSettingsDialogTestBed = async (
         component,
         mockMatDialogRef,
         mockConfigManagerService,
+        mockDataRecorderService,
         mockErgSettingsService,
         mockErgConnectionService,
         mockSnackBar,

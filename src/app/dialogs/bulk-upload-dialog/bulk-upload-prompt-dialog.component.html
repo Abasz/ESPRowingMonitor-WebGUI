@@ -1,0 +1,27 @@
+<h1 mat-dialog-title>Upload sessions to Intervals.icu?</h1>
+<div mat-dialog-content>
+    @if (data.isFirstSetup) {
+        <p>You have existing sessions. Would you like to upload them all to Intervals.icu?</p>
+    } @else {
+        <p>
+            Your Intervals.icu API key has changed. Would you like to re-upload all sessions with the new key,
+            or only upload sessions not yet uploaded?
+        </p>
+    }
+    <p>
+        Duplicate uploads are handled server-side — re-uploading a session will update the existing activity.
+    </p>
+</div>
+<div mat-dialog-actions class="flex-col gap-8">
+    <button mat-flat-button (click)="onPrimaryAction()">
+        @if (data.isFirstSetup) {
+            Upload all sessions
+        } @else {
+            Upload all sessions (recommended)
+        }
+    </button>
+    @if (!data.isFirstSetup) {
+        <button mat-button (click)="onSecondaryAction()">Only upload new sessions</button>
+    }
+    <button mat-button (click)="onSkipAction()">Skip</button>
+</div>
