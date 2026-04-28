@@ -1,5 +1,6 @@
 import { Injectable, Signal, signal, WritableSignal } from "@angular/core";
 import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
+import { MatSnackBar } from "@angular/material/snack-bar";
 import {
     BehaviorSubject,
     combineLatest,
@@ -70,6 +71,7 @@ export class SessionManagerService {
 
     private sessionState$: BehaviorSubject<SessionState> = new BehaviorSubject<SessionState>("stopped");
     private _elapsedTime: WritableSignal<number> = signal<number>(0);
+    private readonly lapCount: WritableSignal<number> = signal<number>(0);
     private readonly currentStrokeCount: Signal<number>;
 
     private readonly autoStartSeed$: Subject<IRawCalculatedMetrics> = new Subject<IRawCalculatedMetrics>();
@@ -118,6 +120,7 @@ export class SessionManagerService {
         private ergConnectionService: ErgConnectionService,
         private configManager: ConfigManagerService,
         private intervalsService: IntervalsIcuService,
+        private snackBar: MatSnackBar,
     ) {
         this.sessionState = toSignal(this.sessionState$, { requireSync: true });
         this.elapsedTime = this._elapsedTime.asReadonly();
@@ -196,6 +199,8 @@ export class SessionManagerService {
         }
         this.resetAutoLap$.next();
         void this.dataRecorder.addLap(this.currentStrokeCount(), "manual");
+        this.lapCount.update((count: number): number => count + 1);
+        this.snackBar.open(`Lap ${this.lapCount()}`, "Dismiss", { duration: 3000 });
     }
 
     start(timeOffset: number = 0): void {
@@ -234,6 +239,7 @@ export class SessionManagerService {
 
         const sessionId = this.dataRecorder.currentSessionId;
         this.hasSeenNonZeroSpeed = false;
+        this.lapCount.set(0);
         this.stopwatch.stop();
         this.sessionState$.next("stopped");
         void this.handleAutoUpload(sessionId);
@@ -359,6 +365,8 @@ export class SessionManagerService {
                     metrics.strokeCount,
                     config.general.session.autoLap as Exclude<AutoLapMode, "off">,
                 );
+                this.lapCount.update((count: number): number => count + 1);
+                this.snackBar.open(`Lap ${this.lapCount()}`, "Dismiss", { duration: 3000 });
             });
     }
 

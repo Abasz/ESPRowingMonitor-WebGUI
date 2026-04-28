@@ -1,4 +1,5 @@
 import { TestBed } from "@angular/core/testing";
+import { MatSnackBar } from "@angular/material/snack-bar";
 import { BehaviorSubject } from "rxjs";
 import { vi } from "vitest";
 
@@ -49,6 +50,7 @@ export interface SessionManagerTestContext {
     mockErgConnectionService: Pick<ErgConnectionService, "connectionStatus$">;
     mockConfigManagerService: Pick<ConfigManagerService, "configChanged$" | "getGroup">;
     mockIntervalsIcuService: Pick<IntervalsIcuService, "uploadSession">;
+    mockSnackBar: Pick<MatSnackBar, "open">;
 }
 
 export function setupSessionManagerTestBed(): SessionManagerTestContext {
@@ -87,6 +89,10 @@ export function setupSessionManagerTestBed(): SessionManagerTestContext {
         uploadSession: vi.fn().mockResolvedValue(true),
     };
 
+    const mockSnackBar: Pick<MatSnackBar, "open"> = {
+        open: vi.fn(),
+    };
+
     TestBed.configureTestingModule({
         providers: [
             SessionManagerService,
@@ -95,6 +101,7 @@ export function setupSessionManagerTestBed(): SessionManagerTestContext {
             { provide: ErgConnectionService, useValue: mockErgConnectionService },
             { provide: ConfigManagerService, useValue: mockConfigManagerService },
             { provide: IntervalsIcuService, useValue: mockIntervalsIcuService },
+            { provide: MatSnackBar, useValue: mockSnackBar },
         ],
     });
 
@@ -111,6 +118,7 @@ export function setupSessionManagerTestBed(): SessionManagerTestContext {
         mockErgConnectionService,
         mockConfigManagerService,
         mockIntervalsIcuService,
+        mockSnackBar,
     };
 }
 

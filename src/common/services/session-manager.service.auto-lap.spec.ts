@@ -1,3 +1,4 @@
+import { MatSnackBar } from "@angular/material/snack-bar";
 import { BehaviorSubject } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,6 +18,7 @@ describe("SessionManagerService", (): void => {
     let configSubject: BehaviorSubject<Config>;
     let rawMetricsSubject: BehaviorSubject<IRawCalculatedMetrics>;
     let mockDataRecorderService: Pick<DataRecorderService, "reset" | "addSessionData" | "addLap">;
+    let mockSnackBar: Pick<MatSnackBar, "open">;
 
     beforeEach((): void => {
         vi.useFakeTimers();
@@ -26,6 +28,7 @@ describe("SessionManagerService", (): void => {
         configSubject = context.configSubject;
         rawMetricsSubject = context.rawMetricsSubject;
         mockDataRecorderService = context.mockDataRecorderService;
+        mockSnackBar = context.mockSnackBar;
     });
 
     afterEach((): void => {
@@ -280,6 +283,56 @@ describe("SessionManagerService", (): void => {
 
             // stroke 55: 55 * 950 = 52250cm = 522.5m → crosses 519m (19m + 500m)
             expect(mockDataRecorderService.addLap).toHaveBeenCalledWith(55, "distance");
+        });
+    });
+
+    describe("as part of lap feedback", (): void => {
+        it("should show a snackbar on a distance auto-lap", (): void => {
+            configSubject.next(withSessionConfig({ autoLap: "distance", autoLapValue: 500 }));
+            service.start();
+            vi.mocked(mockSnackBar.open).mockClear();
+
+            for (let strokeNumber = 1; strokeNumber <= 53; strokeNumber++) {
+                rawMetricsSubject.next({
+                    ...mockRawMetrics,
+                    rawStrokeCount: strokeNumber,
+                    rawDistance: strokeNumber * 950,
+                });
+            }
+
+            expect(mockSnackBar.open).toHaveBeenCalledWith("Lap 1", "Dismiss", { duration: 3000 });
+        });
+
+        it("should show a snackbar on a time auto-lap", (): void => {
+            configSubject.next(withSessionConfig({ autoLap: "time", autoLapValue: 1 }));
+            service.start();
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 1, rawDistance: 950 });
+            vi.mocked(mockSnackBar.open).mockClear();
+
+            vi.advanceTimersByTime(61000);
+            rawMetricsSubject.next({ ...mockRawMetrics, rawStrokeCount: 2, rawDistance: 1900 });
+
+            expect(mockSnackBar.open).toHaveBeenCalledWith("Lap 1", "Dismiss", { duration: 3000 });
+        });
+
+        it("should show correct lap number when manual and auto laps are mixed", (): void => {
+            configSubject.next(withSessionConfig({ autoLap: "distance", autoLapValue: 500 }));
+            service.start();
+            vi.mocked(mockSnackBar.open).mockClear();
+
+            // manual lap first
+            service.addLap();
+            expect(mockSnackBar.open).toHaveBeenCalledWith("Lap 1", "Dismiss", { duration: 3000 });
+
+            // auto-lap fires next
+            for (let strokeNumber = 1; strokeNumber <= 53; strokeNumber++) {
+                rawMetricsSubject.next({
+                    ...mockRawMetrics,
+                    rawStrokeCount: strokeNumber,
+                    rawDistance: strokeNumber * 950,
+                });
+            }
+            expect(mockSnackBar.open).toHaveBeenCalledWith("Lap 2", "Dismiss", { duration: 3000 });
         });
     });
 

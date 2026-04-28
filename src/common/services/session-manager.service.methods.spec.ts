@@ -1,4 +1,5 @@
 import { TestBed } from "@angular/core/testing";
+import { MatSnackBar } from "@angular/material/snack-bar";
 import { BehaviorSubject } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -29,6 +30,7 @@ describe("SessionManagerService", (): void => {
     >;
     let mockConfigManagerService: Pick<ConfigManagerService, "configChanged$" | "getGroup">;
     let mockIntervalsIcuService: Pick<IntervalsIcuService, "uploadSession">;
+    let mockSnackBar: Pick<MatSnackBar, "open">;
 
     beforeEach((): void => {
         vi.useFakeTimers();
@@ -40,6 +42,7 @@ describe("SessionManagerService", (): void => {
         mockDataRecorderService = context.mockDataRecorderService;
         mockConfigManagerService = context.mockConfigManagerService;
         mockIntervalsIcuService = context.mockIntervalsIcuService;
+        mockSnackBar = context.mockSnackBar;
     });
 
     afterEach((): void => {
@@ -423,6 +426,57 @@ describe("SessionManagerService", (): void => {
             service.addLap();
 
             expect(mockDataRecorderService.addLap).toHaveBeenCalledWith(8, "manual");
+        });
+
+        it("should show a snackbar with the lap number on the first lap", (): void => {
+            service.start();
+
+            service.addLap();
+
+            expect(mockSnackBar.open).toHaveBeenCalledWith("Lap 1", "Dismiss", { duration: 3000 });
+        });
+
+        it("should increment the lap number on each subsequent lap", (): void => {
+            service.start();
+
+            service.addLap();
+            service.addLap();
+            service.addLap();
+
+            expect(mockSnackBar.open).toHaveBeenCalledTimes(3);
+            expect(mockSnackBar.open).toHaveBeenNthCalledWith(3, "Lap 3", "Dismiss", { duration: 3000 });
+        });
+
+        it("should not show a snackbar when stopped", (): void => {
+            service.addLap();
+
+            expect(mockSnackBar.open).not.toHaveBeenCalled();
+        });
+
+        it("should not show a snackbar when paused", (): void => {
+            service.start();
+            service.pause();
+
+            service.addLap();
+
+            expect(mockSnackBar.open).not.toHaveBeenCalledWith(
+                expect.stringContaining("Lap"),
+                "Dismiss",
+                expect.anything(),
+            );
+        });
+
+        it("should restart lap count from 1 after a session is stopped and restarted", (): void => {
+            service.start();
+            service.addLap();
+            service.addLap();
+            service.stop();
+            vi.mocked(mockSnackBar.open).mockClear();
+
+            service.start();
+            service.addLap();
+
+            expect(mockSnackBar.open).toHaveBeenCalledWith("Lap 1", "Dismiss", { duration: 3000 });
         });
     });
 
