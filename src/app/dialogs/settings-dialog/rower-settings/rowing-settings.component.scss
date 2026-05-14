@@ -1,4 +1,4 @@
-@use "../../../../flex-layout";
+@use "../../../../flex-layout-mixins.scss" as flex-layout;
 
 .profile-selector-grid {
     display: grid;

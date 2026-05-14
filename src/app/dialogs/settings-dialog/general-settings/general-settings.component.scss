@@ -1,4 +1,4 @@
-@use "../../../../flex-layout";
+@use "../../../../flex-layout-mixins.scss" as flex-layout;
 
 form mat-slide-toggle {
     margin: 8px 0;

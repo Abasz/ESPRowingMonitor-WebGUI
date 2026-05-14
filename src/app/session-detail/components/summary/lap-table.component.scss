@@ -1,6 +1,6 @@
 @use "@angular/material" as mat;
 
-@use "../../../../flex-layout" as flex-layout;
+@use "../../../../flex-layout-mixins.scss" as flex-layout;
 
 :host {
     display: block;

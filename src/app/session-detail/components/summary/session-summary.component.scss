@@ -1,11 +1,11 @@
-@use "../../../../flex-layout" as *;
+@use "../../../../flex-layout-mixins.scss" as flex-layout;
 
 :host {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
 
-    @include gt-sm {
+    @include flex-layout.gt-sm {
         grid-template-columns: max-content minmax(0, 1fr);
 
         font-size: 0.75em;
