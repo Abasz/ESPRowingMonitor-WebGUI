@@ -65,6 +65,7 @@ export interface ILap {
     avgStrokeRate: number;
     avgSpeed: number;
     avgDistPerStroke: number;
+    powerBalance: number | undefined;
 }
 
 export interface ISessionAnalysis {
@@ -74,4 +75,6 @@ export interface ISessionAnalysis {
     strokes: Array<ISessionStroke>;
     statistics: ISessionStatistics;
     laps: Array<ILap>;
+    powerBalance: number | undefined;
+    powerBalanceConsistency: number | undefined;
 }

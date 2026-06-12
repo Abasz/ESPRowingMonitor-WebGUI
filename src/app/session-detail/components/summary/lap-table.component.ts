@@ -2,10 +2,12 @@ import { DecimalPipe } from "@angular/common";
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     input,
     InputSignal,
     output,
     OutputEmitterRef,
+    Signal,
 } from "@angular/core";
 import {
     MatCell,
@@ -64,9 +66,20 @@ import { ILap } from "../../models/session-analysis.interfaces";
                 <mat-cell *matCellDef="let lap">{{ lap.avgDistPerStroke | number: "1.1-1" }} m</mat-cell>
             </ng-container>
 
-            <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+            <ng-container matColumnDef="powerBalance">
+                <mat-header-cell *matHeaderCellDef>Balance</mat-header-cell>
+                <mat-cell *matCellDef="let lap">
+                    @if (lap.powerBalance !== undefined) {
+                        A {{ lap.powerBalance * 100 | number: "1.0-0" }}%
+                    } @else {
+                        --
+                    }
+                </mat-cell>
+            </ng-container>
+
+            <mat-header-row *matHeaderRowDef="displayedColumns()"></mat-header-row>
             <mat-row
-                *matRowDef="let lap; columns: displayedColumns"
+                *matRowDef="let lap; columns: displayedColumns()"
                 [class.selected]="selectedLap()?.lapNumber === lap.lapNumber"
                 (click)="onRowClick(lap)"
             ></mat-row>
@@ -92,17 +105,21 @@ import { ILap } from "../../models/session-analysis.interfaces";
 export class LapTableComponent {
     readonly laps: InputSignal<Array<ILap>> = input.required<Array<ILap>>();
     readonly selectedLap: InputSignal<ILap | undefined> = input<ILap | undefined>(undefined);
+    readonly showBalanceColumn: InputSignal<boolean> = input<boolean>(false);
     readonly lapSelected: OutputEmitterRef<ILap> = output<ILap>();
 
-    readonly displayedColumns: Array<string> = [
-        "lapNumber",
-        "startTime",
-        "duration",
-        "pace",
-        "avgPower",
-        "avgStrokeRate",
-        "avgDistPerStroke",
-    ];
+    readonly displayedColumns: Signal<Array<string>> = computed(
+        (): Array<string> => [
+            "lapNumber",
+            "startTime",
+            "duration",
+            "pace",
+            "avgPower",
+            "avgStrokeRate",
+            "avgDistPerStroke",
+            ...(this.showBalanceColumn() ? ["powerBalance"] : []),
+        ],
+    );
 
     trackByLapNumber(_: number, lap: ILap): number {
         return lap.lapNumber;

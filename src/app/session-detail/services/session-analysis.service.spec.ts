@@ -1,7 +1,12 @@
 import { TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { IExportSession, IHandleForcesEntity, IMetricsEntity } from "../../../common/database.interfaces";
+import {
+    IExportRecord,
+    IExportSession,
+    IHandleForcesEntity,
+    IMetricsEntity,
+} from "../../../common/database.interfaces";
 import { appDB } from "../../../common/utils/app-database";
 
 import { SessionAnalysisService } from "./session-analysis.service";
@@ -935,6 +940,110 @@ describe("SessionAnalysisService", (): void => {
             expect(result.strokes).toHaveLength(2);
             expect(result.strokes[0].strokeIndex).toBe(1);
             expect(result.strokes[1].strokeIndex).toBe(2);
+        });
+    });
+
+    describe("session balance computation", (): void => {
+        const createRecordEntry = (strokeCount: number, elapsedTime: number): IExportRecord => ({
+            timeStamp: new Date(mockSessionId + elapsedTime * 1000),
+            elapsedTime,
+            speed: 2.5,
+            avgStrokePower: 150,
+            strokeRate: 24,
+            distance: strokeCount * 10,
+            strokeCount,
+            distPerStroke: 10,
+            driveDuration: 0.8,
+            recoveryDuration: 1.2,
+            dragFactor: 110,
+            totalWork: 0,
+        });
+
+        const createExportSession = (overrides: Partial<IExportSession> = {}): IExportSession => ({
+            sessionId: mockSessionId,
+            deviceName: undefined,
+            records: [createRecordEntry(1, 1), createRecordEntry(2, 3)],
+            handleForces: {},
+            laps: [],
+            ...overrides,
+        });
+
+        it("should return undefined powerBalance when no strokes have handle forces", (): void => {
+            const exportSession = createExportSession({ handleForces: {} });
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.powerBalance).toBeUndefined();
+            expect(result.powerBalanceConsistency).toBeUndefined();
+        });
+
+        it("should compute powerBalance when strokes have sufficient paired handle forces", (): void => {
+            const exportSession = createExportSession({
+                records: [createRecordEntry(1, 1), createRecordEntry(2, 3)],
+                handleForces: {
+                    // strokeCount 1 (odd = side A), strokeCount 2 (even = side B)
+                    1: {
+                        peakForce: 0,
+                        peakForcePositionNorm: 0,
+                        driveLength: 1.5,
+                        handleForces: [100, 200, 100],
+                    },
+                    2: {
+                        peakForce: 0,
+                        peakForcePositionNorm: 0,
+                        driveLength: 1.5,
+                        handleForces: [100, 200, 100],
+                    },
+                },
+            });
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.powerBalance).toBeCloseTo(0.5);
+        });
+
+        it("should return undefined powerBalanceConsistency with fewer than 3 pairs", (): void => {
+            // two strokes → one pair → below the minimum-3-pairs threshold
+            const exportSession = createExportSession({
+                records: [createRecordEntry(1, 1), createRecordEntry(2, 3)],
+                handleForces: {
+                    1: { peakForce: 0, peakForcePositionNorm: 0, driveLength: 1.5, handleForces: [120] },
+                    2: { peakForce: 0, peakForcePositionNorm: 0, driveLength: 1.5, handleForces: [80] },
+                },
+            });
+
+            const result = service.loadFromJson(exportSession);
+
+            expect(result.powerBalance).toBeDefined();
+            expect(result.powerBalanceConsistency).toBeUndefined();
+        });
+
+        it("should compute powerBalanceConsistency with 3 or more pairs", async (): Promise<void> => {
+            // seed 6 strokes (strokeCount 1–6) giving 3 A/B pairs
+            const metrics = [1, 2, 3, 4, 5, 6].map(
+                (strokeCount: number): IMetricsEntity =>
+                    createMetricsEntity({
+                        strokeCount,
+                        elapsedTime: strokeCount,
+                        timeStamp: mockSessionId + strokeCount * 1000,
+                    }),
+            );
+            const handleForcesEntities = [1, 2, 3, 4, 5, 6].map(
+                (strokeId: number): IHandleForcesEntity =>
+                    createHandleForcesEntity({
+                        strokeId,
+                        handleForces: [100, 200, 100],
+                        timeStamp: mockSessionId + strokeId * 1000,
+                    }),
+            );
+
+            await seedSession(metrics, handleForcesEntities);
+
+            const result = await service.loadSession(mockSessionId);
+
+            expect(result.powerBalance).toBeCloseTo(0.5);
+            expect(result.powerBalanceConsistency).toBeDefined();
+            expect(result.powerBalanceConsistency).toBeCloseTo(0);
         });
     });
 });

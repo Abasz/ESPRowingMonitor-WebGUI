@@ -277,6 +277,7 @@ describe("SessionStrokesComponent", (): void => {
                 avgStrokeRate: 24,
                 avgSpeed: 2.5,
                 avgDistPerStroke: 10,
+                powerBalance: undefined,
             },
             {
                 lapNumber: 2,
@@ -289,6 +290,7 @@ describe("SessionStrokesComponent", (): void => {
                 avgStrokeRate: 24,
                 avgSpeed: 2.5,
                 avgDistPerStroke: 10,
+                powerBalance: undefined,
             },
         ];
 

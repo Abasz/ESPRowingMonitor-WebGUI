@@ -75,6 +75,8 @@ const createMockAnalysis = (): ISessionAnalysis => ({
         },
     },
     laps: [],
+    powerBalance: undefined,
+    powerBalanceConsistency: undefined,
 });
 
 describe("SessionSummaryComponent", (): void => {
@@ -142,6 +144,7 @@ describe("SessionSummaryComponent", (): void => {
                 avgStrokeRate: 24,
                 avgSpeed: 2.5,
                 avgDistPerStroke: 10,
+                powerBalance: undefined,
             },
             {
                 lapNumber: 2,
@@ -154,6 +157,7 @@ describe("SessionSummaryComponent", (): void => {
                 avgStrokeRate: 26,
                 avgSpeed: 2.8,
                 avgDistPerStroke: 11,
+                powerBalance: undefined,
             },
         ];
 
@@ -439,6 +443,7 @@ describe("SessionSummaryComponent", (): void => {
                         avgStrokeRate: 24,
                         avgSpeed: 2.5,
                         avgDistPerStroke: 10,
+                        powerBalance: undefined,
                     },
                 ],
             });
@@ -574,6 +579,115 @@ describe("SessionSummaryComponent", (): void => {
 
             const buttonAfter = fixture.nativeElement.querySelector("button[mat-button]");
             expect(buttonAfter).toBeNull();
+        });
+    });
+
+    describe("as part of kayak balance display", (): void => {
+        it("should not show balance section for a non-kayak device", (): void => {
+            const avgCard = getCardByTitle("Averages");
+
+            expect(getMetricByLabel(avgCard!, "Balance")).toBeNull();
+        });
+
+        it("should not show balance section when powerBalance is undefined for a kayak device", (): void => {
+            fixture.componentRef.setInput("analysis", {
+                ...createMockAnalysis(),
+                deviceName: "KayakErgo 2000",
+                powerBalance: undefined,
+                powerBalanceConsistency: undefined,
+            });
+            fixture.detectChanges();
+
+            const avgCard = getCardByTitle("Averages");
+
+            expect(getMetricByLabel(avgCard!, "Balance")).toBeNull();
+        });
+
+        it("should show balance section when session is kayak and powerBalance is defined", (): void => {
+            fixture.componentRef.setInput("analysis", {
+                ...createMockAnalysis(),
+                deviceName: "KayakErgo 2000",
+                powerBalance: 0.55,
+                powerBalanceConsistency: undefined,
+            });
+            fixture.detectChanges();
+
+            const avgCard = getCardByTitle("Averages");
+
+            expect(getMetricByLabel(avgCard!, "Balance")).toBeTruthy();
+        });
+
+        it("should display correct side-A and side-B percentages", (): void => {
+            fixture.componentRef.setInput("analysis", {
+                ...createMockAnalysis(),
+                deviceName: "KayakErgo 2000",
+                powerBalance: 0.55,
+                powerBalanceConsistency: undefined,
+            });
+            fixture.detectChanges();
+
+            const avgCard = getCardByTitle("Averages");
+            const balanceMetric = getMetricByLabel(avgCard!, "Balance");
+
+            expect(balanceMetric?.querySelector(".value")?.textContent).toContain("55");
+            expect(balanceMetric?.querySelector(".value")?.textContent).toContain("45");
+        });
+
+        it("should show consistency row when powerBalanceConsistency is defined", (): void => {
+            fixture.componentRef.setInput("analysis", {
+                ...createMockAnalysis(),
+                deviceName: "KayakErgo 2000",
+                powerBalance: 0.55,
+                powerBalanceConsistency: 0.03,
+            });
+            fixture.detectChanges();
+
+            const avgCard = getCardByTitle("Averages");
+
+            expect(getMetricByLabel(avgCard!, "Consistency")).toBeTruthy();
+        });
+
+        it("should hide consistency row when powerBalanceConsistency is undefined", (): void => {
+            fixture.componentRef.setInput("analysis", {
+                ...createMockAnalysis(),
+                deviceName: "KayakErgo 2000",
+                powerBalance: 0.55,
+                powerBalanceConsistency: undefined,
+            });
+            fixture.detectChanges();
+
+            const avgCard = getCardByTitle("Averages");
+
+            expect(getMetricByLabel(avgCard!, "Consistency")).toBeNull();
+        });
+
+        it("should pass showBalanceColumn true to lap table for kayak sessions with laps", (): void => {
+            fixture.componentRef.setInput("analysis", {
+                ...createAnalysisWithLaps(),
+                deviceName: "KayakErgo 2000",
+                powerBalance: 0.55,
+                powerBalanceConsistency: undefined,
+            });
+            fixture.detectChanges();
+
+            const headerCells = fixture.nativeElement.querySelectorAll("mat-header-cell");
+            const headerTexts = Array.from(headerCells as NodeListOf<Element>).map(
+                (cell: Element): string => cell.textContent ?? "",
+            );
+
+            expect(headerTexts.some((text: string): boolean => text.includes("Balance"))).toBe(true);
+        });
+
+        it("should not show balance column in lap table for non-kayak sessions with laps", (): void => {
+            fixture.componentRef.setInput("analysis", createAnalysisWithLaps());
+            fixture.detectChanges();
+
+            const headerCells = fixture.nativeElement.querySelectorAll("mat-header-cell");
+            const headerTexts = Array.from(headerCells as NodeListOf<Element>).map(
+                (cell: Element): string => cell.textContent ?? "",
+            );
+
+            expect(headerTexts.some((text: string): boolean => text.includes("Balance"))).toBe(false);
         });
     });
 });

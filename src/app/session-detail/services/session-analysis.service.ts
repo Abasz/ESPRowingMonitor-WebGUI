@@ -10,6 +10,11 @@ import {
 } from "../../../common/database.interfaces";
 import { appDB } from "../../../common/utils/app-database";
 import {
+    computeBalanceMetrics,
+    MIN_BALANCE_PAIRS_FOR_CONSISTENCY,
+    strokesToBalanceInput,
+} from "../../../common/utils/balance-metrics";
+import {
     ISessionAnalysis,
     ISessionAverages,
     ISessionMaximums,
@@ -70,6 +75,7 @@ export class SessionAnalysisService {
                         lapEntities.length > 0
                             ? buildLapsFromMarkers(strokes, lapEntities)
                             : detectLaps(strokes),
+                    ...SessionAnalysisService.computeSessionBalance(strokes),
                 };
             },
         );
@@ -130,7 +136,30 @@ export class SessionAnalysisService {
             strokes,
             statistics,
             laps: exportedLaps.length > 0 ? buildLapsFromMarkers(strokes, exportedLaps) : detectLaps(strokes),
+            ...SessionAnalysisService.computeSessionBalance(strokes),
         };
+    }
+
+    private static computeSessionBalance(strokes: Array<ISessionStroke>): {
+        powerBalance: number | undefined;
+        powerBalanceConsistency: number | undefined;
+    } {
+        const { powerBalance, ratios }: { powerBalance: number; ratios: ReadonlyArray<number> } =
+            computeBalanceMetrics(strokesToBalanceInput(strokes));
+
+        if (ratios.length === 0) {
+            return { powerBalance: undefined, powerBalanceConsistency: undefined };
+        }
+
+        if (ratios.length < MIN_BALANCE_PAIRS_FOR_CONSISTENCY) {
+            return { powerBalance, powerBalanceConsistency: undefined };
+        }
+
+        const variance: number =
+            ratios.reduce((sum: number, ratio: number): number => sum + (ratio - powerBalance) ** 2, 0) /
+            ratios.length;
+
+        return { powerBalance, powerBalanceConsistency: Math.sqrt(variance) };
     }
 
     private buildHandleForcesMap(entities: Array<IHandleForcesEntity>): Record<number, IHandleForcesEntity> {

@@ -77,6 +77,8 @@ const createMockAnalysis = (overrides?: Partial<ISessionAnalysis>): ISessionAnal
     },
     laps: [],
     deviceName: "TestDevice",
+    powerBalance: undefined,
+    powerBalanceConsistency: undefined,
     ...overrides,
 });
 

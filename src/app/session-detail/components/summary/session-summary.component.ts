@@ -15,6 +15,7 @@ import { MatCard } from "@angular/material/card";
 import { ChartData, ChartOptions, Point } from "chart.js";
 
 import { SecondsToTimePipe } from "../../../../common/utils/seconds-to-time.pipe";
+import { isKayakErgometer } from "../../../../common/utils/utility.functions";
 import {
     ILap,
     ISessionAnalysis,
@@ -369,6 +370,37 @@ export class SessionSummaryComponent {
     readonly stats: Signal<ISessionStatistics> = computed(
         (): ISessionStatistics => this.analysis().statistics,
     );
+
+    readonly isKayakSession: Signal<boolean> = computed((): boolean =>
+        isKayakErgometer(this.analysis().deviceName),
+    );
+
+    readonly balanceDisplay: Signal<{ sideA: number; sideB: number; consistency: string } | undefined> =
+        computed((): { sideA: number; sideB: number; consistency: string } | undefined => {
+            if (!this.isKayakSession()) {
+                return undefined;
+            }
+
+            const {
+                powerBalance,
+                powerBalanceConsistency,
+            }: { powerBalance?: number; powerBalanceConsistency?: number } = this.analysis();
+
+            if (powerBalance === undefined) {
+                return undefined;
+            }
+
+            const sideA = Math.round(powerBalance * 100);
+
+            return {
+                sideA,
+                sideB: 100 - sideA,
+                consistency:
+                    powerBalanceConsistency !== undefined
+                        ? `±${(powerBalanceConsistency * 100).toFixed(1)}%`
+                        : "",
+            };
+        });
 
     readonly selectedLap: WritableSignal<ILap | undefined> = linkedSignal<ISessionAnalysis, ILap | undefined>(
         {

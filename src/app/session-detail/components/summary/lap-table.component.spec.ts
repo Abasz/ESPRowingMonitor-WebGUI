@@ -17,6 +17,7 @@ const createMockLaps = (): Array<ILap> => [
         avgStrokeRate: 24,
         avgSpeed: 2.5,
         avgDistPerStroke: 10,
+        powerBalance: undefined,
     },
     {
         lapNumber: 2,
@@ -29,6 +30,7 @@ const createMockLaps = (): Array<ILap> => [
         avgStrokeRate: 26,
         avgSpeed: 2.8,
         avgDistPerStroke: 11,
+        powerBalance: undefined,
     },
 ];
 
@@ -128,6 +130,52 @@ describe("LapTableComponent", (): void => {
             const rows = fixture.nativeElement.querySelectorAll("mat-row");
 
             expect(rows[1].classList.contains("selected")).toBe(false);
+        });
+    });
+
+    describe("as part of balance column", (): void => {
+        it("should not show balance column by default", (): void => {
+            const headerCells = fixture.nativeElement.querySelectorAll("mat-header-cell");
+            const headerTexts = Array.from(headerCells as NodeListOf<Element>).map(
+                (cell: Element): string => cell.textContent ?? "",
+            );
+
+            expect(headerCells.length).toBe(7);
+            expect(headerTexts.some((text: string): boolean => text.includes("Balance"))).toBe(false);
+        });
+
+        it("should show balance column when showBalanceColumn is true", (): void => {
+            fixture.componentRef.setInput("showBalanceColumn", true);
+            fixture.detectChanges();
+
+            const headerCells = fixture.nativeElement.querySelectorAll("mat-header-cell");
+            const headerTexts = Array.from(headerCells as NodeListOf<Element>).map(
+                (cell: Element): string => cell.textContent ?? "",
+            );
+
+            expect(headerCells.length).toBe(8);
+            expect(headerTexts.some((text: string): boolean => text.includes("Balance"))).toBe(true);
+        });
+
+        it("should display side-A percentage when lap has a powerBalance value", (): void => {
+            fixture.componentRef.setInput("showBalanceColumn", true);
+            fixture.componentRef.setInput("laps", [{ ...createMockLaps()[0], powerBalance: 0.55 }]);
+            fixture.detectChanges();
+
+            const lastCell = fixture.nativeElement.querySelector("mat-row:first-child mat-cell:last-child");
+
+            expect(lastCell.textContent).toContain("A");
+            expect(lastCell.textContent).toContain("55");
+        });
+
+        it("should display dash when lap powerBalance is undefined", (): void => {
+            fixture.componentRef.setInput("showBalanceColumn", true);
+            fixture.componentRef.setInput("laps", [{ ...createMockLaps()[0], powerBalance: undefined }]);
+            fixture.detectChanges();
+
+            const lastCell = fixture.nativeElement.querySelector("mat-row:first-child mat-cell:last-child");
+
+            expect(lastCell.textContent).toContain("--");
         });
     });
 });

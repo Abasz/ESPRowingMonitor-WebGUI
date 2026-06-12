@@ -286,6 +286,31 @@ describe("detectLaps", (): void => {
             expect(laps[1].avgPower).toBe(200);
             expect(laps[1].avgStrokeRate).toBe(30);
         });
+
+        it("should set powerBalance to undefined when strokes have no handle forces", (): void => {
+            const strokes = [
+                createStroke(0, 0, 24, { handleForces: [] }),
+                createStroke(1, 2.5, 24, { handleForces: [] }),
+                createStroke(2, 5, 24, { handleForces: [] }),
+            ];
+
+            const laps = detectLaps(strokes);
+
+            expect(laps[0].powerBalance).toBeUndefined();
+        });
+
+        it("should compute powerBalance from paired handle force data", (): void => {
+            const strokes = [
+                // strokeIndex 1 (odd = side A) paired with strokeIndex 2 (even = side B)
+                createStroke(1, 0, 24, { handleForces: [100, 200, 100] }),
+                createStroke(2, 2.5, 24, { handleForces: [100, 200, 100] }),
+                createStroke(3, 5, 24, { handleForces: [] }),
+            ];
+
+            const laps = detectLaps(strokes);
+
+            expect(laps[0].powerBalance).toBeCloseTo(0.5);
+        });
     });
 });
 

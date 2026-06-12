@@ -64,6 +64,19 @@
                 </span>
             </div>
         }
+
+        @if (balanceDisplay(); as display) {
+            <div>
+                <span class="label">Balance</span>
+                <span class="value">A {{ display.sideA }}% / B {{ display.sideB }}%</span>
+            </div>
+            @if (display.consistency) {
+                <div>
+                    <span class="label">Consistency</span>
+                    <span class="value">{{ display.consistency }}</span>
+                </div>
+            }
+        }
     </div>
 </mat-card>
 
@@ -95,6 +108,7 @@
         <app-lap-table
             [laps]="analysis().laps"
             [selectedLap]="selectedLap()"
+            [showBalanceColumn]="isKayakSession()"
             (lapSelected)="onLapSelected($event)"
         />
     </mat-card>

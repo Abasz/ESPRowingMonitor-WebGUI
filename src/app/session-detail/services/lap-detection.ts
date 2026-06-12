@@ -1,4 +1,5 @@
 import { ILapEntity } from "../../../common/database.interfaces";
+import { computeBalanceMetrics, strokesToBalanceInput } from "../../../common/utils/balance-metrics";
 import { ILap, ISessionStroke } from "../models/session-analysis.interfaces";
 
 const STROKE_RATE_THRESHOLD = 2;
@@ -26,6 +27,8 @@ const computeLapMetrics = (
         sumDistPerStroke += stroke.distPerStroke;
     }
 
+    const lapBalanceMetrics = computeBalanceMetrics(strokesToBalanceInput(lapStrokes));
+
     return {
         lapNumber,
         startIndex,
@@ -37,6 +40,7 @@ const computeLapMetrics = (
         avgStrokeRate: sumStrokeRate / count,
         avgSpeed: sumSpeed / count,
         avgDistPerStroke: sumDistPerStroke / count,
+        powerBalance: lapBalanceMetrics.ratios.length > 0 ? lapBalanceMetrics.powerBalance : undefined,
     };
 };
 
