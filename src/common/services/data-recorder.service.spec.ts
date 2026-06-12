@@ -75,6 +75,7 @@ describe("DataRecorderService", (): void => {
             handleForces: [100, 200, 300],
             driveLength: 1.5,
             totalWork: 0,
+            powerBalance: 0.5,
         };
     };
 

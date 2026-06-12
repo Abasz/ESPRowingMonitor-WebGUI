@@ -18,6 +18,7 @@ import { HeartRateTileComponent } from "./tiles/heart-rate-tile.component";
 import { PaceTileComponent } from "./tiles/pace-tile.component";
 import { PeakForcePositionTileComponent } from "./tiles/peak-force-position-tile.component";
 import { PeakForceTileComponent } from "./tiles/peak-force-tile.component";
+import { PowerBalanceTileComponent } from "./tiles/power-balance-tile.component";
 import { PowerTileComponent } from "./tiles/power-tile.component";
 import { RecoveryTileComponent } from "./tiles/recovery-tile.component";
 import { SpeedTileComponent } from "./tiles/speed-tile.component";
@@ -31,6 +32,7 @@ export interface DashboardContext {
     heartRateData: IHeartRate | undefined;
     elapseTime: number;
     displayConfig: IDisplayConfig;
+    deviceName: string | undefined;
 }
 
 /**
@@ -142,7 +144,7 @@ const TILE_REGISTRY = {
         minRowSpan: 1,
         minColumnSpan: 1,
         component: ForceCurveTileComponent,
-        context: ["rowingData", "displayConfig"],
+        context: ["rowingData", "displayConfig", "deviceName"],
     },
     DistPerStroke: {
         id: "distPerStroke" as const,
@@ -260,6 +262,17 @@ const TILE_REGISTRY = {
         minColumnSpan: 1,
         component: TotalWorkTileComponent,
         context: ["rowingData"],
+    },
+    PowerDistribution: {
+        id: "powerDistribution" as const,
+        label: "Power Balance",
+        icon: "balance",
+        defaultRowSpan: 1,
+        defaultColumnSpan: 1,
+        minRowSpan: 1,
+        minColumnSpan: 1,
+        component: PowerBalanceTileComponent,
+        context: ["rowingData", "deviceName"],
     },
 } satisfies Record<string, TileRegistryEntry>;
 

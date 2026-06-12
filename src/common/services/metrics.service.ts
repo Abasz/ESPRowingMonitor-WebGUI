@@ -1,6 +1,16 @@
 import { DestroyRef, Injectable } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { combineLatest, filter, map, Observable, pairwise, shareReplay, startWith } from "rxjs";
+import {
+    combineLatest,
+    distinctUntilChanged,
+    filter,
+    map,
+    Observable,
+    pairwise,
+    shareReplay,
+    startWith,
+    withLatestFrom,
+} from "rxjs";
 
 import {
     IBaseMetrics,
@@ -26,6 +36,14 @@ export class MetricsService {
     readonly rawMetrics$: Observable<IRawCalculatedMetrics>;
     readonly heartRateData$: Observable<IHeartRate | undefined>;
     readonly hrConnectionStatus$: Observable<IHRConnectionStatus>;
+
+    private readonly measurement$: Observable<IBaseMetrics> = this.ergMetricService
+        .streamMeasurement$()
+        .pipe(shareReplay({ bufferSize: 1, refCount: true }));
+
+    private readonly handleForces$: Observable<Array<number>> = this.ergMetricService
+        .streamHandleForces$()
+        .pipe(startWith([] as Array<number>), shareReplay({ bufferSize: 1, refCount: true }));
 
     constructor(
         private ergMetricService: ErgMetricsService,
@@ -130,24 +148,31 @@ export class MetricsService {
 
     private streamBasicMetrics$(): Observable<IRawCalculatedMetrics> {
         return combineLatest([
-            this.ergMetricService.streamMeasurement$().pipe(pairwise()),
+            this.measurement$.pipe(pairwise()),
             this.streamExtended$(),
-            this.streamHandleForces$(),
+            this.handleForces$,
         ]).pipe(
+            withLatestFrom(this.streamPowerBalance$()),
             map(
-                ([[baseMetricsPrevious, baseMetricsCurrent], extendedMetrics, handleForces]: [
-                    [IBaseMetrics, IBaseMetrics],
-                    IExtendedMetrics,
-                    Array<number>,
+                ([metricsInput, powerBalance]: [
+                    [[IBaseMetrics, IBaseMetrics], IExtendedMetrics, Array<number>],
+                    number,
                 ]): IRawCalculatedMetrics => {
+                    const [[baseMetricsPrevious, baseMetricsCurrent], extendedMetrics, handleForces]: [
+                        [IBaseMetrics, IBaseMetrics],
+                        IExtendedMetrics,
+                        Array<number>,
+                    ] = metricsInput;
                     const { peakForce, peakForceIndex }: { peakForce: number; peakForceIndex: number } =
                         handleForces.reduce(
                             (
-                                acc: { peakForce: number; peakForceIndex: number },
+                                accumulator: { peakForce: number; peakForceIndex: number },
                                 force: number,
                                 index: number,
                             ): { peakForce: number; peakForceIndex: number } =>
-                                force > acc.peakForce ? { peakForce: force, peakForceIndex: index } : acc,
+                                force > accumulator.peakForce
+                                    ? { peakForce: force, peakForceIndex: index }
+                                    : accumulator,
                             { peakForce: 0, peakForceIndex: 0 },
                         );
 
@@ -158,7 +183,7 @@ export class MetricsService {
                         dragFactor: extendedMetrics.dragFactor,
                         rawDistance: baseMetricsCurrent.distance,
                         rawStrokeCount: baseMetricsCurrent.strokeCount,
-                        handleForces: handleForces,
+                        handleForces,
                         peakForce,
                         peakForcePositionNorm:
                             handleForces.length > 1 ? (peakForceIndex / (handleForces.length - 1)) * 100 : 0,
@@ -166,9 +191,63 @@ export class MetricsService {
                         speed: this.calculateSpeed(baseMetricsPrevious, baseMetricsCurrent),
                         distPerStroke: this.calculateStrokeDistance(baseMetricsPrevious, baseMetricsCurrent),
                         driveLength: this.calculateDriveLength(handleForces.length),
+                        powerBalance,
                     };
                 },
             ),
+        );
+    }
+
+    /**
+     * Produces a rolling kayak power-balance value (side-A fraction, 0–1).
+     *
+     * Uses `combineLatest` to ensure handle forces are always paired with their
+     * matching measurement, then deduplicates by strokeCount so only the last
+     * emission per stroke is kept. `pairwise()` surfaces consecutive [prev, curr]
+     * stroke pairs; only valid A+B pairs (odd stroke followed immediately by the
+     * next even stroke) pass the filter and feed the balance computation.
+     * Emits a new balance only when a complete pair is detected; between pairs the
+     * `withLatestFrom` in `streamBasicMetrics$` retains the last emitted value.
+     * Starts at 0.5 (perfectly balanced) before the first complete pair arrives.
+     */
+    private streamPowerBalance$(): Observable<number> {
+        return combineLatest([this.measurement$, this.handleForces$]).pipe(
+            distinctUntilChanged(
+                (
+                    [previousMeasurement]: [IBaseMetrics, Array<number>],
+                    [currentMeasurement]: [IBaseMetrics, Array<number>],
+                ): boolean => previousMeasurement.strokeCount === currentMeasurement.strokeCount,
+            ),
+            pairwise(),
+            filter(
+                ([[previousMeasurement], [currentMeasurement]]: [
+                    [IBaseMetrics, Array<number>],
+                    [IBaseMetrics, Array<number>],
+                ]): boolean =>
+                    previousMeasurement.strokeCount % 2 === 1 &&
+                    currentMeasurement.strokeCount === previousMeasurement.strokeCount + 1,
+            ),
+            map(
+                ([[, sideAForces], [, sideBForces]]: [
+                    [IBaseMetrics, Array<number>],
+                    [IBaseMetrics, Array<number>],
+                ]): number => {
+                    const meanA: number =
+                        sideAForces.length > 0
+                            ? sideAForces.reduce((sum: number, force: number): number => sum + force, 0) /
+                              sideAForces.length
+                            : 0;
+                    const meanB: number =
+                        sideBForces.length > 0
+                            ? sideBForces.reduce((sum: number, force: number): number => sum + force, 0) /
+                              sideBForces.length
+                            : 0;
+                    const totalForce: number = meanA + meanB;
+
+                    return totalForce > 0 ? meanA / totalForce : 0.5;
+                },
+            ),
+            startWith(0.5),
         );
     }
 
@@ -181,9 +260,5 @@ export class MetricsService {
                 recoveryDuration: 0,
             }),
         );
-    }
-
-    private streamHandleForces$(): Observable<Array<number>> {
-        return this.ergMetricService.streamHandleForces$().pipe(startWith([]));
     }
 }

@@ -26,6 +26,7 @@ import ChartDataLabels, { Context } from "chartjs-plugin-datalabels";
 import { BaseChartDirective, provideCharts } from "ng2-charts";
 
 import { ICalculatedMetrics, IDisplayConfig } from "../../../common/common.interfaces";
+import { isKayakErgometer } from "../../../common/utils/utility.functions";
 
 @Component({
     selector: "app-force-curve-tile",
@@ -79,6 +80,15 @@ export class ForceCurveTileComponent {
     readonly icon: InputSignal<string | undefined> = input<string | undefined>();
     readonly rowingData: InputSignal<ICalculatedMetrics> = input.required<ICalculatedMetrics>();
     readonly displayConfig: InputSignal<IDisplayConfig> = input.required<IDisplayConfig>();
+    readonly deviceName: InputSignal<string | undefined> = input<string | undefined>();
+
+    readonly strokeSide: Signal<"A" | "B" | undefined> = computed((): "A" | "B" | undefined =>
+        isKayakErgometer(this.deviceName())
+            ? this.rowingData().strokeCount % 2 === 1
+                ? "A"
+                : "B"
+            : undefined,
+    );
 
     readonly handleForces: Signal<Array<number>> = computed(
         (): Array<number> => this.rowingData().handleForces,
@@ -99,6 +109,8 @@ export class ForceCurveTileComponent {
         const shouldShowGridLines = this.showGridLines();
         const shouldShowAxisLabels = this.showAxisLabels();
         const tileLabel = this.label();
+        const side = this.strokeSide();
+        const sideLabel = side !== undefined ? ` (${side})` : "";
 
         if (
             this._forceChartOptions.plugins?.legend?.title === undefined ||
@@ -121,14 +133,14 @@ export class ForceCurveTileComponent {
 
         if (handleForcesData.length === 0) {
             this._forceChartOptions.plugins.legend.title.display = true;
-            this._forceChartOptions.plugins.legend.title.text = tileLabel;
+            this._forceChartOptions.plugins.legend.title.text = `${tileLabel}${sideLabel}`;
             this._forceChartOptions.plugins.datalabels.display = false;
 
             return { ...this._forceChartOptions };
         }
 
         this._forceChartOptions.plugins.legend.title.display = shouldShowPeakInTitle;
-        this._forceChartOptions.plugins.legend.title.text = `Peak: ${Math.round(Math.max(...handleForcesData))}N`;
+        this._forceChartOptions.plugins.legend.title.text = `Peak: ${Math.round(Math.max(...handleForcesData))}N${sideLabel}`;
         this._forceChartOptions.plugins.datalabels.display = shouldShowPeakInTitle
             ? false
             : (ctx: Context): boolean =>

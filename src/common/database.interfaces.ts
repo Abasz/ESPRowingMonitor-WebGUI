@@ -7,7 +7,13 @@ export interface ISessionUploadEntity {
 
 export interface IMetricsEntity extends Omit<
     ISessionData,
-    "peakForce" | "peakForcePositionNorm" | "handleForces" | "driveLength" | "totalWork"
+    | "peakForce"
+    | "peakForcePositionNorm"
+    | "handleForces"
+    | "driveLength"
+    | "totalWork"
+    | "powerBalance"
+    | "powerBalancePairCount"
 > {
     sessionId: number;
     timeStamp: number;
@@ -44,7 +50,12 @@ export interface ILapEntity {
 
 export type IExportRecord = Omit<
     ISessionData,
-    "peakForce" | "peakForcePositionNorm" | "handleForces" | "driveLength"
+    | "peakForce"
+    | "peakForcePositionNorm"
+    | "handleForces"
+    | "driveLength"
+    | "powerBalance"
+    | "powerBalancePairCount"
 > & {
     timeStamp: Date;
 };

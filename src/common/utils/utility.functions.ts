@@ -222,3 +222,15 @@ String.prototype.pascalize = function (): string {
         })
         .replace(/\s+/g, "");
 };
+
+export const KAYAK_DEVICE_PATTERNS: ReadonlyArray<string> = ["kayak", "olddanube"];
+
+/**
+ * Returns true when the device name matches any known kayak ergometer pattern.
+ * Used to enable kayak-specific features such as per-side power balance.
+ */
+export function isKayakErgometer(deviceName: string | undefined): boolean {
+    const name = deviceName?.toLowerCase() ?? "";
+
+    return KAYAK_DEVICE_PATTERNS.some((pattern: string): boolean => name.includes(pattern));
+}

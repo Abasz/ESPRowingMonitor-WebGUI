@@ -1,6 +1,7 @@
 import { fit_messages } from "@markw65/fit-file-writer";
 
 import { IExportHandleForces, IExportRecord, ILapExport, LapType } from "../../database.interfaces";
+import { isKayakErgometer } from "../utility.functions";
 
 // undocumented Garmin fields for split and split_summary messages
 // TODO: we may remove these once they are included in the fit-file-writer library
@@ -207,14 +208,6 @@ const LAP_TRIGGER_MAP: Record<LapType, FitLapTrigger> = {
     time: "time",
 };
 
-const KAYAK_DEVICE_PATTERNS: Array<string> = ["kayak", "olddanube"];
-
-const isKayakDevice = (deviceName: string | undefined): boolean => {
-    const name = deviceName?.toLowerCase() ?? "";
-
-    return KAYAK_DEVICE_PATTERNS.some((pattern: string): boolean => name.includes(pattern));
-};
-
 export function computeMaxCurvePointCount(handleForces: Record<number, IExportHandleForces>): number {
     let max = 0;
     for (const handleForce of Object.values(handleForces)) {
@@ -225,7 +218,7 @@ export function computeMaxCurvePointCount(handleForces: Record<number, IExportHa
 }
 
 export function getSportConfig(deviceName: string | undefined): SportConfig {
-    if (isKayakDevice(deviceName)) {
+    if (isKayakErgometer(deviceName)) {
         return {
             sport: "kayaking",
             subSport: "generic",

@@ -7,7 +7,7 @@ import { EMPTY, Observable, of, Subject } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 import { IDeviceInformation } from "../common/ble.interfaces";
-import { ICalculatedMetrics, IErgConnectionStatus, IHeartRate } from "../common/common.interfaces";
+import { IErgConnectionStatus, IHeartRate, IRawCalculatedMetrics } from "../common/common.interfaces";
 import { DataRecorderService } from "../common/services/data-recorder.service";
 import { ErgConnectionService } from "../common/services/ergometer/erg-connection.service";
 import { ErgGenericDataService } from "../common/services/ergometer/erg-generic-data.service";
@@ -80,13 +80,13 @@ describe("AppComponent", (): void => {
 
         const mockMetricsService = {
             heartRateData$: of({ heartRate: 75 } as IHeartRate),
-            allMetrics$: of({
+            rawMetrics$: of({
                 avgStrokePower: 0,
                 driveDuration: 0,
                 recoveryDuration: 0,
                 dragFactor: 0,
-                distance: 0,
-                strokeCount: 0,
+                rawDistance: 0,
+                rawStrokeCount: 0,
                 handleForces: [],
                 peakForce: 0,
                 peakForcePositionNorm: 0,
@@ -94,8 +94,8 @@ describe("AppComponent", (): void => {
                 speed: 0,
                 distPerStroke: 0,
                 driveLength: 0,
-                totalWork: 0,
-            } as ICalculatedMetrics),
+                powerBalance: 0.5,
+            } as IRawCalculatedMetrics),
             ergConnectionStatus$: of({ status: "connected" } as IErgConnectionStatus),
             ergBatteryLevel$: of(80),
             hrConnectionStatus$: of({ status: "connected" }),

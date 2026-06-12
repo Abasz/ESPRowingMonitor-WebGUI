@@ -34,6 +34,7 @@ export const mockRawMetrics: IRawCalculatedMetrics = {
     speed: 0,
     distPerStroke: 0,
     driveLength: 0,
+    powerBalance: 0.5,
 };
 
 export interface SessionManagerTestContext {

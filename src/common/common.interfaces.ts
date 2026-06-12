@@ -205,6 +205,7 @@ export interface ICalculatedMetrics extends Omit<IExtendedMetrics & IBaseMetrics
     driveLength: number;
     handleForces: Array<number>;
     totalWork: number;
+    powerBalance: number;
 }
 
 export type SessionState = "running" | "paused" | "stopped";

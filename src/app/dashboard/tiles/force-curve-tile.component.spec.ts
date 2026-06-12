@@ -563,4 +563,101 @@ describe("ForceCurveTileComponent", (): void => {
             expect(resizeSpy).toHaveBeenCalled();
         });
     });
+
+    describe("strokeSide signal for kayak ergometer", (): void => {
+        const kayakDeviceName = "OldDanubeErgo";
+        const rowingDeviceName = "ESP Rowing Monitor";
+
+        describe("when device is a kayak ergometer", (): void => {
+            it("should return 'A' for an odd strokeCount", async (): Promise<void> => {
+                fixture.componentRef.setInput("deviceName", kayakDeviceName);
+                fixture.componentRef.setInput("rowingData", {
+                    ...mockInitialMetrics,
+                    strokeCount: 1,
+                });
+                await fixture.whenStable();
+
+                expect(component.strokeSide()).toBe("A");
+            });
+
+            it("should return 'B' for an even strokeCount", async (): Promise<void> => {
+                fixture.componentRef.setInput("deviceName", kayakDeviceName);
+                fixture.componentRef.setInput("rowingData", {
+                    ...mockInitialMetrics,
+                    strokeCount: 2,
+                });
+                await fixture.whenStable();
+
+                expect(component.strokeSide()).toBe("B");
+            });
+
+            it("should append '(A)' to the title when no force data and side is A", async (): Promise<void> => {
+                fixture.componentRef.setInput("deviceName", kayakDeviceName);
+                fixture.componentRef.setInput("rowingData", {
+                    ...mockInitialMetrics,
+                    strokeCount: 1,
+                    handleForces: [],
+                });
+                await fixture.whenStable();
+
+                expect(component.forceChartOptions().plugins?.legend?.title?.text).toBe("Force Curve (A)");
+            });
+
+            it("should append '(B)' to the peak title when side is B with force data", async (): Promise<void> => {
+                fixture.componentRef.setInput("deviceName", kayakDeviceName);
+                fixture.componentRef.setInput("rowingData", {
+                    ...mockInitialMetrics,
+                    strokeCount: 2,
+                    handleForces: [100, 200, 150],
+                });
+                fixture.componentRef.setInput("displayConfig", {
+                    ...mockInitialDisplayConfig,
+                    forceCurve: {
+                        ...mockInitialDisplayConfig.forceCurve,
+                        showPeakForceInTitle: true,
+                    },
+                });
+                await fixture.whenStable();
+
+                expect(component.forceChartOptions().plugins?.legend?.title?.text).toBe("Peak: 200N (B)");
+            });
+        });
+
+        describe("when device is a non-kayak ergometer", (): void => {
+            it("should return undefined for strokeSide", async (): Promise<void> => {
+                fixture.componentRef.setInput("deviceName", rowingDeviceName);
+                fixture.componentRef.setInput("rowingData", {
+                    ...mockInitialMetrics,
+                    strokeCount: 1,
+                });
+                await fixture.whenStable();
+
+                expect(component.strokeSide()).toBeUndefined();
+            });
+
+            it("should not append any side label to the title", async (): Promise<void> => {
+                fixture.componentRef.setInput("deviceName", rowingDeviceName);
+                fixture.componentRef.setInput("rowingData", {
+                    ...mockInitialMetrics,
+                    strokeCount: 1,
+                    handleForces: [],
+                });
+                await fixture.whenStable();
+
+                expect(component.forceChartOptions().plugins?.legend?.title?.text).toBe("Force Curve");
+            });
+        });
+
+        describe("when deviceName is not provided", (): void => {
+            it("should return undefined for strokeSide", async (): Promise<void> => {
+                fixture.componentRef.setInput("rowingData", {
+                    ...mockInitialMetrics,
+                    strokeCount: 1,
+                });
+                await fixture.whenStable();
+
+                expect(component.strokeSide()).toBeUndefined();
+            });
+        });
+    });
 });

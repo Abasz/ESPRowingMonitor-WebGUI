@@ -582,4 +582,115 @@ describe("MetricsService", (): void => {
             measurementSubject.next(baseMetrics2);
         });
     });
+
+    describe("powerBalance computation", (): void => {
+        beforeEach((): void => {
+            service = TestBed.inject(MetricsService);
+        });
+
+        it("should default powerBalance to 0.5 before any valid side pair is formed", (): void => {
+            const emitted: Array<IRawCalculatedMetrics> = [];
+            service.rawMetrics$.subscribe((metrics: IRawCalculatedMetrics): void => {
+                emitted.push(metrics);
+            });
+
+            // seed the pairwise and emit a side-A stroke (odd strokeCount)
+            measurementSubject.next({ revTime: 0, distance: 0, strokeTime: 0, strokeCount: 0 });
+            handleForcesSubject.next([100]);
+            measurementSubject.next({ revTime: 1000, distance: 100, strokeTime: 1000, strokeCount: 1 });
+
+            expect(emitted).toHaveLength(1);
+            expect(emitted[0].powerBalance).toBe(0.5);
+        });
+
+        it("should emit rawMetrics$ exactly once per stroke", (): void => {
+            let emissionCount = 0;
+            service.rawMetrics$.subscribe((): void => {
+                emissionCount++;
+            });
+
+            measurementSubject.next({ revTime: 0, distance: 0, strokeTime: 0, strokeCount: 0 });
+            handleForcesSubject.next([100]);
+            measurementSubject.next({ revTime: 1000, distance: 100, strokeTime: 1000, strokeCount: 1 });
+
+            expect(emissionCount).toBe(1);
+        });
+
+        it("should compute powerBalance when consecutive odd+even strokes pair up", (): void => {
+            const emitted: Array<IRawCalculatedMetrics> = [];
+            service.rawMetrics$.subscribe((metrics: IRawCalculatedMetrics): void => {
+                emitted.push(metrics);
+            });
+
+            // side A: stronger (120 N mean force)
+            handleForcesSubject.next([120, 120]);
+            measurementSubject.next({ revTime: 0, distance: 0, strokeTime: 0, strokeCount: 0 });
+            measurementSubject.next({ revTime: 1000, distance: 100, strokeTime: 1000, strokeCount: 1 });
+
+            // side B: weaker (80 N mean force)
+            handleForcesSubject.next([80, 80]);
+            measurementSubject.next({ revTime: 2000, distance: 200, strokeTime: 2000, strokeCount: 2 });
+
+            // first emission (stroke 1) still has the default balance.
+            expect(emitted[0].powerBalance).toBe(0.5);
+            const lastEmitted: IRawCalculatedMetrics = emitted[emitted.length - 1];
+            expect(lastEmitted.powerBalance).toBeCloseTo(120 / (120 + 80));
+        });
+
+        it("should retain the previous balance when force updates arrive mid-stroke (same strokeCount)", (): void => {
+            const emitted: Array<IRawCalculatedMetrics> = [];
+            service.rawMetrics$.subscribe((metrics: IRawCalculatedMetrics): void => {
+                emitted.push(metrics);
+            });
+
+            handleForcesSubject.next([120, 120]); // side A forces
+            measurementSubject.next({ revTime: 0, distance: 0, strokeTime: 0, strokeCount: 0 });
+            measurementSubject.next({ revTime: 1000, distance: 100, strokeTime: 1000, strokeCount: 1 });
+
+            handleForcesSubject.next([999, 999]);
+
+            handleForcesSubject.next([80, 80]); // side B forces
+            measurementSubject.next({ revTime: 2000, distance: 200, strokeTime: 2000, strokeCount: 2 });
+
+            const lastEmitted: IRawCalculatedMetrics = emitted[emitted.length - 1];
+            expect(lastEmitted.powerBalance).toBeCloseTo(120 / (120 + 80));
+        });
+
+        it("should retain the last balance when an even stroke is not consecutive with the preceding odd stroke", (): void => {
+            const emitted: Array<IRawCalculatedMetrics> = [];
+            service.rawMetrics$.subscribe((metrics: IRawCalculatedMetrics): void => {
+                emitted.push(metrics);
+            });
+
+            // set forces once before pairwise fires — no updates between strokes
+            handleForcesSubject.next([100]);
+
+            // stroke 1 (odd, side A)
+            measurementSubject.next({ revTime: 0, distance: 0, strokeTime: 0, strokeCount: 0 });
+            measurementSubject.next({ revTime: 1000, distance: 100, strokeTime: 1000, strokeCount: 1 });
+
+            // strokeCount = 4 (even, not consecutive with 1) — no force update between strokes
+            measurementSubject.next({ revTime: 2000, distance: 200, strokeTime: 2000, strokeCount: 4 });
+
+            expect(emitted).toHaveLength(2);
+            expect(emitted[0].powerBalance).toBe(0.5);
+            expect(emitted[1].powerBalance).toBe(0.5);
+        });
+
+        it("should return 0.5 balance when both sides have zero force", (): void => {
+            const emitted: Array<IRawCalculatedMetrics> = [];
+            service.rawMetrics$.subscribe((metrics: IRawCalculatedMetrics): void => {
+                emitted.push(metrics);
+            });
+
+            measurementSubject.next({ revTime: 0, distance: 0, strokeTime: 0, strokeCount: 0 });
+            handleForcesSubject.next([0]);
+            measurementSubject.next({ revTime: 1000, distance: 100, strokeTime: 1000, strokeCount: 1 });
+
+            handleForcesSubject.next([0]);
+            measurementSubject.next({ revTime: 2000, distance: 200, strokeTime: 2000, strokeCount: 2 });
+
+            expect(emitted[1].powerBalance).toBe(0.5);
+        });
+    });
 });

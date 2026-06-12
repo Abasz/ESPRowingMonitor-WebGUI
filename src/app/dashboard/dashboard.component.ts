@@ -23,6 +23,7 @@ import {
     OrientationLock,
 } from "../../common/common.interfaces";
 import { ConfigManagerService } from "../../common/services/config-manager.service";
+import { ErgConnectionService } from "../../common/services/ergometer/erg-connection.service";
 import { MetricsService } from "../../common/services/metrics.service";
 import { SessionManagerService } from "../../common/services/session-manager.service";
 import { UtilsService } from "../../common/services/utils.service";
@@ -44,7 +45,7 @@ import { SettingsBarComponent } from "./settings-bar/settings-bar.component";
 
 type AverageableMetricKey = Exclude<
     keyof ICalculatedMetrics,
-    "distance" | "strokeCount" | "handleForces" | "totalWork"
+    "distance" | "strokeCount" | "handleForces" | "totalWork" | "powerBalance"
 >;
 
 const PERFORMANCE_METRIC_KEYS: ReadonlyArray<AverageableMetricKey> = [
@@ -79,6 +80,7 @@ const ZERO_METRICS: ICalculatedMetrics = {
     distPerStroke: 0,
     driveLength: 0,
     totalWork: 0,
+    powerBalance: 0.5,
 };
 
 /**
@@ -107,6 +109,7 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     readonly gridColumns: Signal<number>;
     readonly gridRows: Signal<number>;
     readonly rowingData: Signal<ICalculatedMetrics>;
+    readonly deviceName: Signal<string | undefined>;
 
     readonly tileEntries: Signal<
         ReadonlyMap<DashboardTileId, { component: Type<DashboardTileComponent>; inputs: TileComponentInputs }>
@@ -177,6 +180,7 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
         heartRateData: (): IHeartRate | undefined => this.heartRateData(),
         elapseTime: (): number => this.elapseTime(),
         displayConfig: (): IDisplayConfig => this.displayConfig(),
+        deviceName: (): string | undefined => this.deviceName(),
     };
 
     private readonly isDeviceOrientationPortrait: Signal<boolean>;
@@ -190,12 +194,20 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
         private utils: UtilsService,
         private configManager: ConfigManagerService,
         private breakpointObserver: BreakpointObserver,
+        private ergConnectionService: ErgConnectionService,
     ) {
         this.displayConfig = toSignal(
             this.configManager.configChanged$.pipe(map((config: Config): IDisplayConfig => config.display)),
             {
                 requireSync: true,
             },
+        );
+
+        this.deviceName = toSignal(
+            this.ergConnectionService
+                .connectionStatus$()
+                .pipe(map((status: { deviceName?: string }): string | undefined => status.deviceName)),
+            { initialValue: undefined },
         );
 
         this.rowingData = toSignal(

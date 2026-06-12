@@ -54,6 +54,7 @@ const ZERO_RAW_METRICS: IRawCalculatedMetrics = {
     speed: 0,
     distPerStroke: 0,
     driveLength: 0,
+    powerBalance: 0.5,
 };
 
 interface SessionAccumulator {
