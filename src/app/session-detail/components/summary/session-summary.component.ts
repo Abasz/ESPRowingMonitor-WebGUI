@@ -290,9 +290,15 @@ const buildDriveLengthChartConfig = (
     };
 };
 
-const buildDriveRecoveryChartConfig = (strokes: Array<ISessionRecord>): IChartConfig => {
+const DRIVE_RECOVERY_RANGE = {
+    kayak: { min: 0.1, max: 0.6 },
+    rower: { min: 0.4, max: 3.0 },
+};
+
+const buildDriveRecoveryChartConfig = (strokes: Array<ISessionRecord>, isKayak: boolean): IChartConfig => {
     const drivePoints = buildPoints(strokes, (stroke: ISessionRecord): number => stroke.driveDuration);
     const recoveryPoints = buildPoints(strokes, (stroke: ISessionRecord): number => stroke.recoveryDuration);
+    const range = isKayak ? DRIVE_RECOVERY_RANGE.kayak : DRIVE_RECOVERY_RANGE.rower;
 
     return {
         title: "Drive / Recovery",
@@ -307,11 +313,7 @@ const buildDriveRecoveryChartConfig = (strokes: Array<ISessionRecord>): IChartCo
         },
         options: {
             scales: {
-                y: {
-                    title: { display: true, text: "s" },
-                    min: 0.1,
-                    max: 0.6,
-                },
+                y: { title: { display: true, text: "s" }, min: range.min, max: range.max },
             },
             plugins: { legend: { display: true } },
         },
@@ -475,7 +477,7 @@ export class SessionSummaryComponent {
             buildDistPerStrokeChartConfig(records),
             buildDriveLengthChartConfig(records, strokes),
             buildPeakForcePositionChartConfig(strokes, stats),
-            buildDriveRecoveryChartConfig(records),
+            buildDriveRecoveryChartConfig(records, this.isKayakSession()),
         );
 
         return configs;

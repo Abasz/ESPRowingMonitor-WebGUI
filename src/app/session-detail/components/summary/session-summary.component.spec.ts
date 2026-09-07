@@ -410,6 +410,32 @@ describe("SessionSummaryComponent", (): void => {
             expect(speedChart.data.datasets.length).toBe(2);
             expect(speedChart.data.datasets[1].label).toBe("Average");
         });
+
+        it("should use a fixed y-axis range for the drive/recovery chart on a kayak device", (): void => {
+            fixture.componentRef.setInput("analysis", {
+                ...createMockAnalysis(),
+                deviceName: "KayakErgo 2000",
+            });
+            fixture.detectChanges();
+
+            const yScale = getChartConfig("Drive / Recovery")!.options!.scales!.y as {
+                min?: number;
+                max?: number;
+            };
+
+            expect(yScale.min).toBe(0.1);
+            expect(yScale.max).toBe(0.6);
+        });
+
+        it("should use a fixed y-axis range for the drive/recovery chart on a non-kayak device", (): void => {
+            const yScale = getChartConfig("Drive / Recovery")!.options!.scales!.y as {
+                min?: number;
+                max?: number;
+            };
+
+            expect(yScale.min).toBe(0.4);
+            expect(yScale.max).toBe(3.0);
+        });
     });
 
     describe("as part of lap table rendering", (): void => {
