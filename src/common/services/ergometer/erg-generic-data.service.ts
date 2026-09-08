@@ -47,9 +47,8 @@ export class ErgGenericDataService {
                 ergConnectionStatus.status === "connected",
         ),
         distinctUntilChanged(),
-        switchMap(
-            (isConnected: boolean): Observable<IDeviceInformation> =>
-                isConnected ? from(this.readDeviceInfo()) : of({}),
+        switchMap((isConnected: boolean): Observable<IDeviceInformation> =>
+            isConnected ? from(this.readDeviceInfo()) : of({}),
         ),
         shareReplay(1),
     );
@@ -84,9 +83,8 @@ export class ErgGenericDataService {
                 ): batteryCharacteristic is BluetoothRemoteGATTCharacteristic =>
                     batteryCharacteristic !== undefined,
             ),
-            switchMap(
-                (batteryCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<number> =>
-                    this.observeBattery$(batteryCharacteristic),
+            switchMap((batteryCharacteristic: BluetoothRemoteGATTCharacteristic): Observable<number> =>
+                this.observeBattery$(batteryCharacteristic),
             ),
             retry({
                 count: 4,

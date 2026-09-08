@@ -1020,21 +1020,19 @@ describe("SessionAnalysisService", (): void => {
 
         it("should compute powerBalanceConsistency with 3 or more pairs", async (): Promise<void> => {
             // seed 6 strokes (strokeCount 1–6) giving 3 A/B pairs
-            const metrics = [1, 2, 3, 4, 5, 6].map(
-                (strokeCount: number): IMetricsEntity =>
-                    createMetricsEntity({
-                        strokeCount,
-                        elapsedTime: strokeCount,
-                        timeStamp: mockSessionId + strokeCount * 1000,
-                    }),
+            const metrics = [1, 2, 3, 4, 5, 6].map((strokeCount: number): IMetricsEntity =>
+                createMetricsEntity({
+                    strokeCount,
+                    elapsedTime: strokeCount,
+                    timeStamp: mockSessionId + strokeCount * 1000,
+                }),
             );
-            const handleForcesEntities = [1, 2, 3, 4, 5, 6].map(
-                (strokeId: number): IHandleForcesEntity =>
-                    createHandleForcesEntity({
-                        strokeId,
-                        handleForces: [100, 200, 100],
-                        timeStamp: mockSessionId + strokeId * 1000,
-                    }),
+            const handleForcesEntities = [1, 2, 3, 4, 5, 6].map((strokeId: number): IHandleForcesEntity =>
+                createHandleForcesEntity({
+                    strokeId,
+                    handleForces: [100, 200, 100],
+                    timeStamp: mockSessionId + strokeId * 1000,
+                }),
             );
 
             await seedSession(metrics, handleForcesEntities);

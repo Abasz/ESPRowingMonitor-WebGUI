@@ -33,9 +33,10 @@ interface IContinuousForceCurveData {
 }
 
 const buildSingleStrokeForceCurve = (stroke: ISessionStroke, chartMaxY: number): ChartData => {
-    const forcePoints = stroke.handleForces.map(
-        (force: number, index: number): Point => ({ x: index, y: force }),
-    );
+    const forcePoints = stroke.handleForces.map((force: number, index: number): Point => ({
+        x: index,
+        y: force,
+    }));
 
     const peakIndex = Math.round(
         (stroke.peakForcePositionNorm / 100) * Math.max(0, stroke.handleForces.length - 1),
@@ -191,12 +192,10 @@ export class SessionStrokesComponent {
 
         const offset = forceCurveData.strokeOffsets[strokeIndex];
 
-        const highlightPoints = stroke.handleForces.map(
-            (force: number, index: number): Point => ({
-                x: offset + index,
-                y: force,
-            }),
-        );
+        const highlightPoints = stroke.handleForces.map((force: number, index: number): Point => ({
+            x: offset + index,
+            y: force,
+        }));
 
         return {
             datasets: [

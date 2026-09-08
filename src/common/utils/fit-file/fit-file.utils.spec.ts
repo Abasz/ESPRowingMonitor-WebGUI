@@ -190,9 +190,10 @@ describe("computeStats function", (): void => {
         });
 
         it("should return 0 power when all avgStrokePower are 0", (): void => {
-            records = records.map(
-                (record: IExportRecord): IExportRecord => ({ ...record, avgStrokePower: 0 }),
-            );
+            records = records.map((record: IExportRecord): IExportRecord => ({
+                ...record,
+                avgStrokePower: 0,
+            }));
             const stats = computeStats(records, emptyForces);
 
             expect(stats.avgPower).toBe(0);
@@ -202,9 +203,10 @@ describe("computeStats function", (): void => {
 
     describe("as part of heart rate stats", (): void => {
         it("should return undefined when no heart rate data exists", (): void => {
-            records = records.map(
-                (record: IExportRecord): IExportRecord => ({ ...record, heartRate: undefined }),
-            );
+            records = records.map((record: IExportRecord): IExportRecord => ({
+                ...record,
+                heartRate: undefined,
+            }));
             const stats = computeStats(records, emptyForces);
 
             expect(stats.heartRate).toBeUndefined();

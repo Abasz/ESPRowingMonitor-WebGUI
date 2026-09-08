@@ -155,28 +155,27 @@ export class AntHeartRateService implements IHeartRateService {
 
                     return from(hrSensor.attachSensor(0, 0));
                 }),
-                switchMap(
-                    (): Observable<void> =>
-                        merge(
-                            (fromEvent(hrSensor, "detached") as Observable<void>).pipe(
-                                switchMap((): Observable<void> => {
-                                    this.batteryLevelSubject.next(undefined);
-                                    this.heartRateSensorSubject.next(undefined);
-                                    this.snackBar.open("Heart Rate Monitor connection lost", "Dismiss");
+                switchMap((): Observable<void> =>
+                    merge(
+                        (fromEvent(hrSensor, "detached") as Observable<void>).pipe(
+                            switchMap((): Observable<void> => {
+                                this.batteryLevelSubject.next(undefined);
+                                this.heartRateSensorSubject.next(undefined);
+                                this.snackBar.open("Heart Rate Monitor connection lost", "Dismiss");
 
-                                    this.connectionStatusSubject.next({
-                                        status: "searching",
-                                    });
+                                this.connectionStatusSubject.next({
+                                    status: "searching",
+                                });
 
-                                    return from(hrSensor.attachSensor(0, 0));
-                                }),
-                            ),
-                            (fromEvent(hrSensor, "attached") as Observable<void>).pipe(
-                                tap((): void => {
-                                    this.heartRateSensorSubject.next(hrSensor);
-                                }),
-                            ),
+                                return from(hrSensor.attachSensor(0, 0));
+                            }),
                         ),
+                        (fromEvent(hrSensor, "attached") as Observable<void>).pipe(
+                            tap((): void => {
+                                this.heartRateSensorSubject.next(hrSensor);
+                            }),
+                        ),
+                    ),
                 ),
             )
             .pipe(takeWhile((): boolean => this.onConnect !== undefined))

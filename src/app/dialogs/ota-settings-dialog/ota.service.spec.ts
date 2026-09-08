@@ -71,7 +71,7 @@ describe("OtaService", (): void => {
     }> = async (broadcastValue?: DataView, runCount: number = 1): Promise<{ callCount: number }> => {
         let callCount = 1;
 
-        for (; callCount <= runCount; ) {
+        for (; callCount <= runCount;) {
             await new Promise((resolve: (value: { callCount: number }) => void): void => {
                 vi.mocked(mockResponseCharacteristic.addEventListener).mockImplementation(
                     (

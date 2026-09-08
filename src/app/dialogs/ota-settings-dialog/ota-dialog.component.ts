@@ -84,9 +84,8 @@ export class OtaDialogComponent {
     ) {
         this.progress = computed((): number => this.otaService.progress() / 1000);
         this.uploadSpeed = computed((): number => this.progress() / ((Date.now() - this.startTime) / 1000));
-        this.updateState = computed(
-            (): UpdateState =>
-                this.progress() === data.firmwareSize ? UpdateState.Installing : this._updateState(),
+        this.updateState = computed((): UpdateState =>
+            this.progress() === data.firmwareSize ? UpdateState.Installing : this._updateState(),
         );
         this.initOta();
         this.startTime = Date.now();

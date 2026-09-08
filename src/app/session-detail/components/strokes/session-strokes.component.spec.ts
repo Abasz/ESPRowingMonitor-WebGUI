@@ -6,27 +6,24 @@ import { ILap, ISessionStroke } from "../../models/session-analysis.interfaces";
 import { SessionStrokesComponent } from "./session-strokes.component";
 
 const createMockStrokes = (count: number): Array<ISessionStroke> =>
-    Array.from(
-        { length: count },
-        (_value: unknown, index: number): ISessionStroke => ({
-            strokeIndex: index + 1,
-            timeStamp: Date.now() + index * 2500,
-            elapsedTime: index * 2.5,
-            speed: 2.5,
-            avgStrokePower: 150 + index,
-            strokeRate: 24,
-            distPerStroke: 10,
-            distance: index * 1000,
-            driveDuration: 0.7,
-            recoveryDuration: 1.5,
-            dragFactor: 110,
-            heartRate: undefined,
-            peakForce: 350,
-            peakForcePositionNorm: 50,
-            driveLength: 1.3,
-            handleForces: [100, 200, 350, 200, 100],
-        }),
-    );
+    Array.from({ length: count }, (_value: unknown, index: number): ISessionStroke => ({
+        strokeIndex: index + 1,
+        timeStamp: Date.now() + index * 2500,
+        elapsedTime: index * 2.5,
+        speed: 2.5,
+        avgStrokePower: 150 + index,
+        strokeRate: 24,
+        distPerStroke: 10,
+        distance: index * 1000,
+        driveDuration: 0.7,
+        recoveryDuration: 1.5,
+        dragFactor: 110,
+        heartRate: undefined,
+        peakForce: 350,
+        peakForcePositionNorm: 50,
+        driveLength: 1.3,
+        handleForces: [100, 200, 350, 200, 100],
+    }));
 
 describe("SessionStrokesComponent", (): void => {
     let component: SessionStrokesComponent;

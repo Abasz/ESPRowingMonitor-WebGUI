@@ -23,6 +23,7 @@ export default [
             "projects/**/*",
             "dist/**/*",
             "out-tsc/**/*",
+            ".angular/**/*",
             "node_modules/**/*",
             "*.js", // Ignore compiled JS files
         ],

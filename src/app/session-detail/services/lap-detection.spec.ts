@@ -35,10 +35,8 @@ const createActiveStrokes = (
     startTime: number = 0,
     interval: number = 2.5,
 ): Array<ISessionStroke> =>
-    Array.from(
-        { length: count },
-        (_value: unknown, index: number): ISessionStroke =>
-            createStroke(index, startTime + index * interval, 24),
+    Array.from({ length: count }, (_value: unknown, index: number): ISessionStroke =>
+        createStroke(index, startTime + index * interval, 24),
     );
 
 describe("detectLaps", (): void => {
@@ -48,9 +46,8 @@ describe("detectLaps", (): void => {
         });
 
         it("should return empty array when all strokes are inactive", (): void => {
-            const strokes = Array.from(
-                { length: 5 },
-                (_value: unknown, index: number): ISessionStroke => createStroke(index, index * 2.5, 0),
+            const strokes = Array.from({ length: 5 }, (_value: unknown, index: number): ISessionStroke =>
+                createStroke(index, index * 2.5, 0),
             );
 
             expect(detectLaps(strokes)).toEqual([]);

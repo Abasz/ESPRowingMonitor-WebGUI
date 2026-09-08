@@ -134,40 +134,33 @@ export class SessionManagerService {
             ),
             filter((state: SessionState): boolean => state === "running"),
             withLatestFrom(this.sessionSeed),
-            map(
-                ([, seedRaw]: [SessionState, IRawCalculatedMetrics]): SessionAccumulator => ({
-                    sessionMetrics: { ...seedRaw, distance: 0, strokeCount: 0, totalWork: 0 },
-                    previousRawMetrics: seedRaw,
-                }),
-            ),
-            switchMap(
-                (seed: SessionAccumulator): Observable<ICalculatedMetrics> =>
-                    this.metricsService.rawMetrics$.pipe(
-                        filter(
-                            (): boolean =>
-                                this.sessionState() === "running" || this.sessionState() === "paused",
-                        ),
-                        scan(
-                            (acc: SessionAccumulator, curr: IRawCalculatedMetrics): SessionAccumulator =>
-                                this.sessionState() === "paused"
-                                    ? { ...acc, previousRawMetrics: curr }
-                                    : SessionManagerService.accumulateSessionMetrics(acc, curr),
-                            seed,
-                        ),
-                        filter((): boolean => this.sessionState() === "running"),
-                        map(({ sessionMetrics }: SessionAccumulator): ICalculatedMetrics => sessionMetrics),
-                        distinctUntilChanged(
-                            (
-                                previousMetrics: ICalculatedMetrics,
-                                currentMetrics: ICalculatedMetrics,
-                            ): boolean =>
-                                previousMetrics.distance === currentMetrics.distance &&
-                                previousMetrics.strokeCount === currentMetrics.strokeCount &&
-                                previousMetrics.speed === currentMetrics.speed,
-                        ),
-                        startWith(seed.sessionMetrics),
-                        takeUntil(this.indicateStop$),
+            map(([, seedRaw]: [SessionState, IRawCalculatedMetrics]): SessionAccumulator => ({
+                sessionMetrics: { ...seedRaw, distance: 0, strokeCount: 0, totalWork: 0 },
+                previousRawMetrics: seedRaw,
+            })),
+            switchMap((seed: SessionAccumulator): Observable<ICalculatedMetrics> =>
+                this.metricsService.rawMetrics$.pipe(
+                    filter(
+                        (): boolean => this.sessionState() === "running" || this.sessionState() === "paused",
                     ),
+                    scan(
+                        (acc: SessionAccumulator, curr: IRawCalculatedMetrics): SessionAccumulator =>
+                            this.sessionState() === "paused"
+                                ? { ...acc, previousRawMetrics: curr }
+                                : SessionManagerService.accumulateSessionMetrics(acc, curr),
+                        seed,
+                    ),
+                    filter((): boolean => this.sessionState() === "running"),
+                    map(({ sessionMetrics }: SessionAccumulator): ICalculatedMetrics => sessionMetrics),
+                    distinctUntilChanged(
+                        (previousMetrics: ICalculatedMetrics, currentMetrics: ICalculatedMetrics): boolean =>
+                            previousMetrics.distance === currentMetrics.distance &&
+                            previousMetrics.strokeCount === currentMetrics.strokeCount &&
+                            previousMetrics.speed === currentMetrics.speed,
+                    ),
+                    startWith(seed.sessionMetrics),
+                    takeUntil(this.indicateStop$),
+                ),
             ),
             shareReplay({ bufferSize: 1, refCount: true }),
         );
@@ -293,11 +286,10 @@ export class SessionManagerService {
                 filter(
                     (metrics: ICalculatedMetrics): boolean => metrics.strokeCount > 0 || metrics.distance > 0,
                 ),
-                switchMap(
-                    (metrics: ICalculatedMetrics): Observable<[ICalculatedMetrics, number]> =>
-                        combineLatest([of(metrics), interval(1000).pipe(startWith(0))]).pipe(
-                            takeUntil(this.indicateStop$),
-                        ),
+                switchMap((metrics: ICalculatedMetrics): Observable<[ICalculatedMetrics, number]> =>
+                    combineLatest([of(metrics), interval(1000).pipe(startWith(0))]).pipe(
+                        takeUntil(this.indicateStop$),
+                    ),
                 ),
                 map(([metrics]: [ICalculatedMetrics, number]): ICalculatedMetrics => metrics),
                 withLatestFrom(this.metricsService.heartRateData$),

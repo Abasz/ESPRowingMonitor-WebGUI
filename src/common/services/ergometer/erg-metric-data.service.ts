@@ -130,9 +130,8 @@ export class ErgMetricsService {
                     baseMetricsCurrent.distance === baseMetricsPrevious.distance &&
                     baseMetricsCurrent.strokeCount === baseMetricsPrevious.strokeCount,
             ),
-            switchMap(
-                (baseMetrics: IBaseMetrics): Observable<[IBaseMetrics, number]> =>
-                    combineLatest([of(baseMetrics), timer(4500).pipe(startWith(0))]),
+            switchMap((baseMetrics: IBaseMetrics): Observable<[IBaseMetrics, number]> =>
+                combineLatest([of(baseMetrics), timer(4500).pipe(startWith(0))]),
             ),
             map(([baseMetrics]: [IBaseMetrics, number]): IBaseMetrics => baseMetrics),
             retry({
@@ -174,14 +173,12 @@ export class ErgMetricsService {
         extendedCharacteristic: BluetoothRemoteGATTCharacteristic,
     ): Observable<IExtendedMetrics> {
         return observeValue$(extendedCharacteristic).pipe(
-            map(
-                (value: DataView): IExtendedMetrics => ({
-                    avgStrokePower: value.getUint16(0, true),
-                    driveDuration: Math.round((value.getUint16(2, true) / 4096) * 1e6),
-                    recoveryDuration: Math.round((value.getUint16(4, true) / 4096) * 1e6),
-                    dragFactor: value.byteLength >= 8 ? value.getUint16(6, true) : value.getUint8(6),
-                }),
-            ),
+            map((value: DataView): IExtendedMetrics => ({
+                avgStrokePower: value.getUint16(0, true),
+                driveDuration: Math.round((value.getUint16(2, true) / 4096) * 1e6),
+                recoveryDuration: Math.round((value.getUint16(4, true) / 4096) * 1e6),
+                dragFactor: value.byteLength >= 8 ? value.getUint16(6, true) : value.getUint8(6),
+            })),
             finalize((): void => {
                 this.ergConnectionService.resetExtendedCharacteristic();
             }),
@@ -199,15 +196,14 @@ export class ErgMetricsService {
                     filter((value: DataView): boolean => value.getUint8(0) === value.getUint8(1)),
                 ),
             ),
-            map(
-                (values: Array<DataView>): Array<number> =>
-                    values.reduce((accumulator: Array<number>, value: DataView): Array<number> => {
-                        for (let index = 2; index < value.byteLength; index += 4) {
-                            accumulator.push(value.getFloat32(index, true));
-                        }
+            map((values: Array<DataView>): Array<number> =>
+                values.reduce((accumulator: Array<number>, value: DataView): Array<number> => {
+                    for (let index = 2; index < value.byteLength; index += 4) {
+                        accumulator.push(value.getFloat32(index, true));
+                    }
 
-                        return accumulator;
-                    }, []),
+                    return accumulator;
+                }, []),
             ),
             finalize((): void => {
                 this.ergConnectionService.resetHandleForceCharacteristic();

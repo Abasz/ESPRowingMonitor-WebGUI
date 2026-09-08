@@ -70,12 +70,10 @@ const buildPoints = <T extends ISessionRecord>(
     strokes: Array<T>,
     valueAccessor: (stroke: T) => number,
 ): Array<Point> =>
-    strokes.map(
-        (stroke: T): Point => ({
-            x: stroke.elapsedTime,
-            y: valueAccessor(stroke),
-        }),
-    );
+    strokes.map((stroke: T): Point => ({
+        x: stroke.elapsedTime,
+        y: valueAccessor(stroke),
+    }));
 
 const createAverageDataset = (strokes: Array<ISessionRecord>, averageValue: number): IAverageDataset => ({
     data:

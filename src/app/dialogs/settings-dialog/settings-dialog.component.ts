@@ -198,11 +198,10 @@ export class SettingsDialogComponent {
 
         const result = await firstValueFrom(
             this.dialog
-                .open<
+                .open<ExportProfileDialogComponent, void, ExportProfileDialogResult>(
                     ExportProfileDialogComponent,
-                    void,
-                    ExportProfileDialogResult
-                >(ExportProfileDialogComponent, { width: "360px", maxWidth: "95vw" })
+                    { width: "360px", maxWidth: "95vw" },
+                )
                 .afterClosed(),
         );
 
@@ -435,11 +434,10 @@ export class SettingsDialogComponent {
     private async openBulkUploadFlow(isFirstSetup: boolean): Promise<void> {
         const promptResult = await firstValueFrom(
             this.dialog
-                .open<
+                .open<BulkUploadPromptDialogComponent, { isFirstSetup: boolean }, BulkUploadPromptResult>(
                     BulkUploadPromptDialogComponent,
-                    { isFirstSetup: boolean },
-                    BulkUploadPromptResult
-                >(BulkUploadPromptDialogComponent, { data: { isFirstSetup }, disableClose: true })
+                    { data: { isFirstSetup }, disableClose: true },
+                )
                 .afterClosed(),
         );
 

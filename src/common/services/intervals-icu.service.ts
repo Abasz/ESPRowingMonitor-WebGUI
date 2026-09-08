@@ -42,9 +42,8 @@ export class IntervalsIcuService {
         return from(
             liveQuery((): Promise<Array<ISessionUploadEntity>> => appDB.sessionUploads.toArray()),
         ).pipe(
-            map(
-                (uploads: Array<ISessionUploadEntity>): Array<number> =>
-                    uploads.map((upload: ISessionUploadEntity): number => upload.sessionId),
+            map((uploads: Array<ISessionUploadEntity>): Array<number> =>
+                uploads.map((upload: ISessionUploadEntity): number => upload.sessionId),
             ),
         );
     }

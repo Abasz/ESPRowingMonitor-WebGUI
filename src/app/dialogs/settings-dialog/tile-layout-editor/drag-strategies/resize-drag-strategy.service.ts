@@ -86,9 +86,8 @@ export class ResizeDragStrategy implements DragStrategy {
             return undefined;
         }
 
-        const tiles = placedTiles.map(
-            (placedTile: PlacedTile): PlacedTile =>
-                placedTile.id === session.id ? { ...placedTile, position: newPosition } : placedTile,
+        const tiles = placedTiles.map((placedTile: PlacedTile): PlacedTile =>
+            placedTile.id === session.id ? { ...placedTile, position: newPosition } : placedTile,
         );
 
         return { tiles };

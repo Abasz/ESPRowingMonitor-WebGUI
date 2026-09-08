@@ -76,8 +76,8 @@ export class TileGridComponent implements OnInit {
 
     @ContentChild(DndTileDefDirective) readonly tileDefinitionDirective: DndTileDefDirective | undefined;
 
-    readonly gridCells: Signal<GridCells> = computed(
-        (): GridCells => TileGridHelper.generateGridCells(this.dndRows(), this.dndColumns()),
+    readonly gridCells: Signal<GridCells> = computed((): GridCells =>
+        TileGridHelper.generateGridCells(this.dndRows(), this.dndColumns()),
     );
 
     /** Display tiles (preview during drag, otherwise committed). */

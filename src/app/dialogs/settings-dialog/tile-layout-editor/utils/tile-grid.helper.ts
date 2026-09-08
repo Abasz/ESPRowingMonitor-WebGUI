@@ -200,8 +200,8 @@ export class TileGridHelper {
             .map((placedTile: PlacedTile): TilePosition => placedTile.position);
 
         const occupiedCells = new Set<string>(
-            [targetPosition, ...remainingPositions].flatMap(
-                (pos: TilePosition): Array<string> => TileGridHelper.cellKeysForPosition(pos),
+            [targetPosition, ...remainingPositions].flatMap((pos: TilePosition): Array<string> =>
+                TileGridHelper.cellKeysForPosition(pos),
             ),
         );
 

@@ -194,58 +194,57 @@ export class DataRecorderService {
 
     getSessionSummaries$(): Observable<Array<ISessionSummary>> {
         return from(
-            liveQuery(
-                (): Promise<Array<ISessionSummary | undefined>> =>
-                    appDB.transaction(
-                        "r",
-                        appDB.sessionData,
-                        appDB.connectedDevice,
-                        async (): Promise<Array<ISessionSummary | undefined>> => {
-                            const uniqueSessionIds = [];
+            liveQuery((): Promise<Array<ISessionSummary | undefined>> =>
+                appDB.transaction(
+                    "r",
+                    appDB.sessionData,
+                    appDB.connectedDevice,
+                    async (): Promise<Array<ISessionSummary | undefined>> => {
+                        const uniqueSessionIds = [];
 
-                            try {
-                                uniqueSessionIds.push(
-                                    ...(await appDB.sessionData.orderBy("sessionId").uniqueKeys()),
-                                );
-                            } catch (error) {
-                                if (!(error instanceof Dexie.UnknownError)) {
-                                    console.error("Error fetching unique session IDs:", error);
-                                }
-                            }
-
-                            return Promise.all(
-                                uniqueSessionIds.map(
-                                    async (
-                                        sessionId: IndexableTypePart,
-                                    ): Promise<ISessionSummary | undefined> => {
-                                        const [connectedDevice, first, last]: [
-                                            IConnectedDeviceEntity | undefined,
-                                            IMetricsEntity | undefined,
-                                            IMetricsEntity | undefined,
-                                        ] = await Promise.all([
-                                            appDB.connectedDevice.where({ sessionId }).last(),
-                                            appDB.sessionData.where({ sessionId }).first(),
-                                            appDB.sessionData.where({ sessionId }).last(),
-                                        ]);
-
-                                        if (first === undefined || last === undefined) {
-                                            return undefined;
-                                        }
-
-                                        return {
-                                            sessionId: last.sessionId,
-                                            deviceName: connectedDevice?.deviceName,
-                                            startTime: first.timeStamp - first.driveDuration / 1000,
-                                            finishTime: last.timeStamp,
-                                            elapsedTime: last.elapsedTime,
-                                            distance: last.distance,
-                                            strokeCount: last.strokeCount,
-                                        };
-                                    },
-                                ),
+                        try {
+                            uniqueSessionIds.push(
+                                ...(await appDB.sessionData.orderBy("sessionId").uniqueKeys()),
                             );
-                        },
-                    ),
+                        } catch (error) {
+                            if (!(error instanceof Dexie.UnknownError)) {
+                                console.error("Error fetching unique session IDs:", error);
+                            }
+                        }
+
+                        return Promise.all(
+                            uniqueSessionIds.map(
+                                async (
+                                    sessionId: IndexableTypePart,
+                                ): Promise<ISessionSummary | undefined> => {
+                                    const [connectedDevice, first, last]: [
+                                        IConnectedDeviceEntity | undefined,
+                                        IMetricsEntity | undefined,
+                                        IMetricsEntity | undefined,
+                                    ] = await Promise.all([
+                                        appDB.connectedDevice.where({ sessionId }).last(),
+                                        appDB.sessionData.where({ sessionId }).first(),
+                                        appDB.sessionData.where({ sessionId }).last(),
+                                    ]);
+
+                                    if (first === undefined || last === undefined) {
+                                        return undefined;
+                                    }
+
+                                    return {
+                                        sessionId: last.sessionId,
+                                        deviceName: connectedDevice?.deviceName,
+                                        startTime: first.timeStamp - first.driveDuration / 1000,
+                                        finishTime: last.timeStamp,
+                                        elapsedTime: last.elapsedTime,
+                                        distance: last.distance,
+                                        strokeCount: last.strokeCount,
+                                    };
+                                },
+                            ),
+                        );
+                    },
+                ),
             ),
         ).pipe(
             filter(
@@ -455,14 +454,12 @@ export class DataRecorderService {
                     deviceName: connectedDevice?.deviceName,
                     records,
                     handleForces,
-                    laps: lapEntities.map(
-                        (lap: ILapEntity): ILapExport => ({
-                            timeStamp: lap.timeStamp,
-                            strokeIndex: lap.strokeIndex,
-                            type: lap.type,
-                            isPause: lap.isPause,
-                        }),
-                    ),
+                    laps: lapEntities.map((lap: ILapEntity): ILapExport => ({
+                        timeStamp: lap.timeStamp,
+                        strokeIndex: lap.strokeIndex,
+                        type: lap.type,
+                        isPause: lap.isPause,
+                    })),
                 };
             },
         );

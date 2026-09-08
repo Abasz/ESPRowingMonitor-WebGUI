@@ -108,18 +108,16 @@ export class LapTableComponent {
     readonly showBalanceColumn: InputSignal<boolean> = input<boolean>(false);
     readonly lapSelected: OutputEmitterRef<ILap> = output<ILap>();
 
-    readonly displayedColumns: Signal<Array<string>> = computed(
-        (): Array<string> => [
-            "lapNumber",
-            "startTime",
-            "duration",
-            "pace",
-            "avgPower",
-            "avgStrokeRate",
-            "avgDistPerStroke",
-            ...(this.showBalanceColumn() ? ["powerBalance"] : []),
-        ],
-    );
+    readonly displayedColumns: Signal<Array<string>> = computed((): Array<string> => [
+        "lapNumber",
+        "startTime",
+        "duration",
+        "pace",
+        "avgPower",
+        "avgStrokeRate",
+        "avgDistPerStroke",
+        ...(this.showBalanceColumn() ? ["powerBalance"] : []),
+    ]);
 
     trackByLapNumber(_: number, lap: ILap): number {
         return lap.lapNumber;

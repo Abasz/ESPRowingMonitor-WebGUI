@@ -96,9 +96,8 @@ export const detectLaps = (strokes: Array<ISessionStroke>): Array<ILap> => {
             (range: { startIndex: number; endIndex: number }): boolean =>
                 range.endIndex - range.startIndex + 1 >= MIN_LAP_STROKES,
         )
-        .map(
-            (range: { startIndex: number; endIndex: number }, lapIndex: number): ILap =>
-                computeLapMetrics(strokes, lapIndex + 1, range.startIndex, range.endIndex),
+        .map((range: { startIndex: number; endIndex: number }, lapIndex: number): ILap =>
+            computeLapMetrics(strokes, lapIndex + 1, range.startIndex, range.endIndex),
         );
 };
 

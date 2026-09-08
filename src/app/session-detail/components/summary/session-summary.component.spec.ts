@@ -541,9 +541,8 @@ describe("SessionSummaryComponent", (): void => {
             fixture.detectChanges();
 
             const chartEls = fixture.debugElement.queryAll(By.directive(SessionChartComponent));
-            const zoomSpies = chartEls.map(
-                (chartEl: DebugElement): ReturnType<typeof vi.spyOn> =>
-                    vi.spyOn(chartEl.componentInstance as SessionChartComponent, "zoomToRange"),
+            const zoomSpies = chartEls.map((chartEl: DebugElement): ReturnType<typeof vi.spyOn> =>
+                vi.spyOn(chartEl.componentInstance as SessionChartComponent, "zoomToRange"),
             );
 
             component.onLapSelected(analysis.laps[0]);
@@ -561,9 +560,8 @@ describe("SessionSummaryComponent", (): void => {
             component.onLapSelected(analysis.laps[0]);
 
             const chartEls = fixture.debugElement.queryAll(By.directive(SessionChartComponent));
-            const resetSpies = chartEls.map(
-                (chartEl: DebugElement): ReturnType<typeof vi.spyOn> =>
-                    vi.spyOn(chartEl.componentInstance as SessionChartComponent, "resetZoom"),
+            const resetSpies = chartEls.map((chartEl: DebugElement): ReturnType<typeof vi.spyOn> =>
+                vi.spyOn(chartEl.componentInstance as SessionChartComponent, "resetZoom"),
             );
 
             component.onShowFullSession();

@@ -30,9 +30,11 @@ export class UtilsService {
     ) {}
 
     breakpointHelper(breakPoints: Array<IMediaQuery>): Observable<{ [key: string]: boolean }> {
-        breakPoints = breakPoints.map(
-            (query: IMediaQuery): IMediaQuery => [query[0], query[1] || "min", query[2] || "width"],
-        );
+        breakPoints = breakPoints.map((query: IMediaQuery): IMediaQuery => [
+            query[0],
+            query[1] || "min",
+            query[2] || "width",
+        ]);
 
         return this.breakpointObserver
             .observe(

@@ -352,11 +352,9 @@ export class BLEHeartRateService implements IHeartRateService {
     ): Observable<Omit<IHeartRate, "batteryLevel"> | undefined> {
         return observeValue$(heartRateCharacteristic)
             .pipe(
-                map(
-                    (heartRateData: DataView): Omit<IHeartRate, "batteryLevel"> => ({
-                        ...this.parseHeartRate(heartRateData),
-                    }),
-                ),
+                map((heartRateData: DataView): Omit<IHeartRate, "batteryLevel"> => ({
+                    ...this.parseHeartRate(heartRateData),
+                })),
             )
             .pipe(
                 finalize((): void => {

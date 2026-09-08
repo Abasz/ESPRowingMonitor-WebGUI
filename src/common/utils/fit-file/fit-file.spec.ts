@@ -219,14 +219,12 @@ describe("createSessionFitFile function", (): void => {
 
         it("should not emit HRV messages when rrIntervals are absent", (): void => {
             testSession = createTestSession({
-                records: testSession.records.map(
-                    (record: IExportRecord): IExportRecord => ({
-                        ...record,
-                        heartRate: record.heartRate
-                            ? { heartRate: record.heartRate.heartRate, contactDetected: true }
-                            : undefined,
-                    }),
-                ),
+                records: testSession.records.map((record: IExportRecord): IExportRecord => ({
+                    ...record,
+                    heartRate: record.heartRate
+                        ? { heartRate: record.heartRate.heartRate, contactDetected: true }
+                        : undefined,
+                })),
             });
             const messages = decodeValidMessages(createSessionFitFile(testSession));
 
@@ -271,12 +269,10 @@ describe("createSessionFitFile function", (): void => {
 
         it("should not emit HR messages when no heartRate data exists", (): void => {
             testSession = createTestSession({
-                records: testSession.records.map(
-                    (record: IExportRecord): IExportRecord => ({
-                        ...record,
-                        heartRate: undefined,
-                    }),
-                ),
+                records: testSession.records.map((record: IExportRecord): IExportRecord => ({
+                    ...record,
+                    heartRate: undefined,
+                })),
             });
             const messages = decodeValidMessages(createSessionFitFile(testSession));
 
@@ -465,12 +461,10 @@ describe("createSessionFitFile function", (): void => {
 
         it("should handle session with no heart rate data", (): void => {
             testSession = createTestSession({
-                records: testSession.records.map(
-                    (record: IExportRecord): IExportRecord => ({
-                        ...record,
-                        heartRate: undefined,
-                    }),
-                ),
+                records: testSession.records.map((record: IExportRecord): IExportRecord => ({
+                    ...record,
+                    heartRate: undefined,
+                })),
             });
 
             const messages = decodeValidMessages(createSessionFitFile(testSession));
@@ -483,12 +477,10 @@ describe("createSessionFitFile function", (): void => {
 
         it("should omit resistance when dragFactor is 0", (): void => {
             testSession = createTestSession({
-                records: testSession.records.map(
-                    (record: IExportRecord): IExportRecord => ({
-                        ...record,
-                        dragFactor: 0,
-                    }),
-                ),
+                records: testSession.records.map((record: IExportRecord): IExportRecord => ({
+                    ...record,
+                    dragFactor: 0,
+                })),
             });
 
             const messages = decodeValidMessages(createSessionFitFile(testSession));
@@ -498,12 +490,10 @@ describe("createSessionFitFile function", (): void => {
 
         it("should omit resistance when dragFactor is 255 or higher", (): void => {
             testSession = createTestSession({
-                records: testSession.records.map(
-                    (record: IExportRecord): IExportRecord => ({
-                        ...record,
-                        dragFactor: 255,
-                    }),
-                ),
+                records: testSession.records.map((record: IExportRecord): IExportRecord => ({
+                    ...record,
+                    dragFactor: 255,
+                })),
             });
 
             const messages = decodeValidMessages(createSessionFitFile(testSession));

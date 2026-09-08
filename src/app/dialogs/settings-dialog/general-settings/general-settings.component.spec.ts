@@ -626,8 +626,8 @@ describe("GeneralSettingsComponent", (): void => {
 
                     const toggles = await toggleGroup.getToggles();
                     const texts = await Promise.all(
-                        toggles.map(
-                            async (t: MatButtonToggleHarness): Promise<string> => (await t.getText()).trim(),
+                        toggles.map(async (t: MatButtonToggleHarness): Promise<string> =>
+                            (await t.getText()).trim(),
                         ),
                     );
 
@@ -645,8 +645,8 @@ describe("GeneralSettingsComponent", (): void => {
                     expect(toggles.length).toBe(3);
 
                     const texts = await Promise.all(
-                        toggles.map(
-                            async (t: MatButtonToggleHarness): Promise<string> => (await t.getText()).trim(),
+                        toggles.map(async (t: MatButtonToggleHarness): Promise<string> =>
+                            (await t.getText()).trim(),
                         ),
                     );
                     expect(texts).toEqual(["Off", "BLE", "ANT"]);
@@ -685,8 +685,8 @@ describe("GeneralSettingsComponent", (): void => {
 
                     const toggles = await toggleGroup.getToggles();
                     const texts = await Promise.all(
-                        toggles.map(
-                            async (t: MatButtonToggleHarness): Promise<string> => (await t.getText()).trim(),
+                        toggles.map(async (t: MatButtonToggleHarness): Promise<string> =>
+                            (await t.getText()).trim(),
                         ),
                     );
 
@@ -704,8 +704,8 @@ describe("GeneralSettingsComponent", (): void => {
                     expect(toggles.length).toBe(2);
 
                     const texts = await Promise.all(
-                        toggles.map(
-                            async (t: MatButtonToggleHarness): Promise<string> => (await t.getText()).trim(),
+                        toggles.map(async (t: MatButtonToggleHarness): Promise<string> =>
+                            (await t.getText()).trim(),
                         ),
                     );
                     expect(texts).toEqual(["Off", "BLE"]);
@@ -724,9 +724,8 @@ describe("GeneralSettingsComponent", (): void => {
             );
             const toggles = await toggleGroup.getToggles();
             const texts = await Promise.all(
-                toggles.map(
-                    async (toggle: MatButtonToggleHarness): Promise<string> =>
-                        (await toggle.getText()).trim(),
+                toggles.map(async (toggle: MatButtonToggleHarness): Promise<string> =>
+                    (await toggle.getText()).trim(),
                 ),
             );
             expect(texts).toEqual(["Off", "On Start", "On Start & Pause"]);
@@ -743,9 +742,8 @@ describe("GeneralSettingsComponent", (): void => {
             );
             const toggles = await toggleGroup.getToggles();
             const texts = await Promise.all(
-                toggles.map(
-                    async (toggle: MatButtonToggleHarness): Promise<string> =>
-                        (await toggle.getText()).trim(),
+                toggles.map(async (toggle: MatButtonToggleHarness): Promise<string> =>
+                    (await toggle.getText()).trim(),
                 ),
             );
             expect(texts).toEqual(["Off", "Distance", "Time"]);
@@ -763,8 +761,8 @@ describe("GeneralSettingsComponent", (): void => {
             await select.open();
             const options = await select.getOptions();
             const texts = await Promise.all(
-                options.map(
-                    async (option: MatOptionHarness): Promise<string> => (await option.getText()).trim(),
+                options.map(async (option: MatOptionHarness): Promise<string> =>
+                    (await option.getText()).trim(),
                 ),
             );
             expect(texts).toEqual(["200 m", "500 m", "1000 m", "2000 m", "5000 m", "10000 m"]);
@@ -782,8 +780,8 @@ describe("GeneralSettingsComponent", (): void => {
             await select.open();
             const options = await select.getOptions();
             const texts = await Promise.all(
-                options.map(
-                    async (option: MatOptionHarness): Promise<string> => (await option.getText()).trim(),
+                options.map(async (option: MatOptionHarness): Promise<string> =>
+                    (await option.getText()).trim(),
                 ),
             );
             expect(texts).toEqual(["1 min", "2 min", "5 min", "10 min", "15 min", "30 min"]);

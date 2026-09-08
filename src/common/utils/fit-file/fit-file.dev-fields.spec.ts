@@ -69,12 +69,10 @@ describe("createSessionFitFile developer fields", (): void => {
 
             it("should omit StrokeDriveTime when driveDuration is 0", (): void => {
                 testSession = createTestSession({
-                    records: testSession.records.map(
-                        (record: IExportRecord): IExportRecord => ({
-                            ...record,
-                            driveDuration: 0,
-                        }),
-                    ),
+                    records: testSession.records.map((record: IExportRecord): IExportRecord => ({
+                        ...record,
+                        driveDuration: 0,
+                    })),
                 });
                 const messages = decodeValidMessages(createSessionFitFile(testSession));
                 const devFields = mapDevFieldsByName(messages, "recordMesgs", 0);
@@ -85,12 +83,10 @@ describe("createSessionFitFile developer fields", (): void => {
 
             it("should omit StrokeRecoveryTime when recoveryDuration is 0", (): void => {
                 testSession = createTestSession({
-                    records: testSession.records.map(
-                        (record: IExportRecord): IExportRecord => ({
-                            ...record,
-                            recoveryDuration: 0,
-                        }),
-                    ),
+                    records: testSession.records.map((record: IExportRecord): IExportRecord => ({
+                        ...record,
+                        recoveryDuration: 0,
+                    })),
                 });
                 const messages = decodeValidMessages(createSessionFitFile(testSession));
                 const devFields = mapDevFieldsByName(messages, "recordMesgs", 0);
@@ -190,12 +186,10 @@ describe("createSessionFitFile developer fields", (): void => {
 
             it("should include DragFactor developer field even when native resistance is omitted", (): void => {
                 testSession = createTestSession({
-                    records: testSession.records.map(
-                        (record: IExportRecord): IExportRecord => ({
-                            ...record,
-                            dragFactor: 255,
-                        }),
-                    ),
+                    records: testSession.records.map((record: IExportRecord): IExportRecord => ({
+                        ...record,
+                        dragFactor: 255,
+                    })),
                 });
                 const messages = decodeValidMessages(createSessionFitFile(testSession));
                 const devFields = mapDevFieldsByName(messages, "recordMesgs", 0);

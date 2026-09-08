@@ -1,9 +1,2 @@
 export type Position =
-    | "relative"
-    | "absolute"
-    | "unset"
-    | "fixed"
-    | "static"
-    | "sticky"
-    | "inherit"
-    | "initial";
+    "relative" | "absolute" | "unset" | "fixed" | "static" | "sticky" | "inherit" | "initial";

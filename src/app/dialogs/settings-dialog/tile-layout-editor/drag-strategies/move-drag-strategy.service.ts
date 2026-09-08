@@ -114,9 +114,8 @@ export class MoveDragStrategy implements DragStrategy {
         );
 
         if (TileGridHelper.isPlacementValid(position, otherPositions, gridConfig.rows, gridConfig.columns)) {
-            const tiles = placedTiles.map(
-                (placedTile: PlacedTile): PlacedTile =>
-                    placedTile.id === session.id ? { ...placedTile, position } : placedTile,
+            const tiles = placedTiles.map((placedTile: PlacedTile): PlacedTile =>
+                placedTile.id === session.id ? { ...placedTile, position } : placedTile,
             );
 
             return { tiles };

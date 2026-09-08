@@ -172,22 +172,20 @@ export class SessionAnalysisService {
     }
 
     private buildRecords(metricsEntities: Array<IMetricsEntity>): Array<ISessionRecord> {
-        return metricsEntities.map(
-            (metric: IMetricsEntity): ISessionRecord => ({
-                strokeIndex: metric.strokeCount,
-                timeStamp: metric.timeStamp,
-                elapsedTime: metric.elapsedTime,
-                speed: metric.speed,
-                avgStrokePower: metric.avgStrokePower,
-                strokeRate: metric.strokeRate,
-                distPerStroke: metric.distPerStroke,
-                distance: metric.distance,
-                driveDuration: metric.driveDuration,
-                recoveryDuration: metric.recoveryDuration,
-                dragFactor: metric.dragFactor,
-                heartRate: metric.heartRate,
-            }),
-        );
+        return metricsEntities.map((metric: IMetricsEntity): ISessionRecord => ({
+            strokeIndex: metric.strokeCount,
+            timeStamp: metric.timeStamp,
+            elapsedTime: metric.elapsedTime,
+            speed: metric.speed,
+            avgStrokePower: metric.avgStrokePower,
+            strokeRate: metric.strokeRate,
+            distPerStroke: metric.distPerStroke,
+            distance: metric.distance,
+            driveDuration: metric.driveDuration,
+            recoveryDuration: metric.recoveryDuration,
+            dragFactor: metric.dragFactor,
+            heartRate: metric.heartRate,
+        }));
     }
 
     private buildStrokes(

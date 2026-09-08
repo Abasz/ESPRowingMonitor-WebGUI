@@ -151,22 +151,20 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
                 entry.id,
                 {
                     component: entry.component as Type<DashboardTileComponent>,
-                    inputs: computed(
-                        (): TileComponentInputs => ({
-                            ...Object.fromEntries(
-                                entry.context.map(
-                                    (
-                                        name: DashboardContextKey,
-                                    ): [DashboardContextKey, DashboardContext[DashboardContextKey]] => [
-                                        name,
-                                        this.contextReaders[name](),
-                                    ],
-                                ),
+                    inputs: computed((): TileComponentInputs => ({
+                        ...Object.fromEntries(
+                            entry.context.map(
+                                (
+                                    name: DashboardContextKey,
+                                ): [DashboardContextKey, DashboardContext[DashboardContextKey]] => [
+                                    name,
+                                    this.contextReaders[name](),
+                                ],
                             ),
-                            label: entry.label,
-                            ...(entry.icon !== undefined ? { icon: entry.icon } : {}),
-                        }),
-                    ),
+                        ),
+                        label: entry.label,
+                        ...(entry.icon !== undefined ? { icon: entry.icon } : {}),
+                    })),
                 },
             ],
         ),

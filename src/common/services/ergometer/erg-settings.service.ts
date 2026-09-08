@@ -619,9 +619,8 @@ export class ErgSettingsService {
     ): Observable<IBleStrokeDetectionSettingsDTO> {
         return from(strokeDetectionSettingsCharacteristic.readValue()).pipe(
             concatWith(
-                defer(
-                    (): Observable<DataView<ArrayBufferLike>> =>
-                        observeValue$(strokeDetectionSettingsCharacteristic),
+                defer((): Observable<DataView<ArrayBufferLike>> =>
+                    observeValue$(strokeDetectionSettingsCharacteristic),
                 ),
             ),
             map((value: DataView): IBleStrokeDetectionSettingsDTO => {
